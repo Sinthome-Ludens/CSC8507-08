@@ -1,0 +1,117 @@
+################################################################################
+# Visual Studio
+################################################################################
+.vs/
+*.vsidx
+*.ipch
+*.db
+*.opendb
+*.VC.db
+*.VC.VC.opendb
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.vcxproj.user
+
+# Visual Studio cache/options directory
+.vscode/
+.idea/
+.claude/
+
+################################################################################
+# Build Outputs
+################################################################################
+Build/
+out/
+x64/
+x86/
+Debug/
+Release/
+RelWithDebInfo/
+MinSizeRel/
+
+# Executables
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Object files
+*.obj
+*.o
+*.lo
+*.slo
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lai
+
+# Debug files
+*.pdb
+*.ilk
+*.idb
+*.log
+*.tlog
+
+################################################################################
+# CMake
+################################################################################
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+*.dir/
+.cmake/
+
+# CMake-generated Visual Studio files
+*.sln
+*.vcxproj
+*.vcxproj.filters
+
+################################################################################
+# External Libraries (需要手动下载，见 README.md)
+################################################################################
+External/
+
+################################################################################
+# Assets (Optional - uncomment if you don't want to track large assets)
+################################################################################
+# Assets/Models/*.fbx
+# Assets/Models/*.blend
+# Assets/Textures/*.psd
+
+################################################################################
+# Temporary Files
+################################################################################
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+################################################################################
+# Documentation
+################################################################################
+*.md
+
+################################################################################
+# Git Submodule (if needed)
+################################################################################
+# Uncomment if you want to ignore submodule changes
+# NCLCoreClasses/
+# CSC8503CoreClasses/
+# VulkanRendering/
+# OpenGLRendering/

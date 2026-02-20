@@ -1,0 +1,25 @@
+{
+  "PrefabID": "PREFAB_ENV_FLOOR",
+  "Name": "Floor_Static",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, -6.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [50.0, 1.0, 50.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle":     "cube.obj",
+      "materialHandle": 0
+    },
+    "C_D_RigidBody": {
+      "is_static": true
+    },
+    "C_D_Collider": {
+      "type":   "Box",
+      "half_x": 25.0,
+      "half_y": 0.5,
+      "half_z": 25.0
+    },
+    "C_D_DebugName": { "name": "ENTITY_Env_Floor_Main" }
+  }
+}

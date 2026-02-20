@@ -1,0 +1,31 @@
+{
+  "PrefabID": "PREFAB_PHYSICS_CUBE",
+  "Name": "Physics_Cube",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 8.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle":     "cube.obj",
+      "materialHandle": 0
+    },
+    "C_D_RigidBody": {
+      "mass":            1.0,
+      "gravity_factor":  1.0,
+      "linear_damping":  0.05,
+      "angular_damping": 0.05,
+      "is_static":       false
+    },
+    "C_D_Collider": {
+      "type":        "Box",
+      "half_x":      0.5,
+      "half_y":      0.5,
+      "half_z":      0.5,
+      "friction":    0.5,
+      "restitution": 0.1
+    },
+    "C_D_DebugName": { "name": "ENTITY_Physics_Cube_XX" }
+  }
+}

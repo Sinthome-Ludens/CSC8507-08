@@ -1,0 +1,22 @@
+{
+  "PrefabID": "PREFAB_CAMERA_MAIN",
+  "Name": "Camera_Main",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 40.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_Camera": {
+      "fov":         45.0,
+      "near_z":      1.0,
+      "far_z":       1000.0,
+      "pitch":       -20.0,
+      "yaw":         0.0,
+      "move_speed":  20.0,
+      "sensitivity": 0.1
+    },
+    "C_T_MainCamera": {},
+    "C_D_DebugName": { "name": "ENTITY_Camera_Main" }
+  }
+}
