@@ -57,22 +57,7 @@ set(Collision_Detection
 )
 source_group("Collision Detection" FILES ${Collision_Detection})
 
-set(Networking
-    "GameClient.h"  
-    "GameClient.cpp"
-    "GameServer.h"
-    "GameServer.cpp"
-    "NetworkBase.h"
-    "NetworkBase.cpp"
-    "NetworkObject.h"
-    "NetworkObject.cpp"
-    "NetworkState.h"
-    "NetworkState.cpp"
-)
-source_group("Networking" FILES ${Networking})
-
-set(Physics
-    "constraint.h"  
+set(Physics    "constraint.h"  
      "constraint.h"  
     "PositionConstraint.cpp"
     "PositionConstraint.h"
@@ -111,7 +96,6 @@ set(ALL_FILES
     ${AI_State_Machine}
     ${AI_Pathfinding}
     ${Collision_Detection}
-    ${Networking}
     ${Physics}
 )
 
@@ -173,13 +157,8 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE
 ################################################################################
 set(ADDITIONAL_LIBRARY_DEPENDENCIES
     "NCLCoreClasses"
-    "ws2_32.lib"
 )
 
 include_directories("../NCLCoreClasses/")
 include_directories("./")
 include_directories("${CMAKE_SOURCE_DIR}/External")
-
-if(MSVC)
-    target_link_libraries(${PROJECT_NAME} PRIVATE "ws2_32.lib")
-endif()

@@ -1,28 +1,25 @@
 #include "GameObject.h"
 #include "CollisionDetection.h"
-#include "PhysicsObject.h"
-#include "RenderObject.h"
-#include "NetworkObject.h"
+#include "PhysicsObject.h"     
+#include "RenderObject.h"      
 
-using namespace NCL::CSC8503;
+using namespace NCL::CSC8503;  
 
-GameObject::GameObject(const std::string& objectName)	
+GameObject::GameObject(const std::string& objectName)
 {
-	name			= objectName;
-	worldID			= -1;
-	isActive		= true;
-	boundingVolume	= nullptr;
-	physicsObject	= nullptr;
-	renderObject	= nullptr;
-	networkObject	= nullptr;
+        name                    = objectName;
+        worldID                 = -1;
+        isActive                = true;
+        boundingVolume  = nullptr;
+        physicsObject   = nullptr;
+        renderObject    = nullptr;
 }
 
-GameObject::~GameObject()	
+GameObject::~GameObject()
 {
-	delete boundingVolume;
-	delete physicsObject;
-	delete renderObject;
-	delete networkObject;
+        delete boundingVolume;
+        delete physicsObject;
+        delete renderObject;
 }
 
 bool GameObject::GetBroadphaseAABB(Vector3&outSize) const 

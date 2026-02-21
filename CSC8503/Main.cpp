@@ -2,21 +2,16 @@
 
 #include "Debug.h"
 
-#include "StateMachine.h"
+#include "StateMachine.h"   
 #include "StateTransition.h"
 #include "State.h"
-
-#include "GameServer.h"
-#include "GameClient.h"
 
 #include "NavigationGrid.h"
 #include "NavigationMesh.h"
 
 #include "TutorialGame.h"
-#include "NetworkedGame.h"
 
 #include "PushdownMachine.h"
-
 #include "PushdownState.h"
 
 #include "BehaviourNode.h"
