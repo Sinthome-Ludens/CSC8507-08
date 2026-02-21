@@ -1,4 +1,4 @@
-#include "Win32Window.h"
+﻿#include "Win32Window.h"
 #ifdef _WIN32
 #include "Windowsx.h"
 #include <fcntl.h>
