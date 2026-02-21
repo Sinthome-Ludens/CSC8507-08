@@ -54,7 +54,7 @@ mkdir External
 git clone --depth 1 https://github.com/assimp/assimp.git External/assimp
 git clone --depth 1 https://github.com/jrouwe/JoltPhysics.git External/JoltPhysics
 git clone --depth 1 https://github.com/nlohmann/json.git External/nlohmann_json
-git clone --depth 1 https://github.com/ocornut/imgui.git External/imgui
+git clone -b docking --depth 1 https://github.com/ocornut/imgui.git External/imgui
 ```
 
 ## 使用 CMake 编译本项目
