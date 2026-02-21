@@ -144,6 +144,8 @@ if(USE_IMGUI)
     target_compile_definitions(ImGui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD)
 endif()
 
+add_subdirectory(External/enet)
+
 ################################################################################
 # Sub-projects
 ################################################################################

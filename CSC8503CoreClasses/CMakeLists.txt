@@ -103,28 +103,6 @@ set(Source_Files
 )
 source_group("Source Files" FILES ${Source_Files})
 
-set(enet_Files
-    #"./enet/callbacks.h"
-    "./enet/callbacks.c"
-    "./enet/list.h"
-    "./enet/list.c"
-    "./enet/protocol.h"
-    "./enet/protocol.c"
-    "./enet/win32.h"
-    "./enet/win32.c"
-
-    "./enet/enet.h"
-    "./enet/time.h"
-    "./enet/types.h"
-    "./enet/utility.h"
-
-    "./enet/compress.c"
-    "./enet/host.c"
-    "./enet/packet.c"
-    "./enet/peer.c"
-)
-source_group("eNet" FILES ${enet_Files})
-
 set(ALL_FILES
     ${Header_Files}
     ${Source_Files}
@@ -135,7 +113,6 @@ set(ALL_FILES
     ${Collision_Detection}
     ${Networking}
     ${Physics}
-    ${enet_Files}   
 )
 
 set_source_files_properties(${ALL_FILES} PROPERTIES LANGUAGE CXX)
@@ -201,6 +178,7 @@ set(ADDITIONAL_LIBRARY_DEPENDENCIES
 
 include_directories("../NCLCoreClasses/")
 include_directories("./")
+include_directories("${CMAKE_SOURCE_DIR}/External")
 
 if(MSVC)
     target_link_libraries(${PROJECT_NAME} PRIVATE "ws2_32.lib")
