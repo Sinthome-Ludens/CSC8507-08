@@ -37,12 +37,13 @@ namespace NCL::CSC8503 {
 			return renderObject;
 		}
 
-		                PhysicsObject* GetPhysicsObject() const
-		                {
-		                        return physicsObject;
-		                }
+		PhysicsObject* GetPhysicsObject() const
+		{
+				return physicsObject;
+		}
 		
-		                void SetRenderObject(RenderObject* newObject)		{
+		void SetRenderObject(RenderObject* newObject)
+		{
 			renderObject = newObject;
 		}
 
@@ -83,18 +84,15 @@ namespace NCL::CSC8503 {
 			return worldID;
 		}
 
-	        protected:
-	                Transform                       transform;
-	
-	                CollisionVolume*        boundingVolume;
-	                PhysicsObject*          physicsObject;
-	                RenderObject*           renderObject;
-	
-	                bool                            isActive;
-		int					worldID;
-		std::string			name;
-
-		Vector3				broadphaseAABB;
+	protected:
+	    Transform transform;
+	    CollisionVolume* boundingVolume;
+	    PhysicsObject* physicsObject;
+	    RenderObject* renderObject;
+	    bool isActive;
+		int worldID;
+		std::string name;
+		Vector3 broadphaseAABB;
 	};
 }
 
