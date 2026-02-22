@@ -21,7 +21,7 @@ enum Net_PacketType : uint8_t {
     SYS_WELCOME,         ///< 服务端确认连接并发送初始化数据
     SYS_DISCONNECT,      ///< 断开连接通知
     SYNC_TRANSFORM,      ///< Transform状态同步数据包
-    GAME_EVENT           ///< 游戏事件数据包（攻击、交互等）
+    GAME_EVENT           ///< 游戏事件数据包（客户端或服务端在发生攻击、交互、技能释放等游戏行为时发送）
 };
 
 /**
