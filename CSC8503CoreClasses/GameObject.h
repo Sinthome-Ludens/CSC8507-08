@@ -39,7 +39,7 @@ namespace NCL::CSC8503 {
 
 		PhysicsObject* GetPhysicsObject() const
 		{
-				return physicsObject;
+			return physicsObject;
 		}
 		
 		void SetRenderObject(RenderObject* newObject)
