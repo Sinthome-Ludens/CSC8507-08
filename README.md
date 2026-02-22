@@ -14,6 +14,7 @@
 仓库默认不提交 `External/` 目录（用于减小仓库体积），首次拉取后需要先部署以下中间件：
 
 - `External/assimp`
+- `External/enet`
 - `External/imgui`
 - `External/JoltPhysics`
 - `External/nlohmann_json`
@@ -45,6 +46,12 @@
 - 项目集成方式：根 `CMakeLists.txt` 将 `imgui*.cpp + backends` 组装为静态库 `ImGui`
 - 开关选项：`USE_IMGUI=ON/OFF`（默认 ON）
 
+### 5) ENet（网络库）
+
+- 目录：`External/enet`
+- 建议版本：最新主分支版
+- 项目集成方式：根 `CMakeLists.txt` 使用 `add_subdirectory(External/enet)` 编译，并暴露 `include` 目录。   
+
 ## 首次部署 External（必做）
 
 在项目根目录执行：
@@ -52,6 +59,7 @@
 ```bash
 mkdir External
 git clone --depth 1 https://github.com/assimp/assimp.git External/assimp
+git clone --depth 1 https://github.com/lsalzman/enet.git External/enet
 git clone --depth 1 https://github.com/jrouwe/JoltPhysics.git External/JoltPhysics
 git clone --depth 1 https://github.com/nlohmann/json.git External/nlohmann_json
 git clone -b docking --depth 1 https://github.com/ocornut/imgui.git External/imgui
@@ -111,6 +119,7 @@ cmake --build build/ninja-vulkan --config Debug
 A1: 检查以下目录是否存在：
 
 - `External/assimp`
+- `External/enet`
 - `External/JoltPhysics`
 - `External/nlohmann_json`
 - `External/imgui`

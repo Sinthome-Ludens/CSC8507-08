@@ -57,23 +57,7 @@ set(Collision_Detection
 )
 source_group("Collision Detection" FILES ${Collision_Detection})
 
-set(Networking
-    "GameClient.h"  
-    "GameClient.cpp"
-    "GameServer.h"
-    "GameServer.cpp"
-    "NetworkBase.h"
-    "NetworkBase.cpp"
-    "NetworkObject.h"
-    "NetworkObject.cpp"
-    "NetworkState.h"
-    "NetworkState.cpp"
-)
-source_group("Networking" FILES ${Networking})
-
-set(Physics
-    "constraint.h"  
-     "constraint.h"  
+set(Physics 
     "PositionConstraint.cpp"
     "PositionConstraint.h"
     "OrientationConstraint.cpp"
@@ -103,28 +87,6 @@ set(Source_Files
 )
 source_group("Source Files" FILES ${Source_Files})
 
-set(enet_Files
-    #"./enet/callbacks.h"
-    "./enet/callbacks.c"
-    "./enet/list.h"
-    "./enet/list.c"
-    "./enet/protocol.h"
-    "./enet/protocol.c"
-    "./enet/win32.h"
-    "./enet/win32.c"
-
-    "./enet/enet.h"
-    "./enet/time.h"
-    "./enet/types.h"
-    "./enet/utility.h"
-
-    "./enet/compress.c"
-    "./enet/host.c"
-    "./enet/packet.c"
-    "./enet/peer.c"
-)
-source_group("eNet" FILES ${enet_Files})
-
 set(ALL_FILES
     ${Header_Files}
     ${Source_Files}
@@ -133,9 +95,7 @@ set(ALL_FILES
     ${AI_State_Machine}
     ${AI_Pathfinding}
     ${Collision_Detection}
-    ${Networking}
     ${Physics}
-    ${enet_Files}   
 )
 
 set_source_files_properties(${ALL_FILES} PROPERTIES LANGUAGE CXX)
@@ -196,12 +156,8 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE
 ################################################################################
 set(ADDITIONAL_LIBRARY_DEPENDENCIES
     "NCLCoreClasses"
-    "ws2_32.lib"
 )
 
 include_directories("../NCLCoreClasses/")
 include_directories("./")
-
-if(MSVC)
-    target_link_libraries(${PROJECT_NAME} PRIVATE "ws2_32.lib")
-endif()
+include_directories("${CMAKE_SOURCE_DIR}/External")

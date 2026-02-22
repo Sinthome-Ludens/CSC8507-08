@@ -4,11 +4,9 @@
 
 using std::vector;
 
-namespace NCL::CSC8503 {
-	class NetworkObject;
+namespace NCL::CSC8503 {    
 	class RenderObject;
 	class PhysicsObject;
-
 	class GameObject	{
 	public:
 		GameObject(const std::string& name = "");
@@ -39,17 +37,12 @@ namespace NCL::CSC8503 {
 			return renderObject;
 		}
 
-		PhysicsObject* GetPhysicsObject() const 
+		PhysicsObject* GetPhysicsObject() const
 		{
 			return physicsObject;
 		}
-
-		NetworkObject* GetNetworkObject() const 
-		{
-			return networkObject;
-		}
-
-		void SetRenderObject(RenderObject* newObject) 
+		
+		void SetRenderObject(RenderObject* newObject)
 		{
 			renderObject = newObject;
 		}
@@ -92,18 +85,14 @@ namespace NCL::CSC8503 {
 		}
 
 	protected:
-		Transform			transform;
-
-		CollisionVolume*	boundingVolume;
-		PhysicsObject*		physicsObject;
-		RenderObject*		renderObject;
-		NetworkObject*		networkObject;
-
-		bool				isActive;
-		int					worldID;
-		std::string			name;
-
-		Vector3				broadphaseAABB;
+		Transform transform;
+		CollisionVolume* boundingVolume;
+		PhysicsObject* physicsObject;
+		RenderObject* renderObject;
+		bool isActive;
+		int worldID;
+		std::string name;
+		Vector3 broadphaseAABB;
 	};
 }
 

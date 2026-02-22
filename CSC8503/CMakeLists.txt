@@ -220,6 +220,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Source)
 
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC NCLCoreClasses)
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC CSC8503CoreClasses)
+target_link_libraries(${PROJECT_NAME} LINK_PUBLIC ENet)
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC Jolt)
 
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC GLTFLoader)

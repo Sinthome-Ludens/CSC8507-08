@@ -144,6 +144,16 @@ if(USE_IMGUI)
     target_compile_definitions(ImGui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD)
 endif()
 
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/External/enet/CMakeLists.txt)
+    add_subdirectory(External/enet)
+    # The official enet CMakeLists.txt doesn't export include directories via target_include_directories
+    target_include_directories(enet INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/External/enet/include)
+    # Provide an alias 'ENet' to keep compatibility with existing CSC8503 targets if needed
+    add_library(ENet ALIAS enet)
+else()
+    message(WARNING "External/enet not found. Please run the git clone command from README.md to fetch it.")
+endif()
+
 ################################################################################
 # Sub-projects
 ################################################################################
