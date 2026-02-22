@@ -85,11 +85,11 @@ namespace NCL::CSC8503 {
 		}
 
 	protected:
-	    Transform transform;
-	    CollisionVolume* boundingVolume;
-	    PhysicsObject* physicsObject;
-	    RenderObject* renderObject;
-	    bool isActive;
+		Transform transform;
+		CollisionVolume* boundingVolume;
+		PhysicsObject* physicsObject;
+		RenderObject* renderObject;
+		bool isActive;
 		int worldID;
 		std::string name;
 		Vector3 broadphaseAABB;
