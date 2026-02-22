@@ -5,8 +5,8 @@
 using std::vector;
 
 namespace NCL::CSC8503 {    
-        class RenderObject;
-        class PhysicsObject;
+	class RenderObject;
+	class PhysicsObject;
 	class GameObject	{
 	public:
 		GameObject(const std::string& name = "");
