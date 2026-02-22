@@ -57,8 +57,8 @@ set(Collision_Detection
 )
 source_group("Collision Detection" FILES ${Collision_Detection})
 
-set(Physics    "constraint.h"  
-     "constraint.h"  
+set(Physics 
+    "constraint.h"  
     "PositionConstraint.cpp"
     "PositionConstraint.h"
     "OrientationConstraint.cpp"

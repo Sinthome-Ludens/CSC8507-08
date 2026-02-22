@@ -1,0 +1,33 @@
+---
+Language: Cpp
+# 基于 LLVM 的风格，但进行了自定义以匹配项目
+BasedOnStyle: LLVM
+
+# 缩进设置 (关键：强制使用 Tab)
+UseTab: ForIndentation
+IndentWidth: 4
+TabWidth: 4
+
+# 命名空间缩进 (通常不缩进命名空间内的代码)
+NamespaceIndentation: None
+
+# 指针/引用对齐方式 (例如: Transform* transform)
+PointerAlignment: Left
+
+# 宏缩进 (处理 #define)
+IndentPPDirectives: AfterHash
+
+# 访问修饰符的偏移 (protected: private: public:)
+AccessModifierOffset: -4
+
+# 排序 Includes
+SortIncludes: CaseInsensitive
+
+# Switch 语句中的 case 缩进
+IndentCaseLabels: true
+
+# 其他
+ColumnLimit: 120
+AlignConsecutiveDeclarations: false
+AlignConsecutiveAssignments: false
+...

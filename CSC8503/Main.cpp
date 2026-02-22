@@ -2,7 +2,7 @@
 
 #include "Debug.h"
 
-#include "StateMachine.h"   
+#include "StateMachine.h"
 #include "StateTransition.h"
 #include "State.h"
 
