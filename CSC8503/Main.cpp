@@ -31,6 +31,7 @@
 #endif
 
 #include "Game/Components/Res_NCL_Pointers.h"
+#include "Game/Components/Res_RenderTargets.h"
 #include "Game/Scenes/SceneManager.h"
 #include "Game/Scenes/Scene_PhysicsTest.h"
 
@@ -96,8 +97,19 @@ int main() {
 	ECS::ImGuiAdapter::Init(w, renderer);
 #endif
 
+	// 注册窗口 Resize 回调，确保 renderer 的 HDR FBO 和 viewport 随窗口同步
+	w->SetWindowEventHandler([renderer](NCL::WindowEvent e, uint32_t newW, uint32_t newH) {
+		if (e == NCL::WindowEvent::Resize || e == NCL::WindowEvent::Maximize
+		    || e == NCL::WindowEvent::Fullscreen || e == NCL::WindowEvent::Windowed) {
+			renderer->OnWindowResize((int)newW, (int)newH);
+		}
+	});
+
 	// SceneManager 持有 Registry + SystemManager，并预注册 Res_NCL_Pointers
-	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics});
+	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics, renderer});
+
+	// 注册 Res_RenderTargets（每帧由主循环更新，供 Sys_PostProcess 读取）
+	sceneManager.GetRegistry().ctx_emplace<Res_RenderTargets>();
 
 	// 进入首个场景（OnEnter：加载资源 → 创建初始实体 → AwakeAll）
 	sceneManager.PushScene(new Scene_PhysicsTest());
@@ -133,6 +145,18 @@ int main() {
 		physics->Update(dt);   // NCL 物理运行空世界（ECS 实体由 Jolt 管理）
 		renderer->Update(dt);
 		renderer->RenderScene();   // BeginFrame + RenderFrame + EndFrame（不交换缓冲区）
+
+		// 更新渲染目标到 ECS context（解耦 Sys_PostProcess 与 Renderer）
+		{
+			auto& rt = sceneManager.GetRegistry().ctx<Res_RenderTargets>();
+			rt.hdrColorTex = renderer->GetHDRColorTexture();
+			auto winSize   = renderer->GetWindowSize();
+			rt.width  = winSize.x;
+			rt.height = winSize.y;
+		}
+
+		// 后处理管线：ECS LateUpdate（Sys_PostProcess 在此执行 Bloom + Tone Mapping）
+		sceneManager.LateUpdate(dt);
 
 #ifdef USE_IMGUI
 		ECS::ImGuiAdapter::Render(); // ImGui 叠加在 3D 场景之上，swap 之前渲染

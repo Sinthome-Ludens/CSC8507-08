@@ -30,6 +30,13 @@ namespace NCL {
 			void RenderScene()  { BeginFrame(); RenderFrame(); EndFrame(); }
 			// 交换缓冲区（与 RenderScene 配对使用，ImGui 渲染完成后调用）
 			void PresentFrame() { SwapBuffers(); }
+
+			// HDR 后处理接口
+			GLuint   GetHDRColorTexture() const { return hdrColorTex; }
+			Vector2i GetWindowSize()      const { return windowSize; }
+
+			// 窗口 Resize 回调：重建 HDR FBO + 更新 viewport
+			void OnWindowResize(int w, int h) override;
 	
 		protected:
 			struct ObjectSortState {
@@ -92,6 +99,14 @@ namespace NCL {
 			GLuint textColourVBO;
 			GLuint textTexVBO;
 			size_t textCount;
+
+			// HDR Framebuffer
+			GLuint hdrFBO      = 0;
+			GLuint hdrColorTex = 0;  // GL_RGBA16F
+			GLuint hdrDepthRBO = 0;  // GL_DEPTH_COMPONENT24
+
+			void InitHDRFramebuffer(int width, int height);
+			void DestroyHDRFramebuffer();
 		};
 	}
 }

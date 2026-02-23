@@ -9,14 +9,18 @@ namespace ECS {
  * @brief ImGui 渲染系统
  *
  * 职责：
- *   - 渲染全局菜单栏（Windows / Test Scene 子菜单）
+ *   - 渲染全局菜单栏（Windows / Rendering / Test Scene 子菜单）
  *   - 渲染性能 Debug 窗口（FPS / Frame Time / Entity Count）
  *   - 渲染 NCL Status 窗口（GameWorld 对象数 / Physics 状态）
+ *   - 渲染统一 Rendering 面板（所有渲染参数，CollapsingHeader 分组）
  *   - 渲染测试场景控制面板（Spawn Cube / Delete Last / Gravity 开关）
  *   - 渲染 Cube Debug 浮窗（per-cube 位置 / 重力 / Body 状态）
  *
- * 测试场景状态（cube 实体列表、spawn 索引）存储在 Res_TestState context 中，
- * 系统本身保持无状态（除必要的窗口可见标志外）。
+ * ## Debug 菜单规范
+ *
+ * 所有可调渲染参数必须集中在 "Rendering" 面板中，
+ * 用 ImGui::CollapsingHeader 按功能分组（如 "Bloom"、"Tone Mapping"、"SSAO" 等）。
+ * 禁止为单个渲染功能创建独立浮窗。新增 Phase 时在此面板追加对应 Section。
  *
  * 执行优先级：300（Render=200 之后，确保渲染桥接已完成）
  */
@@ -32,18 +36,23 @@ private:
     void RenderDebugWindow  (Registry& registry, float dt);
     void RenderNCLStatus    (Registry& registry);
 
+    // ── 统一 Rendering 面板（所有渲染参数集中于此）──────────────────────
+    void RenderRenderingPanel(Registry& registry);
+    void RenderSection_PostProcess(Registry& registry);  ///< Bloom / Tone Mapping
+
     // ── Test Scene 调试控制（状态读写 Res_TestState context）────────────
-    void RenderTestControlsWindow(Registry& registry);  ///< 控制面板：Spawn/Delete/Gravity
-    void RenderCubeDebugWindow   (Registry& registry);  ///< 浮动 Debug 窗口：per-cube 状态
+    void RenderTestControlsWindow(Registry& registry);
+    void RenderCubeDebugWindow   (Registry& registry);
 
-    void SpawnCube     (Registry& registry);             ///< 通过 PrefabFactory 生成动态方块
-    void DeleteLastCube(Registry& registry);             ///< 销毁最后生成的方块
-    void SetGravityAll (Registry& registry, float factor); ///< 批量修改 gravity_factor
+    void SpawnCube     (Registry& registry);
+    void DeleteLastCube(Registry& registry);
+    void SetGravityAll (Registry& registry, float factor);
 
-    // ── 窗口可见标志（系统配置，非游戏状态）────────────────────────────
-    bool m_ShowDemoWindow  = false;
-    bool m_ShowDebugWindow = true;
-    bool m_ShowNCLStatus   = true;
+    // ── 窗口可见标志 ─────────────────────────────────────────────────────
+    bool m_ShowDemoWindow     = false;
+    bool m_ShowDebugWindow    = true;
+    bool m_ShowNCLStatus      = true;
+    bool m_ShowRenderingPanel = true;
 };
 
 } // namespace ECS

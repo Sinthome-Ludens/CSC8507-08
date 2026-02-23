@@ -95,6 +95,15 @@ public:
     virtual void OnFixedUpdate(Registry& registry, float fixedDt) {}
 
     /**
+     * @brief 渲染完成后调用，用于后处理等需要渲染结果的操作。
+     * @details 在 renderer->RenderScene() 之后、ImGui 渲染之前执行。
+     *          适合后处理管线（Bloom、Tone Mapping、SSAO 等）。
+     * @param registry 当前场景的实体注册表。
+     * @param dt       距上一帧的时间间隔（秒）。
+     */
+    virtual void OnLateUpdate(Registry& registry, float dt) {}
+
+    /**
      * @brief 场景卸载或 SystemManager 清理时调用，用于释放外部资源。
      * @details 适合销毁 Jolt 物理体、取消订阅 EventBus、释放音频句柄等。
      * @param registry 当前场景的实体注册表。

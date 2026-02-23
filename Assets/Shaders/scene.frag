@@ -41,20 +41,21 @@ void main(void)
 	float sFactor = pow ( rFactor , 80.0 );
 	
 	vec4 albedo = IN.colour;
-	
+
 	if(hasTexture) {
 		albedo *= texture(mainTex, IN.texCoord);
+		// 手动 sRGB→Linear：NCL 的 OGLTexture 使用 GL_RGBA 内部格式（非 sRGB），
+		// 需要在 shader 中做 gamma 展开，确保光照计算在线性空间进行
+		albedo.rgb = pow(albedo.rgb, vec3(2.2));
 	}
-	
-	albedo.rgb = pow(albedo.rgb, vec3(2.2));
 	
 	fragColor.rgb = albedo.rgb * 0.05f; //ambient
 	
 	fragColor.rgb += albedo.rgb * sunColour.rgb * lambert * shadow; //diffuse light
 	
 	fragColor.rgb += sunColour.rgb * sFactor * shadow; //specular light
-	
-	fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / 2.2f));
-	
+
+	// HDR 线性输出，由后处理统一做 tone mapping + gamma
+
 	fragColor.a = albedo.a;
 }

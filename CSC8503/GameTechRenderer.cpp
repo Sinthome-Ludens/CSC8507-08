@@ -82,9 +82,12 @@ GameTechRenderer::GameTechRenderer(GameWorld& world) : OGLRenderer(*Window::GetW
 
 	SetDebugStringBufferSizes(10000);
 	SetDebugLineBufferSizes(1000);
+
+	InitHDRFramebuffer(windowSize.x, windowSize.y);
 }
 
 GameTechRenderer::~GameTechRenderer()	{
+	DestroyHDRFramebuffer();
 	glDeleteTextures(1, &shadowTex);
 	glDeleteFramebuffers(1, &shadowFBO);
 }
@@ -145,7 +148,12 @@ void GameTechRenderer::RenderFrame() {
 	glEnable(GL_CULL_FACE);
 	glClearColor(1, 1, 1, 1);
 	BuildObjectLists();
-	
+
+	// ── 场景渲染到 HDR FBO ──────────────────────────────────────────
+	glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glViewport(0, 0, windowSize.x, windowSize.y);
+
 	{
 		OGLDebugScope scope("Shadow map pass");
 		RenderShadowMapPass(opaqueObjects);
@@ -163,9 +171,22 @@ void GameTechRenderer::RenderFrame() {
 		RenderTransparentPass(transparentObjects);
 	}
 
+	// ── 解绑 HDR FBO，后续后处理由 ECS Sys_PostProcess::OnLateUpdate 执行 ──
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// ── 深度 Blit：将 HDR FBO 的深度附件拷贝到默认帧缓冲 ────────────
+	// Debug Pass 需要深度信息来正确渲染线条/文字
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, hdrFBO);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, windowSize.x, windowSize.y,
+	                  0, 0, windowSize.x, windowSize.y,
+	                  GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// ── Debug pass 直接渲染到默认帧缓冲 ─────────────────────────────
 	{
 		OGLDebugScope scope("Debug pass");
-		glDisable(GL_CULL_FACE); //Todo - text indices are going the wrong way...
+		glDisable(GL_CULL_FACE); //Todo - text indices are goinong way...
 		glDisable(GL_BLEND);
 		glDisable(GL_DEPTH_TEST);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -255,7 +276,7 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
 
 	glViewport(0, 0, windowSize.x, windowSize.y);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);  // 回到 HDR FBO，而非默认帧缓冲
 
 	glCullFace(GL_BACK);
 }
@@ -637,5 +658,52 @@ void GameTechRenderer::SetDebugLineBufferSizes(size_t newVertCount) {
 		glEnableVertexAttribArray(1);
 
 		glBindVertexArray(0);
+	}
+}
+
+void GameTechRenderer::InitHDRFramebuffer(int width, int height) {
+	// Color texture: RGBA16F for HDR
+	glGenTextures(1, &hdrColorTex);
+	glBindTexture(GL_TEXTURE_2D, hdrColorTex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	// Depth renderbuffer
+	glGenRenderbuffers(1, &hdrDepthRBO);
+	glBindRenderbuffer(GL_RENDERBUFFER, hdrDepthRBO);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	// Framebuffer
+	glGenFramebuffers(1, &hdrFBO);
+	glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hdrColorTex, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, hdrDepthRBO);
+
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (status != GL_FRAMEBUFFER_COMPLETE) {
+		std::cout << "[GameTechRenderer] HDR FBO incomplete! Status: " << status << std::endl;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void GameTechRenderer::DestroyHDRFramebuffer() {
+	if (hdrFBO)      { glDeleteFramebuffers(1, &hdrFBO);      hdrFBO = 0; }
+	if (hdrColorTex) { glDeleteTextures(1, &hdrColorTex);     hdrColorTex = 0; }
+	if (hdrDepthRBO) { glDeleteRenderbuffers(1, &hdrDepthRBO); hdrDepthRBO = 0; }
+}
+
+void GameTechRenderer::OnWindowResize(int w, int h) {
+	// 先让基类更新 windowSize 并重置 viewport
+	OGLRenderer::OnWindowResize(w, h);
+
+	// 重建 HDR FBO 以匹配新分辨率
+	if (w > 0 && h > 0) {
+		DestroyHDRFramebuffer();
+		InitHDRFramebuffer(w, h);
 	}
 }

@@ -9,6 +9,7 @@
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_TestState.h"
 #include "Game/Components/Res_CameraContext.h"
+#include "Game/Components/Res_PostProcessConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/Log.h"
 #include "GameWorld.h"
@@ -40,11 +41,11 @@ void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
 void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
     RenderMainMenuBar(registry);
 
-    if (m_ShowDemoWindow)  ImGui::ShowDemoWindow(&m_ShowDemoWindow);
-    if (m_ShowDebugWindow) RenderDebugWindow(registry, dt);
-    if (m_ShowNCLStatus)   RenderNCLStatus(registry);
+    if (m_ShowDemoWindow)     ImGui::ShowDemoWindow(&m_ShowDemoWindow);
+    if (m_ShowDebugWindow)    RenderDebugWindow(registry, dt);
+    if (m_ShowNCLStatus)      RenderNCLStatus(registry);
+    if (m_ShowRenderingPanel) RenderRenderingPanel(registry);
 
-    // Test Scene 窗口：由 Res_UIFlags context 控制显隐
     if (registry.has_ctx<Res_UIFlags>()) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (flags.showTestControls) RenderTestControlsWindow(registry);
@@ -63,10 +64,10 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
         ImGui::MenuItem("Demo Window",  nullptr, &m_ShowDemoWindow);
         ImGui::MenuItem("Debug Window", nullptr, &m_ShowDebugWindow);
         ImGui::MenuItem("NCL Status",   nullptr, &m_ShowNCLStatus);
+        ImGui::MenuItem("Rendering",    nullptr, &m_ShowRenderingPanel);
         ImGui::EndMenu();
     }
 
-    // Test Scene 子菜单：通过 Res_UIFlags context 控制各浮窗可见性
     if (registry.has_ctx<Res_UIFlags>()) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (ImGui::BeginMenu("Test Scene")) {
@@ -124,7 +125,42 @@ void Sys_ImGui::RenderNCLStatus(Registry& registry) {
 }
 
 // ============================================================
-// RenderTestControlsWindow（集成控制面板）
+// RenderRenderingPanel — 统一渲染参数面板
+// 规范：所有渲染可调参数在此面板用 CollapsingHeader 分组。
+// 新增 Phase 时在此追加对应 Section 函数。
+// ============================================================
+
+void Sys_ImGui::RenderRenderingPanel(Registry& registry) {
+    ImGui::Begin("Rendering", &m_ShowRenderingPanel);
+    RenderSection_PostProcess(registry);
+    // 未来在此追加：RenderSection_PBR、RenderSection_SSAO、RenderSection_Volumetric 等
+    ImGui::End();
+}
+
+// ============================================================
+// RenderSection_PostProcess — Bloom + Tone Mapping
+// ============================================================
+
+void Sys_ImGui::RenderSection_PostProcess(Registry& registry) {
+    if (!registry.has_ctx<Res_PostProcessConfig>()) return;
+    auto& cfg = registry.ctx<Res_PostProcessConfig>();
+
+    if (ImGui::CollapsingHeader("Bloom", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox("Enable##bloom",       &cfg.enableBloom);
+        ImGui::SliderFloat("Threshold",        &cfg.bloomThreshold,  0.0f, 5.0f);
+        ImGui::SliderFloat("Intensity",        &cfg.bloomIntensity,  0.0f, 3.0f);
+        ImGui::SliderInt("Iterations",         &cfg.bloomIterations, 2,    20);
+    }
+
+    if (ImGui::CollapsingHeader("Tone Mapping", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Checkbox("Enable##tonemap", &cfg.enableTonemap);
+        ImGui::SliderFloat("Exposure",     &cfg.exposure, 0.1f, 10.0f);
+        ImGui::SliderFloat("Gamma",        &cfg.gamma,    1.0f, 3.0f);
+    }
+}
+
+// ============================================================
+// RenderTestControlsWindow
 // ============================================================
 
 void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
@@ -159,7 +195,7 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 }
 
 // ============================================================
-// RenderCubeDebugWindow（独立浮动 Debug 窗口）
+// RenderCubeDebugWindow
 // ============================================================
 
 void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
@@ -167,14 +203,11 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
     auto& state = registry.ctx<Res_TestState>();
     auto& flags = registry.ctx<Res_UIFlags>();
 
-    ImGui::Begin("Cube Debug Info", &flags.showCubeDebug,
-                 ImGuiWindowFlags_NoCollapse);
+    ImGui::Begin("Cube Debug Info", &flags.showCubeDebug, ImGuiWindowFlags_NoCollapse);
 
-    ImGui::Text("%-6s  %-20s  %-8s  %-7s",
-                "ID", "Position", "Gravity", "Body");
+    ImGui::Text("%-6s  %-20s  %-8s  %-7s", "ID", "Position", "Gravity", "Body");
     ImGui::Separator();
 
-    // 清除已失效的 cube（可能被外部途径销毁）
     state.cubeEntities.erase(
         std::remove_if(state.cubeEntities.begin(), state.cubeEntities.end(),
             [&](ECS::EntityID id) { return !registry.Valid(id); }),
@@ -188,9 +221,8 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
         float       grav       = 0.0f;
         const char* bodyStatus = "pending";
 
-        if (registry.Has<C_D_Transform>(id)) {
+        if (registry.Has<C_D_Transform>(id))
             pos = registry.Get<C_D_Transform>(id).position;
-        }
         if (registry.Has<C_D_RigidBody>(id)) {
             auto& rb  = registry.Get<C_D_RigidBody>(id);
             grav       = rb.gravity_factor;
@@ -201,15 +233,14 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
                     id, pos.x, pos.y, pos.z, grav, bodyStatus);
     }
 
-    if (state.cubeEntities.empty()) {
+    if (state.cubeEntities.empty())
         ImGui::TextDisabled("No cube entities.");
-    }
 
     ImGui::End();
 }
 
 // ============================================================
-// SpawnCube（通过 PrefabFactory 生成动态方块）
+// SpawnCube
 // ============================================================
 
 void Sys_ImGui::SpawnCube(Registry& registry) {
@@ -221,9 +252,8 @@ void Sys_ImGui::SpawnCube(Registry& registry) {
         return;
     }
 
-    // ── 计算生成位置：相机正前方 5 单位 ────────────────────────────────
     using namespace NCL::Maths;
-    Vector3 spawnPos(0.0f, 8.0f, 0.0f);  // 默认兜底位置
+    Vector3 spawnPos(0.0f, 8.0f, 0.0f);
 
     if (registry.has_ctx<Res_CameraContext>()) {
         auto& camCtx = registry.ctx<Res_CameraContext>();
@@ -234,15 +264,11 @@ void Sys_ImGui::SpawnCube(Registry& registry) {
             auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
             auto& cam = registry.Get<C_D_Camera>   (camCtx.active_camera);
 
-            // 计算水平前方向量（忽略 pitch，避免生成在地下或天上）
             const float yawRad = cam.yaw * (3.14159265f / 180.0f);
             const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
 
-            // 在相机前方 5 单位处、相机高度上方 2 单位生成
             spawnPos = tf.position + forward * 5.0f;
             spawnPos.y = tf.position.y + 2.0f;
-
-            // 确保 cube 生成在地板上方（floor 上表面 y ≈ -5.5，保底 -2.0）
             constexpr float MIN_SPAWN_Y = -2.0f;
             spawnPos.y = std::max(spawnPos.y, MIN_SPAWN_Y);
         }

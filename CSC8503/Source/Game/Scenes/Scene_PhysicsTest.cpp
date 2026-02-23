@@ -10,6 +10,7 @@
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
+#include "Game/Systems/Sys_PostProcess.h"
 #include "Game/Utils/Log.h"
 
 #ifdef USE_IMGUI
@@ -54,6 +55,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Camera>   ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>  (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
+    systems.Register<ECS::Sys_PostProcess>(250);  // 后处理管线（OnLateUpdate 执行）
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>    (300);   // 菜单栏 + 性能窗口 + TestScene 控制面板
 #endif

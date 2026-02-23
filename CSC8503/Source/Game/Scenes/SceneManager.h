@@ -74,6 +74,12 @@ public:
     void Update(float dt);
 
     /**
+     * @brief 渲染完成后调用：执行所有系统的 OnLateUpdate（后处理管线在此执行）。
+     * @param dt 本帧变步长时间（秒）
+     */
+    void LateUpdate(float dt);
+
+    /**
      * @brief 每帧后半段（NCL Render 之后调用）：
      *   - 执行 registry.ProcessPendingDestroy()（帧末实体回收）
      *   - 检查并执行延迟场景切换

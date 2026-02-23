@@ -47,6 +47,16 @@ void SceneManager::Update(float dt) {
 }
 
 // ============================================================
+// LateUpdate（渲染完成后：ECS LateUpdateAll，后处理在此执行）
+// ============================================================
+
+void SceneManager::LateUpdate(float dt) {
+    if (!m_CurrentScene || m_Shutdown) return;
+
+    m_Systems.LateUpdateAll(m_Registry, dt);
+}
+
+// ============================================================
 // EndFrame（帧后半段：ProcessPendingDestroy + 延迟场景切换）
 // ============================================================
 

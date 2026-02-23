@@ -120,6 +120,14 @@ public:
     void UpdateAll(Registry& registry, float dt);
 
     /**
+     * @brief 对所有系统按优先级升序调用 `OnLateUpdate(registry, dt)`。
+     * @details 在 renderer->RenderScene() 之后调用，用于后处理等需要渲染结果的操作。
+     * @param registry 当前场景注册表。
+     * @param dt       本帧变步长时间间隔（秒）。
+     */
+    void LateUpdateAll(Registry& registry, float dt);
+
+    /**
      * @brief 对所有系统按优先级升序调用 `OnFixedUpdate(registry, fixedDt)`。
      * @param registry 当前场景注册表。
      * @param fixedDt  固定物理步长（秒）。
@@ -208,6 +216,12 @@ inline void SystemManager::AwakeAll(Registry& registry) {
 inline void SystemManager::UpdateAll(Registry& registry, float dt) {
     for (auto& entry : m_Systems) {
         entry.system->OnUpdate(registry, dt);
+    }
+}
+
+inline void SystemManager::LateUpdateAll(Registry& registry, float dt) {
+    for (auto& entry : m_Systems) {
+        entry.system->OnLateUpdate(registry, dt);
     }
 }
 
