@@ -38,6 +38,10 @@ private:
 
     void SpawnCube     (Registry& registry);             ///< 通过 PrefabFactory 生成动态方块
     void DeleteLastCube(Registry& registry);             ///< 销毁最后生成的方块
+
+    void SpawnCapsule     (Registry& registry);             ///< 通过 PrefabFactory 生成动态方块
+    void DeleteLastCapsule(Registry& registry);             ///< 销毁最后生成的方块
+
     void SetGravityAll (Registry& registry, float factor); ///< 批量修改 gravity_factor
 
     // ── 窗口可见标志（系统配置，非游戏状态）────────────────────────────

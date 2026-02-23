@@ -87,4 +87,25 @@ public:
         int                 spawnIndex,
         NCL::Maths::Vector3 spawnPos
     );
+
+    /**
+     * @brief 创建动态物理胶囊体实体（PREFAB_PHYSICS_CAPSULE）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody, C_D_Collider, C_D_DebugName
+     *
+     * Collider：ColliderType::Capsule，half_x = radius(0.5)，half_y = half_height(1.0)
+     * 总高度 = 2 * half_height + 2 * radius = 3.0
+     *
+     * @param reg          ECS Registry
+     * @param capsuleMesh  胶囊体网格句柄
+     * @param spawnIndex   生成序号（用于 DebugName 编号）
+     * @param spawnPos     生成位置（世界坐标）
+     * @return 胶囊体实体 ID
+     */
+    static ECS::EntityID CreatePhysicsCapsule(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     capsuleMesh,
+        int                 spawnIndex,
+        NCL::Maths::Vector3 spawnPos
+    );
 };

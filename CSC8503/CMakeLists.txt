@@ -56,6 +56,7 @@ if(USE_VULKAN)
         ${Header_Files}
         ${Source_Files}
         ${SHADER_FILES}
+            Source/Game/Components/Res_Capsule.h
     )
 
 foreach (file ${SHADER_FILES})

@@ -160,3 +160,54 @@ EntityID PrefabFactory::CreatePhysicsCube(
 
     return entity;
 }
+
+EntityID PrefabFactory::CreatePhysicsCapsule(
+    Registry&       reg,
+    ECS::MeshHandle capsuleMesh,
+    int             spawnIndex,
+    Vector3         spawnPos)
+{
+    EntityID entity = reg.Create();
+
+    // C_D_Transform（使用调用方传入的世界坐标）
+    reg.Emplace<C_D_Transform>(entity,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    // C_D_MeshRenderer
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        capsuleMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // C_D_RigidBody（动态体）
+    C_D_RigidBody rb{};
+    rb.mass            = 1.0f;
+    rb.gravity_factor  = 1.0f;
+    rb.linear_damping  = 0.05f;
+    rb.angular_damping = 0.05f;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    // C_D_Collider（Capsule：half_x = radius, half_y = half_height of cylinder part）
+    // Capsule.msh 總高度 = 2.0：2 * half_height(0.5) + 2 * radius(0.5) = 2.0
+    C_D_Collider col{};
+    col.type        = ColliderType::Capsule;
+    col.half_x      = 0.5f;   // radius
+    col.half_y      = 0.5f;   // half_height（不含半球），與 Capsule.msh 尺寸匹配
+    col.friction    = 0.5f;
+    col.restitution = 0.0f;   // 消除圓底彈跳
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // C_D_DebugName（含序号，匹配 ENTITY_Physics_Cube_XX 规范）
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_Physics_Capsule_%02d", spawnIndex);
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreatePhysicsCapsule id=" << entity
+             << " index=" << spawnIndex
+             << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
