@@ -31,8 +31,10 @@
 #endif
 
 #include "Game/Components/Res_NCL_Pointers.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Scenes/SceneManager.h"
 #include "Game/Scenes/Scene_PhysicsTest.h"
+#include "Game/Scenes/Scene_MainMenu.h"
 
 #ifdef USE_IMGUI
 #include "Core/Bridge/ImGuiAdapter.h"
@@ -65,9 +67,9 @@ int main() {
 #endif
 
 	WindowInitialisation initInfo;
-	initInfo.width		= 1280;
-	initInfo.height		= 720;
-	initInfo.windowTitle = "CSC8503 Game technology!";
+	initInfo.width		= 1920;
+	initInfo.height		= 1080;
+	initInfo.windowTitle = "NEUROMANCER";
 
 	Window*w = Window::CreateGameWindow(initInfo);
 
@@ -75,8 +77,8 @@ int main() {
 		return -1;
 	}
 
-	w->ShowOSPointer(false);
-	w->LockMouseToWindow(true);
+	w->ShowOSPointer(true);
+	w->LockMouseToWindow(false);
 
 	GameWorld* world = new GameWorld();
 	PhysicsSystem* physics = new PhysicsSystem(*world);
@@ -99,15 +101,15 @@ int main() {
 	// SceneManager 持有 Registry + SystemManager，并预注册 Res_NCL_Pointers
 	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics});
 
-	// 进入首个场景（OnEnter：加载资源 → 创建初始实体 → AwakeAll）
-	sceneManager.PushScene(new Scene_PhysicsTest());
+	// 进入首个场景（主菜单）
+	sceneManager.PushScene(new Scene_MainMenu());
 
 	w->GetTimer().GetTimeDeltaSeconds();
-	while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
+	bool running = true;
+	while (running && w->UpdateWindow()) {
 		float dt = w->GetTimer().GetTimeDeltaSeconds();
 		if (dt > 0.1f) {
-			std::cout << "Skipping large time delta" << std::endl;
-			continue;
+			continue;  // 跳过过大时间增量
 		}
 		if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
 			w->ShowConsole(true);
@@ -119,14 +121,48 @@ int main() {
 			w->SetWindowPosition(0, 0);
 		}
 
-		w->SetTitle("ECS Physics Test - frame time: " + std::to_string(1000.0f * dt) + " ms");
+#ifdef _DEBUG
+		w->SetTitle("NEUROMANCER [DEBUG] - " + std::to_string(1000.0f * dt) + " ms");
+#endif
 
 #ifdef USE_IMGUI
 		ECS::ImGuiAdapter::NewFrame();
 #endif
 
-		// 帧前半段：ECS UpdateAll（Camera→Physics→Render→ImGui）
+		// 帧前半段：ECS UpdateAll（Camera→Physics→Render→ImGui→UI）
 		sceneManager.Update(dt);
+
+		// 处理UI层请求（场景切换 + 窗口操作）
+		auto& reg = sceneManager.GetRegistry();
+		if (reg.has_ctx<ECS::Res_UIState>()) {
+			auto& ui = reg.ctx<ECS::Res_UIState>();
+
+			// ── 场景切换请求 ──
+			if (ui.pendingSceneRequest == ECS::SceneRequest::StartGame) {
+				ui.pendingSceneRequest = ECS::SceneRequest::None;
+				sceneManager.RequestSceneChange(new Scene_PhysicsTest());
+			} else if (ui.pendingSceneRequest == ECS::SceneRequest::ReturnToMenu) {
+				ui.pendingSceneRequest = ECS::SceneRequest::None;
+				sceneManager.RequestSceneChange(new Scene_MainMenu());
+			} else if (ui.pendingSceneRequest == ECS::SceneRequest::QuitApp) {
+				running = false;
+			}
+
+			// ── 全屏切换请求（由 Sys_UI 写入标志，此处执行实际窗口操作）──
+			if (ui.fullscreenChanged) {
+				ui.fullscreenChanged = false;
+				w->SetFullScreen(ui.isFullscreen);
+			}
+
+			// ── 鼠标可见性/锁定（每帧根据 UI 状态同步）──
+			if (ui.isUIBlockingInput) {
+				w->ShowOSPointer(true);
+				w->LockMouseToWindow(false);
+			} else {
+				w->ShowOSPointer(false);
+				w->LockMouseToWindow(true);
+			}
+		}
 
 		// NCL 渲染（GameTechRenderer 自动渲染 GameWorld 中的所有代理对象）
 		world->UpdateWorld(dt);

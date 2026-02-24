@@ -57,7 +57,12 @@ void SceneManager::EndFrame() {
     m_Registry.ProcessPendingDestroy();
 
     // 2. 延迟场景切换（安全序列：检查 → OnExit → delete → OnEnter）
+    //    优先检查外部请求（m_PendingScene），再检查场景内部请求
     IScene* next = m_CurrentScene->GetNextScene();
+    if (!next && m_PendingScene) {
+        next = m_PendingScene;
+        m_PendingScene = nullptr;
+    }
     if (next) {
         m_CurrentScene->ClearNextScene();
 
@@ -72,6 +77,18 @@ void SceneManager::EndFrame() {
 }
 
 // ============================================================
+// RequestSceneChange（外部请求）
+// ============================================================
+
+void SceneManager::RequestSceneChange(IScene* next) {
+    if (m_PendingScene && m_PendingScene != next) {
+        LOG_WARN("[SceneManager] Overwriting pending scene request! Deleting previous.");
+        delete m_PendingScene;
+    }
+    m_PendingScene = next;
+}
+
+// ============================================================
 // Shutdown
 // ============================================================
 
@@ -80,9 +97,9 @@ void SceneManager::Shutdown() {
     m_Shutdown = true;
 
     if (m_CurrentScene) {
-        ExitCurrentScene();
-        delete m_CurrentScene;
-        m_CurrentScene = nullptr;
+        IScene* old = m_CurrentScene;
+        ExitCurrentScene();   // 内部置 m_CurrentScene = nullptr
+        delete old;           // 正确释放场景对象
         LOG_INFO("[SceneManager] Shutdown complete.");
     }
 }

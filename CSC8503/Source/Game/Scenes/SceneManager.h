@@ -86,6 +86,17 @@ public:
      */
     void Shutdown();
 
+    /**
+     * @brief 外部请求场景切换（由 Main.cpp 调用）
+     *
+     * 与 IScene::RequestSceneChange() 不同，此方法允许外部代码
+     * （如 Main.cpp 读取 Res_UIState::pendingSceneRequest 后）
+     * 直接请求切换场景。在 EndFrame() 帧末安全执行。
+     *
+     * @param next 目标场景（所有权转移给 SceneManager）
+     */
+    void RequestSceneChange(IScene* next);
+
     // ── 访问器 ───────────────────────────────────────────────────────────
 
     ECS::Registry&      GetRegistry() { return m_Registry; }
@@ -109,6 +120,7 @@ private:
     ECS::Registry      m_Registry;      ///< ECS 数据源（跨场景共享内存池）
     ECS::SystemManager m_Systems;       ///< 当前帧系统调度器（DestroyAll 后清空）
     IScene*            m_CurrentScene = nullptr; ///< 当前场景（SceneManager 拥有所有权）
+    IScene*            m_PendingScene  = nullptr; ///< 外部请求的待切换场景
     Res_NCL_Pointers   m_NclPtrs;       ///< Engine 层全局资源（不随场景销毁）
     bool               m_Shutdown = false;       ///< 防止重复 Shutdown
 };

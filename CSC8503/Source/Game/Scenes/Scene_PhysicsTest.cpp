@@ -14,6 +14,8 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_UI.h"
+#include "Game/Components/Res_UIState.h"
 #endif
 
 // ============================================================
@@ -44,6 +46,18 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_TestState>(std::move(state));
     }
 
+    // ── 游戏场景UI状态：初始不显示菜单UI ──────────────────────────────
+#ifdef USE_IMGUI
+    if (!registry.has_ctx<ECS::Res_UIState>()) {
+        registry.ctx_emplace<ECS::Res_UIState>();
+    }
+    {
+        auto& uiState = registry.ctx<ECS::Res_UIState>();
+        uiState.activeScreen = ECS::UIScreen::None;
+        uiState.isUIBlockingInput = false;
+    }
+#endif
+
     // ── 3. 初始实体生成：通过 PrefabFactory 创建静态地板 ─────────────────
     //    相机实体由 Sys_Camera::OnAwake 创建（符合系统职责）
     ECS::EntityID entity_floor_main = PrefabFactory::CreateFloor(registry, cubeMesh);
@@ -56,6 +70,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>    (300);   // 菜单栏 + 性能窗口 + TestScene 控制面板
+    systems.Register<ECS::Sys_UI>       (500);   // 游戏UI系统
 #endif
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
