@@ -23,6 +23,7 @@ namespace ECS {
  */
 struct Res_CameraContext {
     EntityID active_camera = Entity::NULL_ENTITY; ///< 当前主相机实体 ID
+    bool     cursorFree    = false;               ///< Alt 键按住时为 true，Main.cpp 据此显示/隐藏鼠标
 };
 
 } // namespace ECS

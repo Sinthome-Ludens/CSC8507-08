@@ -7,6 +7,7 @@
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_TestState.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Prefabs/PrefabFactory.h"
@@ -38,6 +39,11 @@ void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
 // ============================================================
 
 void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
+    // 开发者模式检查：关闭时跳过所有调试 UI 渲染
+    if (registry.has_ctx<Res_UIState>()) {
+        if (!registry.ctx<Res_UIState>().devMode) return;
+    }
+
     RenderMainMenuBar(registry);
 
     if (m_ShowDemoWindow)  ImGui::ShowDemoWindow(&m_ShowDemoWindow);

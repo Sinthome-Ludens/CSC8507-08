@@ -32,6 +32,7 @@
 
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_CameraContext.h"
 #include "Game/Scenes/SceneManager.h"
 #include "Game/Scenes/Scene_PhysicsTest.h"
 #include "Game/Scenes/Scene_MainMenu.h"
@@ -154,14 +155,14 @@ int main() {
 				w->SetFullScreen(ui.isFullscreen);
 			}
 
-			// ── 鼠标可见性/锁定（每帧根据 UI 状态同步）──
-			if (ui.isUIBlockingInput) {
-				w->ShowOSPointer(true);
-				w->LockMouseToWindow(false);
-			} else {
-				w->ShowOSPointer(false);
-				w->LockMouseToWindow(true);
+			// ── 鼠标可见性/锁定（每帧根据 UI 状态 + 相机 Alt 键同步）──
+			// 鼠标可见条件：UI 阻塞输入（菜单打开）或 相机自由光标（Alt 按住）
+			bool showCursor = ui.isUIBlockingInput;
+			if (!showCursor && reg.has_ctx<ECS::Res_CameraContext>()) {
+				showCursor = reg.ctx<ECS::Res_CameraContext>().cursorFree;
 			}
+			w->ShowOSPointer(showCursor);
+			w->LockMouseToWindow(!showCursor);
 		}
 
 		// NCL 渲染（GameTechRenderer 自动渲染 GameWorld 中的所有代理对象）

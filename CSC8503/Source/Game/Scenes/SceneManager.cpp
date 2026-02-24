@@ -72,6 +72,11 @@ void SceneManager::EndFrame() {
         LOG_INFO("[SceneManager] Scene exited (deferred switch).");
         delete old;
 
+        // 清空所有实体与组件池，防止上一关状态污染下一关。
+        // Context 不受影响（Res_NCL_Pointers 等引擎级资源跨场景持久化）。
+        // 场景级 Context 由各 Scene::OnEnter / System::OnAwake 用 ctx_emplace 刷新。
+        m_Registry.Clear();
+
         EnterScene(next);
     }
 }

@@ -1,6 +1,5 @@
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
-#include <iostream>
 
 using namespace NCL::Maths;
 
@@ -84,10 +83,10 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
     m_PhysicsSystem->SetContactListener(&m_ContactListener);
 
     // 注册 EventBus 到 Registry Context（EventBus 不可复制，以裸指针注册）
-    if (!registry.has_ctx<ECS::EventBus*>()) {
-        m_EventBus = std::make_unique<ECS::EventBus>();
-        registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
-    }
+    // 始终创建新 EventBus 并覆盖写入：上一轮 Sys_Physics 销毁时 unique_ptr 已释放旧 EventBus，
+    // Context 中残留的裸指针已悬空，必须刷新。
+    m_EventBus = std::make_unique<ECS::EventBus>();
+    registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
 
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
 }

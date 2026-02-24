@@ -102,6 +102,11 @@ Win32Window::Win32Window(const WindowInitialisation& winInitInfo) {
 }
 
 Win32Window::~Win32Window(void)	{
+	// 若在全屏状态下退出，恢复窗口样式（无边框全屏无需恢复显示模式）
+	if (fullScreen && savedStyle != 0) {
+		SetWindowLong(windowHandle, GWL_STYLE, savedStyle);
+		SetWindowPlacement(windowHandle, &savedPlacement);
+	}
 	init = false;
 }
 
@@ -124,50 +129,66 @@ void	Win32Window::UpdateTitle()	{
 	SetWindowText(windowHandle, windowTitle.c_str());
 }
 
-void	Win32Window::SetFullScreen(bool fullScreen) {
-	if (fullScreen) {
-		DEVMODE dmScreenSettings;								// Device Mode
-		memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));	// Makes Sure Memory's Cleared
+void	Win32Window::SetFullScreen(bool state) {
+	if (state == fullScreen) return;  // 避免重复操作
 
-		DEVMODEA settings;
-		EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &settings);
+	if (state) {
+		// ── 进入无边框全屏 ──────────────────────────────────
+		// 1. 保存当前窗口样式和位置，用于恢复
+		savedStyle = GetWindowLong(windowHandle, GWL_STYLE);
+		GetWindowPlacement(windowHandle, &savedPlacement);
 
-		size.x = (float)settings.dmPelsWidth;
-		size.y = (float)settings.dmPelsHeight;
+		// 2. 移除窗口装饰（标题栏、边框、菜单）
+		LONG newStyle = savedStyle & ~(WS_OVERLAPPEDWINDOW | WS_POPUP);
+		newStyle |= WS_POPUP;  // 无边框弹窗
+		SetWindowLong(windowHandle, GWL_STYLE, newStyle);
 
-		dmScreenSettings.dmSize				= sizeof(dmScreenSettings);			// Size Of The Devmode Structure
-		dmScreenSettings.dmPelsWidth		= (DWORD)size.x;		// Selected Screen Width
-		dmScreenSettings.dmPelsHeight		= (DWORD)size.y;		// Selected Screen Height
-		dmScreenSettings.dmBitsPerPel		= 32;								// Selected Bits Per Pixel
-		dmScreenSettings.dmDisplayFrequency = (DWORD)settings.dmDisplayFrequency;
-		dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+		// 3. 获取当前显示器尺寸并覆盖
+		HMONITOR hMon = MonitorFromWindow(windowHandle, MONITOR_DEFAULTTONEAREST);
+		MONITORINFO mi = { sizeof(mi) };
+		GetMonitorInfo(hMon, &mi);
 
-		if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
-			std::cout << __FUNCTION__ << " Failed to switch to fullscreen!\n";
+		size.x = mi.rcMonitor.right  - mi.rcMonitor.left;
+		size.y = mi.rcMonitor.bottom - mi.rcMonitor.top;
+
+		SetWindowPos(windowHandle, HWND_TOP,
+			mi.rcMonitor.left, mi.rcMonitor.top,
+			size.x, size.y,
+			SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+
+		fullScreen = true;
+
+		if (winMouse) {
+			winMouse->SetAbsolutePositionBounds(size);
 		}
-		else {
-			if (eventHandler) {
-				eventHandler(fullScreen ? NCL::WindowEvent::Fullscreen : NCL::WindowEvent::Windowed, size.x, size.y);
-			}
+
+		if (eventHandler) {
+			eventHandler(NCL::WindowEvent::Fullscreen, size.x, size.y);
 		}
 	}
 	else {
-		DEVMODE dmScreenSettings;								// Device Mode
-		memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));	// Makes Sure Memory's Cleared
+		// ── 退出无边框全屏：恢复原始窗口 ────────────────────
+		// 1. 恢复原始窗口样式
+		SetWindowLong(windowHandle, GWL_STYLE, savedStyle);
+
+		// 2. 恢复原始窗口位置和大小
+		SetWindowPlacement(windowHandle, &savedPlacement);
+
+		// 3. 强制重绘边框
+		SetWindowPos(windowHandle, NULL,
+			0, 0, 0, 0,
+			SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+			SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
 
 		size = defaultSize;
+		fullScreen = false;
 
-		dmScreenSettings.dmSize = sizeof(dmScreenSettings);	// Size Of The Devmode Structure
-		dmScreenSettings.dmPelsWidth  = (DWORD)size.x;		// Selected Screen Width
-		dmScreenSettings.dmPelsHeight = (DWORD)size.y;		// Selected Screen Height
-		dmScreenSettings.dmPosition.x = (DWORD)position.x;
-		dmScreenSettings.dmPosition.y = (DWORD)position.y;
-		dmScreenSettings.dmBitsPerPel = 32;					// Selected Bits Per Pixel
-		dmScreenSettings.dmDisplayFrequency = 60;
-		dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY | DM_POSITION;
+		if (winMouse) {
+			winMouse->SetAbsolutePositionBounds(size);
+		}
 
-		if (ChangeDisplaySettings(&dmScreenSettings, 0) != DISP_CHANGE_SUCCESSFUL) {
-			std::cout << __FUNCTION__ << " Failed to switch out of fullscreen!\n";
+		if (eventHandler) {
+			eventHandler(NCL::WindowEvent::Windowed, size.x, size.y);
 		}
 	}
 }

@@ -36,23 +36,21 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     // ── 2. 注册场景级全局资源到 Registry context ────────────────────────
     //    Res_NCL_Pointers 由 SceneManager 构造时已预注册，此处无需重复。
 
-    if (!registry.has_ctx<Res_UIFlags>()) {
-        registry.ctx_emplace<Res_UIFlags>();
-    }
+    // 始终用 ctx_emplace（覆盖写入），防止跨场景残留的过期 Context 导致崩溃。
+    // SceneManager 在场景切换时调用 registry.Clear() 清空实体，但 Context 保留——
+    // 因此必须在此处显式刷新场景级资源。
+    registry.ctx_emplace<Res_UIFlags>();
 
-    if (!registry.has_ctx<Res_TestState>()) {
+    {
         Res_TestState state;
         state.cubeMeshHandle = cubeMesh;
         registry.ctx_emplace<Res_TestState>(std::move(state));
     }
 
-    // ── 游戏场景UI状态：初始不显示菜单UI ──────────────────────────────
+    // ── 游戏场景UI状态：覆盖写入，初始不显示菜单UI ──────────────────
 #ifdef USE_IMGUI
-    if (!registry.has_ctx<ECS::Res_UIState>()) {
-        registry.ctx_emplace<ECS::Res_UIState>();
-    }
     {
-        auto& uiState = registry.ctx<ECS::Res_UIState>();
+        auto& uiState = registry.ctx_emplace<ECS::Res_UIState>();
         uiState.activeScreen = ECS::UIScreen::None;
         uiState.isUIBlockingInput = false;
     }
@@ -90,11 +88,8 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&      registry,
     // 逆序停机：Sys_ImGui(300) → Sys_Render(200) → Sys_Physics(100) → Sys_Camera(50)
     systems.DestroyAll(registry);
 
-    // TODO: registry.Clear() —— 回收所有活动实体 ID，保留内存容量（Capacity）。
-    //   当前 Registry 尚未实现 Clear() 接口，待补充后启用：
-    //   registry.Clear();
-    //   规范要求（游戏开发.md §3.3.2）：OnExit 必须调用 registry.Clear()，
-    //   防止上一关实体状态污染下一关。
+    // registry.Clear() 由 SceneManager::EndFrame() 在 OnExit 之后统一调用，
+    // 确保所有 System::OnDestroy 完成后再清空实体。
 
     LOG_INFO("[Scene_PhysicsTest] OnExit complete. All systems destroyed.");
 }

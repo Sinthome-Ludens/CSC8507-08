@@ -43,10 +43,11 @@ void Sys_Camera::OnAwake(Registry& registry) {
     );
 
     // ── 注册 Res_CameraContext（供其他 System 快速获取相机信息）──
-    if (!registry.has_ctx<Res_CameraContext>()) {
-        Res_CameraContext ctx{};
-        ctx.active_camera = entity_camera_main;
-        registry.ctx_emplace<Res_CameraContext>(ctx);
+    // 始终覆盖写入：场景切换后旧 Context 中的 entity ID 已过期。
+    {
+        Res_CameraContext camCtx{};
+        camCtx.active_camera = entity_camera_main;
+        registry.ctx_emplace<Res_CameraContext>(camCtx);
     }
 
     // ── 初始化场景光照（Bridge：写入 NCL GameWorld）──────────────
@@ -74,16 +75,15 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
         [&](EntityID /*id*/, C_T_MainCamera&, C_D_Camera& cam, C_D_Transform& tf)
         {
             // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）────
+            // System 只写数据（cam.cursor_free + Res_CameraContext），
+            // 实际 Window 操作由 Main.cpp 根据 Res_CameraContext.cursorFree 执行。
             auto* kb = Window::GetKeyboard();
             if (kb) {
                 const bool altHeld = kb->KeyDown(KeyCodes::MENU);
-                if (altHeld != cam.cursor_free) {
-                    cam.cursor_free = altHeld;
-                    auto* win = Window::GetWindow();
-                    if (win) {
-                        win->ShowOSPointer(altHeld);
-                        win->LockMouseToWindow(!altHeld);
-                    }
+                cam.cursor_free = altHeld;
+
+                if (registry.has_ctx<Res_CameraContext>()) {
+                    registry.ctx<Res_CameraContext>().cursorFree = altHeld;
                 }
             }
 

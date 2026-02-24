@@ -77,6 +77,10 @@ namespace NCL::Win32Code {
 
 		Win32Mouse*		winMouse;
 		Win32Keyboard*  winKeyboard;
+
+		// 无边框全屏：保存进入前的窗口状态，用于恢复
+		LONG			savedStyle = 0;
+		WINDOWPLACEMENT	savedPlacement = { sizeof(WINDOWPLACEMENT) };
 	};
 }
 #endif //_WIN32
