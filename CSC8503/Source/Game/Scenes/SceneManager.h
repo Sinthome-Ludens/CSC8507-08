@@ -111,6 +111,11 @@ private:
     IScene*            m_CurrentScene = nullptr; ///< 当前场景（SceneManager 拥有所有权）
     Res_NCL_Pointers   m_NclPtrs;       ///< Engine 层全局资源（不随场景销毁）
     bool               m_Shutdown = false;       ///< 防止重复 Shutdown
+
+    // 固定步长调度状态（由 Update 中的累加器循环使用）
+    float m_FixedAccumulator = 0.0f;    ///< 固定步长累加器
+    float m_FixedDt = 1.0f / 60.0f;     ///< 固定物理步长（默认 60Hz）
+    int   m_MaxFixedStepsPerFrame = 4;  ///< 单帧最大固定步进次数，防止螺旋死亡
 };
 
 } // namespace ECS
