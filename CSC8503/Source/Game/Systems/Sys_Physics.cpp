@@ -141,8 +141,21 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
         });
     }
 
-    // dt 当前由 SceneManager 的固定步长调度路径接管物理推进，此处保留参数以维持接口一致
-    (void)dt;
+    // 2.6 运动学体由 ECS 主动驱动：将当前 Transform 推送到 Jolt
+    // 说明：动态体位置由物理回写；运动学体位置由游戏逻辑写入 ECS 后同步到底层。
+    const float kinematicDt = (dt > 0.0f) ? dt : FIXED_DT;
+    registry.view<C_D_Transform, C_D_RigidBody>().each(
+        [&](EntityID /*id*/, C_D_Transform& tf, C_D_RigidBody& rb) {
+            if (!rb.body_created || rb.is_static || !rb.is_kinematic) return;
+
+            MoveKinematic(
+                rb.jolt_body_id,
+                tf.position.x, tf.position.y, tf.position.z,
+                tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w,
+                kinematicDt
+            );
+        }
+    );
 }
 
 // ============================================================
