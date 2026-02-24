@@ -57,7 +57,15 @@ if(USE_VULKAN)
         ${Source_Files}
         ${SHADER_FILES}
             Source/Game/Components/Res_Capsule.h
-    )
+            Source/Game/Systems/Sys_EnemyAI.h
+			Source/Game/Systems/Sys_EnemyAI.cpp
+			Source/Game/Prefabs/PREFAB_ENEMY_TYPE01.cpp
+			Source/Game/Prefabs/PREFAB_ENEMY_TYPE01.h
+			Source/Game/Components/C_T_Enemy.h
+			Source/Game/Components/C_D_AIState.h
+			Source/Game/Components/C_D_AIPreception.h
+			Source/Game/Components/Res_EnemyEnums.h
+	)
 
 foreach (file ${SHADER_FILES})
     get_filename_component(file_name ${file} NAME)

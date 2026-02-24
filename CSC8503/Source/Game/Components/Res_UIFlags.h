@@ -9,4 +9,6 @@
 struct Res_UIFlags {
     bool showTestControls = true;  ///< 是否显示 "ECS Test Controls" 控制面板
     bool showCubeDebug    = true;  ///< 是否显示 "Cube Debug Info" 浮动 debug 窗口
+    bool showEnemyAIControl = true;
+    bool showEnemyAIStatus =  true;
 };

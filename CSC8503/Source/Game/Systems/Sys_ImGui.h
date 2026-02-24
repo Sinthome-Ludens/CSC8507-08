@@ -36,11 +36,17 @@ private:
     void RenderTestControlsWindow(Registry& registry);  ///< 控制面板：Spawn/Delete/Gravity
     void RenderCubeDebugWindow   (Registry& registry);  ///< 浮动 Debug 窗口：per-cube 状态
 
+    void RenderEnemyAIControlWindow       (Registry& registry);//<敌人AI控制面板
+    void RenderEnemyAIStateWindow (Registry& registry);//<敌人状态显示面板
+
     void SpawnCube     (Registry& registry);             ///< 通过 PrefabFactory 生成动态方块
     void DeleteLastCube(Registry& registry);             ///< 销毁最后生成的方块
 
     void SpawnCapsule     (Registry& registry);             ///< 通过 PrefabFactory 生成动态方块
     void DeleteLastCapsule(Registry& registry);             ///< 销毁最后生成的方块
+
+    void SpawnEnemy    (Registry& registry);///< 通过 PrefabFactory 生成对象
+    void DeleteLastEnemy (Registry& registry);///< 销毁最后生成的敌人
 
     void SetGravityAll (Registry& registry, float factor); ///< 批量修改 gravity_factor
 

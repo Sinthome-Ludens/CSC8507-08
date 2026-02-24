@@ -1,13 +1,14 @@
 #include "Scene_PhysicsTest.h"
 
 #include "Assets.h"
+#include "Core/Bridge/AssetManager.h"
 #include "Core/ECS/Registry.h"
 #include "Core/ECS/SystemManager.h"
-#include "Core/Bridge/AssetManager.h"
-#include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_TestState.h"
+#include "Game/Components/Res_UIFlags.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
+#include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Utils/Log.h"
@@ -59,6 +60,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Camera>   ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>  (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
+    systems.Register<ECS::Sys_EnemyAI>  (250);
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>    (300);   // 菜单栏 + 性能窗口 + TestScene 控制面板
 #endif

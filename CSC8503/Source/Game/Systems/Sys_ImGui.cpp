@@ -15,6 +15,9 @@
 #include "Constraint.h"
 #include "PhysicsSystem.h"
 #include <iterator>
+#include "Game/Components/C_T_Enemy.h"
+#include "Game/Components/C_D_AIState.h"
+#include "Game/Components/C_D_AIPreception.h"
 #include <cmath>
 
 using namespace NCL::Maths;
@@ -49,6 +52,8 @@ void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (flags.showTestControls) RenderTestControlsWindow(registry);
         if (flags.showCubeDebug)    RenderCubeDebugWindow(registry);
+        if (flags.showEnemyAIControl) RenderEnemyAIControlWindow(registry);
+        if (flags.showEnemyAIStatus) RenderEnemyAIStateWindow(registry);
     }
 }
 
@@ -163,6 +168,87 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
     ImGui::End();
 }
 
+    // ============================================================
+    // RenderEnemyAIControlWindow（敌人控制面板）
+    // ============================================================
+
+    void Sys_ImGui::RenderEnemyAIControlWindow(Registry& registry) {
+    if (!ImGui::Begin("Enemy AI Control")) {
+        ImGui::End();
+        return;
+    }
+
+    // --- 按钮：生成与销毁 ---
+    if (ImGui::Button("Spawn Enemy")) {
+        SpawnEnemy(registry);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Delete Last Enemy")) {
+        DeleteLastEnemy(registry);
+    }
+
+    ImGui::Separator();
+
+    // --- 批量控制：Detection Value ---
+    static float batchValue = 10.0f;
+    ImGui::SliderFloat("Value Step", &batchValue, 0.0f, 100.0f);
+
+    if (ImGui::Button("Add Detection to All")) {
+        auto view = registry.view<C_T_Enemy, C_D_AIPreception>();
+        view.each([&](EntityID id, C_T_Enemy&, C_D_AIPreception& det) {
+            det.detectionValue += batchValue;
+        });
+    }
+
+    ImGui::End();
+}
+
+    // ============================================================
+    // RenderEnemyAIStateWindow（独立浮动 敌人状态 Debug 窗口）
+    // ============================================================
+
+    void Sys_ImGui::RenderEnemyAIStateWindow(Registry& registry) {
+    if (!ImGui::Begin("Enemy Monitoring Station")) {
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::BeginTable("EnemyTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("Entity ID");
+        ImGui::TableSetupColumn("Position");
+        ImGui::TableSetupColumn("AI State");
+        ImGui::TableSetupColumn("Detection");
+        ImGui::TableHeadersRow();
+
+        auto view = registry.view<C_T_Enemy, C_D_Transform, C_D_AIState, C_D_AIPreception>();
+        view.each([&](EntityID id, auto&, C_D_Transform& tf, C_D_AIState& state, C_D_AIPreception& det) {
+            ImGui::TableNextRow();
+
+            // ID
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%d", (int)id);
+
+            // Position
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%.1f, %.1f, %.1f", tf.position.x, tf.position.y, tf.position.z);
+
+            // State (转换为文字)
+            ImGui::TableSetColumnIndex(2);
+            const char* stateStr = (state.currentState == EnemyState::Safe) ? "SAFE" :
+                                   (state.currentState == EnemyState::Caution) ? "CAUTION" : "ALERT";
+            ImGui::TextUnformatted(stateStr);
+
+            // Detection
+            ImGui::TableSetColumnIndex(3);
+            ImGui::ProgressBar(det.detectionValue / 100.0f, ImVec2(-1.0f, 0.0f));
+        });
+
+        ImGui::EndTable();
+    }
+
+    ImGui::End();
+}
+
 // ============================================================
 // RenderCubeDebugWindow（独立浮动 Debug 窗口）
 // ============================================================
@@ -262,6 +348,8 @@ void Sys_ImGui::SpawnCube(Registry& registry) {
              << " (total=" << state.cubeEntities.size() << ")");
 }
 
+
+
 // ============================================================
 // DeleteLastCube
 // ============================================================
@@ -345,7 +433,45 @@ void Sys_ImGui::DeleteLastCapsule(Registry& registry) {
         LOG_INFO("[Sys_ImGui] Destroyed capsule entity id=" << last);
     }
 }
+    // ============================================================
+    // Spawn Enemy
+    // ============================================================
+    void Sys_ImGui::SpawnEnemy(Registry& registry) {
+    if (!registry.has_ctx<Res_TestState>()) return;
+    auto& state = registry.ctx<Res_TestState>();
 
+    // 假设 AssetManager 已加载模型
+    MeshHandle enemyMesh = 0; // 实际开发中通过 AssetManager 获取
+
+    // 调用 PrefabFactory 创建实体
+    EntityID newEnemy = PrefabFactory::CreatePhysicsEnemy(
+        registry,
+        enemyMesh,
+        (int)state.enemyEntities.size(),
+        Vector3(0, 2, 0) // 在原点上方生成
+    );
+
+    state.enemyEntities.push_back(newEnemy);
+    LOG_INFO("SYS_IMGUI: Spawned Enemy ID=" << (int)newEnemy);
+}
+
+    // ============================================================
+    // DeleteLastEnemy
+    // ============================================================
+    void Sys_ImGui::DeleteLastEnemy(Registry& registry) {
+    if (!registry.has_ctx<Res_TestState>()) return;
+    auto& state = registry.ctx<Res_TestState>();
+
+    if (state.enemyEntities.empty()) return;
+
+    EntityID last = state.enemyEntities.back();
+    state.enemyEntities.pop_back();
+
+    if (registry.Valid(last)) {
+        registry.Destroy(last);
+        LOG_INFO("SYS_IMGUI: Destroyed Enemy ID=" << (int)last);
+    }
+}
 
 // ============================================================
 // SetGravityAll

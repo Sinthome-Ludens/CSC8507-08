@@ -21,4 +21,9 @@ struct Res_TestState {
     ECS::MeshHandle            capsuleMeshHandle = ECS::INVALID_HANDLE; ///< 共享 capsule mesh 句柄
     std::vector<ECS::EntityID> capsuleEntities;                         ///< 存活的动态 capsule 实体列表
     int                        capsuleSpawnIndex = 0;                   ///< 下一个 capsule 的生成偏移索引
+
+
+    ECS::MeshHandle            enemyMeshHandle = ECS::INVALID_HANDLE; ///< 共享 capsule mesh 句柄
+    std::vector<ECS::EntityID> enemyEntities;                         ///< 存活的动态 capsule 实体列表
+    int                        enemySpawnIndex = 0;
 };

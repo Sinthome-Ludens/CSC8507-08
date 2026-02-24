@@ -8,6 +8,9 @@
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/C_T_Enemy.h"
+#include "Game/Components/C_D_AIState.h"
+#include "Game/Components/C_D_AIPreception.h"
 
 #include <cstring>
 #include <cstdio>
@@ -211,3 +214,57 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
 
     return entity;
 }
+
+// ============================================================
+// CreatePhysicsCube  →  PREFAB_PHYSICS_Enemy
+// ============================================================
+EntityID PrefabFactory::CreatePhysicsEnemy(
+Registry&   reg,
+MeshHandle  enemyMesh,
+int         spawnIndex,
+Vector3     spawnPos
+) {
+    // 1. 创建实体根对象
+    EntityID entity = reg.Create();
+
+    // 2. 挂载基础空间组件 (C_D_Transform)
+    reg.Emplace<C_D_Transform>(entity,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    // 3. 挂载渲染组件 (C_D_MeshRenderer)
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        enemyMesh,
+        static_cast<uint32_t>(0) // 默认材质
+    );
+
+    // 4. 挂载物理组件 (参考 Sys_Physics 需求)
+    C_D_RigidBody rb{};
+    rb.mass = 1.0f;
+    rb.gravity_factor = 1.0f;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    C_D_Collider col{};
+    col.type = ColliderType::Capsule; // 敌人通常使用胶囊体碰撞
+    col.half_x = 0.5f; // 半径
+    col.half_y = 1.0f; // 半高
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // 5. 挂载 AI 核心组件 (根据我们之前拆分的文件)
+    reg.Emplace<C_T_Enemy>(entity);      // 身份标签
+    reg.Emplace<C_D_AIState>(entity);    // 默认状态为 Safe
+
+    auto& detect = reg.Emplace<C_D_AIPreception>(entity);
+    detect.detectionValue = 0.0f;
+    detect.detectionValueIncrease = 15.0f; // 可根据预制体类型调整
+
+    // 6. 挂载调试名 (规范要求：SYS_ 索敌或调试时必须可见)
+    char nameBuffer[32];
+    sprintf_s(nameBuffer, "Enemy_Basic_%02d", spawnIndex);
+    AttachDebugName(reg, entity, nameBuffer);
+
+    return entity;
+}
+
