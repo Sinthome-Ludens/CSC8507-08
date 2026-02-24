@@ -143,6 +143,21 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
 }
 
 // ============================================================
+// OnFixedUpdate（为统一固定步长入口预留）
+// ============================================================
+void ECS::Sys_Physics::OnFixedUpdate(Registry& registry, float fixedDt) {
+    if (!m_PhysicsSystem) return;
+    if (fixedDt <= 0.0f) return;
+
+    // 固定步长物理推进：后续由 SceneManager 统一调度该入口
+    m_PhysicsSystem->Update(fixedDt, 1, m_TempAllocator.get(), m_JobSystem.get());
+
+    // 固定步长后回写 ECS Transform，并分发本步碰撞事件
+    SyncTransformsFromJolt(registry);
+    FlushCollisionEvents(registry);
+}
+
+// ============================================================
 // OnDestroy
 // ============================================================
 void ECS::Sys_Physics::OnDestroy(Registry& registry) {

@@ -171,6 +171,8 @@ public:
 
     void OnAwake  (Registry& registry) override;
     void OnUpdate (Registry& registry, float dt) override;
+    // 固定步长入口：后续由 SceneManager 统一调度到该路径
+    void OnFixedUpdate(Registry& registry, float fixedDt) override;
     void OnDestroy(Registry& registry) override;
 
     // --- 工具函数（供 Prefab 工厂等外部代码调用）---
