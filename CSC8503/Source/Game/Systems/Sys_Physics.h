@@ -104,8 +104,8 @@ public:
         float    contact_x, contact_y, contact_z;
         float    normal_x,  normal_y,  normal_z;
         float    separating_velocity;
-        bool     is_trigger;
-        bool     is_exit;  ///< true = TriggerExit
+        bool     is_trigger; ///< Jolt 侧传感器标记（最终语义由 Sys_Physics 结合 ECS 组件复核）
+        bool     is_exit;    ///< true = TriggerExit 候选（需在 FlushCollisionEvents 中再次校验）
     };
 
     std::mutex                   mutex;
@@ -145,13 +145,13 @@ public:
 
     virtual void OnContactRemoved(const JPH::SubShapeIDPair& pair) override {
         std::lock_guard lock(mutex);
-        // 只记录 body ID，is_exit=true 由 Sys_Physics 处理 TriggerExit
+        // 只记录 body ID，is_exit=true 由 Sys_Physics 在 FlushCollisionEvents 中二次判定
         pending.push_back({
             pair.GetBody1ID().GetIndexAndSequenceNumber(),
             pair.GetBody2ID().GetIndexAndSequenceNumber(),
             0,0,0, 0,0,0, 0.0f,
-            true,  // 假定 trigger（由 Sys_Physics 查表验证）
-            true   // exit 事件
+            true,  // 先标记为 trigger 候选，最终以 ECS::C_D_Collider::is_trigger 为准
+            true   // exit 候选
         });
     }
 };
@@ -170,9 +170,9 @@ public:
     static constexpr int   MAX_CONTACTS= 1024;           ///< 最大接触约束数
 
     void OnAwake  (Registry& registry) override;
-    // 变步长职责：建体、清理与参数同步（不做物理积分）
+    // 变步长职责：建体、清理、参数同步、运动学体 ECS->Jolt 推送（不做物理积分）
     void OnUpdate (Registry& registry, float dt) override;
-    // 固定步长入口：后续由 SceneManager 统一调度到该路径
+    // 固定步长职责：Jolt 物理步进 + 动态体 Jolt->ECS 回写 + 碰撞/触发事件分发
     void OnFixedUpdate(Registry& registry, float fixedDt) override;
     void OnDestroy(Registry& registry) override;
 
