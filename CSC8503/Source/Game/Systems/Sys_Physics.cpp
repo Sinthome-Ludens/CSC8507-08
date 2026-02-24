@@ -160,6 +160,17 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     m_JobSystem.reset();
     m_TempAllocator.reset();
 
+    // 清空并释放 EventBus：避免遗留事件在场景切换后被错误触发
+    if (m_EventBus) {
+        m_EventBus->clear();
+        m_EventBus.reset();
+    }
+
+    // 断开 Registry 上下文中的裸指针，防止后续系统误用悬空指针
+    if (registry.has_ctx<ECS::EventBus*>()) {
+        registry.ctx<ECS::EventBus*>() = nullptr;
+    }
+
     // Jolt 全局资源（Factory 等）保持存活，避免多系统场景问题
     m_BroadPhaseOptimized = false;
     LOG_INFO("[Sys_Physics] OnDestroy - Jolt PhysicsSystem destroyed");

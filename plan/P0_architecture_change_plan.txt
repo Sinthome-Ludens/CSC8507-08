@@ -1,0 +1,317 @@
+P0 Architecture Correctness Plan (Single-File Incremental)
+
+Project: CSC8507-08 (NCL + ECS + Jolt)
+Scope: P0 only (architecture correctness), no feature expansion
+Goal: Each step changes exactly ONE file, then verify, then continue
+
+====================================================================
+0. Execution Principles
+====================================================================
+1) One step = one file change only.
+2) Every step must pass build verification before the next step.
+3) Run-time verification is required at key milestones.
+4) If verification fails, rollback only current step commit.
+5) Keep commit scope minimal and message explicit.
+6) From now on, all newly added code comments must be in Chinese.
+
+Comment convention (added):
+- Starting now and for all future steps, any new/updated comments in code should be Chinese.
+- Prefer comments for non-obvious logic; avoid redundant comments.
+- Architecture boundaries (e.g., OnUpdate vs OnFixedUpdate responsibilities) must have Chinese comments.
+- Add one extra verification item per step: newly added comments are Chinese.
+
+Recommended branch naming:
+- feat/<name>/p0-physics-architecture
+
+Recommended commit format:
+- p0-step-01: scene exit clears registry
+- p0-step-02: physics destroy clears event bus context pointer
+
+Build command (Debug):
+cmake --build "E:\CSC8507-08\CSC8507-08\cmake-build-debug-visual-studio" --config Debug --target CSC8503
+
+Run-time smoke checklist (reused repeatedly):
+- Scene starts normally
+- Spawn cube works
+- Delete last cube works
+- Gravity toggle works
+- No crash on scene exit / application shutdown
+
+====================================================================
+1. P0 Deliverables
+====================================================================
+A) Fixed timestep has a unified entry (OnFixedUpdate path is consistent)
+B) ECS <-> Jolt sync boundary is explicit (who writes, who reads)
+C) Scene exit can clean entities / physics bodies / event queue safely
+
+Out of scope for P0:
+- Raycast and query feature expansion
+- Broad performance optimization
+- Gameplay behavior redesign
+
+====================================================================
+2. Detailed Step Plan (One File Per Step)
+====================================================================
+
+--------------------------------------------------------------------
+Step 01 - Enable scene entity cleanup on exit
+--------------------------------------------------------------------
+File:
+- CSC8503/Source/Game/Scenes/Scene_PhysicsTest.cpp
+
+Change:
+- In OnExit(...), call registry.Clear() after systems.DestroyAll(registry)
+- Remove outdated TODO comments claiming Clear() is unavailable
+
+Why:
+- Prevent cross-scene entity/state contamination
+
+Verify:
+1) Build Debug target
+2) Run smoke checklist
+
+Acceptance:
+- Scene re-entry starts from clean ECS state
+
+--------------------------------------------------------------------
+Step 02 - Prevent dangling EventBus pointer on physics destroy
+--------------------------------------------------------------------
+File:
+- CSC8503/Source/Game/Systems/Sys_Physics.cpp
+
+Change:
+- In Sys_Physics::OnDestroy(...):
+  - if (m_EventBus) m_EventBus->clear();
+  - if (registry.has_ctx<ECS::EventBus*>()) registry.ctx<ECS::EventBus*>() = nullptr;
+
+Why:
+- Current context stores raw EventBus*; on destroy it can become dangling
+
+Verify:
+1) Build Debug target
+2) Run smoke checklist with focus on shutdown path
+
+Acceptance:
+- No crash/access violation from EventBus after scene exit
+
+--------------------------------------------------------------------
+Step 03 - Guard EventBus publish in render system
+--------------------------------------------------------------------
+File:
+- CSC8503/Source/Game/Systems/Sys_Render.cpp
+
+Change:
+- Before publish(...), check pointer is non-null even if ctx exists
+- Apply in both CreateProxy(...) and CleanupOrphans(...)
+
+Why:
+- has_ctx<T>() only guarantees key exists, not pointer validity
+
+Verify:
+1) Build Debug target
+2) Run smoke checklist (spawn/delete repeatedly)
+
+Acceptance:
+- No null pointer publish crash
+
+--------------------------------------------------------------------
+Step 04 - Guard EventBus publish in physics flush path
+--------------------------------------------------------------------
+File:
+- CSC8503/Source/Game/Systems/Sys_Physics.cpp
+
+Change:
+- In FlushCollisionEvents(...): if EventBus* is null, return safely
+
+Why:
+- Make event dispatch robust to scene teardown order
+
+Verify:
+1) Build Debug target
+2) Run smoke checklist and scene exit stress (enter/exit several times)
+
+Acceptance:
+- Stable behavior during/after teardown
+
+--------------------------------------------------------------------
+Step 05 - Introduce OnFixedUpdate declaration for physics system
+--------------------------------------------------------------------
+File:
+- CSC8503/Source/Game/Systems/Sys_Physics.h
+
+Change:
+- Add override declaration:
+  void OnFixedUpdate(Registry& registry, float fixedDt) override;
+
+Why:
+- Prepare unified fixed-step entry without changing behavior yet
+
+Verify:
+1) Build Debug target
+Note:
+- If linker error occurs because implementation not yet present, proceed immediately to Step 06 (same session)
+
+Acceptance:
+- Header contract exists for fixed-step path
+
+--------------------------------------------------------------------
+Step 06 - Implement physics OnFixedUpdate
+--------------------------------------------------------------------
+File:
+- CSC8503/Source/Game/Systems/Sys_Physics.cpp
+
+Change:
+- Implement OnFixedUpdate(...):
+  - Jolt Update(fixedDt,...)
+  - SyncTransformsFromJolt(...)
+  - FlushCollisionEvents(...)
+- Keep OnUpdate behavior unchanged for now (transition-safe)
+
+Why:
+- Create the real fixed-step execution body before rerouting scheduler
+
+Verify:
+1) Build Debug target
+2) Smoke run (behavior should remain equivalent at this stage)
+
+Acceptance:
+- OnFixedUpdate compiles and is ready to be scheduled
+
+--------------------------------------------------------------------
+Step 07 - Add fixed-step state fields to SceneManager
+--------------------------------------------------------------------
+File:
+- CSC8503/Source/Game/Scenes/SceneManager.h
+
+Change:
+- Add members:
+  - float m_FixedAccumulator = 0.0f;
+  - float m_FixedDt = 1.0f / 60.0f;
+  - int m_MaxFixedStepsPerFrame = 4;
+
+Why:
+- Scheduler needs state, but logic wiring is deferred to next step
+
+Verify:
+1) Build Debug target
+
+Acceptance:
+- SceneManager contains fixed-step scheduling state
+
+--------------------------------------------------------------------
+Step 08 - Wire unified fixed-step scheduler in SceneManager::Update
+--------------------------------------------------------------------
+File:
+- CSC8503/Source/Game/Scenes/SceneManager.cpp
+
+Change:
+- In Update(dt):
+  - keep UpdateAll(registry, dt)
+  - accumulate dt and call FixedUpdateAll(registry, m_FixedDt)
+  - clamp by m_MaxFixedStepsPerFrame
+- Reset accumulator on scene enter/exit/shutdown transitions
+
+Why:
+- Establish one canonical fixed-step entry at scheduler level
+
+Verify:
+1) Build Debug target
+2) Run smoke checklist
+
+Acceptance:
+- FixedUpdate path is executed by SceneManager
+
+--------------------------------------------------------------------
+Step 09 - Remove physics stepping from OnUpdate (boundary cleanup)
+--------------------------------------------------------------------
+File:
+- CSC8503/Source/Game/Systems/Sys_Physics.cpp
+
+Change:
+- In OnUpdate(...), remove internal accumulator and Jolt Update loop
+- Keep only variable-step-safe work:
+  - body creation
+  - broadphase optimize (one-time)
+  - orphan body cleanup
+  - parameter push ECS->Jolt (e.g. gravity factor)
+
+Why:
+- Avoid dual stepping and enforce one fixed-step path
+
+Verify:
+1) Build Debug target
+2) Run smoke checklist (watch cube fall speed, collision stability)
+
+Acceptance:
+- Physics integration occurs only in OnFixedUpdate
+
+--------------------------------------------------------------------
+Step 10 - Remove obsolete physics accumulator member and finalize docs
+--------------------------------------------------------------------
+File:
+- CSC8503/Source/Game/Systems/Sys_Physics.h
+
+Change:
+- Remove m_Accumulator member
+- Update comments to document ECS<->Jolt boundaries clearly
+
+Boundary contract after Step 10:
+- OnUpdate: ECS -> Jolt config sync and lifecycle maintenance
+- OnFixedUpdate: Jolt step + Jolt -> ECS transform sync + event flush
+- OnDestroy/OnExit: physics bodies + event queue + ECS entities cleaned
+
+Verify:
+1) Build Debug target
+2) Full smoke run + repeated enter/exit cycles
+
+Acceptance:
+- P0 architecture correctness complete
+
+====================================================================
+3. Validation Matrix
+====================================================================
+After every step:
+- Build success required
+
+After Steps 01, 04, 08, 10:
+- Build + run-time smoke required
+
+Extra checks at Steps 08-10:
+- No visible double-step behavior
+- No crash at shutdown
+- No stale entities after scene restart
+
+====================================================================
+4. Rollback Strategy
+====================================================================
+If a step fails verification:
+1) Revert that step commit only
+2) Fix and recommit same step
+3) Do NOT continue to next step until current step passes
+
+Recommended: tag milestone points
+- p0-m1 (after step 04)
+- p0-m2 (after step 08)
+- p0-done (after step 10)
+
+====================================================================
+5. Risks and Mitigations
+====================================================================
+Risk: EventBus raw pointer lifetime mismatch
+Mitigation: Steps 02-04 null-safe teardown and publish guards
+
+Risk: Physics stepped twice during transition
+Mitigation: Step 09 explicitly removes OnUpdate stepping
+
+Risk: Merge conflict on central files
+Mitigation: one-file commits + strict sequencing + immediate integration
+
+====================================================================
+6. Completion Criteria (P0 Done)
+====================================================================
+- Fixed timestep path is unified through SceneManager -> FixedUpdateAll -> Sys_Physics::OnFixedUpdate
+- ECS<->Jolt write/read boundary is explicit and stable
+- Scene exit reliably clears systems, physics objects, event queue, and registry entities
+- All above verified by build + smoke checklist
+
+End of plan.
