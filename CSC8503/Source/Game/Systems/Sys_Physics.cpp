@@ -115,6 +115,12 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
         registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
     }
 
+    if (!registry.has_ctx<ECS::Sys_Physics*>()) {
+        registry.ctx_emplace<ECS::Sys_Physics*>(this);
+    } else {
+        registry.ctx<ECS::Sys_Physics*>() = this;
+    }
+
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
 }
 
@@ -224,6 +230,10 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     // 断开 Registry 上下文中的裸指针，防止后续系统误用悬空指针
     if (registry.has_ctx<ECS::EventBus*>()) {
         registry.ctx<ECS::EventBus*>() = nullptr;
+    }
+
+    if (registry.has_ctx<ECS::Sys_Physics*>()) {
+        registry.ctx<ECS::Sys_Physics*>() = nullptr;
     }
 
     // Jolt 全局资源（Factory 等）保持存活，避免多系统场景问题
