@@ -210,17 +210,23 @@ void ECS::Sys_Physics::CreateBodyForEntity(
         return;
     }
 
-    // --- 运动类型 ---
-    JPH::EMotionType motionType;
-    JPH::ObjectLayer layer;
-    if (rb.is_static || col.is_trigger) {
+    // --- 运动类型（统一优先级：Trigger/Static > Kinematic > Dynamic）---
+    // Trigger 仅用于重叠检测，不需要动力学响应，因此按静态体创建。
+    // 当 is_static 与 is_kinematic 同时为 true 时，以静态体为准。
+    JPH::EMotionType motionType = JPH::EMotionType::Dynamic;
+    JPH::ObjectLayer layer      = PhysicsLayers::MOVING;
+
+    const bool forceStatic = rb.is_static || col.is_trigger;
+    if (forceStatic) {
         motionType = JPH::EMotionType::Static;
         layer      = PhysicsLayers::NON_MOVING;
+
+        if (rb.is_static && rb.is_kinematic) {
+            LOG_WARN("[Sys_Physics] Entity " << id
+                     << " has both is_static and is_kinematic; static takes precedence.");
+        }
     } else if (rb.is_kinematic) {
         motionType = JPH::EMotionType::Kinematic;
-        layer      = PhysicsLayers::MOVING;
-    } else {
-        motionType = JPH::EMotionType::Dynamic;
         layer      = PhysicsLayers::MOVING;
     }
 
