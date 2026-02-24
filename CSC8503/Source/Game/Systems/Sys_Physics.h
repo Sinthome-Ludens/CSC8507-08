@@ -170,6 +170,7 @@ public:
     static constexpr int   MAX_CONTACTS= 1024;           ///< 最大接触约束数
 
     void OnAwake  (Registry& registry) override;
+    // 变步长职责：建体、清理与参数同步（不做物理积分）
     void OnUpdate (Registry& registry, float dt) override;
     // 固定步长入口：后续由 SceneManager 统一调度到该路径
     void OnFixedUpdate(Registry& registry, float fixedDt) override;
@@ -211,9 +212,6 @@ private:
     // EventBus 由 Sys_Physics 持有（EventBus 不可复制，无法直接存入 std::any）
     // 通过 registry.ctx_emplace<ECS::EventBus*>(ptr) 以裸指针注册到 Context
     std::unique_ptr<ECS::EventBus> m_EventBus;
-
-    // --- 固定步长累加器 ---
-    float m_Accumulator = 0.0f;
 
     // BroadPhase 优化标志（场景加载完毕后调用一次 OptimizeBroadPhase）
     bool m_BroadPhaseOptimized = false;
