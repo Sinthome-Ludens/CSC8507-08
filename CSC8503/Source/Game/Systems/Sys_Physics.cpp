@@ -22,6 +22,8 @@
 #include "Game/Utils/Log.h"
 #include <Jolt/Physics/Body/BodyLock.h>
 #include <Jolt/Physics/Body/MotionProperties.h>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
 #include <iostream>
 
 using namespace NCL::Maths;
@@ -514,4 +516,58 @@ void ECS::Sys_Physics::MoveKinematic(
         JPH::RVec3(px, py, pz),
         JPH::Quat(qx, qy, qz, qw),
         dt);
+}
+
+bool ECS::Sys_Physics::RaycastNearest(const Vector3& origin,
+                                      const Vector3& direction,
+                                      float maxDistance,
+                                      const RaycastFilter& filter,
+                                      RaycastHit& outHit) const
+{
+    outHit = RaycastHit{};
+
+    if (!m_PhysicsSystem || maxDistance <= 0.0f) {
+        return false;
+    }
+
+    const float dirLenSq = direction.x * direction.x + direction.y * direction.y + direction.z * direction.z;
+    if (dirLenSq <= 1.0e-8f) {
+        return false;
+    }
+
+    (void)filter;
+
+    const float invDirLen = 1.0f / std::sqrt(dirLenSq);
+    const Vector3 dirNorm(direction.x * invDirLen, direction.y * invDirLen, direction.z * invDirLen);
+    const JPH::Vec3 rayDir = ToJolt(dirNorm.x * maxDistance, dirNorm.y * maxDistance, dirNorm.z * maxDistance);
+    const JPH::RRayCast ray(JPH::RVec3(origin.x, origin.y, origin.z), rayDir);
+
+    JPH::RayCastResult hit;
+    if (!m_PhysicsSystem->GetNarrowPhaseQuery().CastRay(ray, hit)) {
+        return false;
+    }
+
+    const uint32_t rawBodyID = hit.mBodyID.GetIndexAndSequenceNumber();
+    auto it = m_BodyToEntity.find(rawBodyID);
+    if (it == m_BodyToEntity.end()) {
+        return false;
+    }
+
+    const JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
+    JPH::Vec3 hitNormal = JPH::Vec3::sZero();
+    {
+        JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), hit.mBodyID);
+        if (lock.Succeeded()) {
+            const JPH::Body& body = lock.GetBody();
+            hitNormal = body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint);
+        }
+    }
+
+    outHit.hit = true;
+    outHit.entity = it->second;
+    outHit.jolt_body_id = rawBodyID;
+    outHit.point = Vector3((float)hitPoint.GetX(), (float)hitPoint.GetY(), (float)hitPoint.GetZ());
+    outHit.normal = FromJolt(hitNormal);
+    outHit.distance = hit.mFraction * maxDistance;
+    return true;
 }
