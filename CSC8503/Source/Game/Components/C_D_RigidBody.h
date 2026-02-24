@@ -22,10 +22,12 @@ struct C_D_RigidBody {
     float    gravity_factor = 1.0f;       ///< 重力缩放因子（0=无重力，负值=反重力）
 
     // --- 运动类型 ---
+    // 优先级约定：is_static=true 时始终按静态体处理，is_kinematic 在该情况下被忽略。
     bool     is_static      = false;      ///< 静态体（不受任何力影响，不可移动）
     bool     is_kinematic   = false;      ///< 运动学体（由代码直接设置位置，不受物理力影响）
 
     // --- 旋转锁定（通常 2.5D 游戏锁定 X/Z 轴旋转）---
+    // 2.5D 常见配置：lock_rotation_x=true 且 lock_rotation_z=true，仅允许绕 Y 轴旋转。
     bool     lock_rotation_x = false;
     bool     lock_rotation_y = false;
     bool     lock_rotation_z = false;
