@@ -43,7 +43,24 @@ void SceneManager::PushScene(IScene* scene) {
 void SceneManager::Update(float dt) {
     if (!m_CurrentScene || m_Shutdown) return;
 
+    // 先执行变步长系统（输入、相机、UI 等）
     m_Systems.UpdateAll(m_Registry, dt);
+
+    // 再执行固定步长系统（物理等），统一由 SceneManager 调度入口
+    if (dt <= 0.0f) return;
+
+    m_FixedAccumulator += dt;
+    int fixedSteps = 0;
+    while (m_FixedAccumulator >= m_FixedDt && fixedSteps < m_MaxFixedStepsPerFrame) {
+        m_Systems.FixedUpdateAll(m_Registry, m_FixedDt);
+        m_FixedAccumulator -= m_FixedDt;
+        ++fixedSteps;
+    }
+
+    // 防止极端情况下累计残值无限增长（如长时间卡顿）
+    if (fixedSteps == m_MaxFixedStepsPerFrame && m_FixedAccumulator > m_FixedDt) {
+        m_FixedAccumulator = m_FixedDt;
+    }
 }
 
 // ============================================================
@@ -79,6 +96,9 @@ void SceneManager::Shutdown() {
     if (m_Shutdown) return;
     m_Shutdown = true;
 
+    // 关机时重置固定步长累加器，避免下一次初始化沿用旧值
+    m_FixedAccumulator = 0.0f;
+
     if (m_CurrentScene) {
         ExitCurrentScene();
         delete m_CurrentScene;
@@ -93,6 +113,8 @@ void SceneManager::Shutdown() {
 
 void SceneManager::EnterScene(IScene* scene) {
     m_CurrentScene = scene;
+    // 进入新场景前清空累加器，防止上一场景的时间残值影响本场景
+    m_FixedAccumulator = 0.0f;
     m_CurrentScene->OnEnter(m_Registry, m_Systems, m_NclPtrs);
     LOG_INFO("[SceneManager] Scene entered. Active systems: " << m_Systems.Count());
 }
@@ -103,6 +125,9 @@ void SceneManager::EnterScene(IScene* scene) {
 
 void SceneManager::ExitCurrentScene() {
     if (!m_CurrentScene) return;
+
+    // 退出当前场景时清空累加器，避免残值跨场景传播
+    m_FixedAccumulator = 0.0f;
     m_CurrentScene->OnExit(m_Registry, m_Systems);
     m_CurrentScene = nullptr;
     LOG_INFO("[SceneManager] Scene exited.");
