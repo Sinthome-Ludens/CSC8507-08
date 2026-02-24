@@ -93,7 +93,7 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
 }
 
 // ============================================================
-// OnUpdate（固定步长累加器）
+// OnUpdate（仅处理变步长安全逻辑，不做物理积分）
 // ============================================================
 void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     if (!m_PhysicsSystem) return;
@@ -126,20 +126,8 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
         });
     }
 
-    // 3. 固定步长累加器驱动物理更新
-    m_Accumulator += dt;
-    int steps = 0;
-    while (m_Accumulator >= FIXED_DT && steps < 4) {  // 最多步进 4 次防止螺旋死亡
-        m_PhysicsSystem->Update(FIXED_DT, 1, m_TempAllocator.get(), m_JobSystem.get());
-        m_Accumulator -= FIXED_DT;
-        ++steps;
-    }
-
-    // 4. 同步 Jolt 位置 → C_D_Transform
-    SyncTransformsFromJolt(registry);
-
-    // 5. 发布碰撞事件到 EventBus
-    FlushCollisionEvents(registry);
+    // dt 当前由 SceneManager 的固定步长调度路径接管物理推进，此处保留参数以维持接口一致
+    (void)dt;
 }
 
 // ============================================================
