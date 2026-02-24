@@ -369,17 +369,41 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
         EntityID entB = itB->second;
 
         if (c.is_trigger) {
+            // 触发器方向语义：根据组件真实标记确定 trigger 方，不能默认 A 方为 trigger。
+            const bool aIsTrigger = reg.Has<C_D_Collider>(entA)
+                                 && reg.Get<C_D_Collider>(entA).is_trigger;
+            const bool bIsTrigger = reg.Has<C_D_Collider>(entB)
+                                 && reg.Get<C_D_Collider>(entB).is_trigger;
+
+            EntityID triggerEntity = Entity::NULL_ENTITY;
+            EntityID otherEntity   = Entity::NULL_ENTITY;
+
+            if (aIsTrigger && !bIsTrigger) {
+                triggerEntity = entA;
+                otherEntity   = entB;
+            } else if (!aIsTrigger && bIsTrigger) {
+                triggerEntity = entB;
+                otherEntity   = entA;
+            } else if (aIsTrigger && bIsTrigger) {
+                // 双 Trigger 场景下默认采用接触对 A->B 方向，保证事件结构稳定。
+                triggerEntity = entA;
+                otherEntity   = entB;
+            } else {
+                // Jolt 标记为 sensor 接触，但 ECS 侧未识别 trigger，避免错误事件直接跳过。
+                continue;
+            }
+
             if (c.is_exit) {
                 // TriggerExit
                 Evt_Phys_TriggerExit evt;
-                evt.entity_trigger = entA;
-                evt.entity_other   = entB;
+                evt.entity_trigger = triggerEntity;
+                evt.entity_other   = otherEntity;
                 bus->publish<Evt_Phys_TriggerExit>(evt);
             } else {
                 // TriggerEnter
                 Evt_Phys_TriggerEnter evt;
-                evt.entity_trigger = entA;
-                evt.entity_other   = entB;
+                evt.entity_trigger = triggerEntity;
+                evt.entity_other   = otherEntity;
                 bus->publish<Evt_Phys_TriggerEnter>(evt);
             }
         } else {
