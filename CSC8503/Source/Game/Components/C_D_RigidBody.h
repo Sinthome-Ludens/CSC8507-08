@@ -1,3 +1,18 @@
+/**
+ * @file C_D_RigidBody.h
+ * @brief 刚体数据组件定义。
+ *
+ * @details
+ * 本文件定义 ECS 刚体组件 `C_D_RigidBody`，用于描述实体的动力学参数、
+ * 运动类型与运行时绑定状态。
+ *
+ * ## 字段语义
+ * - `mass` / `gravity_factor` / `linear_damping` / `angular_damping`：基础动力学参数。
+ * - `is_static` / `is_kinematic`：运动模式配置（静态优先级高于运动学）。
+ * - `lock_rotation_x/y/z`：旋转自由度约束（2.5D 场景常锁 X/Z）。
+ * - `jolt_body_id` / `body_created`：由物理系统维护的底层绑定状态。
+ */
+
 #pragma once
 #include <cstdint>
 

@@ -1,3 +1,23 @@
+/**
+ * @file Sys_Physics.cpp
+ * @brief ECS 物理系统实现：Jolt 初始化、步进、同步与事件分发。
+ *
+ * @details
+ * 本文件实现 `ECS::Sys_Physics` 的完整运行逻辑，并提供 Jolt/NCL 数据转换。
+ *
+ * ## 实现方法总览
+ * - `InitJolt`：一次性注册 Jolt 分配器、工厂与类型系统。
+ * - `OnAwake`：创建 PhysicsSystem 与监听器，并注册 EventBus 上下文。
+ * - `OnUpdate`：处理建体、孤立体清理、运行时参数同步与运动学体推送。
+ * - `OnFixedUpdate`：执行固定步长物理更新、Transform 回写和事件 Flush。
+ * - `OnDestroy`：销毁 Body、清理映射与 EventBus 生命周期。
+ * - `CreateBodyForEntity`：将 ECS 组件转换为 Jolt Body 并加入物理世界。
+ * - `SyncTransformsFromJolt`：将动态体位姿从 Jolt 回写到 ECS。
+ * - `FlushCollisionEvents`：把监听器缓存事件转换为 ECS 事件并发布。
+ * - `DestroyOrphanBodies`：清理已失效实体对应的 Jolt Body。
+ * - `SetLinearVelocity` / `ApplyImpulse` / `MoveKinematic`：对外物理控制接口。
+ */
+
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
 #include <Jolt/Physics/Body/BodyLock.h>

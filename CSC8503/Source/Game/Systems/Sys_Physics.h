@@ -1,3 +1,26 @@
+/**
+ * @file Sys_Physics.h
+ * @brief ECS 物理系统接口与物理事件缓存结构定义。
+ *
+ * @details
+ * 本文件定义基于 Jolt 的 ECS 物理系统 `ECS::Sys_Physics`，以及其依赖的
+ * 层过滤器与接触监听器结构。
+ *
+ * ## 主要职责
+ * - 维护 ECS 实体与 Jolt Body 的生命周期映射。
+ * - 在固定步长路径执行物理推进与事件分发。
+ * - 在变步长路径执行建体、清理、参数同步与运动学体推送。
+ *
+ * ## 公有方法作用
+ * - `OnAwake`：初始化 Jolt 运行环境并准备系统资源。
+ * - `OnUpdate`：执行变步长安全逻辑（不做物理积分）。
+ * - `OnFixedUpdate`：执行固定步长物理推进与结果回写。
+ * - `OnDestroy`：释放物理对象、清理映射和事件总线。
+ * - `SetLinearVelocity`：设置动态体线速度。
+ * - `ApplyImpulse`：向动态体施加冲量。
+ * - `MoveKinematic`：设置运动学体目标位姿。
+ */
+
 #pragma once
 
 #include "Core/ECS/BaseSystem.h"
