@@ -1,3 +1,14 @@
+/**
+ * @file C_D_Collider.h
+ * @brief 碰撞体数据组件与查询过滤位定义。
+ *
+ * @details
+ * 本文件定义 ECS 碰撞体组件 `C_D_Collider`，用于描述形状、材质、触发器属性，
+ * 以及空间查询使用的双轨过滤位：`layer_mask` 与 `tag_mask`。
+ *
+ * @note 位扩展规则采用“只新增不重排”：已使用位不可复用或改语义。
+ */
+
 #pragma once
 #include <cstdint>
 
@@ -36,4 +47,8 @@ struct C_D_Collider {
 
     // --- 触发器模式 ---
     bool  is_trigger  = false;  ///< true = Trigger（只检测重叠，不产生物理响应）
+
+    // --- 空间查询过滤位（双轨）---
+    uint32_t layer_mask = 0xFFFFFFFFu; ///< 物理层过滤位（粗粒度）
+    uint32_t tag_mask   = 0xFFFFFFFFu; ///< 语义标签过滤位（细粒度）
 };
