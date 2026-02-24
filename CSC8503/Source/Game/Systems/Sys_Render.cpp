@@ -94,9 +94,12 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
     m_GameWorld->AddGameObject(proxy);
     m_ProxyObjects[id] = proxy;
 
-    // 发布代理创建事件（如果 EventBus 可用）
+    // 发布代理创建事件（上下文存在且指针有效时才发布，避免空指针访问）
     if (reg.has_ctx<ECS::EventBus*>()) {
-        reg.ctx<ECS::EventBus*>()->publish(Evt_Render_ProxyCreated{id});
+        ECS::EventBus* bus = reg.ctx<ECS::EventBus*>();
+        if (bus) {
+            bus->publish(Evt_Render_ProxyCreated{id});
+        }
     }
 
     LOG_INFO("[Sys_Render] Proxy created for entity " << id);
@@ -126,6 +129,7 @@ void Sys_Render::CleanupOrphans(Registry& reg) {
 
     if (toRemove.empty()) return;
 
+    // 读取 EventBus 指针时统一做空值保护，兼容场景销毁后的断链状态
     ECS::EventBus* bus = reg.has_ctx<ECS::EventBus*>()
                        ? reg.ctx<ECS::EventBus*>()
                        : nullptr;
