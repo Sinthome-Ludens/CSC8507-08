@@ -1,5 +1,7 @@
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
+#include <Jolt/Physics/Body/BodyLock.h>
+#include <Jolt/Physics/Body/MotionProperties.h>
 #include <iostream>
 
 using namespace NCL::Maths;
@@ -117,12 +119,25 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     // 2. 清理已销毁实体的孤立 Body
     DestroyOrphanBodies(registry);
 
-    // 2.5 同步 gravity_factor（支持运行时修改，如 ImGui 按钮开关重力）
+    // 2.5 同步动力学参数（支持运行时修改）
+    // 说明：静态体不参与动力学积分；运动学体不受重力影响，但可使用阻尼参数保持配置一致。
     {
         auto& bi = m_PhysicsSystem->GetBodyInterface();
         registry.view<C_D_RigidBody>().each([&](EntityID id, C_D_RigidBody& rb) {
             if (!rb.body_created || rb.is_static) return;
-            bi.SetGravityFactor(JPH::BodyID(rb.jolt_body_id), rb.gravity_factor);
+
+            JPH::BodyID jid(rb.jolt_body_id);
+            bi.SetGravityFactor(jid, rb.gravity_factor);
+
+            // 阻尼不在 BodyInterface 上直接暴露，需要写锁后通过 MotionProperties 设置
+            JPH::BodyLockWrite lock(m_PhysicsSystem->GetBodyLockInterface(), jid);
+            if (lock.Succeeded()) {
+                JPH::Body& body = lock.GetBody();
+                if (!body.IsStatic()) {
+                    body.GetMotionProperties()->SetLinearDamping(rb.linear_damping);
+                    body.GetMotionProperties()->SetAngularDamping(rb.angular_damping);
+                }
+            }
         });
     }
 
