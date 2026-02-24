@@ -368,6 +368,11 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
         EntityID entA = itA->second;
         EntityID entB = itB->second;
 
+        // 实体可能在本帧被标记销毁但映射尚未清理，事件侧直接跳过无效实体
+        if (!reg.Valid(entA) || !reg.Valid(entB)) {
+            continue;
+        }
+
         if (c.is_trigger) {
             // 触发器方向语义：根据组件真实标记确定 trigger 方，不能默认 A 方为 trigger。
             const bool aIsTrigger = reg.Has<C_D_Collider>(entA)
@@ -389,7 +394,8 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
                 triggerEntity = entA;
                 otherEntity   = entB;
             } else {
-                // Jolt 标记为 sensor 接触，但 ECS 侧未识别 trigger，避免错误事件直接跳过。
+                // ContactRemoved 回调缺少传感器标记，历史数据可能把普通分离误标成 trigger。
+                // ECS 侧复核发现双方都非 trigger 时，必须丢弃，避免误发 TriggerExit。
                 continue;
             }
 
