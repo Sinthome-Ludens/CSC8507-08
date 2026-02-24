@@ -137,6 +137,21 @@ EntityID PrefabFactory::CreatePhysicsCube(
     rb.gravity_factor  = 1.0f;
     rb.linear_damping  = 0.05f;
     rb.angular_damping = 0.05f;
+
+    // 旋转锁定分组（用于 2.5D 约束验收）：
+    // 0组：锁 X/Z，仅允许绕 Y 轴旋转（典型 2.5D）
+    // 1组：锁全部旋转轴（用于验证完全禁止旋转）
+    // 2组：不锁旋转（作为对照组）
+    const int rotationLockGroup = spawnIndex % 3;
+    if (rotationLockGroup == 0) {
+        rb.lock_rotation_x = true;
+        rb.lock_rotation_z = true;
+    } else if (rotationLockGroup == 1) {
+        rb.lock_rotation_x = true;
+        rb.lock_rotation_y = true;
+        rb.lock_rotation_z = true;
+    }
+
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
     // C_D_Collider（Box 1×1×1，cube.obj 顶点 ±1.0，scale (1,1,1) → 世界半尺寸 (1,1,1)）
@@ -171,6 +186,9 @@ EntityID PrefabFactory::CreatePhysicsCube(
 
     LOG_INFO("[PrefabFactory] CreatePhysicsCube id=" << entity
              << " index=" << spawnIndex
+             << " rot_lock_group=" << rotationLockGroup
+             << " lock_xyz=(" << rb.lock_rotation_x << ","
+             << rb.lock_rotation_y << "," << rb.lock_rotation_z << ")"
              << " material_group=" << materialGroup
              << " friction=" << col.friction
              << " restitution=" << col.restitution
