@@ -145,8 +145,23 @@ EntityID PrefabFactory::CreatePhysicsCube(
     col.half_x      = 1.0f;
     col.half_y      = 1.0f;
     col.half_z      = 1.0f;
-    col.friction    = 0.5f;
-    col.restitution = 0.1f;
+
+    // 材质分组（用于基础动力学验收）：
+    // 0组：高摩擦、低弹性（更容易停下）
+    // 1组：低摩擦、中弹性（更容易滑动+可见回弹）
+    // 2组：中摩擦、高弹性（明显弹跳）
+    const int materialGroup = spawnIndex % 3;
+    if (materialGroup == 0) {
+        col.friction    = 0.9f;
+        col.restitution = 0.05f;
+    } else if (materialGroup == 1) {
+        col.friction    = 0.1f;
+        col.restitution = 0.35f;
+    } else {
+        col.friction    = 0.5f;
+        col.restitution = 0.8f;
+    }
+
     reg.Emplace<C_D_Collider>(entity, col);
 
     // C_D_DebugName（含序号，匹配 ENTITY_Physics_Cube_XX 规范）
@@ -156,6 +171,9 @@ EntityID PrefabFactory::CreatePhysicsCube(
 
     LOG_INFO("[PrefabFactory] CreatePhysicsCube id=" << entity
              << " index=" << spawnIndex
+             << " material_group=" << materialGroup
+             << " friction=" << col.friction
+             << " restitution=" << col.restitution
              << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
 
     return entity;
