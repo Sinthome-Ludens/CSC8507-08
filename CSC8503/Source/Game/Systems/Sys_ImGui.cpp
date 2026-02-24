@@ -5,6 +5,7 @@
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/C_D_RigidBody.h"
+#include "Game/Components/C_D_Collider.h"
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_TestState.h"
@@ -170,8 +171,8 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
     ImGui::Begin("Cube Debug Info", &flags.showCubeDebug,
                  ImGuiWindowFlags_NoCollapse);
 
-    ImGui::Text("%-6s  %-20s  %-8s  %-7s",
-                "ID", "Position", "Gravity", "Body");
+    ImGui::Text("%-6s  %-20s  %-8s  %-8s  %-10s  %-8s  %-7s",
+                "ID", "Position", "Gravity", "Damping", "Motion", "Trigger", "Body");
     ImGui::Separator();
 
     // 清除已失效的 cube（可能被外部途径销毁）
@@ -186,6 +187,10 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
 
         Vector3     pos        = {};
         float       grav       = 0.0f;
+        float       linDamp    = 0.0f;
+        float       angDamp    = 0.0f;
+        const char* motionType = "none";
+        const char* triggerStr = "no";
         const char* bodyStatus = "pending";
 
         if (registry.Has<C_D_Transform>(id)) {
@@ -194,11 +199,27 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
         if (registry.Has<C_D_RigidBody>(id)) {
             auto& rb  = registry.Get<C_D_RigidBody>(id);
             grav       = rb.gravity_factor;
+            linDamp    = rb.linear_damping;
+            angDamp    = rb.angular_damping;
+
+            // 基础动力学观测：根据组件配置显示当前运动类型
+            if (rb.is_static) {
+                motionType = "static";
+            } else if (rb.is_kinematic) {
+                motionType = "kinematic";
+            } else {
+                motionType = "dynamic";
+            }
+
             bodyStatus = rb.body_created ? "created" : "pending";
         }
 
-        ImGui::Text("%-6u  (%-5.1f, %-5.1f, %-5.1f)  %-8.2f  %-7s",
-                    id, pos.x, pos.y, pos.z, grav, bodyStatus);
+        if (registry.Has<C_D_Collider>(id)) {
+            triggerStr = registry.Get<C_D_Collider>(id).is_trigger ? "yes" : "no";
+        }
+
+        ImGui::Text("%-6u  (%-5.1f, %-5.1f, %-5.1f)  %-8.2f  %-4.2f/%-4.2f  %-10s  %-8s  %-7s",
+                    id, pos.x, pos.y, pos.z, grav, linDamp, angDamp, motionType, triggerStr, bodyStatus);
     }
 
     if (state.cubeEntities.empty()) {
