@@ -11,6 +11,7 @@
 #include "Game/Components/Res_TestState.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Prefabs/PrefabFactory.h"
+#include "Game/Systems/Sys_Physics.h"
 #include "Game/Utils/Log.h"
 #include "GameWorld.h"
 #include "Constraint.h"
@@ -154,6 +155,90 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
     if (registry.has_ctx<Res_TestState>()) {
         auto& state = registry.ctx<Res_TestState>();
         ImGui::Text("Cubes alive: %d", (int)state.cubeEntities.size());
+    }
+
+    ImGui::Spacing();
+    ImGui::Text("== Raycast Query ==");
+    ImGui::Separator();
+
+    static bool sUseCameraOrigin = true;
+    static bool sUseCameraDirection = true;
+    static Vector3 sOrigin(0.0f, 5.0f, 0.0f);
+    static Vector3 sDirection(0.0f, -1.0f, 0.0f);
+    static float sMaxDistance = 200.0f;
+    static bool sIncludeTriggers = true;
+    static int sIgnoreEntity = -1;
+    static uint32_t sLayerMask = 0xFFFFFFFFu;
+    static uint32_t sTagMask = 0xFFFFFFFFu;
+    static ECS::RaycastHit sLastHit{};
+    static bool sHasLastQuery = false;
+
+    ImGui::Checkbox("Use Camera Origin", &sUseCameraOrigin);
+    ImGui::Checkbox("Use Camera Direction", &sUseCameraDirection);
+    ImGui::InputFloat3("Origin", &sOrigin.x);
+    ImGui::InputFloat3("Direction", &sDirection.x);
+    ImGui::DragFloat("Max Distance", &sMaxDistance, 0.5f, 0.1f, 5000.0f, "%.1f");
+    ImGui::Checkbox("Include Triggers", &sIncludeTriggers);
+    ImGui::InputInt("Ignore Entity", &sIgnoreEntity);
+    ImGui::InputScalar("Layer Mask", ImGuiDataType_U32, &sLayerMask, nullptr, nullptr, "%08X", ImGuiInputTextFlags_CharsHexadecimal);
+    ImGui::InputScalar("Tag Mask", ImGuiDataType_U32, &sTagMask, nullptr, nullptr, "%08X", ImGuiInputTextFlags_CharsHexadecimal);
+
+    if (ImGui::Button("Raycast Once", ImVec2(140, 30))) {
+        sHasLastQuery = true;
+        sLastHit = ECS::RaycastHit{};
+
+        if (registry.has_ctx<ECS::Sys_Physics*>()) {
+            ECS::Sys_Physics* physics = registry.ctx<ECS::Sys_Physics*>();
+            if (physics) {
+                Vector3 queryOrigin = sOrigin;
+                Vector3 queryDirection = sDirection;
+
+                if (registry.has_ctx<Res_CameraContext>()) {
+                    auto& camCtx = registry.ctx<Res_CameraContext>();
+                    if (registry.Valid(camCtx.active_camera)
+                        && registry.Has<C_D_Transform>(camCtx.active_camera)
+                        && registry.Has<C_D_Camera>(camCtx.active_camera))
+                    {
+                        auto& camTf = registry.Get<C_D_Transform>(camCtx.active_camera);
+                        auto& camData = registry.Get<C_D_Camera>(camCtx.active_camera);
+
+                        if (sUseCameraOrigin) {
+                            queryOrigin = camTf.position;
+                        }
+
+                        if (sUseCameraDirection) {
+                            const float yawRad = camData.yaw * (3.14159265f / 180.0f);
+                            const float pitchRad = camData.pitch * (3.14159265f / 180.0f);
+                            queryDirection = Vector3(
+                                -sinf(yawRad) * cosf(pitchRad),
+                                -sinf(pitchRad),
+                                -cosf(yawRad) * cosf(pitchRad)
+                            );
+                        }
+                    }
+                }
+
+                ECS::RaycastFilter filter{};
+                filter.layer_mask = sLayerMask;
+                filter.tag_mask = sTagMask;
+                filter.include_triggers = sIncludeTriggers;
+                filter.ignore_entity = (sIgnoreEntity >= 0) ? (ECS::EntityID)sIgnoreEntity : ECS::Entity::NULL_ENTITY;
+
+                physics->RaycastNearest(queryOrigin, queryDirection, sMaxDistance, filter, sLastHit);
+            }
+        }
+    }
+
+    if (sHasLastQuery) {
+        ImGui::Separator();
+        ImGui::Text("Raycast Result: %s", sLastHit.hit ? "HIT" : "MISS");
+        if (sLastHit.hit) {
+            ImGui::Text("Entity: %u", sLastHit.entity);
+            ImGui::Text("Body: %u", sLastHit.jolt_body_id);
+            ImGui::Text("Distance: %.3f", sLastHit.distance);
+            ImGui::Text("Point: (%.3f, %.3f, %.3f)", sLastHit.point.x, sLastHit.point.y, sLastHit.point.z);
+            ImGui::Text("Normal: (%.3f, %.3f, %.3f)", sLastHit.normal.x, sLastHit.normal.y, sLastHit.normal.z);
+        }
     }
 
     ImGui::End();
