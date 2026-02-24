@@ -24,6 +24,8 @@
 #include <Jolt/Physics/Body/MotionProperties.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
+#include <Jolt/Physics/Collision/Shape/Shape.h>
 #include <iostream>
 
 using namespace NCL::Maths;
@@ -314,8 +316,8 @@ void ECS::Sys_Physics::CreateBodyForEntity(
         bcs.mAllowedDOFs = dofs;
     }
 
-    // 存储 EntityID 到 Body UserData（用于碰撞回调反查实体）
-    bcs.mUserData = (uint64_t)id;
+    // Body UserData 用于查询过滤（高 32 位存 layer_mask，低 32 位存 tag_mask）
+    bcs.mUserData = (uint64_t(col.layer_mask) << 32) | uint64_t(col.tag_mask);
 
     // --- 创建并激活 Body ---
     JPH::Body* body = bi.CreateBody(bcs);
@@ -535,39 +537,71 @@ bool ECS::Sys_Physics::RaycastNearest(const Vector3& origin,
         return false;
     }
 
-    (void)filter;
-
     const float invDirLen = 1.0f / std::sqrt(dirLenSq);
     const Vector3 dirNorm(direction.x * invDirLen, direction.y * invDirLen, direction.z * invDirLen);
     const JPH::Vec3 rayDir = ToJolt(dirNorm.x * maxDistance, dirNorm.y * maxDistance, dirNorm.z * maxDistance);
     const JPH::RRayCast ray(JPH::RVec3(origin.x, origin.y, origin.z), rayDir);
 
-    JPH::RayCastResult hit;
-    if (!m_PhysicsSystem->GetNarrowPhaseQuery().CastRay(ray, hit)) {
+    JPH::AllHitCollisionCollector<JPH::CastRayCollector> collector;
+    JPH::RayCastSettings settings;
+    settings.mBackFaceModeTriangles = JPH::EBackFaceMode::CollideWithBackFaces;
+    settings.mBackFaceModeConvex = JPH::EBackFaceMode::CollideWithBackFaces;
+    m_PhysicsSystem->GetNarrowPhaseQuery().CastRay(ray, settings, collector);
+
+    if (!collector.HadHit()) {
         return false;
     }
 
-    const uint32_t rawBodyID = hit.mBodyID.GetIndexAndSequenceNumber();
-    auto it = m_BodyToEntity.find(rawBodyID);
-    if (it == m_BodyToEntity.end()) {
-        return false;
-    }
-
-    const JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
-    JPH::Vec3 hitNormal = JPH::Vec3::sZero();
-    {
-        JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), hit.mBodyID);
-        if (lock.Succeeded()) {
-            const JPH::Body& body = lock.GetBody();
-            hitNormal = body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint);
+    collector.Sort();
+    for (const JPH::RayCastResult& hit : collector.mHits) {
+        const uint32_t rawBodyID = hit.mBodyID.GetIndexAndSequenceNumber();
+        auto mapIt = m_BodyToEntity.find(rawBodyID);
+        if (mapIt == m_BodyToEntity.end()) {
+            continue;
         }
+
+        const EntityID hitEntity = mapIt->second;
+        if (!hitEntity || hitEntity == filter.ignore_entity) {
+            continue;
+        }
+
+        const JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
+        JPH::Vec3 hitNormal = JPH::Vec3::sZero();
+        uint32_t bodyLayerMask = 0xFFFFFFFFu;
+        uint32_t bodyTagMask = 0xFFFFFFFFu;
+        bool isSensor = false;
+        {
+            JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), hit.mBodyID);
+            if (lock.Succeeded()) {
+                const JPH::Body& body = lock.GetBody();
+                const uint64_t packedMask = body.GetUserData();
+                bodyLayerMask = uint32_t(packedMask >> 32);
+                bodyTagMask = uint32_t(packedMask & 0xFFFFFFFFu);
+                isSensor = body.IsSensor();
+                hitNormal = body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint);
+            } else {
+                continue;
+            }
+        }
+
+        if (!filter.include_triggers && isSensor) {
+            continue;
+        }
+        if ((filter.layer_mask & bodyLayerMask) == 0u) {
+            continue;
+        }
+        if ((filter.tag_mask & bodyTagMask) == 0u) {
+            continue;
+        }
+
+        outHit.hit = true;
+        outHit.entity = hitEntity;
+        outHit.jolt_body_id = rawBodyID;
+        outHit.point = Vector3((float)hitPoint.GetX(), (float)hitPoint.GetY(), (float)hitPoint.GetZ());
+        outHit.normal = FromJolt(hitNormal);
+        outHit.distance = hit.mFraction * maxDistance;
+        return true;
     }
 
-    outHit.hit = true;
-    outHit.entity = it->second;
-    outHit.jolt_body_id = rawBodyID;
-    outHit.point = Vector3((float)hitPoint.GetX(), (float)hitPoint.GetY(), (float)hitPoint.GetZ());
-    outHit.normal = FromJolt(hitNormal);
-    outHit.distance = hit.mFraction * maxDistance;
-    return true;
+    return false;
 }
