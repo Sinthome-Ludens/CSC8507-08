@@ -20,6 +20,16 @@
  * - `ApplyImpulse`：向动态体施加冲量。
  * - `MoveKinematic`：设置运动学体目标位姿。
  * - `RaycastNearest`：执行单射线最近命中查询并输出统一命中结果。
+ *
+ * ## Raycast 过滤优先级（固定顺序）
+ * 1. `ignore_entity`
+ * 2. `include_triggers`
+ * 3. `layer_mask`
+ * 4. `tag_mask`
+ *
+ * ## 位掩码扩展约定
+ * - 位定义遵循“只新增不重排”，已占用位不可改语义。
+ * - `layer_mask` 用于粗粒度物理层筛选，`tag_mask` 用于细粒度语义筛选。
  */
 
 #pragma once
@@ -187,6 +197,9 @@ namespace ECS {
 
 /**
  * @brief 单射线查询过滤参数。
+ *
+ * @details
+ * 过滤参数同时支持层与标签双轨筛选，默认值为全开掩码。
  */
 struct RaycastFilter {
     uint32_t layer_mask      = 0xFFFFFFFFu;         ///< 层过滤位（粗粒度）
@@ -197,6 +210,10 @@ struct RaycastFilter {
 
 /**
  * @brief 单射线最近命中结果。
+ *
+ * @details
+ * 所有几何结果均为世界空间语义：`point` 为命中点，`normal` 为命中面法线，
+ * `distance` 为从 ray 起点到命中点的世界距离。
  */
 struct RaycastHit {
     bool     hit          = false;              ///< 是否命中
@@ -236,7 +253,7 @@ public:
                        float qx, float qy, float qz, float qw,
                        float dt);
 
-    /// 执行单射线最近命中查询，按过滤参数返回统一命中结果
+    /// 执行单射线最近命中查询，按固定过滤顺序返回最近有效命中
     bool RaycastNearest(const Vector3& origin,
                         const Vector3& direction,
                         float maxDistance,
