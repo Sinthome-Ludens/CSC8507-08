@@ -15,6 +15,7 @@
 #include "GameWorld.h"
 #include "Constraint.h"
 #include "PhysicsSystem.h"
+#include "GameTechRendererInterface.h"
 #include <iterator>
 #include <cmath>
 
@@ -95,6 +96,15 @@ void Sys_ImGui::RenderDebugWindow(Registry& registry, float dt) {
     ImGui::Text("Frame Time: %.3f ms", dt * 1000.0f);
     ImGui::Separator();
     ImGui::Text("ECS Entities: %d", (int)registry.EntityCount());
+    ImGui::Separator();
+    if (registry.has_ctx<Res_NCL_Pointers>()) {
+        auto& nclPtrs = registry.ctx<Res_NCL_Pointers>();
+        if (nclPtrs.renderer) {
+            if (ImGui::Checkbox("Wireframe Mode", &m_WireframeMode)) {
+                nclPtrs.renderer->SetWireframeMode(m_WireframeMode);
+            }
+        }
+    }
     ImGui::End();
 }
 
