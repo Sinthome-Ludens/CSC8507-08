@@ -30,7 +30,8 @@ namespace NCL {
 			void RenderScene()  { BeginFrame(); RenderFrame(); EndFrame(); }
 			// 交换缓冲区（与 RenderScene 配对使用，ImGui 渲染完成后调用）
 			void PresentFrame() { SwapBuffers(); }
-	
+			void SetWireframeMode(bool enabled) override { m_wireframeMode = enabled; }
+
 		protected:
 			struct ObjectSortState {
 				const RenderObject* object;
@@ -92,6 +93,8 @@ namespace NCL {
 			GLuint textColourVBO;
 			GLuint textTexVBO;
 			size_t textCount;
+
+			bool m_wireframeMode = false;
 		};
 	}
 }

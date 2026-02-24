@@ -292,6 +292,11 @@ void GameTechRenderer::RenderSkyboxPass() {
 void GameTechRenderer::RenderOpaquePass(std::vector<ObjectSortState>& list) {
 	glDisable(GL_BLEND);
 	glEnable(GL_CULL_FACE);
+
+	if (m_wireframeMode) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDisable(GL_CULL_FACE);
+	}
 	
 	UseShader(*defaultShader);
 
@@ -360,11 +365,21 @@ void GameTechRenderer::RenderOpaquePass(std::vector<ObjectSortState>& list) {
 			}
 		}
 	}
+
+	if (m_wireframeMode) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glEnable(GL_CULL_FACE);
+	}
 }
 
 void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list) {
 	glEnable(GL_BLEND);
 	glEnable(GL_CULL_FACE);
+
+	if (m_wireframeMode) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDisable(GL_CULL_FACE);
+	}
 
 	UseShader(*defaultShader);
 
@@ -437,6 +452,11 @@ void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list)
 		}
 	}
 	glDisable(GL_BLEND);
+
+	if (m_wireframeMode) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glEnable(GL_CULL_FACE);
+	}
 }
 
 
