@@ -19,6 +19,7 @@
  * - `SetLinearVelocity`：设置动态体线速度。
  * - `ApplyImpulse`：向动态体施加冲量。
  * - `MoveKinematic`：设置运动学体目标位姿。
+ * - `RaycastNearest`：执行单射线最近命中查询并输出统一命中结果。
  */
 
 #pragma once
@@ -184,6 +185,28 @@ public:
 // ============================================================
 namespace ECS {
 
+/**
+ * @brief 单射线查询过滤参数。
+ */
+struct RaycastFilter {
+    uint32_t layer_mask      = 0xFFFFFFFFu;         ///< 层过滤位（粗粒度）
+    uint32_t tag_mask        = 0xFFFFFFFFu;         ///< 标签过滤位（细粒度）
+    bool     include_triggers = true;               ///< 是否允许命中 Trigger
+    EntityID ignore_entity   = Entity::NULL_ENTITY; ///< 忽略实体（通常用于忽略自身）
+};
+
+/**
+ * @brief 单射线最近命中结果。
+ */
+struct RaycastHit {
+    bool     hit          = false;              ///< 是否命中
+    EntityID entity       = Entity::NULL_ENTITY;///< 命中的 ECS 实体
+    uint32_t jolt_body_id = 0xFFFFFFFFu;        ///< 命中的 Jolt BodyID 原始值
+    Vector3  point        = Vector3();          ///< 命中点（世界坐标）
+    Vector3  normal       = Vector3();          ///< 命中法线（世界坐标）
+    float    distance     = 0.0f;               ///< 命中距离（世界距离）
+};
+
 class Sys_Physics : public ISystem {
 public:
     // 物理常量
@@ -212,6 +235,13 @@ public:
                        float px, float py, float pz,
                        float qx, float qy, float qz, float qw,
                        float dt);
+
+    /// 执行单射线最近命中查询，按过滤参数返回统一命中结果
+    bool RaycastNearest(const Vector3& origin,
+                        const Vector3& direction,
+                        float maxDistance,
+                        const RaycastFilter& filter,
+                        RaycastHit& outHit) const;
 
     /// 获取 Jolt PhysicsSystem 指针（供调试/ImGui 使用）
     JPH::PhysicsSystem* GetJoltPhysicsSystem() const { return m_PhysicsSystem.get(); }
