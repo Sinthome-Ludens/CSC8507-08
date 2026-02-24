@@ -312,7 +312,15 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
     }
     if (contacts.empty()) return;
 
-    auto& bus = *reg.ctx<ECS::EventBus*>();
+    // 场景拆卸期间可能已断开 EventBus 指针，此时直接丢弃积压事件以保证安全
+    if (!reg.has_ctx<ECS::EventBus*>()) {
+        return;
+    }
+
+    ECS::EventBus* bus = reg.ctx<ECS::EventBus*>();
+    if (!bus) {
+        return;
+    }
 
     for (auto& c : contacts) {
         // 查找对应的 ECS 实体
@@ -329,13 +337,13 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
                 Evt_Phys_TriggerExit evt;
                 evt.entity_trigger = entA;
                 evt.entity_other   = entB;
-                bus.publish<Evt_Phys_TriggerExit>(evt);
+                bus->publish<Evt_Phys_TriggerExit>(evt);
             } else {
                 // TriggerEnter
                 Evt_Phys_TriggerEnter evt;
                 evt.entity_trigger = entA;
                 evt.entity_other   = entB;
-                bus.publish<Evt_Phys_TriggerEnter>(evt);
+                bus->publish<Evt_Phys_TriggerEnter>(evt);
             }
         } else {
             // 普通碰撞
@@ -345,7 +353,7 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
             evt.contact_point       = Vector3(c.contact_x, c.contact_y, c.contact_z);
             evt.contact_normal      = Vector3(c.normal_x,  c.normal_y,  c.normal_z);
             evt.separating_velocity = c.separating_velocity;
-            bus.publish<Evt_Phys_Collision>(evt);
+            bus->publish<Evt_Phys_Collision>(evt);
         }
     }
 }
