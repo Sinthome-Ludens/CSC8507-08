@@ -11,9 +11,22 @@
 
 #include <cstring>
 #include <cstdio>
+#include <cstdint>
 
 using namespace NCL::Maths;
 using namespace ECS;
+
+namespace {
+constexpr uint32_t LAYER_ENV     = 1u << 0;
+constexpr uint32_t LAYER_DYNAMIC = 1u << 1;
+constexpr uint32_t LAYER_TRIGGER = 1u << 2;
+
+constexpr uint32_t TAG_DEFAULT   = 1u << 0;
+constexpr uint32_t TAG_STICKY    = 1u << 1;
+constexpr uint32_t TAG_SLIPPERY  = 1u << 2;
+constexpr uint32_t TAG_BOUNCY    = 1u << 3;
+constexpr uint32_t TAG_SENSOR    = 1u << 4;
+}
 
 // ============================================================
 // 内部辅助：挂载 C_D_DebugName（规范要求所有实体必须挂载）
@@ -97,6 +110,8 @@ EntityID PrefabFactory::CreateFloor(Registry& reg, ECS::MeshHandle cubeMesh)
     col.half_x = 50.0f;
     col.half_y = 1.0f;
     col.half_z = 50.0f;
+    col.layer_mask = LAYER_ENV;
+    col.tag_mask   = TAG_DEFAULT;
     reg.Emplace<C_D_Collider>(entity, col);
 
     // C_D_DebugName（规范必选）
@@ -177,6 +192,22 @@ EntityID PrefabFactory::CreatePhysicsCube(
         col.restitution = 0.8f;
     }
 
+    const int queryGroup = spawnIndex % 5;
+    if (queryGroup == 4) {
+        col.is_trigger = true;
+        col.layer_mask = LAYER_TRIGGER;
+        col.tag_mask   = TAG_SENSOR;
+    } else {
+        col.layer_mask = LAYER_DYNAMIC;
+        if (materialGroup == 0) {
+            col.tag_mask = TAG_STICKY;
+        } else if (materialGroup == 1) {
+            col.tag_mask = TAG_SLIPPERY;
+        } else {
+            col.tag_mask = TAG_BOUNCY;
+        }
+    }
+
     reg.Emplace<C_D_Collider>(entity, col);
 
     // C_D_DebugName（含序号，匹配 ENTITY_Physics_Cube_XX 规范）
@@ -187,9 +218,13 @@ EntityID PrefabFactory::CreatePhysicsCube(
     LOG_INFO("[PrefabFactory] CreatePhysicsCube id=" << entity
              << " index=" << spawnIndex
              << " rot_lock_group=" << rotationLockGroup
-             << " lock_xyz=(" << rb.lock_rotation_x << ","
-             << rb.lock_rotation_y << "," << rb.lock_rotation_z << ")"
+              << " lock_xyz=(" << rb.lock_rotation_x << ","
+              << rb.lock_rotation_y << "," << rb.lock_rotation_z << ")"
+             << " query_group=" << queryGroup
              << " material_group=" << materialGroup
+             << " trigger=" << col.is_trigger
+             << " layer_mask=0x" << std::hex << col.layer_mask
+             << " tag_mask=0x" << col.tag_mask << std::dec
              << " friction=" << col.friction
              << " restitution=" << col.restitution
              << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
