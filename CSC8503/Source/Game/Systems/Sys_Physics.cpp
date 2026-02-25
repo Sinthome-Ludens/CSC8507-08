@@ -27,6 +27,8 @@
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 #include <iostream>
+#include <algorithm>
+#include <unordered_set>
 
 using namespace NCL::Maths;
 
@@ -654,6 +656,7 @@ bool ECS::Sys_Physics::RaycastAll(const Vector3& origin,
     }
 
     outHits.reserve(collector.mHits.size());
+    std::unordered_set<EntityID> seenEntities;
     for (const JPH::RayCastResult& hit : collector.mHits) {
         const uint32_t rawBodyID = hit.mBodyID.GetIndexAndSequenceNumber();
         auto mapIt = m_BodyToEntity.find(rawBodyID);
@@ -701,11 +704,31 @@ bool ECS::Sys_Physics::RaycastAll(const Vector3& origin,
         out.point = Vector3((float)hitPoint.GetX(), (float)hitPoint.GetY(), (float)hitPoint.GetZ());
         out.normal = FromJolt(hitNormal);
         out.distance = hit.mFraction * maxDistance;
-        outHits.push_back(out);
 
-        if (options.max_hits > 0 && outHits.size() >= options.max_hits) {
-            break;
+        if (options.dedupe_by_entity) {
+            if (seenEntities.find(out.entity) != seenEntities.end()) {
+                continue;
+            }
+            seenEntities.insert(out.entity);
         }
+
+        outHits.push_back(out);
+    }
+
+    if (options.sort_by_distance) {
+        std::stable_sort(outHits.begin(), outHits.end(), [](const QueryHit& a, const QueryHit& b) {
+            if (a.distance != b.distance) {
+                return a.distance < b.distance;
+            }
+            if (a.jolt_body_id != b.jolt_body_id) {
+                return a.jolt_body_id < b.jolt_body_id;
+            }
+            return a.entity < b.entity;
+        });
+    }
+
+    if (options.max_hits > 0 && outHits.size() > options.max_hits) {
+        outHits.resize(options.max_hits);
     }
 
     return !outHits.empty();
