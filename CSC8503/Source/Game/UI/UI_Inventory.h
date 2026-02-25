@@ -5,8 +5,7 @@
 
 namespace ECS::UI {
 
-void RenderScanlineOverlay(float globalTime);
-void RenderTransitionOverlay(Registry& registry, float dt);
+void RenderInventoryScreen(Registry& registry, float dt);
 
 } // namespace ECS::UI
 

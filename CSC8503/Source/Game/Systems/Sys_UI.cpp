@@ -4,11 +4,14 @@
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameplayState.h"
+#include "Game/Components/Res_ChatState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_Menus.h"
 #include "Game/UI/UI_HUD.h"
 #include "Game/UI/UI_Effects.h"
 #include "Game/UI/UI_GameOver.h"
+#include "Game/UI/UI_ItemWheel.h"
+#include "Game/UI/UI_Inventory.h"
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
@@ -71,6 +74,13 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             LOG_INFO("[Sys_UI] F3 countdown: " << (gs.countdownActive ? "ON" : "OFF"));
         }
 
+        // F4: 切换聊天面板
+        if (devKb->KeyPressed(KeyCodes::F4) && registry.has_ctx<Res_ChatState>()) {
+            auto& chat = registry.ctx<Res_ChatState>();
+            chat.panelVisible = !chat.panelVisible;
+            LOG_INFO("[Sys_UI] F4 ChatPanel: " << (chat.panelVisible ? "ON" : "OFF"));
+        }
+
         // F5: 触发 GameOver（循环 reason 1/2/3）
         if (devKb->KeyPressed(KeyCodes::F5)) {
             gs.gameOverReason = (gs.gameOverReason % 3) + 1;
@@ -78,6 +88,36 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             ui.gameOverSelectedIndex = 0;
             ui.activeScreen = UIScreen::GameOver;
             LOG_INFO("[Sys_UI] F5 GameOver reason=" << (int)gs.gameOverReason);
+        }
+
+        // F6: 循环 noiseLevel（0→0.2→0.5→0.8→1.0→0）
+        if (devKb->KeyPressed(KeyCodes::F6)) {
+            if (gs.noiseLevel < 0.1f)       gs.noiseLevel = 0.2f;
+            else if (gs.noiseLevel < 0.3f)  gs.noiseLevel = 0.5f;
+            else if (gs.noiseLevel < 0.6f)  gs.noiseLevel = 0.8f;
+            else if (gs.noiseLevel < 0.9f)  gs.noiseLevel = 1.0f;
+            else                             gs.noiseLevel = 0.0f;
+            LOG_INFO("[Sys_UI] F6 noiseLevel -> " << gs.noiseLevel);
+        }
+
+        // F7: 触发场景过渡效果预览
+        if (devKb->KeyPressed(KeyCodes::F7)) {
+            ui.transitionActive = true;
+            ui.transitionTimer = 0.0f;
+            ui.transitionType = (ui.transitionType + 1) % 2;
+            LOG_INFO("[Sys_UI] F7 transition type=" << (int)ui.transitionType);
+        }
+    }
+
+    // ── I 键：背包开关 ──
+    if (devKb && devKb->KeyPressed(KeyCodes::I)) {
+        if (ui.activeScreen == UIScreen::HUD) {
+            ui.activeScreen = UIScreen::Inventory;
+            ui.inventorySelectedSlot = 0;
+            LOG_INFO("[Sys_UI] HUD -> Inventory (I)");
+        } else if (ui.activeScreen == UIScreen::Inventory) {
+            ui.activeScreen = UIScreen::HUD;
+            LOG_INFO("[Sys_UI] Inventory -> HUD (I)");
         }
     }
 
@@ -117,6 +157,11 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             case UIScreen::GameOver:
                 // GameOver 画面不响应 ESC
                 break;
+            case UIScreen::Inventory:
+                // 背包 → 返回 HUD
+                ui.activeScreen = UIScreen::HUD;
+                LOG_INFO("[Sys_UI] Inventory -> HUD (ESC)");
+                break;
             default:
                 break;
         }
@@ -130,6 +175,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         case UIScreen::PauseMenu: UI::RenderPauseMenu(registry, dt);      break;
         case UIScreen::HUD:       UI::RenderHUD(registry, dt);            break;
         case UIScreen::GameOver:  UI::RenderGameOverScreen(registry, dt); break;
+        case UIScreen::Inventory: UI::RenderInventoryScreen(registry, dt); break;
         case UIScreen::None:
         default:
             break;
@@ -140,7 +186,10 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         UI::RenderScanlineOverlay(ui.globalTime);
     }
 
-    // 更新输入阻塞标志
+    // 场景过渡效果（最顶层，覆盖一切）
+    UI::RenderTransitionOverlay(registry, dt);
+
+    // 更新输入阻塞标志（HUD和None时不阻塞游戏输入）
     ui.isUIBlockingInput = (ui.activeScreen != UIScreen::None
                          && ui.activeScreen != UIScreen::HUD);
 }

@@ -11,7 +11,8 @@ enum class UIScreen : uint8_t {
     Settings,        // 设置子画面
     PauseMenu,       // 游戏内暂停菜单
     HUD,             // 游戏内HUD
-    GameOver,        // 游戏结束（未来）
+    GameOver,        // 游戏结束
+    Inventory,       // 背包界面
 };
 
 enum class SceneRequest : uint8_t {
@@ -57,6 +58,19 @@ struct Res_UIState {
 
     // GameOver画面
     int8_t    gameOverSelectedIndex = 0;  // 0=RETRY, 1=RETURN TO MENU
+
+    // 场景过渡效果
+    float     transitionTimer    = 0.0f;
+    float     transitionDuration = 0.8f;
+    bool      transitionActive   = false;
+    uint8_t   transitionType     = 0;    // 0=fade-in, 1=fade-out
+
+    // 道具快捷轮盘
+    bool      itemWheelOpen      = false;
+    int8_t    itemWheelSelected  = -1;   // -1=无选中
+
+    // 背包界面
+    int8_t    inventorySelectedSlot = 0;
 };
 
 } // namespace ECS

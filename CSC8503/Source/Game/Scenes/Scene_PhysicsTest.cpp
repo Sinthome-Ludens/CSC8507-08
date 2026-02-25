@@ -15,9 +15,13 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_Countdown.h"
+#include "Game/Systems/Sys_Chat.h"
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameplayState.h"
+#include "Game/Components/Res_ChatState.h"
+#include "Game/Components/Res_InventoryState.h"
 #endif
 
 // ============================================================
@@ -99,6 +103,24 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         gs.activeItemSlot   = 0;
         gs.activeWeaponSlot = 0;
     }
+
+    // ── 聊天对话状态 ──
+    {
+        auto& chat = registry.ctx_emplace<ECS::Res_ChatState>();
+        chat.panelVisible = false;   // 默认隐藏，F4开启
+        chat.nextMessageTimer = 3.0f; // 首条NPC消息延迟
+    }
+
+    // ── 背包状态：模拟数据 ──
+    {
+        auto& inv = registry.ctx_emplace<ECS::Res_InventoryState>();
+        inv.AddItem("EMP Grenade",  1, 2,  "Disables electronics");
+        inv.AddItem("Smoke Bomb",   1, 1,  "Creates cover");
+        inv.AddItem("Keycard-B7",   1, 1,  "Server room access");
+        inv.AddItem("Taser",        2, -1, "Non-lethal weapon");
+        inv.AddItem("Hack Tool",    2, 3,  "Bypass firewalls");
+        inv.AddItem("Medkit",       1, 1,  "Restore health");
+    }
 #endif
 
     // ── 3. 初始实体生成：通过 PrefabFactory 创建静态地板 ─────────────────
@@ -113,6 +135,8 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>    (300);   // 菜单栏 + 性能窗口 + TestScene 控制面板
+    systems.Register<ECS::Sys_Countdown>(350);   // 倒计时逻辑（警戒度满→倒计时→GameOver）
+    systems.Register<ECS::Sys_Chat>     (450);   // 聊天对话逻辑（AI之后、UI之前）
     systems.Register<ECS::Sys_UI>       (500);   // 游戏UI系统
 #endif
 

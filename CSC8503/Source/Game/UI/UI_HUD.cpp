@@ -6,6 +6,8 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameplayState.h"
 #include "Game/UI/UITheme.h"
+#include "Game/UI/UI_Chat.h"
+#include "Game/UI/UI_ItemWheel.h"
 
 namespace ECS::UI {
 
@@ -286,6 +288,51 @@ static void RenderHUD_Degradation(ImDrawList* draw, float alertRatio, float glob
 }
 
 // ============================================================
+// RenderHUD_NoiseIndicator — 噪音指示器（左下）
+// ============================================================
+
+static void RenderHUD_NoiseIndicator(ImDrawList* draw, float x, float y,
+                                      float noiseLevel, float globalTime) {
+    if (noiseLevel < 0.01f) return;
+
+    ImFont* smallFont = UITheme::GetFont_Small();
+    if (smallFont) ImGui::PushFont(smallFont);
+
+    // 标签
+    draw->AddText(ImVec2(x, y - 2.0f), IM_COL32(0, 140, 130, 150), "NOISE");
+
+    if (smallFont) ImGui::PopFont();
+
+    // 声波扩散圆环
+    float cx = x + 50.0f;
+    float cy = y + 8.0f;
+    float maxR = 16.0f;
+
+    int ringCount = 1 + (int)(noiseLevel * 3.0f); // 1~4 个环
+    for (int i = 0; i < ringCount; ++i) {
+        float phase = globalTime * 3.0f + (float)i * 0.8f;
+        float expandT = fmodf(phase, 1.5f) / 1.5f;  // [0,1) 循环
+        float r = 4.0f + expandT * maxR * noiseLevel;
+        uint8_t alpha = (uint8_t)((1.0f - expandT) * 180.0f * noiseLevel);
+
+        ImU32 ringColor;
+        if (noiseLevel < 0.3f)       ringColor = IM_COL32(0, 200, 190, alpha);
+        else if (noiseLevel < 0.6f)  ringColor = IM_COL32(220, 200, 0, alpha);
+        else                          ringColor = IM_COL32(220, 60, 20, alpha);
+
+        draw->AddCircle(ImVec2(cx, cy), r, ringColor, 24, 1.5f);
+    }
+
+    // 中心点
+    uint8_t dotAlpha = (uint8_t)(120.0f + noiseLevel * 135.0f);
+    ImU32 dotColor;
+    if (noiseLevel < 0.3f)       dotColor = IM_COL32(0, 200, 190, dotAlpha);
+    else if (noiseLevel < 0.6f)  dotColor = IM_COL32(220, 200, 0, dotAlpha);
+    else                          dotColor = IM_COL32(220, 60, 20, dotAlpha);
+    draw->AddCircleFilled(ImVec2(cx, cy), 3.0f, dotColor);
+}
+
+// ============================================================
 // RenderHUD — 游戏内 HUD 主入口
 // ============================================================
 
@@ -323,10 +370,21 @@ void RenderHUD(Registry& registry, float /*dt*/) {
         vpPos.x + pad, vpPos.y + vpSize.y - 50.0f,
         static_cast<uint8_t>(gs.playerMoveState), gs.playerDisguised);
 
+    // 左下偏右: 噪音指示器
+    RenderHUD_NoiseIndicator(draw,
+        vpPos.x + pad + 180.0f, vpPos.y + vpSize.y - 50.0f,
+        gs.noiseLevel, ui.globalTime);
+
     // 右下: 道具/武器快捷栏
     RenderHUD_ItemSlots(draw,
         vpPos.x + vpSize.x - 280.0f, vpPos.y + vpSize.y - 60.0f,
         gs);
+
+    // 聊天面板（右侧叠加）
+    RenderChatPanel(registry, 0.0f);
+
+    // 道具快捷轮盘（Tab 按住时叠加显示）
+    RenderItemWheel(registry, 0.0f);
 
     // UI 退化效果
     float alertRatio = (gs.alertMax > 0.0f) ? gs.alertLevel / gs.alertMax : 0.0f;
