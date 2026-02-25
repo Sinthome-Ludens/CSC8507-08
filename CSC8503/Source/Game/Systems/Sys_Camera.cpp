@@ -70,16 +70,18 @@ void Sys_Camera::OnAwake(Registry& registry) {
 void Sys_Camera::OnUpdate(Registry& registry, float dt) {
     if (!m_GameWorld) return;
 
+    auto* win = Window::GetWindow();
+    const bool windowActive = (win != nullptr) && win->IsActiveWindow();
+
     registry.view<C_T_MainCamera, C_D_Camera, C_D_Transform>().each(
         [&](EntityID /*id*/, C_T_MainCamera&, C_D_Camera& cam, C_D_Transform& tf)
         {
             // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）────
             auto* kb = Window::GetKeyboard();
-            if (kb) {
+            if (kb && windowActive) {
                 const bool altHeld = kb->KeyDown(KeyCodes::MENU);
                 if (altHeld != cam.cursor_free) {
                     cam.cursor_free = altHeld;
-                    auto* win = Window::GetWindow();
                     if (win) {
                         win->ShowOSPointer(altHeld);
                         win->LockMouseToWindow(!altHeld);
@@ -89,19 +91,18 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
 
             // ── 鼠标旋转（cursor_free 模式下禁用）──────────────────────────
             auto* mouse = Window::GetMouse();
-            if (mouse && !cam.cursor_free) {
+            if (mouse && windowActive && !cam.cursor_free) {
                 const Vector2 delta = mouse->GetRelativePosition();
                 cam.yaw   -= delta.x * cam.sensitivity;
                 cam.pitch -= delta.y * cam.sensitivity;
                 cam.pitch  = std::clamp(cam.pitch, -89.0f, 89.0f);
 
                 // 每帧将光标归位到窗口中心：防止光标漂到边缘导致原始输入受限
-                auto* win = Window::GetWindow();
                 if (win) win->WarpCursorToCenter();
             }
 
             // ── 键盘平移（WASD + Q/E，cursor_free 时仍可移动）──────────────
-            if (kb) {
+            if (kb && windowActive) {
                 const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
                 const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
 

@@ -113,6 +113,29 @@ bool	Win32Window::InternalUpdate() {
 	ScreenToClient(windowHandle, &pt);
 	winMouse->SetAbsolutePosition(Vector2((float)pt.x, (float)pt.y));
 
+	const bool hasFocus = (GetForegroundWindow() == windowHandle) || (GetActiveWindow() == windowHandle);
+	if (!hasFocus) {
+		if (active) {
+			active = false;
+			ReleaseCapture();
+			ClipCursor(NULL);
+			ShowOSPointer(true);
+			if (init && mouse && keyboard) {
+				winMouse->Sleep();
+				winKeyboard->Sleep();
+			}
+		}
+	}
+	else if (!active) {
+		active = true;
+		if (init) {
+			winMouse->Wake();
+			winKeyboard->Wake();
+			ShowOSPointer(!lockMouse);
+			LockMouseToWindow(lockMouse);
+		}
+	}
+
 	while(PeekMessage(&msg,windowHandle,0,0,PM_REMOVE)) {
 		CheckMessages(msg); 
 	}
@@ -226,6 +249,7 @@ LRESULT CALLBACK Win32Window::WindowProc(HWND hWnd, UINT message, WPARAM wParam,
 				thisWindow->active = false;
 				ReleaseCapture();
 				ClipCursor(NULL);
+				thisWindow->ShowOSPointer(true);
 				if (thisWindow->init && mouse && keyboard) {
 					thisWindow->winMouse->Sleep();
 					thisWindow->winKeyboard->Sleep();
@@ -236,10 +260,8 @@ LRESULT CALLBACK Win32Window::WindowProc(HWND hWnd, UINT message, WPARAM wParam,
 				if(thisWindow->init) {
 					thisWindow->winMouse->Wake();
 					thisWindow->winKeyboard->Wake();
-
-					if(thisWindow->lockMouse) {
-						thisWindow->LockMouseToWindow(true);
-					}
+					thisWindow->ShowOSPointer(!thisWindow->lockMouse);
+					thisWindow->LockMouseToWindow(thisWindow->lockMouse);
 				}
 			}
 			return 0;
@@ -341,6 +363,13 @@ LRESULT CALLBACK Win32Window::WindowProc(HWND hWnd, UINT message, WPARAM wParam,
 
 void	Win32Window::LockMouseToWindow(bool lock)	{
 	lockMouse = lock;
+
+	if (!active) {
+		ReleaseCapture();
+		ClipCursor(NULL);
+		return;
+	}
+
 	if(lock) {
 		RECT		windowRect;
 		GetWindowRect (windowHandle, &windowRect);
