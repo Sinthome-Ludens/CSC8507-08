@@ -11,7 +11,7 @@
 
 #include "Sys_Network.h"
 #include "enet/enet.h"
-#include "Game/Components/NetProtocol.h"
+#include "Game/Network/Net_Protocol.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_NetworkIdentity.h"
 #include "Game/Components/C_D_InterpBuffer.h"
@@ -108,11 +108,11 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
             }
             case ENET_EVENT_TYPE_RECEIVE: {
                 resNet.bytesReceived += event.packet->dataLength;
-                if (event.packet->dataLength >= sizeof(NetPacketHeader)) {
-                    NetPacketHeader* header = (NetPacketHeader*)event.packet->data;
+                if (event.packet->dataLength >= sizeof(Net_PacketHeader)) {
+                    Net_PacketHeader* header = (Net_PacketHeader*)event.packet->data;
                     // 逻辑 A：处理位置同步包
                     if (header->type == SYNC_TRANSFORM) {
-                        Packet_Transform* pkt = (Packet_Transform*)event.packet->data;
+                        Net_Packet_Transform* pkt = (Net_Packet_Transform*)event.packet->data;
                         auto it = resNet.netIdMap.find(pkt->netID);
                         if (it != resNet.netIdMap.end()) {
                             EntityID target = it->second;
@@ -130,7 +130,7 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
                     }
                     // 逻辑 B：处理远程游戏动作包（延迟分发）
                     else if (header->type == GAME_EVENT) {
-                        Packet_GameAction* pkt = (Packet_GameAction*)event.packet->data;
+                        Net_Packet_GameAction* pkt = (Net_Packet_GameAction*)event.packet->data;
                         if (reg.has_ctx<EventBus*>()) {
                             reg.ctx<EventBus*>()->publish_deferred<Evt_Net_GameAction>({ pkt->sourceNetID, pkt->targetNetID, pkt->actionCode, pkt->param1 });
                         }
@@ -161,21 +161,21 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
     reg.view<C_D_Transform, C_D_NetworkIdentity>().each([&](EntityID entity, C_D_Transform& tf, C_D_NetworkIdentity& net) {
         // 权限判定：只有自己控制的实体才由自己发起同步
         if (net.ownerClientID == resNet.localClientID) {
-            Packet_Transform pkt;
+            Net_Packet_Transform pkt;
             pkt.type = SYNC_TRANSFORM;
             pkt.timestamp = currentTimestamp;
             pkt.netID = net.netID;
             pkt.pos[0] = tf.position.x; pkt.pos[1] = tf.position.y; pkt.pos[2] = tf.position.z;
             pkt.rot[0] = tf.rotation.x; pkt.rot[1] = tf.rotation.y; pkt.rot[2] = tf.rotation.z; pkt.rot[3] = tf.rotation.w;
             // 使用不可靠传输，避免因为单包丢失导致的后续包阻塞（Head-of-line blocking）
-            ENetPacket* packet = enet_packet_create(&pkt, sizeof(Packet_Transform), ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
+            ENetPacket* packet = enet_packet_create(&pkt, sizeof(Net_Packet_Transform), ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
             if (resNet.mode == PeerType::SERVER) {
                 enet_host_broadcast(resNet.host, 0, packet);
             } else {
                 if (resNet.peer) enet_peer_send(resNet.peer, 0, packet);
             }
             resNet.packetsSent++;
-            resNet.bytesSent += sizeof(Packet_Transform);
+            resNet.bytesSent += sizeof(Net_Packet_Transform);
         }
     });
 }

@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace NCL::CSC8503::ECS {
+namespace ECS {
 
 #pragma pack(push, 1)
 
@@ -72,19 +72,9 @@ struct Net_Packet_Welcome : public Net_PacketHeader {
  */
 struct Net_Packet_Transform : public Net_PacketHeader {
     uint32_t netID; ///< 实体网络唯一ID
-
-    float posX;     ///< 位置 X
-    float posY;     ///< 位置 Y
-    float posZ;     ///< 位置 Z
-
-    float rotX;     ///< 四元数旋转 X
-    float rotY;     ///< 四元数旋转 Y
-    float rotZ;     ///< 四元数旋转 Z
-    float rotW;     ///< 四元数旋转 W
-
-    float velX;     ///< 速度 X
-    float velY;     ///< 速度 Y
-    float velZ;     ///< 速度 Z
+    float pos[3];            ///< 位置 (x, y, z)
+    float rot[4];            ///< 旋转四元数 (x, y, z, w)
+    float linearVel[3];      ///< 线性速度（可选，用于预测）
 };
 
 /**
