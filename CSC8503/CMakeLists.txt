@@ -122,14 +122,11 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 if(MSVC)
     target_compile_definitions(${PROJECT_NAME} PRIVATE
         "UNICODE;"
-        "_UNICODE" 
+        "_UNICODE"
         "WIN32_LEAN_AND_MEAN"
-        "_WINSOCKAPI_"   
-        "_WINSOCK2API_"
         "_WINSOCK_DEPRECATED_NO_WARNINGS"
     )
 endif()
-
 target_precompile_headers(${PROJECT_NAME} PRIVATE
     <vector>
     <map>
