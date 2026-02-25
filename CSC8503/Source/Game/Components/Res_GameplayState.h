@@ -78,6 +78,10 @@ struct Res_GameplayState {
     };
     SlotDisplay itemSlots[2]   = {}; // 2个道具槽
     SlotDisplay weaponSlots[2] = {}; // 2个武器槽
+
+    // ── GameOver 状态 ──
+    uint8_t gameOverReason = 0;    // 0=none, 1=countdown_expired, 2=caught, 3=mission_complete
+    float   gameOverTime   = 0.0f; // 游戏结束时的已用时间
 };
 
 /**

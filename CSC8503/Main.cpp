@@ -145,6 +145,9 @@ int main() {
 			} else if (ui.pendingSceneRequest == ECS::SceneRequest::ReturnToMenu) {
 				ui.pendingSceneRequest = ECS::SceneRequest::None;
 				sceneManager.RequestSceneChange(new Scene_MainMenu());
+			} else if (ui.pendingSceneRequest == ECS::SceneRequest::RestartLevel) {
+				ui.pendingSceneRequest = ECS::SceneRequest::None;
+				sceneManager.RequestSceneChange(new Scene_PhysicsTest());
 			} else if (ui.pendingSceneRequest == ECS::SceneRequest::QuitApp) {
 				running = false;
 			}

@@ -9,8 +9,8 @@ enum class UIScreen : uint8_t {
     Splash,          // "按任意键开始"
     MainMenu,        // 主菜单
     Settings,        // 设置子画面
-    PauseMenu,       // 游戏内暂停（未来）
-    HUD,             // 游戏内HUD（未来）
+    PauseMenu,       // 游戏内暂停菜单
+    HUD,             // 游戏内HUD
     GameOver,        // 游戏结束（未来）
 };
 
@@ -19,12 +19,14 @@ enum class SceneRequest : uint8_t {
     StartGame,       // 切换到游戏场景
     ReturnToMenu,    // 返回主菜单
     QuitApp,         // 退出程序
+    RestartLevel,    // 重启当前关卡
 };
 
 struct Res_UIState {
     // 画面状态
     UIScreen  activeScreen       = UIScreen::Splash;
     UIScreen  previousScreen     = UIScreen::None;
+    UIScreen  prePauseScreen     = UIScreen::None;   // 进入PauseMenu前的游戏画面（HUD/None）
     bool      isUIBlockingInput  = true;
 
     // 场景切换请求（由Sys_UI写入，Main.cpp读取并执行）
@@ -32,15 +34,10 @@ struct Res_UIState {
 
     // Splash画面
     float     splashTimer        = 0.0f;
-    bool      splashKeyPressed   = false;
 
     // 主菜单
     int8_t    menuSelectedIndex  = 0;
     float     menuAnimTimer      = 0.0f;
-
-    // 过渡效果
-    float     transitionAlpha    = 0.0f;
-    bool      transitioningIn    = true;
 
     // 全局动画
     float     globalTime         = 0.0f;
@@ -57,6 +54,9 @@ struct Res_UIState {
 
     // 开发者模式（F1 切换）
     bool      devMode            = false;
+
+    // GameOver画面
+    int8_t    gameOverSelectedIndex = 0;  // 0=RETRY, 1=RETURN TO MENU
 };
 
 } // namespace ECS

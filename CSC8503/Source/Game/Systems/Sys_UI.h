@@ -3,21 +3,23 @@
 
 #include "Core/ECS/BaseSystem.h"
 
-struct ImDrawList;   // imgui forward declaration（避免在头文件 include imgui.h）
-
 namespace ECS {
 
 /**
- * @brief 游戏UI系统 — 赛博朋克终端风格
+ * @brief 游戏UI系统 — 薄调度器
  *
  * 职责：
- *   - 渲染Splash启动画面（"按任意键开始"）
- *   - 渲染主菜单（8项菜单 + 战术背景动画）
- *   - 渲染设置画面（分辨率/全屏切换）
- *   - 渲染游戏内HUD（警戒度/倒计时/任务/道具/玩家状态）
- *   - 全局CRT扫描线叠加效果
- *   - UI退化效果（与警戒度联动）
- *   - 管理UI阻塞输入状态和鼠标可见性
+ *   - 管理全局UI时间和开发者模式切换
+ *   - ESC导航（集中处理画面切换）
+ *   - 按 activeScreen 调度到 ECS::UI 命名空间的无状态渲染函数
+ *   - 扫描线叠加与输入阻塞标志
+ *   - 开发者调试快捷键（F2/F3/F5）
+ *
+ * 渲染逻辑已提取至：
+ *   - Game/UI/UI_Menus.h/.cpp   (Splash/MainMenu/Settings/PauseMenu)
+ *   - Game/UI/UI_HUD.h/.cpp     (游戏内HUD)
+ *   - Game/UI/UI_Effects.h/.cpp (CRT扫描线)
+ *   - Game/UI/UI_GameOver.h/.cpp(GameOver画面)
  *
  * 状态数据存储在 Res_UIState / Res_GameplayState context 中，系统本身无状态。
  *
@@ -28,33 +30,6 @@ public:
     void OnAwake  (Registry& registry)           override;
     void OnUpdate (Registry& registry, float dt) override;
     void OnDestroy(Registry& registry)           override;
-
-private:
-    // ── 菜单画面 ──
-    void RenderSplashScreen   (Registry& registry, float dt);
-    void RenderMainMenu       (Registry& registry, float dt);
-    void RenderSettingsScreen (Registry& registry, float dt);
-    void RenderPauseMenu      (Registry& registry, float dt);
-    void RenderScanlineOverlay(float globalTime);
-
-    // ── 游戏内 HUD（策划文档 §2.4）──
-    void RenderHUD             (Registry& registry, float dt);
-    void RenderHUD_AlertGauge  (ImDrawList* draw, float x, float y, float w, float h,
-                                float alertLevel, float alertMax);
-    void RenderHUD_Countdown   (ImDrawList* draw, float cx, float y,
-                                float timer, bool active);
-    void RenderHUD_MissionPanel(ImDrawList* draw, float x, float y,
-                                const char* missionName, const char* objective);
-    void RenderHUD_PlayerState (ImDrawList* draw, float x, float y,
-                                uint8_t moveState, bool disguised);
-    void RenderHUD_ItemSlots   (ImDrawList* draw, float x, float y,
-                                const struct Res_GameplayState& gs);
-    void RenderHUD_Degradation (ImDrawList* draw, float alertRatio, float globalTime,
-                                float vpW, float vpH, float vpX, float vpY);
-
-    // ── 主菜单辅助 ──
-    void RenderMenuBackground (float globalTime, float panelX, float panelY,
-                               float panelW, float panelH);
 };
 
 } // namespace ECS
