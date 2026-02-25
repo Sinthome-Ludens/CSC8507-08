@@ -615,3 +615,98 @@ bool ECS::Sys_Physics::RaycastNearest(const Vector3& origin,
 
     return false;
 }
+
+bool ECS::Sys_Physics::RaycastAll(const Vector3& origin,
+                                  const Vector3& direction,
+                                  float maxDistance,
+                                  const RaycastFilter& filter,
+                                  const QueryOptions& options,
+                                  std::vector<QueryHit>& outHits) const
+{
+    outHits.clear();
+
+    if (!m_PhysicsSystem || maxDistance <= 0.0f) {
+        return false;
+    }
+
+    const float dirLenSq = direction.x * direction.x + direction.y * direction.y + direction.z * direction.z;
+    if (dirLenSq <= 1.0e-8f) {
+        return false;
+    }
+
+    const float invDirLen = 1.0f / std::sqrt(dirLenSq);
+    const Vector3 dirNorm(direction.x * invDirLen, direction.y * invDirLen, direction.z * invDirLen);
+    const JPH::Vec3 rayDir = ToJolt(dirNorm.x * maxDistance, dirNorm.y * maxDistance, dirNorm.z * maxDistance);
+    const JPH::RRayCast ray(JPH::RVec3(origin.x, origin.y, origin.z), rayDir);
+
+    JPH::AllHitCollisionCollector<JPH::CastRayCollector> collector;
+    JPH::RayCastSettings settings;
+    settings.mBackFaceModeTriangles = JPH::EBackFaceMode::CollideWithBackFaces;
+    settings.mBackFaceModeConvex = JPH::EBackFaceMode::CollideWithBackFaces;
+    m_PhysicsSystem->GetNarrowPhaseQuery().CastRay(ray, settings, collector);
+
+    if (!collector.HadHit()) {
+        return false;
+    }
+
+    if (options.sort_by_distance) {
+        collector.Sort();
+    }
+
+    outHits.reserve(collector.mHits.size());
+    for (const JPH::RayCastResult& hit : collector.mHits) {
+        const uint32_t rawBodyID = hit.mBodyID.GetIndexAndSequenceNumber();
+        auto mapIt = m_BodyToEntity.find(rawBodyID);
+        if (mapIt == m_BodyToEntity.end()) {
+            continue;
+        }
+
+        const EntityID hitEntity = mapIt->second;
+        if (hitEntity == Entity::NULL_ENTITY || hitEntity == filter.ignore_entity) {
+            continue;
+        }
+
+        const JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
+        JPH::Vec3 hitNormal = JPH::Vec3::sZero();
+        uint32_t bodyLayerMask = 0xFFFFFFFFu;
+        uint32_t bodyTagMask = 0xFFFFFFFFu;
+        bool isSensor = false;
+        {
+            JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), hit.mBodyID);
+            if (!lock.Succeeded()) {
+                continue;
+            }
+
+            const JPH::Body& body = lock.GetBody();
+            const uint64_t packedMask = body.GetUserData();
+            bodyLayerMask = uint32_t(packedMask >> 32);
+            bodyTagMask = uint32_t(packedMask & 0xFFFFFFFFu);
+            isSensor = body.IsSensor();
+            hitNormal = body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, hitPoint);
+        }
+
+        if (!filter.include_triggers && isSensor) {
+            continue;
+        }
+        if ((filter.layer_mask & bodyLayerMask) == 0u) {
+            continue;
+        }
+        if ((filter.tag_mask & bodyTagMask) == 0u) {
+            continue;
+        }
+
+        QueryHit out{};
+        out.entity = hitEntity;
+        out.jolt_body_id = rawBodyID;
+        out.point = Vector3((float)hitPoint.GetX(), (float)hitPoint.GetY(), (float)hitPoint.GetZ());
+        out.normal = FromJolt(hitNormal);
+        out.distance = hit.mFraction * maxDistance;
+        outHits.push_back(out);
+
+        if (options.max_hits > 0 && outHits.size() >= options.max_hits) {
+            break;
+        }
+    }
+
+    return !outHits.empty();
+}
