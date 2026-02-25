@@ -170,8 +170,64 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
     static int sIgnoreEntity = -1;
     static uint32_t sLayerMask = 0xFFFFFFFFu;
     static uint32_t sTagMask = 0xFFFFFFFFu;
+    static int sMaxHits = 16;
+    static bool sSortByDistance = true;
+    static bool sDedupeByEntity = true;
+    static float sSphereRadius = 1.0f;
     static ECS::RaycastHit sLastHit{};
     static bool sHasLastQuery = false;
+    static std::vector<ECS::QueryHit> sLastRaycastAllHits;
+    static ECS::QueryHit sLastShapeCastHit{};
+    static bool sHasShapeCast = false;
+    static std::vector<ECS::EntityID> sLastOverlapEntities;
+    static int sLastOverlapCount = 0;
+
+    auto BuildQueryContext = [&](Vector3& queryOrigin, Vector3& queryDirection) {
+        queryOrigin = sOrigin;
+        queryDirection = sDirection;
+
+        if (registry.has_ctx<Res_CameraContext>()) {
+            auto& camCtx = registry.ctx<Res_CameraContext>();
+            if (registry.Valid(camCtx.active_camera)
+                && registry.Has<C_D_Transform>(camCtx.active_camera)
+                && registry.Has<C_D_Camera>(camCtx.active_camera))
+            {
+                auto& camTf = registry.Get<C_D_Transform>(camCtx.active_camera);
+                auto& camData = registry.Get<C_D_Camera>(camCtx.active_camera);
+
+                if (sUseCameraOrigin) {
+                    queryOrigin = camTf.position;
+                }
+
+                if (sUseCameraDirection) {
+                    const float yawRad = camData.yaw * (3.14159265f / 180.0f);
+                    const float pitchRad = camData.pitch * (3.14159265f / 180.0f);
+                    queryDirection = Vector3(
+                        -sinf(yawRad) * cosf(pitchRad),
+                        -sinf(pitchRad),
+                        -cosf(yawRad) * cosf(pitchRad)
+                    );
+                }
+            }
+        }
+    };
+
+    auto BuildFilter = [&]() {
+        ECS::RaycastFilter filter{};
+        filter.layer_mask = sLayerMask;
+        filter.tag_mask = sTagMask;
+        filter.include_triggers = sIncludeTriggers;
+        filter.ignore_entity = (sIgnoreEntity >= 0) ? (ECS::EntityID)sIgnoreEntity : ECS::Entity::NULL_ENTITY;
+        return filter;
+    };
+
+    auto BuildOptions = [&]() {
+        ECS::QueryOptions options{};
+        options.max_hits = (sMaxHits > 0) ? (uint32_t)sMaxHits : 0u;
+        options.sort_by_distance = sSortByDistance;
+        options.dedupe_by_entity = sDedupeByEntity;
+        return options;
+    };
 
     ImGui::Checkbox("Use Camera Origin", &sUseCameraOrigin);
     ImGui::Checkbox("Use Camera Direction", &sUseCameraDirection);
@@ -180,6 +236,10 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
     ImGui::DragFloat("Max Distance", &sMaxDistance, 0.5f, 0.1f, 5000.0f, "%.1f");
     ImGui::Checkbox("Include Triggers", &sIncludeTriggers);
     ImGui::InputInt("Ignore Entity", &sIgnoreEntity);
+    ImGui::InputInt("Max Hits", &sMaxHits);
+    ImGui::Checkbox("Sort By Distance", &sSortByDistance);
+    ImGui::Checkbox("Dedupe By Entity", &sDedupeByEntity);
+    ImGui::DragFloat("Sphere Radius", &sSphereRadius, 0.05f, 0.05f, 50.0f, "%.2f");
     ImGui::InputScalar("Layer Mask", ImGuiDataType_U32, &sLayerMask, nullptr, nullptr, "%08X", ImGuiInputTextFlags_CharsHexadecimal);
     ImGui::InputScalar("Tag Mask", ImGuiDataType_U32, &sTagMask, nullptr, nullptr, "%08X", ImGuiInputTextFlags_CharsHexadecimal);
 
@@ -190,41 +250,58 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
         if (registry.has_ctx<ECS::Sys_Physics*>()) {
             ECS::Sys_Physics* physics = registry.ctx<ECS::Sys_Physics*>();
             if (physics) {
-                Vector3 queryOrigin = sOrigin;
-                Vector3 queryDirection = sDirection;
-
-                if (registry.has_ctx<Res_CameraContext>()) {
-                    auto& camCtx = registry.ctx<Res_CameraContext>();
-                    if (registry.Valid(camCtx.active_camera)
-                        && registry.Has<C_D_Transform>(camCtx.active_camera)
-                        && registry.Has<C_D_Camera>(camCtx.active_camera))
-                    {
-                        auto& camTf = registry.Get<C_D_Transform>(camCtx.active_camera);
-                        auto& camData = registry.Get<C_D_Camera>(camCtx.active_camera);
-
-                        if (sUseCameraOrigin) {
-                            queryOrigin = camTf.position;
-                        }
-
-                        if (sUseCameraDirection) {
-                            const float yawRad = camData.yaw * (3.14159265f / 180.0f);
-                            const float pitchRad = camData.pitch * (3.14159265f / 180.0f);
-                            queryDirection = Vector3(
-                                -sinf(yawRad) * cosf(pitchRad),
-                                -sinf(pitchRad),
-                                -cosf(yawRad) * cosf(pitchRad)
-                            );
-                        }
-                    }
-                }
-
-                ECS::RaycastFilter filter{};
-                filter.layer_mask = sLayerMask;
-                filter.tag_mask = sTagMask;
-                filter.include_triggers = sIncludeTriggers;
-                filter.ignore_entity = (sIgnoreEntity >= 0) ? (ECS::EntityID)sIgnoreEntity : ECS::Entity::NULL_ENTITY;
-
+                Vector3 queryOrigin;
+                Vector3 queryDirection;
+                BuildQueryContext(queryOrigin, queryDirection);
+                ECS::RaycastFilter filter = BuildFilter();
                 physics->RaycastNearest(queryOrigin, queryDirection, sMaxDistance, filter, sLastHit);
+            }
+        }
+    }
+
+    if (ImGui::Button("Raycast All", ImVec2(140, 30))) {
+        sLastRaycastAllHits.clear();
+        if (registry.has_ctx<ECS::Sys_Physics*>()) {
+            ECS::Sys_Physics* physics = registry.ctx<ECS::Sys_Physics*>();
+            if (physics) {
+                Vector3 queryOrigin;
+                Vector3 queryDirection;
+                BuildQueryContext(queryOrigin, queryDirection);
+                ECS::RaycastFilter filter = BuildFilter();
+                ECS::QueryOptions options = BuildOptions();
+                physics->RaycastAll(queryOrigin, queryDirection, sMaxDistance, filter, options, sLastRaycastAllHits);
+            }
+        }
+    }
+
+    if (ImGui::Button("ShapeCast Sphere", ImVec2(140, 30))) {
+        sHasShapeCast = false;
+        sLastShapeCastHit = ECS::QueryHit{};
+        if (registry.has_ctx<ECS::Sys_Physics*>()) {
+            ECS::Sys_Physics* physics = registry.ctx<ECS::Sys_Physics*>();
+            if (physics) {
+                Vector3 queryOrigin;
+                Vector3 queryDirection;
+                BuildQueryContext(queryOrigin, queryDirection);
+                ECS::RaycastFilter filter = BuildFilter();
+                sHasShapeCast = physics->ShapeCastSphere(queryOrigin, queryDirection, sMaxDistance, sSphereRadius, filter, sLastShapeCastHit);
+            }
+        }
+    }
+
+    if (ImGui::Button("Overlap Sphere", ImVec2(140, 30))) {
+        sLastOverlapEntities.clear();
+        sLastOverlapCount = 0;
+        if (registry.has_ctx<ECS::Sys_Physics*>()) {
+            ECS::Sys_Physics* physics = registry.ctx<ECS::Sys_Physics*>();
+            if (physics) {
+                Vector3 queryOrigin;
+                Vector3 queryDirection;
+                BuildQueryContext(queryOrigin, queryDirection);
+                (void)queryDirection;
+                ECS::RaycastFilter filter = BuildFilter();
+                ECS::QueryOptions options = BuildOptions();
+                sLastOverlapCount = physics->OverlapSphere(queryOrigin, sSphereRadius, filter, options, sLastOverlapEntities);
             }
         }
     }
@@ -239,6 +316,29 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
             ImGui::Text("Point: (%.3f, %.3f, %.3f)", sLastHit.point.x, sLastHit.point.y, sLastHit.point.z);
             ImGui::Text("Normal: (%.3f, %.3f, %.3f)", sLastHit.normal.x, sLastHit.normal.y, sLastHit.normal.z);
         }
+    }
+
+    ImGui::Separator();
+    ImGui::Text("RaycastAll Hits: %d", (int)sLastRaycastAllHits.size());
+    for (size_t i = 0; i < sLastRaycastAllHits.size(); ++i) {
+        const ECS::QueryHit& h = sLastRaycastAllHits[i];
+        ImGui::Text("#%d E:%u B:%u D:%.3f", (int)i, h.entity, h.jolt_body_id, h.distance);
+    }
+
+    ImGui::Separator();
+    ImGui::Text("ShapeCastSphere: %s", sHasShapeCast ? "HIT" : "MISS");
+    if (sHasShapeCast) {
+        ImGui::Text("Entity: %u", sLastShapeCastHit.entity);
+        ImGui::Text("Body: %u", sLastShapeCastHit.jolt_body_id);
+        ImGui::Text("Distance: %.3f", sLastShapeCastHit.distance);
+        ImGui::Text("Point: (%.3f, %.3f, %.3f)", sLastShapeCastHit.point.x, sLastShapeCastHit.point.y, sLastShapeCastHit.point.z);
+        ImGui::Text("Normal: (%.3f, %.3f, %.3f)", sLastShapeCastHit.normal.x, sLastShapeCastHit.normal.y, sLastShapeCastHit.normal.z);
+    }
+
+    ImGui::Separator();
+    ImGui::Text("OverlapSphere Count: %d", sLastOverlapCount);
+    for (size_t i = 0; i < sLastOverlapEntities.size(); ++i) {
+        ImGui::Text("#%d Entity: %u", (int)i, sLastOverlapEntities[i]);
     }
 
     ImGui::End();
