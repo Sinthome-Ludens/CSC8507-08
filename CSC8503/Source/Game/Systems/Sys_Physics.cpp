@@ -571,7 +571,7 @@ bool ECS::Sys_Physics::RaycastNearest(const Vector3& origin,
         }
 
         const EntityID hitEntity = mapIt->second;
-        if (!hitEntity || hitEntity == filter.ignore_entity) {
+        if (hitEntity == Entity::NULL_ENTITY || hitEntity == filter.ignore_entity) {
             continue;
         }
 
