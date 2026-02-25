@@ -8,6 +8,7 @@
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_Chat.h"
 #include "Game/UI/UI_ItemWheel.h"
+#include "Game/Components/Res_ChatState.h"
 
 namespace ECS::UI {
 
@@ -345,6 +346,12 @@ void RenderHUD(Registry& registry, float /*dt*/) {
     const ImVec2 vpPos  = viewport->Pos;
     const ImVec2 vpSize = viewport->Size;
 
+    // 左右分屏：游戏区域 = 视口宽度 - 聊天面板宽度
+    float gameW = vpSize.x;
+    if (registry.has_ctx<Res_ChatState>()) {
+        gameW -= Res_ChatState::PANEL_WIDTH;
+    }
+
     ImDrawList* draw = ImGui::GetForegroundDrawList();
 
     const float pad = 20.0f;
@@ -353,16 +360,16 @@ void RenderHUD(Registry& registry, float /*dt*/) {
     RenderHUD_MissionPanel(draw, vpPos.x + pad, vpPos.y + pad,
                            gs.missionName, gs.objectiveText);
 
-    // 右上: 警戒度仪表
+    // 右上（游戏区域内）: 警戒度仪表
     const float alertW = 240.0f;
     const float alertH = 52.0f;
     RenderHUD_AlertGauge(draw,
-        vpPos.x + vpSize.x - alertW - pad, vpPos.y + pad,
+        vpPos.x + gameW - alertW - pad, vpPos.y + pad,
         alertW, alertH, gs.alertLevel, gs.alertMax);
 
-    // 上方中央: 倒计时
+    // 游戏区域上方中央: 倒计时
     RenderHUD_Countdown(draw,
-        vpPos.x + vpSize.x * 0.5f, vpPos.y + pad,
+        vpPos.x + gameW * 0.5f, vpPos.y + pad,
         gs.countdownTimer, gs.countdownActive);
 
     // 左下: 玩家状态
@@ -375,22 +382,22 @@ void RenderHUD(Registry& registry, float /*dt*/) {
         vpPos.x + pad + 180.0f, vpPos.y + vpSize.y - 50.0f,
         gs.noiseLevel, ui.globalTime);
 
-    // 右下: 道具/武器快捷栏
+    // 游戏区域右下: 道具/武器快捷栏
     RenderHUD_ItemSlots(draw,
-        vpPos.x + vpSize.x - 280.0f, vpPos.y + vpSize.y - 60.0f,
+        vpPos.x + gameW - 280.0f, vpPos.y + vpSize.y - 60.0f,
         gs);
 
-    // 聊天面板（右侧叠加）
+    // 右侧聊天面板（独立区域）
     RenderChatPanel(registry, 0.0f);
 
-    // 道具快捷轮盘（Tab 按住时叠加显示）
+    // 道具快捷轮盘（Tab 按住时叠加在游戏区域中央）
     RenderItemWheel(registry, 0.0f);
 
-    // UI 退化效果
+    // UI 退化效果（仅覆盖游戏区域）
     float alertRatio = (gs.alertMax > 0.0f) ? gs.alertLevel / gs.alertMax : 0.0f;
     if (alertRatio > 0.2f) {
         RenderHUD_Degradation(draw, alertRatio, ui.globalTime,
-                              vpSize.x, vpSize.y, vpPos.x, vpPos.y);
+                              gameW, vpSize.y, vpPos.x, vpPos.y);
     }
 }
 

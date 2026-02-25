@@ -74,13 +74,6 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             LOG_INFO("[Sys_UI] F3 countdown: " << (gs.countdownActive ? "ON" : "OFF"));
         }
 
-        // F4: 切换聊天面板
-        if (devKb->KeyPressed(KeyCodes::F4) && registry.has_ctx<Res_ChatState>()) {
-            auto& chat = registry.ctx<Res_ChatState>();
-            chat.panelVisible = !chat.panelVisible;
-            LOG_INFO("[Sys_UI] F4 ChatPanel: " << (chat.panelVisible ? "ON" : "OFF"));
-        }
-
         // F5: 触发 GameOver（循环 reason 1/2/3）
         if (devKb->KeyPressed(KeyCodes::F5)) {
             gs.gameOverReason = (gs.gameOverReason % 3) + 1;

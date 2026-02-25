@@ -107,7 +107,6 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     // ── 聊天对话状态 ──
     {
         auto& chat = registry.ctx_emplace<ECS::Res_ChatState>();
-        chat.panelVisible = false;   // 默认隐藏，F4开启
         chat.nextMessageTimer = 3.0f; // 首条NPC消息延迟
     }
 

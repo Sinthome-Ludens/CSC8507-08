@@ -42,32 +42,33 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     auto& chat = registry.ctx<Res_ChatState>();
     auto& ui   = registry.ctx<Res_UIState>();
 
-    if (!chat.panelVisible) return;
+    // 聊天面板始终可见（左右分屏布局，占据右侧区域）
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
     const ImVec2 vpSize = viewport->Size;
 
-    // 面板尺寸和位置（右侧）
-    const float panelW = 320.0f;
-    const float panelH = vpSize.y - 40.0f;
-    const float panelX = vpPos.x + vpSize.x - panelW - 10.0f;
-    const float panelY = vpPos.y + 20.0f;
+    // 面板尺寸和位置（右侧，全高，贴右边缘）
+    const float panelW = Res_ChatState::PANEL_WIDTH;
+    const float panelH = vpSize.y;
+    const float panelX = vpPos.x + vpSize.x - panelW;
+    const float panelY = vpPos.y;
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();
 
     ImU32 modeColor = GetModeColor(chat.chatMode);
     ImU32 modeDim   = GetModeColor(chat.chatMode, 80);
 
-    // ── 面板背景 ──
+    // ── 面板背景（完全不透明，独立区域）──
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        IM_COL32(6, 8, 14, 230), 3.0f);
-    draw->AddRect(
+        IM_COL32(6, 8, 14, 255));
+    // 左侧分隔线
+    draw->AddLine(
         ImVec2(panelX, panelY),
-        ImVec2(panelX + panelW, panelY + panelH),
-        modeDim, 3.0f, 0, 1.0f);
+        ImVec2(panelX, panelY + panelH),
+        modeDim, 2.0f);
 
     // ── 标题栏 ──
     float headerH = 30.0f;
@@ -245,7 +246,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     draw->AddText(
         ImVec2(panelX + 8.0f, panelY + panelH - 18.0f),
         IM_COL32(50, 55, 60, 150),
-        "[1-4] Reply  [F4] Close");
+        "[1-4] Reply");
 
     if (smallFont) ImGui::PopFont();
 }

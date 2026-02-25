@@ -20,6 +20,9 @@ namespace ECS {
  *       不受 64 字节限制，但仍保持 POD 特性（无动态分配）。
  */
 struct Res_ChatState {
+    /// 聊天面板固定宽度（左右分屏布局用）
+    static constexpr float PANEL_WIDTH = 320.0f;
+
     // ── 面板可见性 ──
     bool panelVisible = false;
 

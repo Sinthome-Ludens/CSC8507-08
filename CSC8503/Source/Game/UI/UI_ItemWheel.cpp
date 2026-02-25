@@ -6,6 +6,7 @@
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameplayState.h"
+#include "Game/Components/Res_ChatState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
 
@@ -55,17 +56,23 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     const ImVec2 vpPos  = viewport->Pos;
     const ImVec2 vpSize = viewport->Size;
 
+    // 游戏区域宽度（排除聊天面板）
+    float gameW = vpSize.x;
+    if (registry.has_ctx<Res_ChatState>()) {
+        gameW -= Res_ChatState::PANEL_WIDTH;
+    }
+
     ImDrawList* draw = ImGui::GetForegroundDrawList();
 
-    // 轮盘中心
-    float cx = vpPos.x + vpSize.x * 0.5f;
+    // 轮盘居中在游戏区域
+    float cx = vpPos.x + gameW * 0.5f;
     float cy = vpPos.y + vpSize.y * 0.5f;
     float outerR = 120.0f;
     float innerR = 40.0f;
 
-    // 半透明背景
+    // 半透明背景（仅覆盖游戏区域）
     draw->AddRectFilled(vpPos,
-        ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
+        ImVec2(vpPos.x + gameW, vpPos.y + vpSize.y),
         IM_COL32(0, 0, 0, 100));
 
     // 根据鼠标位置计算选中扇区
