@@ -35,6 +35,7 @@ private:
     // ── Test Scene 调试控制（状态读写 Res_TestState context）────────────
     void RenderTestControlsWindow(Registry& registry);  ///< 控制面板：Spawn/Delete/Gravity
     void RenderCubeDebugWindow   (Registry& registry);  ///< 浮动 Debug 窗口：per-cube 状态
+    void RenderNetworkDebugWindow(Registry& registry);  ///< 网络调试面板：状态/流量/NetID映射
 
     void SpawnCube     (Registry& registry);             ///< 通过 PrefabFactory 生成动态方块
     void DeleteLastCube(Registry& registry);             ///< 销毁最后生成的方块
