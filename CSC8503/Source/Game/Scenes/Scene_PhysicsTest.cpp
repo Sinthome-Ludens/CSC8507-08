@@ -1,5 +1,6 @@
 #include "Scene_PhysicsTest.h"
 
+#include <cstdio>
 #include "Assets.h"
 #include "Core/ECS/Registry.h"
 #include "Core/ECS/SystemManager.h"
@@ -16,6 +17,7 @@
 #include "Game/Systems/Sys_ImGui.h"
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_GameplayState.h"
 #endif
 
 // ============================================================
@@ -47,12 +49,55 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_TestState>(std::move(state));
     }
 
-    // ── 游戏场景UI状态：覆盖写入，初始不显示菜单UI ──────────────────
+    // ── 游戏场景UI状态：覆盖写入，进入HUD画面 ──────────────────────
 #ifdef USE_IMGUI
     {
         auto& uiState = registry.ctx_emplace<ECS::Res_UIState>();
-        uiState.activeScreen = ECS::UIScreen::None;
+        uiState.activeScreen = ECS::UIScreen::HUD;
         uiState.isUIBlockingInput = false;
+    }
+
+    // ── 游戏玩法状态：Phase 2 模拟数据驱动 HUD 开发 ─────────────────
+    {
+        auto& gs = registry.ctx_emplace<ECS::Res_GameplayState>();
+
+        // 警戒度：初始安全
+        gs.alertLevel = 0.0f;
+        gs.alertMax   = 150.0f;
+
+        // 倒计时：初始未启动
+        gs.countdownTimer  = 120.0f;
+        gs.countdownMax    = 120.0f;
+        gs.countdownActive = false;
+
+        // 玩家状态
+        gs.playerMoveState = ECS::PlayerMoveState::Standing;
+        gs.playerDisguised = false;
+
+        // 任务信息
+        snprintf(gs.missionName,   sizeof(gs.missionName),   "OPERATION GHOST");
+        snprintf(gs.objectiveText, sizeof(gs.objectiveText), "Infiltrate server room B-7");
+
+        // 道具槽模拟数据
+        snprintf(gs.itemSlots[0].name, sizeof(gs.itemSlots[0].name), "EMP Grenade");
+        gs.itemSlots[0].count    = 2;
+        gs.itemSlots[0].cooldown = 0.0f;
+
+        snprintf(gs.itemSlots[1].name, sizeof(gs.itemSlots[1].name), "Smoke Bomb");
+        gs.itemSlots[1].count    = 1;
+        gs.itemSlots[1].cooldown = 0.3f;
+
+        // 武器槽模拟数据
+        snprintf(gs.weaponSlots[0].name, sizeof(gs.weaponSlots[0].name), "Taser");
+        gs.weaponSlots[0].count    = -1;  // 无限
+        gs.weaponSlots[0].cooldown = 0.0f;
+
+        snprintf(gs.weaponSlots[1].name, sizeof(gs.weaponSlots[1].name), "Hack Tool");
+        gs.weaponSlots[1].count    = 3;
+        gs.weaponSlots[1].cooldown = 0.0f;
+
+        gs.activeItemSlot   = 0;
+        gs.activeWeaponSlot = 0;
     }
 #endif
 
