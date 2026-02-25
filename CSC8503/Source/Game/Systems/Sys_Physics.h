@@ -20,6 +20,9 @@
  * - `ApplyImpulse`：向动态体施加冲量。
  * - `MoveKinematic`：设置运动学体目标位姿。
  * - `RaycastNearest`：执行单射线最近命中查询并输出统一命中结果。
+ * - `RaycastAll`：执行单射线多命中查询并输出命中列表。
+ * - `ShapeCastSphere`：执行球体扫掠最近命中查询。
+ * - `OverlapSphere`：执行球体区域重叠查询。
  *
  * ## Raycast 过滤优先级（固定顺序）
  * 1. `ignore_entity`
@@ -224,6 +227,26 @@ struct RaycastHit {
     float    distance     = 0.0f;               ///< 命中距离（世界距离）
 };
 
+/**
+ * @brief 通用查询结果（用于 RaycastAll / ShapeCast / Overlap 扩展）。
+ */
+struct QueryHit {
+    EntityID entity       = Entity::NULL_ENTITY; ///< 命中的 ECS 实体
+    uint32_t jolt_body_id = 0xFFFFFFFFu;         ///< 命中的 Jolt BodyID 原始值
+    Vector3  point        = Vector3();           ///< 命中点（世界坐标）
+    Vector3  normal       = Vector3();           ///< 命中法线（世界坐标）
+    float    distance     = 0.0f;                ///< 命中距离（世界距离）
+};
+
+/**
+ * @brief 通用查询选项。
+ */
+struct QueryOptions {
+    uint32_t max_hits = 64;            ///< 最大输出命中数
+    bool sort_by_distance = true;      ///< 是否按距离升序排序
+    bool dedupe_by_entity = true;      ///< 是否按实体去重
+};
+
 class Sys_Physics : public ISystem {
 public:
     // 物理常量
@@ -259,6 +282,29 @@ public:
                         float maxDistance,
                         const RaycastFilter& filter,
                         RaycastHit& outHit) const;
+
+    /// 执行单射线多命中查询，返回过滤后的命中列表
+    bool RaycastAll(const Vector3& origin,
+                    const Vector3& direction,
+                    float maxDistance,
+                    const RaycastFilter& filter,
+                    const QueryOptions& options,
+                    std::vector<QueryHit>& outHits) const;
+
+    /// 执行球体扫掠最近命中查询（用于近战判定或交互体积检测）
+    bool ShapeCastSphere(const Vector3& origin,
+                         const Vector3& direction,
+                         float maxDistance,
+                         float radius,
+                         const RaycastFilter& filter,
+                         QueryHit& outHit) const;
+
+    /// 执行球体重叠查询（用于区域检测），返回命中实体数量
+    int OverlapSphere(const Vector3& center,
+                      float radius,
+                      const RaycastFilter& filter,
+                      const QueryOptions& options,
+                      std::vector<EntityID>& outEntities) const;
 
     /// 获取 Jolt PhysicsSystem 指针（供调试/ImGui 使用）
     JPH::PhysicsSystem* GetJoltPhysicsSystem() const { return m_PhysicsSystem.get(); }
