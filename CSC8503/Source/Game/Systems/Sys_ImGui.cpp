@@ -234,8 +234,9 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 
             // State (转换为文字)
             ImGui::TableSetColumnIndex(2);
-            const char* stateStr = (state.currentState == EnemyState::Safe) ? "SAFE" :
-                                   (state.currentState == EnemyState::Caution) ? "CAUTION" : "ALERT";
+            const char* stateStr = (state.currentState == EnemyState::Safe)    ? "SAFE"    :
+                                   (state.currentState == EnemyState::Caution) ? "CAUTION" :
+                                   (state.currentState == EnemyState::Alert)   ? "ALERT"   : "HUNT";
             ImGui::TextUnformatted(stateStr);
 
             // Detection
