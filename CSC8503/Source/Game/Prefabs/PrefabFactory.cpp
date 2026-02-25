@@ -193,6 +193,17 @@ EntityID PrefabFactory::CreatePhysicsCube(
     }
 
     const int queryGroup = spawnIndex % 5;
+    if (queryGroup == 1) {
+        reg.Get<C_D_Transform>(entity).position.x += 1.5f;
+    } else if (queryGroup == 2) {
+        reg.Get<C_D_Transform>(entity).position.x -= 1.5f;
+    } else if (queryGroup == 3) {
+        reg.Get<C_D_Transform>(entity).position.z += 1.5f;
+    } else if (queryGroup == 4) {
+        reg.Get<C_D_Transform>(entity).position.z -= 1.5f;
+        reg.Get<C_D_Transform>(entity).position.y += 0.5f;
+    }
+
     if (queryGroup == 4) {
         col.is_trigger = true;
         col.layer_mask = LAYER_TRIGGER;
