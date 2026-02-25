@@ -30,6 +30,12 @@
  * 3. `layer_mask`
  * 4. `tag_mask`
  *
+ * ## P3 查询结果规则
+ * - `RaycastAll` 默认按距离升序返回，若距离相同按 `jolt_body_id` 再按 `entity` 稳定排序。
+ * - `RaycastAll` 可按 `QueryOptions::dedupe_by_entity` 对同一实体重复命中去重。
+ * - `ShapeCastSphere` 的 `radius` 单位为米，`distance` 表示沿 cast 方向的世界距离。
+ * - `OverlapSphere` 的 `radius` 单位为米，返回结果可按 `max_hits` 截断。
+ *
  * ## 位掩码扩展约定
  * - 位定义遵循“只新增不重排”，已占用位不可改语义。
  * - `layer_mask` 用于粗粒度物理层筛选，`tag_mask` 用于细粒度语义筛选。
@@ -240,6 +246,10 @@ struct QueryHit {
 
 /**
  * @brief 通用查询选项。
+ *
+ * @details
+ * `max_hits=0` 表示不限制输出数量。排序与去重可独立控制，
+ * 推荐在玩法逻辑中保持 `sort_by_distance=true` 以获得稳定选择结果。
  */
 struct QueryOptions {
     uint32_t max_hits = 64;            ///< 最大输出命中数
@@ -284,6 +294,7 @@ public:
                         RaycastHit& outHit) const;
 
     /// 执行单射线多命中查询，返回过滤后的命中列表
+    /// 结果行为由 QueryOptions 控制：支持排序、去重与最大数量限制
     bool RaycastAll(const Vector3& origin,
                     const Vector3& direction,
                     float maxDistance,
@@ -292,6 +303,7 @@ public:
                     std::vector<QueryHit>& outHits) const;
 
     /// 执行球体扫掠最近命中查询（用于近战判定或交互体积检测）
+    /// radius 为世界空间半径，direction*maxDistance 定义扫掠路径
     bool ShapeCastSphere(const Vector3& origin,
                          const Vector3& direction,
                          float maxDistance,
@@ -300,6 +312,7 @@ public:
                          QueryHit& outHit) const;
 
     /// 执行球体重叠查询（用于区域检测），返回命中实体数量
+    /// 输出实体列表按过滤规则生成，可通过 QueryOptions 控制去重和数量上限
     int OverlapSphere(const Vector3& center,
                       float radius,
                       const RaycastFilter& filter,
