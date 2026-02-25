@@ -24,6 +24,7 @@
 #include <Jolt/Physics/Body/MotionProperties.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/CollideShape.h>
 #include <Jolt/Physics/Collision/ShapeCast.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
@@ -816,4 +817,93 @@ bool ECS::Sys_Physics::ShapeCastSphere(const Vector3& origin,
     outHit.normal = FromJolt(normal);
     outHit.distance = hit.mFraction * maxDistance;
     return true;
+}
+
+int ECS::Sys_Physics::OverlapSphere(const Vector3& center,
+                                    float radius,
+                                    const RaycastFilter& filter,
+                                    const QueryOptions& options,
+                                    std::vector<EntityID>& outEntities) const
+{
+    outEntities.clear();
+
+    if (!m_PhysicsSystem || radius <= 0.0f) {
+        return 0;
+    }
+
+    JPH::SphereShape sphereShape(radius);
+    const JPH::RMat44 sphereTransform = JPH::RMat44::sTranslation(JPH::RVec3(center.x, center.y, center.z));
+
+    JPH::AllHitCollisionCollector<JPH::CollideShapeCollector> collector;
+    JPH::CollideShapeSettings settings;
+    settings.mBackFaceMode = JPH::EBackFaceMode::CollideWithBackFaces;
+    m_PhysicsSystem->GetNarrowPhaseQuery().CollideShape(
+        &sphereShape,
+        JPH::Vec3::sReplicate(1.0f),
+        sphereTransform,
+        settings,
+        JPH::RVec3::sZero(),
+        collector);
+
+    if (!collector.HadHit()) {
+        return 0;
+    }
+
+    if (options.sort_by_distance) {
+        collector.Sort();
+    }
+
+    std::unordered_set<EntityID> seenEntities;
+    for (const JPH::CollideShapeResult& hit : collector.mHits) {
+        const uint32_t rawBodyID = hit.mBodyID2.GetIndexAndSequenceNumber();
+        auto mapIt = m_BodyToEntity.find(rawBodyID);
+        if (mapIt == m_BodyToEntity.end()) {
+            continue;
+        }
+
+        const EntityID hitEntity = mapIt->second;
+        if (hitEntity == Entity::NULL_ENTITY || hitEntity == filter.ignore_entity) {
+            continue;
+        }
+
+        uint32_t bodyLayerMask = 0xFFFFFFFFu;
+        uint32_t bodyTagMask = 0xFFFFFFFFu;
+        bool isSensor = false;
+        {
+            JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), hit.mBodyID2);
+            if (!lock.Succeeded()) {
+                continue;
+            }
+
+            const JPH::Body& body = lock.GetBody();
+            const uint64_t packedMask = body.GetUserData();
+            bodyLayerMask = uint32_t(packedMask >> 32);
+            bodyTagMask = uint32_t(packedMask & 0xFFFFFFFFu);
+            isSensor = body.IsSensor();
+        }
+
+        if (!filter.include_triggers && isSensor) {
+            continue;
+        }
+        if ((filter.layer_mask & bodyLayerMask) == 0u) {
+            continue;
+        }
+        if ((filter.tag_mask & bodyTagMask) == 0u) {
+            continue;
+        }
+
+        if (options.dedupe_by_entity) {
+            if (seenEntities.find(hitEntity) != seenEntities.end()) {
+                continue;
+            }
+            seenEntities.insert(hitEntity);
+        }
+
+        outEntities.push_back(hitEntity);
+        if (options.max_hits > 0 && outEntities.size() >= options.max_hits) {
+            break;
+        }
+    }
+
+    return (int)outEntities.size();
 }
