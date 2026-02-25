@@ -150,9 +150,8 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
     auto& gs   = registry.ctx<Res_GameplayState>();
     auto& ui   = registry.ctx<Res_UIState>();
 
-    // 仅在HUD画面且面板可见时运行对话逻辑
+    // 仅在HUD画面时运行对话逻辑
     if (ui.activeScreen != UIScreen::HUD) return;
-    if (!chat.panelVisible) return;
 
     // ── 更新 chatMode ──
     chat.chatMode = CalcChatMode(gs.alertLevel);

@@ -23,9 +23,6 @@ struct Res_ChatState {
     /// 聊天面板固定宽度（左右分屏布局用）
     static constexpr float PANEL_WIDTH = 320.0f;
 
-    // ── 面板可见性 ──
-    bool panelVisible = false;
-
     // ── 消息历史（环形缓冲）──
     struct ChatMessage {
         char    text[64] = {};
