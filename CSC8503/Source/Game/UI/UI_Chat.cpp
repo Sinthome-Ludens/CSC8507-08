@@ -110,7 +110,6 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
 
     // 从最新消息开始向上渲染
     float lineH = 18.0f;
-    int maxVisibleLines = (int)((msgAreaBottom - msgAreaTop) / lineH);
 
     for (int i = chat.messageCount - 1; i >= 0 && msgY > msgAreaTop; --i) {
         const auto& msg = chat.GetMessage(i);
@@ -134,11 +133,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
                 break;
         }
 
-        // 截断长文本以适应面板宽度
-        char displayBuf[72];
-        snprintf(displayBuf, sizeof(displayBuf), "%s", msg.text);
-
-        draw->AddText(ImVec2(panelX + 8.0f, msgY), msgColor, displayBuf);
+        draw->AddText(ImVec2(panelX + 8.0f, msgY), msgColor, msg.text);
     }
 
     if (termFont) ImGui::PopFont();

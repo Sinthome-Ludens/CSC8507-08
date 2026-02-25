@@ -182,13 +182,14 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
         }
 
         if (selectedIdx >= 0 && selectedIdx < chat.replyCount) {
-            auto& reply = chat.replies[selectedIdx];
+            // 先保存回复数据到局部变量（ClearReplies 会清零原数据）
+            uint8_t effect = chat.replies[selectedIdx].effectType;
 
             // 追加玩家消息
-            chat.PushMessage(reply.text, 1, ui.globalTime);
+            chat.PushMessage(chat.replies[selectedIdx].text, 1, ui.globalTime);
 
             // 效果：影响 alertLevel
-            switch (reply.effectType) {
+            switch (effect) {
                 case 1: // good — 减缓警戒
                     gs.alertLevel -= 5.0f;
                     if (gs.alertLevel < 0.0f) gs.alertLevel = 0.0f;
@@ -211,7 +212,7 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
             chat.nextMessageTimer = chat.nextMessageDelay;
 
             LOG_INFO("[Sys_Chat] Reply selected: " << selectedIdx
-                     << " effect=" << (int)reply.effectType);
+                     << " effect=" << (int)effect);
         }
     }
 

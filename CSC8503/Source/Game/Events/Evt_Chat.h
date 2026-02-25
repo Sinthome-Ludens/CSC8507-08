@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+namespace ECS {
+
 /**
  * @brief 玩家选择了一个聊天回复
  *
@@ -20,3 +22,5 @@ struct Evt_Chat_ReplySelected {
  * 效果等同于选择了最差回复。
  */
 struct Evt_Chat_ReplyTimeout {};
+
+} // namespace ECS

@@ -119,6 +119,9 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
         sectorLabels[i + 2] = labelBufs[i + 2];
     }
 
+    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* termFont  = UITheme::GetFont_Terminal();
+
     for (int i = 0; i < kWheelSectors; ++i) {
         float a1 = startOffset + i * sectorAngle;
         float a2 = a1 + sectorAngle;
@@ -158,7 +161,6 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
         float lx = cx + cosf(midAngle) * labelR;
         float ly = cy + sinf(midAngle) * labelR;
 
-        ImFont* smallFont = UITheme::GetFont_Small();
         if (smallFont) ImGui::PushFont(smallFont);
 
         ImVec2 textSize = ImGui::CalcTextSize(sectorLabels[i]);
@@ -176,7 +178,6 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     draw->AddCircle(ImVec2(cx, cy), innerR, IM_COL32(0, 140, 130, 80), 32, 1.0f);
 
     // 中心文字
-    ImFont* termFont = UITheme::GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
 
     const char* centerText = "SELECT";
@@ -187,7 +188,6 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     if (termFont) ImGui::PopFont();
 
     // 底部提示
-    ImFont* smallFont = UITheme::GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(ImVec2(cx - 80.0f, cy + outerR + 15.0f),
         IM_COL32(60, 70, 75, 150),

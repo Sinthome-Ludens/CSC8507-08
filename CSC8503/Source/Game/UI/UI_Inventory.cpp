@@ -6,7 +6,6 @@
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_InventoryState.h"
-#include "Game/Components/Res_GameplayState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
 
