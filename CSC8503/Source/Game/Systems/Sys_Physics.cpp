@@ -24,6 +24,7 @@
 #include <Jolt/Physics/Body/MotionProperties.h>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/ShapeCast.h>
 #include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
 #include <Jolt/Physics/Collision/Shape/Shape.h>
 #include <iostream>
@@ -732,4 +733,87 @@ bool ECS::Sys_Physics::RaycastAll(const Vector3& origin,
     }
 
     return !outHits.empty();
+}
+
+bool ECS::Sys_Physics::ShapeCastSphere(const Vector3& origin,
+                                       const Vector3& direction,
+                                       float maxDistance,
+                                       float radius,
+                                       const RaycastFilter& filter,
+                                       QueryHit& outHit) const
+{
+    outHit = QueryHit{};
+
+    if (!m_PhysicsSystem || maxDistance <= 0.0f || radius <= 0.0f) {
+        return false;
+    }
+
+    const float dirLenSq = direction.x * direction.x + direction.y * direction.y + direction.z * direction.z;
+    if (dirLenSq <= 1.0e-8f) {
+        return false;
+    }
+
+    const float invDirLen = 1.0f / std::sqrt(dirLenSq);
+    const Vector3 dirNorm(direction.x * invDirLen, direction.y * invDirLen, direction.z * invDirLen);
+    const JPH::Vec3 castDir = ToJolt(dirNorm.x * maxDistance, dirNorm.y * maxDistance, dirNorm.z * maxDistance);
+
+    JPH::SphereShape sphereShape(radius);
+    const JPH::RMat44 startTransform = JPH::RMat44::sTranslation(JPH::RVec3(origin.x, origin.y, origin.z));
+    const JPH::RShapeCast shapeCast(&sphereShape, JPH::Vec3::sReplicate(1.0f), startTransform, castDir);
+
+    JPH::ClosestHitCollisionCollector<JPH::CastShapeCollector> collector;
+    JPH::ShapeCastSettings settings;
+    settings.mBackFaceModeTriangles = JPH::EBackFaceMode::CollideWithBackFaces;
+    settings.mBackFaceModeConvex = JPH::EBackFaceMode::CollideWithBackFaces;
+    m_PhysicsSystem->GetNarrowPhaseQuery().CastShape(shapeCast, settings, JPH::RVec3::sZero(), collector);
+
+    if (!collector.HadHit()) {
+        return false;
+    }
+
+    const JPH::ShapeCastResult& hit = collector.mHit;
+    const uint32_t rawBodyID = hit.mBodyID2.GetIndexAndSequenceNumber();
+    auto mapIt = m_BodyToEntity.find(rawBodyID);
+    if (mapIt == m_BodyToEntity.end()) {
+        return false;
+    }
+
+    const EntityID hitEntity = mapIt->second;
+    if (hitEntity == Entity::NULL_ENTITY || hitEntity == filter.ignore_entity) {
+        return false;
+    }
+
+    uint32_t bodyLayerMask = 0xFFFFFFFFu;
+    uint32_t bodyTagMask = 0xFFFFFFFFu;
+    bool isSensor = false;
+    {
+        JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), hit.mBodyID2);
+        if (!lock.Succeeded()) {
+            return false;
+        }
+
+        const JPH::Body& body = lock.GetBody();
+        const uint64_t packedMask = body.GetUserData();
+        bodyLayerMask = uint32_t(packedMask >> 32);
+        bodyTagMask = uint32_t(packedMask & 0xFFFFFFFFu);
+        isSensor = body.IsSensor();
+    }
+
+    if (!filter.include_triggers && isSensor) {
+        return false;
+    }
+    if ((filter.layer_mask & bodyLayerMask) == 0u) {
+        return false;
+    }
+    if ((filter.tag_mask & bodyTagMask) == 0u) {
+        return false;
+    }
+
+    const JPH::Vec3 normal = hit.mPenetrationAxis.Normalized();
+    outHit.entity = hitEntity;
+    outHit.jolt_body_id = rawBodyID;
+    outHit.point = Vector3(hit.mContactPointOn2.GetX(), hit.mContactPointOn2.GetY(), hit.mContactPointOn2.GetZ());
+    outHit.normal = FromJolt(normal);
+    outHit.distance = hit.mFraction * maxDistance;
+    return true;
 }
