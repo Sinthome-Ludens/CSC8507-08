@@ -111,12 +111,12 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float titleX = panelX + (panelW - titleSize.x) * 0.5f;
     float titleY = panelY + 25.0f;
 
-    // 发光效果
-    draw->AddText(ImVec2(titleX, titleY),
-        IM_COL32(ImColor(titleColor).Value.x * 255 * 0.5f,
-                 ImColor(titleColor).Value.y * 255 * 0.5f,
-                 ImColor(titleColor).Value.z * 255 * 0.5f, 60),
-        titleText);
+    // 发光效果（半亮度底层 + 正常层）
+    ImU32 glowColor = IM_COL32(
+        ((titleColor >> IM_COL32_R_SHIFT) & 0xFF) >> 1,
+        ((titleColor >> IM_COL32_G_SHIFT) & 0xFF) >> 1,
+        ((titleColor >> IM_COL32_B_SHIFT) & 0xFF) >> 1, 60);
+    draw->AddText(ImVec2(titleX, titleY), glowColor, titleText);
     draw->AddText(ImVec2(titleX, titleY), titleColor, titleText);
 
     if (titleFont) ImGui::PopFont();
@@ -200,12 +200,28 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         }
     }
 
-    bool confirmed = false;
-    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
-        confirmed = true;
+    // 先处理鼠标 hover 更新 selectedIndex
+    const Mouse* mouse = Window::GetMouse();
+    for (int i = 0; i < kGameOverItemCount; ++i) {
+        ImVec2 itemMin(panelX + 30.0f, menuStartY + i * menuItemH - 2.0f);
+        ImVec2 itemMax(panelX + panelW - 30.0f, menuStartY + i * menuItemH + menuItemH - 6.0f);
+        if (mouse) {
+            ImVec2 mousePos = ImGui::GetMousePos();
+            if (mousePos.x >= itemMin.x && mousePos.x <= itemMax.x &&
+                mousePos.y >= itemMin.y && mousePos.y <= itemMax.y) {
+                ui.gameOverSelectedIndex = static_cast<int8_t>(i);
+            }
+        }
     }
 
-    const Mouse* mouse = Window::GetMouse();
+    // 确认检测（统一在 hover 更新后）
+    int8_t confirmedIndex = -1;
+    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
+        confirmedIndex = ui.gameOverSelectedIndex;
+    }
+    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
+        confirmedIndex = ui.gameOverSelectedIndex;
+    }
 
     for (int i = 0; i < kGameOverItemCount; ++i) {
         float itemY = menuStartY + i * menuItemH;
@@ -213,23 +229,8 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
 
         float baseX = panelX + 50.0f + (isSelected ? 4.0f : 0.0f);
 
-        // 鼠标检测
         ImVec2 itemMin(panelX + 30.0f, itemY - 2.0f);
         ImVec2 itemMax(panelX + panelW - 30.0f, itemY + menuItemH - 6.0f);
-
-        bool mouseHover = false;
-        if (mouse) {
-            ImVec2 mousePos = ImGui::GetMousePos();
-            mouseHover = (mousePos.x >= itemMin.x && mousePos.x <= itemMax.x &&
-                          mousePos.y >= itemMin.y && mousePos.y <= itemMax.y);
-        }
-
-        if (mouseHover) {
-            ui.gameOverSelectedIndex = static_cast<int8_t>(i);
-            if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
-                confirmed = true;
-            }
-        }
 
         // 高亮
         if (isSelected) {
@@ -248,8 +249,8 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     if (termFont) ImGui::PopFont();
 
     // 确认操作
-    if (confirmed) {
-        switch (ui.gameOverSelectedIndex) {
+    if (confirmedIndex >= 0) {
+        switch (confirmedIndex) {
             case 0: // RETRY
                 ui.pendingSceneRequest = SceneRequest::RestartLevel;
                 LOG_INFO("[UI_GameOver] GameOver -> RestartLevel");

@@ -26,16 +26,18 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
 
     systems.AwakeAll(registry);
 
-    // 重置 UI 状态：确保从其他场景返回时显示 Splash 画面。
-    // Sys_UI::OnAwake 已在 AwakeAll 中创建 Res_UIState（若不存在）；
-    // 此处无论如何覆盖关键字段，保证 Splash 画面正常显示。
+    // 重置 UI 状态：
+    // - 首次启动（previousScreen == None）→ 显示 TitleScreen
+    // - 从游戏场景返回 → 显示 Splash
 #ifdef USE_IMGUI
-    {
+    if (registry.has_ctx<ECS::Res_UIState>()) {
         auto& ui = registry.ctx<ECS::Res_UIState>();
-        ui.activeScreen      = ECS::UIScreen::Splash;
+        bool firstLaunch = (ui.previousScreen == ECS::UIScreen::None);
+        ui.activeScreen      = firstLaunch ? ECS::UIScreen::TitleScreen
+                                           : ECS::UIScreen::Splash;
+        ui.titleTimer        = 0.0f;
         ui.splashTimer       = 0.0f;
         ui.menuSelectedIndex = 0;
-        ui.menuAnimTimer     = 0.0f;
     }
 #endif
 

@@ -192,7 +192,7 @@ void RenderSplashScreen(Registry& registry, float dt) {
     if (termFont) ImGui::PushFont(termFont);
 
     const char* prompt = ">> PRESS ANY KEY TO INITIALIZE <<";
-    float blinkAlpha = (sinf(ui.splashTimer * 3.14159f * 2.0f) + 1.0f) * 0.5f;
+    float blinkAlpha = (sinf(ui.splashTimer * UITheme::kPI * 2.0f) + 1.0f) * 0.5f;
     uint8_t promptAlpha = (uint8_t)(blinkAlpha * 200.0f + 55.0f);
     ImVec2 promptSize = ImGui::CalcTextSize(prompt);
     float promptX = vpPos.x + (vpSize.x - promptSize.x) * 0.5f;
@@ -223,33 +223,33 @@ void RenderSplashScreen(Registry& registry, float dt) {
 
     ImGui::End();
 
-    // 检测任意键按下 → 切换到MainMenu
-    const Keyboard* kb = Window::GetKeyboard();
-    if (kb && ui.splashTimer > 0.5f) {
-        for (int k = 0; k < KeyCodes::MAXVALUE; ++k) {
-            if (kb->KeyPressed(static_cast<KeyCodes::Type>(k))) {
-                if (k >= KeyCodes::BACK) {
-                    ui.previousScreen = ui.activeScreen;
-                    ui.activeScreen = UIScreen::MainMenu;
-                    ui.menuSelectedIndex = 0;
-                    ui.menuAnimTimer = 0.0f;
-                    LOG_INFO("[UI_Menus] Splash -> MainMenu");
+    // 检测任意键/鼠标按下 → 切换到MainMenu
+    if (ui.splashTimer > 0.5f) {
+        bool anyInput = false;
+
+        const Keyboard* kb = Window::GetKeyboard();
+        if (kb) {
+            for (int k = 0; k < KeyCodes::MAXVALUE; ++k) {
+                if (kb->KeyPressed(static_cast<KeyCodes::Type>(k)) && k >= KeyCodes::BACK) {
+                    anyInput = true;
                     break;
                 }
             }
         }
-    }
 
-    // 鼠标点击也能跳过
-    const Mouse* mouse = Window::GetMouse();
-    if (mouse && ui.splashTimer > 0.5f) {
-        if (mouse->ButtonPressed(NCL::MouseButtons::Left) ||
-            mouse->ButtonPressed(NCL::MouseButtons::Right)) {
+        if (!anyInput) {
+            const Mouse* mouse = Window::GetMouse();
+            if (mouse && (mouse->ButtonPressed(NCL::MouseButtons::Left) ||
+                          mouse->ButtonPressed(NCL::MouseButtons::Right))) {
+                anyInput = true;
+            }
+        }
+
+        if (anyInput) {
             ui.previousScreen = ui.activeScreen;
             ui.activeScreen = UIScreen::MainMenu;
             ui.menuSelectedIndex = 0;
-            ui.menuAnimTimer = 0.0f;
-            LOG_INFO("[UI_Menus] Splash -> MainMenu (mouse click)");
+            LOG_INFO("[UI_Menus] Splash -> MainMenu");
         }
     }
 }
@@ -342,12 +342,30 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
         }
     }
 
-    bool confirmed = false;
-    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
-        confirmed = true;
+    // 先处理鼠标 hover 更新 selectedIndex，再统一检测确认
+    const Mouse* mouse = Window::GetMouse();
+
+    for (int i = 0; i < kMenuItemCount; ++i) {
+        ImVec2 itemMin(vpPos.x + panelPadX - 5.0f, menuStartY + i * menuItemH - 2.0f);
+        ImVec2 itemMax(vpPos.x + leftPanelW - 10.0f, menuStartY + i * menuItemH + menuItemH - 6.0f);
+
+        if (mouse) {
+            ImVec2 mousePos = ImGui::GetMousePos();
+            if (mousePos.x >= itemMin.x && mousePos.x <= itemMax.x &&
+                mousePos.y >= itemMin.y && mousePos.y <= itemMax.y) {
+                ui.menuSelectedIndex = static_cast<int8_t>(i);
+            }
+        }
     }
 
-    const Mouse* mouse = Window::GetMouse();
+    // 确认检测（keyboard / mouse 统一在 hover 更新后执行）
+    int8_t confirmedIndex = -1;
+    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
+        confirmedIndex = ui.menuSelectedIndex;
+    }
+    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
+        confirmedIndex = ui.menuSelectedIndex;
+    }
 
     for (int i = 0; i < kMenuItemCount; ++i) {
         float itemY = menuStartY + i * menuItemH;
@@ -357,23 +375,8 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
         float offsetX = isSelected ? 4.0f : 0.0f;
         float baseX = vpPos.x + panelPadX + offsetX;
 
-        // 鼠标检测区域
         ImVec2 itemMin(vpPos.x + panelPadX - 5.0f, itemY - 2.0f);
         ImVec2 itemMax(vpPos.x + leftPanelW - 10.0f, itemY + menuItemH - 6.0f);
-
-        bool mouseHover = false;
-        if (mouse) {
-            ImVec2 mousePos = ImGui::GetMousePos();
-            mouseHover = (mousePos.x >= itemMin.x && mousePos.x <= itemMax.x &&
-                          mousePos.y >= itemMin.y && mousePos.y <= itemMax.y);
-        }
-
-        if (mouseHover) {
-            ui.menuSelectedIndex = static_cast<int8_t>(i);
-            if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
-                confirmed = true;
-            }
-        }
 
         // 选中项高亮背景
         if (isSelected) {
@@ -414,8 +417,8 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
     if (termFont) ImGui::PopFont();
 
     // 确认操作
-    if (confirmed && IsMenuItemEnabled(ui.menuSelectedIndex)) {
-        switch (ui.menuSelectedIndex) {
+    if (confirmedIndex >= 0 && IsMenuItemEnabled(confirmedIndex)) {
+        switch (confirmedIndex) {
             case 0: // START OPERATION
                 ui.pendingSceneRequest = SceneRequest::StartGame;
                 LOG_INFO("[UI_Menus] MainMenu -> StartGame");
@@ -639,12 +642,28 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
         }
     }
 
-    bool confirmed = false;
-    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
-        confirmed = true;
+    // 先处理鼠标 hover 更新 selectedIndex
+    const Mouse* mouse = Window::GetMouse();
+    for (int i = 0; i < kPauseItemCount; ++i) {
+        ImVec2 itemMin(panelX + 30.0f, menuStartY + i * menuItemH - 2.0f);
+        ImVec2 itemMax(panelX + panelW - 30.0f, menuStartY + i * menuItemH + menuItemH - 6.0f);
+        if (mouse) {
+            ImVec2 mousePos = ImGui::GetMousePos();
+            if (mousePos.x >= itemMin.x && mousePos.x <= itemMax.x &&
+                mousePos.y >= itemMin.y && mousePos.y <= itemMax.y) {
+                ui.pauseSelectedIndex = static_cast<int8_t>(i);
+            }
+        }
     }
 
-    const Mouse* mouse = Window::GetMouse();
+    // 确认检测（统一在 hover 更新后）
+    int8_t confirmedIndex = -1;
+    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
+        confirmedIndex = ui.pauseSelectedIndex;
+    }
+    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
+        confirmedIndex = ui.pauseSelectedIndex;
+    }
 
     for (int i = 0; i < kPauseItemCount; ++i) {
         float itemY = menuStartY + i * menuItemH;
@@ -652,23 +671,8 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
 
         float baseX = panelX + 50.0f + (isSelected ? 4.0f : 0.0f);
 
-        // 鼠标检测
         ImVec2 itemMin(panelX + 30.0f, itemY - 2.0f);
         ImVec2 itemMax(panelX + panelW - 30.0f, itemY + menuItemH - 6.0f);
-
-        bool mouseHover = false;
-        if (mouse) {
-            ImVec2 mousePos = ImGui::GetMousePos();
-            mouseHover = (mousePos.x >= itemMin.x && mousePos.x <= itemMax.x &&
-                          mousePos.y >= itemMin.y && mousePos.y <= itemMax.y);
-        }
-
-        if (mouseHover) {
-            ui.pauseSelectedIndex = static_cast<int8_t>(i);
-            if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
-                confirmed = true;
-            }
-        }
 
         // 高亮
         if (isSelected) {
@@ -687,8 +691,8 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
     if (termFont) ImGui::PopFont();
 
     // 确认操作
-    if (confirmed) {
-        switch (ui.pauseSelectedIndex) {
+    if (confirmedIndex >= 0) {
+        switch (confirmedIndex) {
             case 0: // RESUME
                 ui.activeScreen = ui.prePauseScreen;
                 LOG_INFO("[UI_Menus] PauseMenu -> Resume");

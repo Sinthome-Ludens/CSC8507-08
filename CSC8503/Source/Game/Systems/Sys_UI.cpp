@@ -12,6 +12,7 @@
 #include "Game/UI/UI_GameOver.h"
 #include "Game/UI/UI_ItemWheel.h"
 #include "Game/UI/UI_Inventory.h"
+#include "Game/UI/UI_TitleScreen.h"
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
@@ -42,7 +43,9 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     auto& ui = registry.ctx<Res_UIState>();
 
     ui.globalTime += dt;
-    ui.menuAnimTimer += dt;
+    // 防止浮点精度丢失（sinf 在 >10000 后精度退化），周期取 2π 的大公倍数
+    if (ui.globalTime > 6283.0f) ui.globalTime -= 6283.0f;
+    if (ui.activeScreen == UIScreen::TitleScreen) ui.titleTimer += dt;
 
     // ── 开发者模式切换（F1）──
     const Keyboard* devKb = Window::GetKeyboard();
@@ -162,6 +165,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     // ── Dispatch 到对应画面渲染 ──
     switch (ui.activeScreen) {
+        case UIScreen::TitleScreen: UI::RenderTitleScreen(registry, dt);   break;
         case UIScreen::Splash:    UI::RenderSplashScreen(registry, dt);    break;
         case UIScreen::MainMenu:  UI::RenderMainMenu(registry, dt);        break;
         case UIScreen::Settings:  UI::RenderSettingsScreen(registry, dt);  break;

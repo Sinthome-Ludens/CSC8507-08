@@ -6,6 +6,7 @@ namespace ECS {
 
 enum class UIScreen : uint8_t {
     None = 0,        // 无UI覆盖（纯游戏画面）
+    TitleScreen,     // 启动标题画面（CD机风格）
     Splash,          // "按任意键开始"
     MainMenu,        // 主菜单
     Settings,        // 设置子画面
@@ -25,7 +26,7 @@ enum class SceneRequest : uint8_t {
 
 struct Res_UIState {
     // 画面状态
-    UIScreen  activeScreen       = UIScreen::Splash;
+    UIScreen  activeScreen       = UIScreen::TitleScreen;
     UIScreen  previousScreen     = UIScreen::None;
     UIScreen  prePauseScreen     = UIScreen::None;   // 进入PauseMenu前的游戏画面（HUD/None）
     bool      isUIBlockingInput  = true;
@@ -33,12 +34,14 @@ struct Res_UIState {
     // 场景切换请求（由Sys_UI写入，Main.cpp读取并执行）
     SceneRequest pendingSceneRequest = SceneRequest::None;
 
+    // 标题画面
+    float     titleTimer         = 0.0f;
+
     // Splash画面
     float     splashTimer        = 0.0f;
 
     // 主菜单
     int8_t    menuSelectedIndex  = 0;
-    float     menuAnimTimer      = 0.0f;
 
     // 全局动画
     float     globalTime         = 0.0f;

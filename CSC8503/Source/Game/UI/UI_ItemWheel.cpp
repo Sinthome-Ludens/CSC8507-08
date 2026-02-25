@@ -16,7 +16,6 @@ namespace ECS::UI {
 
 // 轮盘扇区数量 = 道具2 + 武器2 = 4
 static constexpr int kWheelSectors = 4;
-static constexpr float kPI = 3.14159265f;
 
 void RenderItemWheel(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
@@ -83,20 +82,20 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
 
     if (dist > innerR) {
         float angle = atan2f(dy, dx);
-        if (angle < 0) angle += 2.0f * kPI;
+        if (angle < 0) angle += 2.0f * UITheme::kPI;
         // 扇区: 0=右上(item0), 1=右下(item1), 2=左下(weapon0), 3=左上(weapon1)
-        float sectorAngle = 2.0f * kPI / kWheelSectors;
+        float sectorAngle = 2.0f * UITheme::kPI / kWheelSectors;
         // 偏移使第一个扇区从正上方开始
         float adjusted = angle + sectorAngle * 0.5f;
-        if (adjusted >= 2.0f * kPI) adjusted -= 2.0f * kPI;
+        if (adjusted >= 2.0f * UITheme::kPI) adjusted -= 2.0f * UITheme::kPI;
         ui.itemWheelSelected = static_cast<int8_t>((int)(adjusted / sectorAngle) % kWheelSectors);
     } else {
         ui.itemWheelSelected = -1;
     }
 
     // 绘制扇区
-    float sectorAngle = 2.0f * kPI / kWheelSectors;
-    float startOffset = -kPI * 0.5f; // 从正上方开始
+    float sectorAngle = 2.0f * UITheme::kPI / kWheelSectors;
+    float startOffset = -UITheme::kPI * 0.5f; // 从正上方开始
 
     const char* sectorLabels[4] = {};
     char labelBufs[4][24];

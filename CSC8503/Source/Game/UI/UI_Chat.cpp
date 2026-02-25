@@ -225,7 +225,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
         if (smallFont) ImGui::PushFont(smallFont);
 
         float waitY = replyDivY + 30.0f;
-        float blink = (sinf(ui.globalTime * 3.14159f * 2.0f) + 1.0f) * 0.5f;
+        float blink = (sinf(ui.globalTime * UITheme::kPI * 2.0f) + 1.0f) * 0.5f;
         uint8_t blinkAlpha = (uint8_t)(80.0f + blink * 100.0f);
 
         draw->AddText(ImVec2(panelX + 8.0f, waitY),
