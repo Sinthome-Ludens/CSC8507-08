@@ -292,6 +292,11 @@ void GameTechRenderer::RenderSkyboxPass() {
 void GameTechRenderer::RenderOpaquePass(std::vector<ObjectSortState>& list) {
 	glDisable(GL_BLEND);
 	glEnable(GL_CULL_FACE);
+
+	if (m_wireframeMode) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDisable(GL_CULL_FACE);
+	}
 	
 	UseShader(*defaultShader);
 
@@ -360,11 +365,21 @@ void GameTechRenderer::RenderOpaquePass(std::vector<ObjectSortState>& list) {
 			}
 		}
 	}
+
+	if (m_wireframeMode) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glEnable(GL_CULL_FACE);
+	}
 }
 
 void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list) {
 	glEnable(GL_BLEND);
 	glEnable(GL_CULL_FACE);
+
+	if (m_wireframeMode) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+		glDisable(GL_CULL_FACE);
+	}
 
 	UseShader(*defaultShader);
 
@@ -424,19 +439,31 @@ void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list)
 		glUniform1i(hasTexLocation, diffuseTex ? 1 : 0);
 	
 		BindMesh((OGLMesh&)*o->GetMesh());
-			
+
 		size_t layerCount = o->GetMesh()->GetSubMeshCount();
 
-		glCullFace(GL_FRONT);
-		for (size_t i = 0; i < layerCount; ++i) {
-			DrawBoundMesh((uint32_t)i);
-		}
-		glCullFace(GL_BACK);
-		for (size_t i = 0; i < layerCount; ++i) {
-			DrawBoundMesh((uint32_t)i);
+		if (m_wireframeMode) {
+			// 线框模式下已禁用背面剔除，单次绘制即可
+			for (size_t i = 0; i < layerCount; ++i) {
+				DrawBoundMesh((uint32_t)i);
+			}
+		} else {
+			glCullFace(GL_FRONT);
+			for (size_t i = 0; i < layerCount; ++i) {
+				DrawBoundMesh((uint32_t)i);
+			}
+			glCullFace(GL_BACK);
+			for (size_t i = 0; i < layerCount; ++i) {
+				DrawBoundMesh((uint32_t)i);
+			}
 		}
 	}
 	glDisable(GL_BLEND);
+
+	if (m_wireframeMode) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glEnable(GL_CULL_FACE);
+	}
 }
 
 

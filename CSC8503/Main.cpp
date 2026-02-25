@@ -97,7 +97,7 @@ int main() {
 #endif
 
 	// SceneManager 持有 Registry + SystemManager，并预注册 Res_NCL_Pointers
-	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics});
+	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics, renderer});
 
 	// 进入首个场景（OnEnter：加载资源 → 创建初始实体 → AwakeAll）
 	sceneManager.PushScene(new Scene_PhysicsTest());
@@ -167,8 +167,9 @@ int main() {
 	imguiSystems.AwakeAll(imguiRegistry);
 
 	Res_NCL_Pointers nclPtrs;
-	nclPtrs.world   = world;
-	nclPtrs.physics = physics;
+	nclPtrs.world    = world;
+	nclPtrs.physics  = physics;
+	nclPtrs.renderer = renderer;
 	imguiRegistry.ctx_emplace<Res_NCL_Pointers>(nclPtrs);
 #endif
 
