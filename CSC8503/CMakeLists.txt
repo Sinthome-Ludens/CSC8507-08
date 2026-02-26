@@ -213,6 +213,7 @@ include_directories("../NCLCoreClasses/")
 include_directories("../CSC8503CoreClasses/")
 
 # ECS Source directories
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Source)
 
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC NCLCoreClasses)
