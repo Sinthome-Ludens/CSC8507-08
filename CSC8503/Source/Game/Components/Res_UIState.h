@@ -14,6 +14,8 @@ enum class UIScreen : uint8_t {
     HUD,             // 游戏内HUD
     GameOver,        // 游戏结束
     Inventory,       // 背包界面
+    Loadout,         // 装备选择界面
+    Team,            // 致谢页
 };
 
 enum class SceneRequest : uint8_t {
@@ -74,6 +76,17 @@ struct Res_UIState {
 
     // 背包界面
     int8_t    inventorySelectedSlot = 0;
+
+    // 装备选择界面
+    int8_t    loadoutSelectedIndex  = 0;
+
+    // 致谢页
+    float     teamStartTime        = 0.0f;  // 进入TEAM画面时的globalTime快照
+
+    // Settings 扩展
+    float     masterVolume          = 0.8f;  // [0.0, 1.0]
+    float     sfxVolume             = 0.8f;  // [0.0, 1.0]
+    float     mouseSensitivity     = 0.5f;  // [0.0, 1.0]
 };
 
 } // namespace ECS

@@ -29,7 +29,8 @@ static const char* kMenuItems[] = {
 static constexpr int kMenuItemCount = 8;
 
 static bool IsMenuItemEnabled(int index) {
-    return index == 0 || index == 5 || index == 7; // START, SETTINGS, EXIT
+    // START, LOADOUT, SETTINGS, TEAM, EXIT
+    return index == 0 || index == 3 || index == 5 || index == 6 || index == 7;
 }
 
 static const char* kPauseItems[] = {
@@ -423,10 +424,22 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
                 ui.pendingSceneRequest = SceneRequest::StartGame;
                 LOG_INFO("[UI_Menus] MainMenu -> StartGame");
                 break;
+            case 3: // LOADOUT
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen = UIScreen::Loadout;
+                ui.loadoutSelectedIndex = 0;
+                LOG_INFO("[UI_Menus] MainMenu -> Loadout");
+                break;
             case 5: // SETTINGS
                 ui.previousScreen = ui.activeScreen;
                 ui.activeScreen = UIScreen::Settings;
                 LOG_INFO("[UI_Menus] MainMenu -> Settings");
+                break;
+            case 6: // TEAM
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen = UIScreen::Team;
+                ui.teamStartTime = ui.globalTime;
+                LOG_INFO("[UI_Menus] MainMenu -> Team");
                 break;
             case 7: // EXIT
                 ui.pendingSceneRequest = SceneRequest::QuitApp;
@@ -482,7 +495,7 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
 
     // 设置面板居中
     float panelW = 500.0f;
-    float panelH = 350.0f;
+    float panelH = 460.0f;
     float panelX = vpPos.x + (vpSize.x - panelW) * 0.5f;
     float panelY = vpPos.y + (vpSize.y - panelH) * 0.5f;
 
@@ -545,6 +558,59 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
         ui.fullscreenChanged = true;
         LOG_INFO("[UI_Menus] Fullscreen request: " << (ui.isFullscreen ? "ON" : "OFF"));
     }
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    // ── AUDIO ──
+    ImGui::TextColored(ImVec4(0.0f, 0.85f, 0.80f, 1.0f), "AUDIO");
+    ImGui::Spacing();
+
+    ImGui::Text("Master Volume:");
+    ImGui::SameLine(160.0f);
+    ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.00f, 0.70f, 0.65f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.00f, 0.90f, 0.85f, 1.0f));
+    {
+        float masterPct = ui.masterVolume * 100.0f;
+        if (ImGui::SliderFloat("##MasterVol", &masterPct, 0.0f, 100.0f, "%.0f%%",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+            ui.masterVolume = masterPct / 100.0f;
+        }
+    }
+    ImGui::PopStyleColor(2);
+
+    ImGui::Text("SFX Volume:");
+    ImGui::SameLine(160.0f);
+    ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.00f, 0.70f, 0.65f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.00f, 0.90f, 0.85f, 1.0f));
+    {
+        float sfxPct = ui.sfxVolume * 100.0f;
+        if (ImGui::SliderFloat("##SFXVol", &sfxPct, 0.0f, 100.0f, "%.0f%%",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+            ui.sfxVolume = sfxPct / 100.0f;
+        }
+    }
+    ImGui::PopStyleColor(2);
+
+    ImGui::Spacing();
+    ImGui::Spacing();
+
+    // ── CONTROLS ──
+    ImGui::TextColored(ImVec4(0.0f, 0.85f, 0.80f, 1.0f), "CONTROLS");
+    ImGui::Spacing();
+
+    ImGui::Text("Mouse Sensitivity:");
+    ImGui::SameLine(160.0f);
+    ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.00f, 0.70f, 0.65f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(0.00f, 0.90f, 0.85f, 1.0f));
+    {
+        float sensPct = ui.mouseSensitivity * 100.0f;
+        if (ImGui::SliderFloat("##MouseSens", &sensPct, 0.0f, 100.0f, "%.0f%%",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+            ui.mouseSensitivity = sensPct / 100.0f;
+        }
+    }
+    ImGui::PopStyleColor(2);
 
     ImGui::PopItemWidth();
     ImGui::Spacing();

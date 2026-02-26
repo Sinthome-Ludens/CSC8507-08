@@ -14,6 +14,8 @@
 #include "Game/UI/UI_Inventory.h"
 #include "Game/UI/UI_TitleScreen.h"
 #include "Game/UI/UI_Toast.h"
+#include "Game/UI/UI_Loadout.h"
+#include "Game/UI/UI_Team.h"
 #include "Game/Components/Res_ToastState.h"
 #include "Game/Utils/Log.h"
 
@@ -186,6 +188,14 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                 ui.activeScreen = UIScreen::HUD;
                 LOG_INFO("[Sys_UI] Inventory -> HUD (ESC)");
                 break;
+            case UIScreen::Loadout:
+                ui.activeScreen = UIScreen::MainMenu;
+                LOG_INFO("[Sys_UI] Loadout -> MainMenu (ESC)");
+                break;
+            case UIScreen::Team:
+                ui.activeScreen = UIScreen::MainMenu;
+                LOG_INFO("[Sys_UI] Team -> MainMenu (ESC)");
+                break;
             default:
                 break;
         }
@@ -201,6 +211,8 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         case UIScreen::HUD:       UI::RenderHUD(registry, dt);            break;
         case UIScreen::GameOver:  UI::RenderGameOverScreen(registry, dt); break;
         case UIScreen::Inventory: UI::RenderInventoryScreen(registry, dt); break;
+        case UIScreen::Loadout:  UI::RenderLoadoutScreen(registry, dt);  break;
+        case UIScreen::Team:     UI::RenderTeamScreen(registry, dt);     break;
         case UIScreen::None:
         default:
             break;
