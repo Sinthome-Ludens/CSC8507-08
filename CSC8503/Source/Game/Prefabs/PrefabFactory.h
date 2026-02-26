@@ -2,9 +2,11 @@
 
 #include "Core/ECS/Registry.h"
 #include "Core/Bridge/AssetManager.h"
-#include "Game/Components/C_D_Interactable.h"
 #include "Vector.h"
 #include "Quaternion.h"
+
+// 前向声明：避免在工厂头文件暴露 Game Component 依赖
+namespace ECS { enum class InteractionType : uint8_t; }
 
 /**
  * @brief 实体预制体工厂（硬编码模式）

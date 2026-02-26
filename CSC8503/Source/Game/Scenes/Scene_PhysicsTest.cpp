@@ -8,6 +8,7 @@
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_TestState.h"
 #include "Game/Prefabs/PrefabFactory.h"
+#include "Game/Components/C_D_Interactable.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
@@ -22,7 +23,6 @@
 #include "Game/Components/Res_GameplayState.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_InventoryState.h"
-#include "Game/Components/C_D_Interactable.h"
 #endif
 
 // ============================================================

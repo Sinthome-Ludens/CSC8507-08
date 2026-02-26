@@ -197,10 +197,11 @@ EntityID PrefabFactory::CreateInteractable(
     }
     reg.Emplace<C_D_Interactable>(entity, inter);
 
-    // C_D_DebugName
+    // C_D_DebugName（按类型命名 + 实体ID后缀，确保唯一且无空格）
+    static const char* kTypeTag[] = {"PickUp", "Use", "Hack", "Elim", "Exam"};
+    const char* tag = (static_cast<uint8_t>(type) < 5) ? kTypeTag[static_cast<uint8_t>(type)] : "Unknown";
     char debugName[64];
-    std::snprintf(debugName, sizeof(debugName), "ENTITY_Interact_%s",
-                  (label && label[0] != '\0') ? label : "Default");
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_Interact_%s_%u", tag, static_cast<unsigned>(entity));
     AttachDebugName(reg, entity, debugName);
 
     LOG_INFO("[PrefabFactory] CreateInteractable id=" << entity

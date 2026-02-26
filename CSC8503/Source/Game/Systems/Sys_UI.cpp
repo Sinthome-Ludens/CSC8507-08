@@ -121,14 +121,6 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     }
 
-    // ── F9: 切换交互提示显示（仅 devMode，不依赖 GameplayState）──
-    if (ui.devMode && devKb && devKb->KeyPressed(KeyCodes::F9)) {
-        registry.view<C_D_Interactable>().each(
-            [](EntityID, C_D_Interactable& inter) { inter.enabled = !inter.enabled; }
-        );
-        LOG_INFO("[Sys_UI] F9 toggle interactables");
-    }
-
     // ── F8: 推送测试 Toast（仅 devMode，不依赖 GameplayState）──
     if (ui.devMode && devKb && devKb->KeyPressed(KeyCodes::F8)
         && registry.has_ctx<Res_ToastState>()) {
@@ -143,6 +135,14 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         t.PushToast(msgs[t.debugCycle % 4], type);
         LOG_INFO("[Sys_UI] F8 toast type=" << (int)type);
         ++t.debugCycle;
+    }
+
+    // ── F9: 切换交互提示显示（仅 devMode，不依赖 GameplayState）──
+    if (ui.devMode && devKb && devKb->KeyPressed(KeyCodes::F9)) {
+        registry.view<C_D_Interactable>().each(
+            [](EntityID, C_D_Interactable& inter) { inter.enabled = !inter.enabled; }
+        );
+        LOG_INFO("[Sys_UI] F9 toggle interactables");
     }
 
     // ── I 键：背包开关 ──

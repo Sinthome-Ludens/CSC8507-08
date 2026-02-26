@@ -14,7 +14,7 @@
 #include "Matrix.h"
 #include "Camera.h"
 
-// forward-declare GameWorld to access GetMainCamera()
+// GameWorld: 访问 GetMainCamera() 获取 VP 矩阵
 #include "GameWorld.h"
 
 namespace ECS::UI {
@@ -127,8 +127,7 @@ void RenderInteractionPrompts(Registry& registry, float /*dt*/) {
 
     // ── 渲染每个提示 ──
     ImDrawList* draw = ImGui::GetForegroundDrawList();
-    ImFont* termFont  = UITheme::GetFont_Terminal();
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* termFont = UITheme::GetFont_Terminal();
 
     for (int i = 0; i < count; ++i) {
         const auto& e = entries[i];
@@ -156,16 +155,16 @@ void RenderInteractionPrompts(Registry& registry, float /*dt*/) {
         if (screenY < vpPos.y - 100.0f || screenY > vpPos.y + vpSize.y + 100.0f) continue;
 
         // ── 距离驱动的 alpha 淡入/淡出 ──
-        float fadeStart = e.radius * 0.7f;
+        float fadeRange = e.radius * 0.3f; // = radius - fadeStart
+        float fadeStart = e.radius - fadeRange;
         float alpha = 1.0f;
-        if (e.distance > fadeStart) {
-            alpha = 1.0f - (e.distance - fadeStart) / (e.radius - fadeStart);
+        if (fadeRange > 0.001f && e.distance > fadeStart) {
+            alpha = 1.0f - (e.distance - fadeStart) / fadeRange;
         }
         alpha = std::clamp(alpha, 0.0f, 1.0f);
         if (alpha < 0.01f) continue;
 
         // ── 计算文本尺寸 ──
-        ImFont* font = termFont ? termFont : ImGui::GetFont();
         if (termFont) ImGui::PushFont(termFont);
 
         // 三角标记 "▸ "
