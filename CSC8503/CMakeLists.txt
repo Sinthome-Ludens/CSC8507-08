@@ -59,8 +59,6 @@ if(USE_VULKAN)
             Source/Game/Components/Res_Capsule.h
             Source/Game/Systems/Sys_EnemyAI.h
 			Source/Game/Systems/Sys_EnemyAI.cpp
-			Source/Game/Prefabs/PREFAB_ENEMY_TYPE01.cpp
-			Source/Game/Prefabs/PREFAB_ENEMY_TYPE01.h
 			Source/Game/Components/C_T_Enemy.h
 			Source/Game/Components/C_D_AIState.h
 			Source/Game/Components/C_D_AIPreception.h
@@ -68,7 +66,15 @@ if(USE_VULKAN)
 			Source/Game/Scenes/Scene_NavTest.cpp
 			Source/Game/Scenes/Scene_NavTest.h
             Source/Game/Components/Res_NavTestState.h
-    )
+            Source/Game/Components/Res_BaseTestState.h
+            Source/Game/Utils/NavMeshPathfinderUtil.h
+			Source/Game/Components/C_T_Pathfinder.h
+			Source/Game/Components/C_T_NavTarget.h
+			Source/Game/Components/C_D_NavAgent.h
+			Source/Game/Systems/Sys_Navigation.cpp
+			Source/Game/Systems/Sys_Navigation.h
+			Source/Game/Utils/PathfinderUtil.h
+	)
 
 foreach (file ${SHADER_FILES})
     get_filename_component(file_name ${file} NAME)

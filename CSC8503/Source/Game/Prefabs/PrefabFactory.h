@@ -126,4 +126,11 @@ public:
         int                 spawnIndex,
         NCL::Maths::Vector3 spawnPos
 );
+
+    static ECS::EntityID CreatePhysicsTarget(
+ ECS::Registry&      reg,
+     ECS::MeshHandle     cubeMesh,
+     int                 spawnIndex,
+     NCL::Maths::Vector3 spawnPos
+);
 };

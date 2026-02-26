@@ -7,7 +7,9 @@
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_BaseTestState.h"
 #include "Game/Components/Res_TestState.h"
+#include "Game/Components/Res_NavTestState.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/Log.h"
@@ -37,7 +39,7 @@ void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
 }
 
 // ============================================================
-// OnUpdate
+// OnUpdate — 按层分发：通用基础层 / PhysicsTest 专属层 / NavTest 专属层
 // ============================================================
 
 void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
@@ -47,14 +49,27 @@ void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
     if (m_ShowDebugWindow) RenderDebugWindow(registry, dt);
     if (m_ShowNCLStatus)   RenderNCLStatus(registry);
 
-    // Test Scene 窗口：由 Res_UIFlags context 控制显隐
-    if (registry.has_ctx<Res_UIFlags>()) {
-        auto& flags = registry.ctx<Res_UIFlags>();
-        if (flags.showTestControls) RenderTestControlsWindow(registry);
-        if (flags.showCubeDebug)    RenderCubeDebugWindow(registry);
-        if (flags.showEnemyAIControl) RenderEnemyAIControlWindow(registry);
-        if (flags.showEnemyAIStatus) RenderEnemyAIStateWindow(registry);
-    }
+    if (!registry.has_ctx<Res_UIFlags>()) return;
+    auto& flags = registry.ctx<Res_UIFlags>();
+
+    // 通用基础层（所有场景：Cube/Capsule/Gravity）
+    if (flags.showBaseTestControls && registry.has_ctx<Res_BaseTestState>())
+        RenderBaseTestWindow(registry);
+
+    if (flags.showCubeDebug && registry.has_ctx<Res_BaseTestState>())
+        RenderCubeDebugWindow(registry);
+
+    // PhysicsTest 专属层（Enemy/Target）
+    if (flags.showPhysicsTestControls && registry.has_ctx<Res_TestState>())
+        RenderPhysicsTestWindow(registry);
+
+    // NavTest 专属层（Enemy/Target）
+    if (flags.showNavTestControls && registry.has_ctx<Res_NavTestState>())
+        RenderNavTestWindow(registry);
+
+    // 通用 AI 监控（组件级，场景无关）
+    if (flags.showEnemyAIStatus)
+        RenderEnemyAIStateWindow(registry);
 }
 
 // ============================================================
@@ -71,12 +86,33 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
         ImGui::EndMenu();
     }
 
-    // Test Scene 子菜单：通过 Res_UIFlags context 控制各浮窗可见性
     if (registry.has_ctx<Res_UIFlags>()) {
         auto& flags = registry.ctx<Res_UIFlags>();
-        if (ImGui::BeginMenu("Test Scene")) {
-            ImGui::MenuItem("Test Controls", nullptr, &flags.showTestControls);
-            ImGui::MenuItem("Cube Debug",    nullptr, &flags.showCubeDebug);
+
+        if (registry.has_ctx<Res_BaseTestState>()) {
+            if (ImGui::BeginMenu("Base Test")) {
+                ImGui::MenuItem("Base Test Controls", nullptr, &flags.showBaseTestControls);
+                ImGui::MenuItem("Cube Debug",         nullptr, &flags.showCubeDebug);
+                ImGui::EndMenu();
+            }
+        }
+
+        if (registry.has_ctx<Res_TestState>()) {
+            if (ImGui::BeginMenu("Physics Test")) {
+                ImGui::MenuItem("Enemy/Target Controls", nullptr, &flags.showPhysicsTestControls);
+                ImGui::EndMenu();
+            }
+        }
+
+        if (registry.has_ctx<Res_NavTestState>()) {
+            if (ImGui::BeginMenu("Nav Test")) {
+                ImGui::MenuItem("Nav Test Controls", nullptr, &flags.showNavTestControls);
+                ImGui::EndMenu();
+            }
+        }
+
+        if (ImGui::BeginMenu("AI")) {
+            ImGui::MenuItem("Enemy Monitor", nullptr, &flags.showEnemyAIStatus);
             ImGui::EndMenu();
         }
     }
@@ -129,17 +165,18 @@ void Sys_ImGui::RenderNCLStatus(Registry& registry) {
 }
 
 // ============================================================
-// RenderTestControlsWindow（集成控制面板）
+// RenderBaseTestWindow — 通用基础控制面板（所有场景）
 // ============================================================
 
-void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
+void Sys_ImGui::RenderBaseTestWindow(Registry& registry) {
     auto& flags = registry.ctx<Res_UIFlags>();
+    auto& state = registry.ctx<Res_BaseTestState>();
 
-    ImGui::Begin("ECS Test Controls", &flags.showTestControls);
+    ImGui::Begin("Base Test Controls", &flags.showBaseTestControls);
 
     ImGui::Text("== Cube Factory ==");
     ImGui::Separator();
-    if (ImGui::Button("Spawn Cube",  ImVec2(140, 30))) SpawnCube(registry);
+    if (ImGui::Button("Spawn Cube",       ImVec2(140, 30))) SpawnCube(registry);
     ImGui::SameLine();
     if (ImGui::Button("Delete Last Cube", ImVec2(140, 30))) DeleteLastCube(registry);
 
@@ -159,43 +196,72 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 
     ImGui::Spacing();
     ImGui::Separator();
-    if (registry.has_ctx<Res_TestState>()) {
-        auto& state = registry.ctx<Res_TestState>();
-        ImGui::Text("Cubes alive:    %d", (int)state.cubeEntities.size());
-        ImGui::Text("Capsules alive: %d", (int)state.capsuleEntities.size());
-    }
+    ImGui::Text("Cubes alive:    %d", (int)state.cubeEntities.size());
+    ImGui::Text("Capsules alive: %d", (int)state.capsuleEntities.size());
 
     ImGui::End();
 }
 
-    // ============================================================
-    // RenderEnemyAIControlWindow（敌人控制面板）
-    // ============================================================
+// ============================================================
+// RenderPhysicsTestWindow — PhysicsTest 专属面板（Enemy/Target）
+// ============================================================
 
-    void Sys_ImGui::RenderEnemyAIControlWindow(Registry& registry) {
-    if (!ImGui::Begin("Enemy AI Control")) {
-        ImGui::End();
-        return;
-    }
+void Sys_ImGui::RenderPhysicsTestWindow(Registry& registry) {
+    auto& flags = registry.ctx<Res_UIFlags>();
+    auto& state = registry.ctx<Res_TestState>();
 
-    // --- 按钮：生成与销毁 ---
-    if (ImGui::Button("Spawn Enemy")) {
-        SpawnEnemy(registry);
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Delete Last Enemy")) {
-        DeleteLastEnemy(registry);
-    }
+    ImGui::Begin("Physics Test Controls", &flags.showPhysicsTestControls);
 
+    ImGui::Text("== Enemy Factory ==");
     ImGui::Separator();
+    if (ImGui::Button("Spawn Enemy",       ImVec2(140, 30))) SpawnEnemy(registry);
+    ImGui::SameLine();
+    if (ImGui::Button("Delete Last Enemy", ImVec2(140, 30))) DeleteLastEnemy(registry);
 
-    // --- 批量控制：Detection Value ---
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Enemies alive: %d", (int)state.enemyEntities.size());
+
+    ImGui::End();
+}
+
+// ============================================================
+// RenderNavTestWindow — NavTest 专属面板（Enemy/Target）
+// ============================================================
+
+void Sys_ImGui::RenderNavTestWindow(Registry& registry) {
+    auto& flags = registry.ctx<Res_UIFlags>();
+    auto& state = registry.ctx<Res_NavTestState>();
+
+    ImGui::Begin("Nav Test Controls", &flags.showNavTestControls);
+
+    ImGui::Text("== Enemy Factory ==");
+    ImGui::Separator();
+    if (ImGui::Button("Spawn Enemy",       ImVec2(140, 30))) SpawnEnemy_Nav(registry);
+    ImGui::SameLine();
+    if (ImGui::Button("Delete Last Enemy", ImVec2(140, 30))) DeleteLastEnemy_Nav(registry);
+
+    ImGui::Spacing();
+    ImGui::Text("== Target Factory ==");
+    ImGui::Separator();
+    if (ImGui::Button("Spawn Target",       ImVec2(140, 30))) SpawnTarget(registry);
+    ImGui::SameLine();
+    if (ImGui::Button("Delete Last Target", ImVec2(140, 30))) DeleteLastTarget(registry);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Text("Enemies alive: %d", (int)state.enemyEntities.size());
+    ImGui::Text("Targets alive: %d", (int)state.targetEntities.size());
+
+    // Detection Value 批量控制
+    ImGui::Spacing();
+    ImGui::Text("== Detection ==");
+    ImGui::Separator();
     static float batchValue = 10.0f;
     ImGui::SliderFloat("Value Step", &batchValue, 0.0f, 100.0f);
-
-    if (ImGui::Button("Add Detection to All")) {
+    if (ImGui::Button("Add Detection to All", ImVec2(200, 30))) {
         auto view = registry.view<C_T_Enemy, C_D_AIPreception>();
-        view.each([&](EntityID id, C_T_Enemy&, C_D_AIPreception& det) {
+        view.each([&](EntityID, C_T_Enemy&, C_D_AIPreception& det) {
             det.detectionValue += batchValue;
         });
     }
@@ -203,60 +269,13 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
     ImGui::End();
 }
 
-    // ============================================================
-    // RenderEnemyAIStateWindow（独立浮动 敌人状态 Debug 窗口）
-    // ============================================================
-
-    void Sys_ImGui::RenderEnemyAIStateWindow(Registry& registry) {
-    if (!ImGui::Begin("Enemy Monitoring Station")) {
-        ImGui::End();
-        return;
-    }
-
-    if (ImGui::BeginTable("EnemyTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
-        ImGui::TableSetupColumn("Entity ID");
-        ImGui::TableSetupColumn("Position");
-        ImGui::TableSetupColumn("AI State");
-        ImGui::TableSetupColumn("Detection");
-        ImGui::TableHeadersRow();
-
-        auto view = registry.view<C_T_Enemy, C_D_Transform, C_D_AIState, C_D_AIPreception>();
-        view.each([&](EntityID id, auto&, C_D_Transform& tf, C_D_AIState& state, C_D_AIPreception& det) {
-            ImGui::TableNextRow();
-
-            // ID
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%d", (int)id);
-
-            // Position
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%.1f, %.1f, %.1f", tf.position.x, tf.position.y, tf.position.z);
-
-            // State (转换为文字)
-            ImGui::TableSetColumnIndex(2);
-            const char* stateStr = (state.currentState == EnemyState::Safe)    ? "SAFE"    :
-                                   (state.currentState == EnemyState::Caution) ? "CAUTION" :
-                                   (state.currentState == EnemyState::Alert)   ? "ALERT"   : "HUNT";
-            ImGui::TextUnformatted(stateStr);
-
-            // Detection
-            ImGui::TableSetColumnIndex(3);
-            ImGui::ProgressBar(det.detectionValue / 100.0f, ImVec2(-1.0f, 0.0f));
-        });
-
-        ImGui::EndTable();
-    }
-
-    ImGui::End();
-}
-
 // ============================================================
-// RenderCubeDebugWindow（独立浮动 Debug 窗口）
+// RenderCubeDebugWindow — per-cube 详细状态（依赖 Res_BaseTestState）
 // ============================================================
 
 void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
-    if (!registry.has_ctx<Res_TestState>()) return;
-    auto& state = registry.ctx<Res_TestState>();
+    if (!registry.has_ctx<Res_BaseTestState>()) return;
+    auto& state = registry.ctx<Res_BaseTestState>();
     auto& flags = registry.ctx<Res_UIFlags>();
 
     ImGui::Begin("Cube Debug Info", &flags.showCubeDebug,
@@ -266,7 +285,7 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
                 "ID", "Position", "Gravity", "Body");
     ImGui::Separator();
 
-    // 清除已失效的 cube（可能被外部途径销毁）
+    // 清除已失效的 cube
     state.cubeEntities.erase(
         std::remove_if(state.cubeEntities.begin(), state.cubeEntities.end(),
             [&](ECS::EntityID id) { return !registry.Valid(id); }),
@@ -301,195 +320,262 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
 }
 
 // ============================================================
-// SpawnCube（通过 PrefabFactory 生成动态方块）
+// RenderEnemyAIStateWindow — 通用敌人状态监控（组件级，场景无关）
+// ============================================================
+
+void Sys_ImGui::RenderEnemyAIStateWindow(Registry& registry) {
+    if (!ImGui::Begin("Enemy Monitoring Station")) {
+        ImGui::End();
+        return;
+    }
+
+    if (ImGui::BeginTable("EnemyTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("Entity ID");
+        ImGui::TableSetupColumn("Position");
+        ImGui::TableSetupColumn("AI State");
+        ImGui::TableSetupColumn("Detection");
+        ImGui::TableHeadersRow();
+
+        auto view = registry.view<C_T_Enemy, C_D_Transform, C_D_AIState, C_D_AIPreception>();
+        view.each([&](EntityID id, auto&, C_D_Transform& tf, C_D_AIState& state, C_D_AIPreception& det) {
+            ImGui::TableNextRow();
+
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%d", (int)id);
+
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%.1f, %.1f, %.1f", tf.position.x, tf.position.y, tf.position.z);
+
+            ImGui::TableSetColumnIndex(2);
+            const char* stateStr = (state.currentState == EnemyState::Safe)    ? "SAFE"    :
+                                   (state.currentState == EnemyState::Caution) ? "CAUTION" :
+                                   (state.currentState == EnemyState::Alert)   ? "ALERT"   : "HUNT";
+            ImGui::TextUnformatted(stateStr);
+
+            ImGui::TableSetColumnIndex(3);
+            ImGui::ProgressBar(det.detectionValue / 100.0f, ImVec2(-1.0f, 0.0f));
+        });
+
+        ImGui::EndTable();
+    }
+
+    ImGui::End();
+}
+
+// ============================================================
+// 相机前方生成位置（内部辅助，供所有 SpawnXxx 复用）
+// ============================================================
+
+static Vector3 CalcSpawnPos(Registry& registry) {
+    Vector3 spawnPos(0.0f, 8.0f, 0.0f);  // 默认兜底
+
+    if (registry.has_ctx<Res_CameraContext>()) {
+        auto& camCtx = registry.ctx<Res_CameraContext>();
+        if (registry.Valid(camCtx.active_camera)
+            && registry.Has<C_D_Transform>(camCtx.active_camera)
+            && registry.Has<C_D_Camera>  (camCtx.active_camera))
+        {
+            auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
+            auto& cam = registry.Get<C_D_Camera>   (camCtx.active_camera);
+
+            const float yawRad = cam.yaw * (3.14159265f / 180.0f);
+            const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
+
+            spawnPos   = tf.position + forward * 5.0f;
+            spawnPos.y = tf.position.y + 2.0f;
+
+            constexpr float MIN_SPAWN_Y = -2.0f;
+            spawnPos.y = std::max(spawnPos.y, MIN_SPAWN_Y);
+        }
+    }
+    return spawnPos;
+}
+
+// ============================================================
+// SpawnCube / DeleteLastCube（Res_BaseTestState）
 // ============================================================
 
 void Sys_ImGui::SpawnCube(Registry& registry) {
-    if (!registry.has_ctx<Res_TestState>()) return;
-    auto& state = registry.ctx<Res_TestState>();
+    if (!registry.has_ctx<Res_BaseTestState>()) return;
+    auto& state = registry.ctx<Res_BaseTestState>();
 
     if (state.cubeMeshHandle == ECS::INVALID_HANDLE) {
         LOG_WARN("[Sys_ImGui] SpawnCube: cube mesh handle is INVALID, skipping.");
         return;
     }
 
-    // ── 计算生成位置：相机正前方 5 单位 ────────────────────────────────
-    using namespace NCL::Maths;
-    Vector3 spawnPos(0.0f, 8.0f, 0.0f);  // 默认兜底位置
-
-    if (registry.has_ctx<Res_CameraContext>()) {
-        auto& camCtx = registry.ctx<Res_CameraContext>();
-        if (registry.Valid(camCtx.active_camera)
-            && registry.Has<C_D_Transform>(camCtx.active_camera)
-            && registry.Has<C_D_Camera>  (camCtx.active_camera))
-        {
-            auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
-            auto& cam = registry.Get<C_D_Camera>   (camCtx.active_camera);
-
-            // 计算水平前方向量（忽略 pitch，避免生成在地下或天上）
-            const float yawRad = cam.yaw * (3.14159265f / 180.0f);
-            const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
-
-            // 在相机前方 5 单位处、相机高度上方 2 单位生成
-            spawnPos = tf.position + forward * 5.0f;
-            spawnPos.y = tf.position.y + 2.0f;
-
-            // 确保 cube 生成在地板上方（floor 上表面 y ≈ -5.5，保底 -2.0）
-            constexpr float MIN_SPAWN_Y = -2.0f;
-            spawnPos.y = std::max(spawnPos.y, MIN_SPAWN_Y);
-        }
-    }
-
-    EntityID entity_cube = PrefabFactory::CreatePhysicsCube(
-        registry, state.cubeMeshHandle, state.spawnIndex, spawnPos);
+    EntityID id = PrefabFactory::CreatePhysicsCube(
+        registry, state.cubeMeshHandle, state.spawnIndex, CalcSpawnPos(registry));
     ++state.spawnIndex;
-
-    state.cubeEntities.push_back(entity_cube);
-    LOG_INFO("[Sys_ImGui] Spawned cube entity id=" << entity_cube
+    state.cubeEntities.push_back(id);
+    LOG_INFO("[Sys_ImGui] Spawned cube id=" << id
              << " (total=" << state.cubeEntities.size() << ")");
 }
 
-
-
-// ============================================================
-// DeleteLastCube
-// ============================================================
-
 void Sys_ImGui::DeleteLastCube(Registry& registry) {
-    if (!registry.has_ctx<Res_TestState>()) return;
-    auto& state = registry.ctx<Res_TestState>();
-
+    if (!registry.has_ctx<Res_BaseTestState>()) return;
+    auto& state = registry.ctx<Res_BaseTestState>();
     if (state.cubeEntities.empty()) return;
 
     EntityID last = state.cubeEntities.back();
     state.cubeEntities.pop_back();
-
     if (registry.Valid(last)) {
         registry.Destroy(last);
-        LOG_INFO("[Sys_ImGui] Destroyed cube entity id=" << last);
+        LOG_INFO("[Sys_ImGui] Destroyed cube id=" << last);
     }
 }
 
-
 // ============================================================
-// SpawnCapsule
+// SpawnCapsule / DeleteLastCapsule（Res_BaseTestState）
 // ============================================================
 
 void Sys_ImGui::SpawnCapsule(Registry& registry) {
-    if (!registry.has_ctx<Res_TestState>()) return;
-    auto& state = registry.ctx<Res_TestState>();
+    if (!registry.has_ctx<Res_BaseTestState>()) return;
+    auto& state = registry.ctx<Res_BaseTestState>();
 
     if (state.capsuleMeshHandle == ECS::INVALID_HANDLE) {
         LOG_WARN("[Sys_ImGui] SpawnCapsule: capsule mesh handle is INVALID, skipping.");
         return;
     }
 
-    using namespace NCL::Maths;
-    Vector3 spawnPos(0.0f, 8.0f, 0.0f);
-
-    if (registry.has_ctx<Res_CameraContext>()) {
-        auto& camCtx = registry.ctx<Res_CameraContext>();
-        if (registry.Valid(camCtx.active_camera)
-            && registry.Has<C_D_Transform>(camCtx.active_camera)
-            && registry.Has<C_D_Camera>  (camCtx.active_camera))
-        {
-            auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
-            auto& cam = registry.Get<C_D_Camera>   (camCtx.active_camera);
-
-            const float yawRad = cam.yaw * (3.14159265f / 180.0f);
-            const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
-
-            spawnPos = tf.position + forward * 5.0f;
-            spawnPos.y = tf.position.y + 2.0f;
-
-            constexpr float MIN_SPAWN_Y = -2.0f;
-            spawnPos.y = std::max(spawnPos.y, MIN_SPAWN_Y);
-        }
-    }
-
-    EntityID entity_capsule = PrefabFactory::CreatePhysicsCapsule(
-        registry, state.capsuleMeshHandle, state.capsuleSpawnIndex, spawnPos);
+    EntityID id = PrefabFactory::CreatePhysicsCapsule(
+        registry, state.capsuleMeshHandle, state.capsuleSpawnIndex, CalcSpawnPos(registry));
     ++state.capsuleSpawnIndex;
-
-    state.capsuleEntities.push_back(entity_capsule);
-    LOG_INFO("[Sys_ImGui] Spawned capsule entity id=" << entity_capsule
+    state.capsuleEntities.push_back(id);
+    LOG_INFO("[Sys_ImGui] Spawned capsule id=" << id
              << " (total=" << state.capsuleEntities.size() << ")");
 }
 
-// ============================================================
-// DeleteLastCapsule
-// ============================================================
-
 void Sys_ImGui::DeleteLastCapsule(Registry& registry) {
-    if (!registry.has_ctx<Res_TestState>()) return;
-    auto& state = registry.ctx<Res_TestState>();
-
+    if (!registry.has_ctx<Res_BaseTestState>()) return;
+    auto& state = registry.ctx<Res_BaseTestState>();
     if (state.capsuleEntities.empty()) return;
 
     EntityID last = state.capsuleEntities.back();
     state.capsuleEntities.pop_back();
-
     if (registry.Valid(last)) {
         registry.Destroy(last);
-        LOG_INFO("[Sys_ImGui] Destroyed capsule entity id=" << last);
-    }
-}
-    // ============================================================
-    // Spawn Enemy
-    // ============================================================
-    void Sys_ImGui::SpawnEnemy(Registry& registry) {
-    if (!registry.has_ctx<Res_TestState>()) return;
-    auto& state = registry.ctx<Res_TestState>();
-
-    // 假设 AssetManager 已加载模型
-    MeshHandle enemyMesh = 0; // 实际开发中通过 AssetManager 获取
-
-    // 调用 PrefabFactory 创建实体
-    EntityID newEnemy = PrefabFactory::CreatePhysicsEnemy(
-        registry,
-        enemyMesh,
-        (int)state.enemyEntities.size(),
-        Vector3(0, 2, 0) // 在原点上方生成
-    );
-
-    state.enemyEntities.push_back(newEnemy);
-    LOG_INFO("SYS_IMGUI: Spawned Enemy ID=" << (int)newEnemy);
-}
-
-    // ============================================================
-    // DeleteLastEnemy
-    // ============================================================
-    void Sys_ImGui::DeleteLastEnemy(Registry& registry) {
-    if (!registry.has_ctx<Res_TestState>()) return;
-    auto& state = registry.ctx<Res_TestState>();
-
-    if (state.enemyEntities.empty()) return;
-
-    EntityID last = state.enemyEntities.back();
-    state.enemyEntities.pop_back();
-
-    if (registry.Valid(last)) {
-        registry.Destroy(last);
-        LOG_INFO("SYS_IMGUI: Destroyed Enemy ID=" << (int)last);
+        LOG_INFO("[Sys_ImGui] Destroyed capsule id=" << last);
     }
 }
 
 // ============================================================
-// SetGravityAll
+// SetGravityAll（Res_BaseTestState）
 // ============================================================
 
 void Sys_ImGui::SetGravityAll(Registry& registry, float factor) {
-    if (!registry.has_ctx<Res_TestState>()) return;
-    auto& state = registry.ctx<Res_TestState>();
+    if (!registry.has_ctx<Res_BaseTestState>()) return;
+    auto& state = registry.ctx<Res_BaseTestState>();
 
     for (EntityID id : state.cubeEntities) {
         if (registry.Valid(id) && registry.Has<C_D_RigidBody>(id)) {
             registry.Get<C_D_RigidBody>(id).gravity_factor = factor;
         }
     }
-
     LOG_INFO("[Sys_ImGui] gravity_factor=" << factor
              << " applied to " << state.cubeEntities.size() << " cubes.");
+}
+
+// ============================================================
+// SpawnEnemy / DeleteLastEnemy（PhysicsTest — Res_TestState）
+// ============================================================
+
+void Sys_ImGui::SpawnEnemy(Registry& registry) {
+    if (!registry.has_ctx<Res_TestState>()) return;
+    auto& state = registry.ctx<Res_TestState>();
+
+    if (state.enemyMeshHandle == ECS::INVALID_HANDLE) {
+        LOG_WARN("[Sys_ImGui] SpawnEnemy: enemy mesh handle is INVALID, skipping.");
+        return;
+    }
+
+    EntityID id = PrefabFactory::CreatePhysicsEnemy(
+        registry, state.enemyMeshHandle, state.enemySpawnIndex, CalcSpawnPos(registry));
+    ++state.enemySpawnIndex;
+    state.enemyEntities.push_back(id);
+    LOG_INFO("[Sys_ImGui] Spawned enemy id=" << id
+             << " (total=" << state.enemyEntities.size() << ")");
+}
+
+void Sys_ImGui::DeleteLastEnemy(Registry& registry) {
+    if (!registry.has_ctx<Res_TestState>()) return;
+    auto& state = registry.ctx<Res_TestState>();
+    if (state.enemyEntities.empty()) return;
+
+    EntityID last = state.enemyEntities.back();
+    state.enemyEntities.pop_back();
+    if (registry.Valid(last)) {
+        registry.Destroy(last);
+        LOG_INFO("[Sys_ImGui] Destroyed enemy id=" << last);
+    }
+}
+
+// ============================================================
+// SpawnEnemy_Nav / DeleteLastEnemy_Nav（NavTest — Res_NavTestState）
+// ============================================================
+
+void Sys_ImGui::SpawnEnemy_Nav(Registry& registry) {
+    if (!registry.has_ctx<Res_NavTestState>()) return;
+    auto& state = registry.ctx<Res_NavTestState>();
+
+    if (state.enemyMeshHandle == ECS::INVALID_HANDLE) {
+        LOG_WARN("[Sys_ImGui] SpawnEnemy_Nav: enemy mesh handle is INVALID, skipping.");
+        return;
+    }
+
+    EntityID id = PrefabFactory::CreatePhysicsEnemy(
+        registry, state.enemyMeshHandle, state.enemySpawnIndex, CalcSpawnPos(registry));
+    ++state.enemySpawnIndex;
+    state.enemyEntities.push_back(id);
+    LOG_INFO("[Sys_ImGui] [NavTest] Spawned enemy id=" << id
+             << " (total=" << state.enemyEntities.size() << ")");
+}
+
+void Sys_ImGui::DeleteLastEnemy_Nav(Registry& registry) {
+    if (!registry.has_ctx<Res_NavTestState>()) return;
+    auto& state = registry.ctx<Res_NavTestState>();
+    if (state.enemyEntities.empty()) return;
+
+    EntityID last = state.enemyEntities.back();
+    state.enemyEntities.pop_back();
+    if (registry.Valid(last)) {
+        registry.Destroy(last);
+        LOG_INFO("[Sys_ImGui] [NavTest] Destroyed enemy id=" << last);
+    }
+}
+
+// ============================================================
+// SpawnTarget / DeleteLastTarget（NavTest — Res_NavTestState）
+// ============================================================
+
+void Sys_ImGui::SpawnTarget(Registry& registry) {
+    if (!registry.has_ctx<Res_NavTestState>()) return;
+    auto& state = registry.ctx<Res_NavTestState>();
+
+    if (state.targetMeshHandle == ECS::INVALID_HANDLE) {
+        LOG_WARN("[Sys_ImGui] SpawnTarget: target mesh handle is INVALID, skipping.");
+        return;
+    }
+
+    EntityID id = PrefabFactory::CreatePhysicsTarget(
+        registry, state.targetMeshHandle, state.targetSpawnIndex, CalcSpawnPos(registry));
+    ++state.targetSpawnIndex;
+    state.targetEntities.push_back(id);
+    LOG_INFO("[Sys_ImGui] [NavTest] Spawned target id=" << id
+             << " (total=" << state.targetEntities.size() << ")");
+}
+
+void Sys_ImGui::DeleteLastTarget(Registry& registry) {
+    if (!registry.has_ctx<Res_NavTestState>()) return;
+    auto& state = registry.ctx<Res_NavTestState>();
+    if (state.targetEntities.empty()) return;
+
+    EntityID last = state.targetEntities.back();
+    state.targetEntities.pop_back();
+    if (registry.Valid(last)) {
+        registry.Destroy(last);
+        LOG_INFO("[Sys_ImGui] [NavTest] Destroyed target id=" << last);
+    }
 }
 
 } // namespace ECS

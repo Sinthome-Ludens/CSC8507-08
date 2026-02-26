@@ -178,6 +178,8 @@ public:
     /// 在 ECS 实体上设置 Jolt 线速度（动态体）
     void SetLinearVelocity(uint32_t joltBodyID, float vx, float vy, float vz);
 
+    void SetRotation(uint32_t joltBodyID, const NCL::Maths::Quaternion& rotation);
+
     /// 给 Jolt 刚体施加冲量（动态体）
     void ApplyImpulse(uint32_t joltBodyID, float ix, float iy, float iz);
 
@@ -220,6 +222,9 @@ private:
     void InitJolt();
     void CreateBodyForEntity(Registry& reg, EntityID id,
                              C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col);
+
+
+
     void SyncTransformsFromJolt(Registry& reg);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);

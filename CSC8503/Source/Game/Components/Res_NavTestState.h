@@ -34,4 +34,9 @@ struct Res_NavTestState {
     int                        enemySpawnIndex = 0;
     NavMeshInternalData        navData;
 
+
+    ECS::MeshHandle            targetMeshHandle = ECS::INVALID_HANDLE; ///< 共享 capsule mesh 句柄
+    std::vector<ECS::EntityID> targetEntities;                         ///< 存活的动态 capsule 实体列表
+    int                        targetSpawnIndex = 0;
+
 };

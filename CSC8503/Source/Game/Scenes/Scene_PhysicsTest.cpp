@@ -4,6 +4,7 @@
 #include "Core/Bridge/AssetManager.h"
 #include "Core/ECS/Registry.h"
 #include "Core/ECS/SystemManager.h"
+#include "Game/Components/Res_BaseTestState.h"
 #include "Game/Components/Res_TestState.h"
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Prefabs/PrefabFactory.h"
@@ -28,6 +29,8 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     // ── 1. 资源预热：初始化 AssetManager，加载本场景所需 mesh ──────────
     ECS::AssetManager::Instance().Init();
 
+
+
     ECS::MeshHandle cubeMesh = ECS::AssetManager::Instance().LoadMesh(
         NCL::Assets::MESHDIR + "cube.obj");
     LOG_INFO("[Scene_PhysicsTest] cube mesh loaded, handle=" << cubeMesh);
@@ -43,10 +46,18 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_UIFlags>();
     }
 
+    // 通用基础状态（Cube/Capsule，所有场景共用）
+    if (!registry.has_ctx<Res_BaseTestState>()) {
+        Res_BaseTestState base;
+        base.cubeMeshHandle    = cubeMesh;
+        base.capsuleMeshHandle = capsuleMesh;
+        registry.ctx_emplace<Res_BaseTestState>(std::move(base));
+    }
+
+    // PhysicsTest 专属状态（Enemy/Target）
     if (!registry.has_ctx<Res_TestState>()) {
         Res_TestState state;
-        state.cubeMeshHandle    = cubeMesh;
-        state.capsuleMeshHandle = capsuleMesh;
+        state.enemyMeshHandle = capsuleMesh;
         registry.ctx_emplace<Res_TestState>(std::move(state));
     }
 

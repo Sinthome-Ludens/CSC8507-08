@@ -89,6 +89,11 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
         registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
     }
 
+    // 注册 Sys_Physics 自身指针，供 Sys_Navigation 调用速度控制接口
+    if (!registry.has_ctx<ECS::Sys_Physics*>()) {
+        registry.ctx_emplace<ECS::Sys_Physics*>(this);
+    }
+
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
 }
 
@@ -408,4 +413,15 @@ void ECS::Sys_Physics::MoveKinematic(
         JPH::RVec3(px, py, pz),
         JPH::Quat(qx, qy, qz, qw),
         dt);
+}
+
+
+void ECS::Sys_Physics::SetRotation(uint32_t joltBodyID, const NCL::Maths::Quaternion& rotation) {
+    if (!m_PhysicsSystem) return;
+    // 将 NCL Quaternion 转换为 Jolt Quat 并设置
+    m_PhysicsSystem->GetBodyInterface().SetRotation(
+        JPH::BodyID(joltBodyID),
+        ToJoltQuat(rotation.x, rotation.y, rotation.z, rotation.w),
+        JPH::EActivation::Activate // 确保旋转时物体是激活的
+    );
 }
