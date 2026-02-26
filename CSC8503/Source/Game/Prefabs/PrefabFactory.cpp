@@ -7,6 +7,7 @@
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
+#include "Game/Components/C_D_Interactable.h"
 #include "Game/Utils/Log.h"
 
 #include <cstring>
@@ -157,6 +158,55 @@ EntityID PrefabFactory::CreatePhysicsCube(
     LOG_INFO("[PrefabFactory] CreatePhysicsCube id=" << entity
              << " index=" << spawnIndex
              << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateInteractable  →  PREFAB_INTERACTABLE
+// ============================================================
+EntityID PrefabFactory::CreateInteractable(
+    Registry&       reg,
+    ECS::MeshHandle mesh,
+    Vector3         position,
+    InteractionType type,
+    const char*     label,
+    float           radius)
+{
+    EntityID entity = reg.Create();
+
+    // C_D_Transform
+    reg.Emplace<C_D_Transform>(entity,
+        position,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    // C_D_MeshRenderer
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        mesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // C_D_Interactable
+    C_D_Interactable inter{};
+    inter.type   = type;
+    inter.radius = radius;
+    if (label && label[0] != '\0') {
+        strncpy_s(inter.label, sizeof(inter.label), label, sizeof(inter.label) - 1);
+    }
+    reg.Emplace<C_D_Interactable>(entity, inter);
+
+    // C_D_DebugName
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_Interact_%s",
+                  (label && label[0] != '\0') ? label : "Default");
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreateInteractable id=" << entity
+             << " type=" << static_cast<int>(type)
+             << " radius=" << radius
+             << " pos=(" << position.x << "," << position.y << "," << position.z << ")");
 
     return entity;
 }

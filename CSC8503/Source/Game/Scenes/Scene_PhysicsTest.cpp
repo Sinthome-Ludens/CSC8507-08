@@ -22,6 +22,7 @@
 #include "Game/Components/Res_GameplayState.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_InventoryState.h"
+#include "Game/Components/C_D_Interactable.h"
 #endif
 
 // ============================================================
@@ -126,6 +127,19 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     //    相机实体由 Sys_Camera::OnAwake 创建（符合系统职责）
     ECS::EntityID entity_floor_main = PrefabFactory::CreateFloor(registry, cubeMesh);
     LOG_INFO("[Scene_PhysicsTest] floor entity id=" << entity_floor_main);
+
+    // ── 3.5 测试交互实体（UI 交互提示开发验证）──────────────────────────
+    PrefabFactory::CreateInteractable(registry, cubeMesh,
+        NCL::Maths::Vector3(5.0f, -4.0f, 0.0f),
+        ECS::InteractionType::PickUp, nullptr, 4.0f);
+
+    PrefabFactory::CreateInteractable(registry, cubeMesh,
+        NCL::Maths::Vector3(-5.0f, -4.0f, 5.0f),
+        ECS::InteractionType::Hack, "ACCESS TERMINAL", 5.0f);
+
+    PrefabFactory::CreateInteractable(registry, cubeMesh,
+        NCL::Maths::Vector3(0.0f, -4.0f, -5.0f),
+        ECS::InteractionType::Eliminate, nullptr, 3.0f);
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
     //    执行顺序：Camera(50) → Physics(100) → Render(200) → ImGui(300)

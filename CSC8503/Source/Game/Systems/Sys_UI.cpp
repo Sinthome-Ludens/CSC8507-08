@@ -16,7 +16,9 @@
 #include "Game/UI/UI_Toast.h"
 #include "Game/UI/UI_Loadout.h"
 #include "Game/UI/UI_Team.h"
+#include "Game/UI/UI_Interaction.h"
 #include "Game/Components/Res_ToastState.h"
+#include "Game/Components/C_D_Interactable.h"
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
@@ -119,6 +121,14 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     }
 
+    // ── F9: 切换交互提示显示（仅 devMode，不依赖 GameplayState）──
+    if (ui.devMode && devKb && devKb->KeyPressed(KeyCodes::F9)) {
+        registry.view<C_D_Interactable>().each(
+            [](EntityID, C_D_Interactable& inter) { inter.enabled = !inter.enabled; }
+        );
+        LOG_INFO("[Sys_UI] F9 toggle interactables");
+    }
+
     // ── F8: 推送测试 Toast（仅 devMode，不依赖 GameplayState）──
     if (ui.devMode && devKb && devKb->KeyPressed(KeyCodes::F8)
         && registry.has_ctx<Res_ToastState>()) {
@@ -208,7 +218,10 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         case UIScreen::MainMenu:  UI::RenderMainMenu(registry, dt);        break;
         case UIScreen::Settings:  UI::RenderSettingsScreen(registry, dt);  break;
         case UIScreen::PauseMenu: UI::RenderPauseMenu(registry, dt);      break;
-        case UIScreen::HUD:       UI::RenderHUD(registry, dt);            break;
+        case UIScreen::HUD:
+            UI::RenderHUD(registry, dt);
+            UI::RenderInteractionPrompts(registry, dt);
+            break;
         case UIScreen::GameOver:  UI::RenderGameOverScreen(registry, dt); break;
         case UIScreen::Inventory: UI::RenderInventoryScreen(registry, dt); break;
         case UIScreen::Loadout:  UI::RenderLoadoutScreen(registry, dt);  break;

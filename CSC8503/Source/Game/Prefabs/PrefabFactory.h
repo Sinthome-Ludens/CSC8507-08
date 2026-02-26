@@ -2,6 +2,7 @@
 
 #include "Core/ECS/Registry.h"
 #include "Core/Bridge/AssetManager.h"
+#include "Game/Components/C_D_Interactable.h"
 #include "Vector.h"
 #include "Quaternion.h"
 
@@ -86,5 +87,31 @@ public:
         ECS::MeshHandle     cubeMesh,
         int                 spawnIndex,
         NCL::Maths::Vector3 spawnPos
+    );
+
+    // ============================================================
+    // 可交互物体
+    // ============================================================
+
+    /**
+     * @brief 创建可交互实体（PREFAB_INTERACTABLE）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Interactable, C_D_DebugName
+     *
+     * @param reg      ECS Registry
+     * @param mesh     网格句柄
+     * @param position 世界坐标
+     * @param type     交互类型
+     * @param label    自定义标签（nullptr 则使用默认文本）
+     * @param radius   检测半径（米）
+     * @return 实体 ID
+     */
+    static ECS::EntityID CreateInteractable(
+        ECS::Registry&          reg,
+        ECS::MeshHandle         mesh,
+        NCL::Maths::Vector3     position,
+        ECS::InteractionType    type,
+        const char*             label  = nullptr,
+        float                   radius = 3.0f
     );
 };
