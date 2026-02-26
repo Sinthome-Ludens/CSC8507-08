@@ -13,6 +13,8 @@
 #include "Game/UI/UI_ItemWheel.h"
 #include "Game/UI/UI_Inventory.h"
 #include "Game/UI/UI_TitleScreen.h"
+#include "Game/UI/UI_Toast.h"
+#include "Game/Components/Res_ToastState.h"
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
@@ -31,7 +33,11 @@ void Sys_UI::OnAwake(Registry& registry) {
         registry.ctx_emplace<Res_UIState>();
     }
 
-    LOG_INFO("[Sys_UI] OnAwake — Fonts loaded, theme applied, Res_UIState registered.");
+    if (!registry.has_ctx<Res_ToastState>()) {
+        registry.ctx_emplace<Res_ToastState>();
+    }
+
+    LOG_INFO("[Sys_UI] OnAwake — Fonts loaded, theme applied, Res_UIState/Res_ToastState registered.");
 }
 
 // ============================================================
@@ -45,6 +51,11 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     ui.globalTime += dt;
     // 防止浮点精度丢失（sinf 在 >10000 后精度退化），周期取 2π 的大公倍数
     if (ui.globalTime > 6283.0f) ui.globalTime -= 6283.0f;
+    // ── Toast 计时器 tick ──
+    if (registry.has_ctx<Res_ToastState>()) {
+        registry.ctx<Res_ToastState>().Update(dt);
+    }
+
     if (ui.activeScreen == UIScreen::TitleScreen) ui.titleTimer += dt;
 
     // ── 开发者模式切换（F1）──
@@ -102,6 +113,22 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             ui.transitionTimer = 0.0f;
             ui.transitionType = (ui.transitionType + 1) % 2;
             LOG_INFO("[Sys_UI] F7 transition type=" << (int)ui.transitionType);
+        }
+
+        // F8: 推送测试 Toast（循环4种类型）
+        if (devKb->KeyPressed(KeyCodes::F8) && registry.has_ctx<Res_ToastState>()) {
+            auto& t = registry.ctx<Res_ToastState>();
+            static uint8_t toastCycle = 0;
+            const char* msgs[] = {
+                "System online — diagnostics OK",
+                "Firewall scan detected nearby",
+                "INTRUSION ALERT — cover blown!",
+                "Access key acquired successfully"
+            };
+            auto type = static_cast<ToastType>(toastCycle % 4);
+            t.PushToast(msgs[toastCycle % 4], type);
+            LOG_INFO("[Sys_UI] F8 toast type=" << (int)type);
+            ++toastCycle;
         }
     }
 
@@ -177,6 +204,9 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         default:
             break;
     }
+
+    // Toast 通知（所有画面都显示）
+    UI::RenderToasts(registry, dt);
 
     // 扫描线叠加（菜单类画面）
     if (ui.activeScreen != UIScreen::None && ui.activeScreen != UIScreen::HUD) {
