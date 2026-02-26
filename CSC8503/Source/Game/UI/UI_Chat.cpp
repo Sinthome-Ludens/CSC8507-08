@@ -154,6 +154,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
 
         float ratio = (chat.replyTimerMax > 0.0f) ? chat.replyTimer / chat.replyTimerMax : 0.0f;
         if (ratio < 0.0f) ratio = 0.0f;
+        if (ratio > 1.0f) ratio = 1.0f;
 
         // 背景条
         draw->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH),

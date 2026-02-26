@@ -145,6 +145,11 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
 // OnDestroy
 // ============================================================
 void ECS::Sys_Physics::OnDestroy(Registry& registry) {
+    // 先清理 Context 中的 EventBus 裸指针，防止其他 System 在 OnDestroy 中访问悬空指针
+    if (registry.has_ctx<ECS::EventBus*>()) {
+        registry.ctx_emplace<ECS::EventBus*>(nullptr);
+    }
+
     // 移除所有 Jolt Body
     auto& bi = m_PhysicsSystem->GetBodyInterface();
     for (auto& [bodyID, entityID] : m_BodyToEntity) {
@@ -300,7 +305,10 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
     }
     if (contacts.empty()) return;
 
-    auto& bus = *reg.ctx<ECS::EventBus*>();
+    if (!reg.has_ctx<ECS::EventBus*>()) return;
+    auto* busPtr = reg.ctx<ECS::EventBus*>();
+    if (!busPtr) return;
+    auto& bus = *busPtr;
 
     for (auto& c : contacts) {
         // 查找对应的 ECS 实体

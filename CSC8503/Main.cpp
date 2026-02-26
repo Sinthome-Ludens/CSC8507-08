@@ -54,12 +54,6 @@ void RunECSTests();
 #define ENABLE_ECS_TEST          0  // 1 = 启用 ECS 单元测试（控制台）
 #define ENABLE_PHYSICS_TEST_SCENE 1  // 1 = 启用 ECS 物理测试场景（替换 TutorialGame）
 
-void TestPathfinding() {
-}
-
-void DisplayPathfinding() {
-}
-
 int main() {
 #if ENABLE_ECS_TEST
 	RunECSTests();
@@ -109,9 +103,7 @@ int main() {
 	bool running = true;
 	while (running && w->UpdateWindow()) {
 		float dt = w->GetTimer().GetTimeDeltaSeconds();
-		if (dt > 0.1f) {
-			continue;  // 跳过过大时间增量
-		}
+		if (dt > 0.1f) dt = 0.1f;  // clamp 过大时间增量，避免跳帧
 		if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
 			w->ShowConsole(true);
 		}
@@ -216,10 +208,7 @@ int main() {
 	w->GetTimer().GetTimeDeltaSeconds();
 	while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
 		float dt = w->GetTimer().GetTimeDeltaSeconds();
-		if (dt > 0.1f) {
-			std::cout << "Skipping large time delta" << std::endl;
-			continue;
-		}
+		if (dt > 0.1f) dt = 0.1f;  // clamp 过大时间增量
 		if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
 			w->ShowConsole(true);
 		}

@@ -6,6 +6,7 @@
 #include "AssimpLoader.h"
 #include "Game/Utils/Assert.h"
 #include "Game/Utils/Log.h"
+#include <memory>
 
 // Assimp 头文件（必须在 NCL 头文件之前包含）
 #include <assimp/Importer.hpp>
@@ -152,8 +153,8 @@ static OGLMesh* ConvertMesh(const aiMesh* aiMesh) {
         return nullptr;
     }
 
-    // 创建 NCL 网格
-    OGLMesh* mesh = new OGLMesh();
+    // 创建 NCL 网格（unique_ptr 保证异常安全，函数末尾 release 转移所有权）
+    auto mesh = std::make_unique<OGLMesh>();
 
     // 1. 转换顶点位置（必需）
     std::vector<Vector3> positions;
@@ -227,7 +228,7 @@ static OGLMesh* ConvertMesh(const aiMesh* aiMesh) {
     // 8. 上传到 GPU
     mesh->UploadToGPU();
 
-    return mesh;
+    return mesh.release();
 }
 
 } // namespace ECS

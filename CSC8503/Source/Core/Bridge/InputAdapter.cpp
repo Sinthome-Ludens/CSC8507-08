@@ -16,6 +16,7 @@ void InputAdapter::Update(Window* window, Res_Input& input) {
 
     auto* keyboard = window->GetKeyboard();
     auto* mouse = window->GetMouse();
+    if (!keyboard || !mouse) return;  // 防御性空指针检查
 
     // 同步鼠标位置
     input.mousePos = mouse->GetAbsolutePosition();

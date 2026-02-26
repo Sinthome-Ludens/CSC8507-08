@@ -246,6 +246,7 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, float x, float y,
 
 static void RenderHUD_Degradation(ImDrawList* draw, float alertRatio, float globalTime,
                                    float vpW, float vpH, float vpX, float vpY) {
+    if (alertRatio > 1.0f) alertRatio = 1.0f;  // 防止超出范围导致过量绘制
     // 噪点层（alertRatio > 0.2）
     if (alertRatio > 0.2f) {
         float noiseDensity = (alertRatio - 0.2f) * 60.0f;

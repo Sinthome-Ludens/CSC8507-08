@@ -132,8 +132,10 @@ MeshHandle AssetManager::LoadMesh(const std::string& path) {
 
 OGLMesh* AssetManager::GetMesh(MeshHandle handle) {
     if (handle == INVALID_HANDLE || m_MeshCache.find(handle) == m_MeshCache.end()) {
-        // 返回默认网格
-        return m_MeshCache[m_DefaultMeshHandle].resource.get();
+        // 返回默认网格（验证默认 handle 有效性）
+        auto defIt = m_MeshCache.find(m_DefaultMeshHandle);
+        if (defIt == m_MeshCache.end()) return nullptr;
+        return defIt->second.resource.get();
     }
     return m_MeshCache[handle].resource.get();
 }

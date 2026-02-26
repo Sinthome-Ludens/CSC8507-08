@@ -10,8 +10,8 @@
  * 由 Scene_PhysicsTest::OnEnter() 初始化并注册到 Registry context，
  * 由 Sys_ImGui 在每帧读写（Spawn / Delete / Gravity 操作）。
  *
- * 注意：作为 Res_* 全局资源（非 Component），可合法使用 std::vector。
- * Component 才受 POD 约束，全局资源不在此限。
+ * 注意：作为 Res_* 全局资源（Registry Context），不受 Component ≤64字节 POD 约束。
+ * Res_* 可使用 std::vector 等堆类型（仅限全局资源，非 per-entity Component）。
  */
 struct Res_TestState {
     ECS::MeshHandle            cubeMeshHandle = ECS::INVALID_HANDLE; ///< 共享 cube mesh 句柄

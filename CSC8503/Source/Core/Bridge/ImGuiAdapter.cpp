@@ -4,7 +4,7 @@
 #include "Window.h"
 #include "Win32Window.h"
 #include "OGLRenderer.h"
-#include <iostream>
+#include "Game/Utils/Log.h"
 
 using namespace NCL;
 using namespace NCL::Win32Code;
@@ -36,7 +36,7 @@ bool ImGuiAdapter::Init(Window* window, Rendering::OGLRenderer* renderer) {
 
     s_TargetHWND = GetHWND(window);
     if (!s_TargetHWND) {
-        std::cerr << "[ImGuiAdapter] Failed to get HWND from Window" << std::endl;
+        LOG_ERROR("[ImGuiAdapter] Failed to get HWND from Window");
         return false;
     }
 
@@ -48,13 +48,13 @@ bool ImGuiAdapter::Init(Window* window, Rendering::OGLRenderer* renderer) {
     ImGui::StyleColorsDark();
 
     if (!ImGui_ImplWin32_Init(s_TargetHWND)) {
-        std::cerr << "[ImGuiAdapter] ImGui_ImplWin32_Init failed" << std::endl;
+        LOG_ERROR("[ImGuiAdapter] ImGui_ImplWin32_Init failed");
         ImGui::DestroyContext();
         return false;
     }
 
     if (!ImGui_ImplOpenGL3_Init("#version 330")) {
-        std::cerr << "[ImGuiAdapter] ImGui_ImplOpenGL3_Init failed" << std::endl;
+        LOG_ERROR("[ImGuiAdapter] ImGui_ImplOpenGL3_Init failed");
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
         return false;
@@ -64,7 +64,7 @@ bool ImGuiAdapter::Init(Window* window, Rendering::OGLRenderer* renderer) {
     s_MessageHook = SetWindowsHookEx(WH_GETMESSAGE, MessageHookProc, nullptr, threadId);
 
     if (!s_MessageHook) {
-        std::cerr << "[ImGuiAdapter] SetWindowsHookEx failed (error: " << GetLastError() << ")" << std::endl;
+        LOG_ERROR("[ImGuiAdapter] SetWindowsHookEx failed (error: " << GetLastError() << ")");
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
@@ -72,7 +72,7 @@ bool ImGuiAdapter::Init(Window* window, Rendering::OGLRenderer* renderer) {
     }
 
     s_Initialized = true;
-    std::cout << "[ImGuiAdapter] Initialized (No-Intrusive Mode, Docking enabled)" << std::endl;
+    LOG_INFO("[ImGuiAdapter] Initialized (No-Intrusive Mode, Docking enabled)");
     return true;
 }
 
@@ -86,7 +86,7 @@ void ImGuiAdapter::Shutdown() {
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
     s_Initialized = false;
-    std::cout << "[ImGuiAdapter] Shutdown complete" << std::endl;
+    LOG_INFO("[ImGuiAdapter] Shutdown complete");
 }
 
 void ImGuiAdapter::NewFrame() {

@@ -98,7 +98,7 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     float startOffset = -UITheme::kPI * 0.5f; // 从正上方开始
 
     const char* sectorLabels[4] = {};
-    char labelBufs[4][24];
+    char labelBufs[4][24] = {};
 
     // 填充标签
     for (int i = 0; i < 2; ++i) {

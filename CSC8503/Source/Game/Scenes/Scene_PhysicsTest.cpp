@@ -156,6 +156,9 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&      registry,
     // 逆序停机：Sys_ImGui(300) → Sys_Render(200) → Sys_Physics(100) → Sys_Camera(50)
     systems.DestroyAll(registry);
 
+    // 释放场景加载的 GPU 资源（Mesh 等），防止多次场景切换时内存泄漏
+    ECS::AssetManager::Instance().Clear();
+
     // registry.Clear() 由 SceneManager::EndFrame() 在 OnExit 之后统一调用，
     // 确保所有 System::OnDestroy 完成后再清空实体。
 
