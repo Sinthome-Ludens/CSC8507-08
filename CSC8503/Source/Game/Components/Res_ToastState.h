@@ -36,8 +36,9 @@ struct Res_ToastState {
     static constexpr float DEFAULT_LIFESPAN  = 4.0f;
 
     ToastEntry entries[MAX_TOASTS] = {};
-    uint8_t    head  = 0;   // 下一个写入位置
-    uint8_t    count = 0;   // 累计写入数（用于调试，不回绕）
+    uint8_t    head  = 0;        // 下一个写入位置
+    uint8_t    count = 0;        // 累计写入数（uint8_t 会在255后回绕，仅用于调试）
+    uint8_t    debugCycle = 0;   // F8 测试用循环计数器（避免 System 内 static 变量）
 
     /// 推送一条新 Toast
     void PushToast(const char* msg, ToastType type, float life = DEFAULT_LIFESPAN) {
@@ -64,28 +65,12 @@ struct Res_ToastState {
         }
     }
 
-    /// 获取第 i 个活跃 toast（0=最旧，返回 nullptr 表示越界）
-    /// 用于渲染排序：从旧到新依次绘制
-    const ToastEntry* GetActive(int i) const {
-        int found = 0;
-        // 从 head 位置向后遍历（最旧的在 head 之后）
-        for (int k = 0; k < MAX_TOASTS; ++k) {
-            int idx = (head + k) % MAX_TOASTS;
-            if (entries[idx].active) {
-                if (found == i) return &entries[idx];
-                ++found;
-            }
-        }
-        return nullptr;
-    }
-
-    /// 获取当前活跃 toast 数量
-    int ActiveCount() const {
-        int n = 0;
+    /// 是否有任意活跃 toast
+    bool HasActive() const {
         for (const auto& e : entries) {
-            if (e.active) ++n;
+            if (e.active) return true;
         }
-        return n;
+        return false;
     }
 };
 

@@ -2,10 +2,7 @@
 #ifdef USE_IMGUI
 
 #include <imgui.h>
-#include <cmath>
 #include "Game/Components/Res_ToastState.h"
-#include "Game/Components/Res_UIState.h"
-#include "Game/Components/Res_ChatState.h"
 #include "Game/UI/UITheme.h"
 
 namespace ECS::UI {
@@ -56,10 +53,7 @@ static const char* GetTypeIcon(ToastType type) {
 
 void RenderToasts(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_ToastState>()) return;
-    auto& toast = registry.ctx<Res_ToastState>();
-
-    int activeCount = toast.ActiveCount();
-    if (activeCount == 0) return;
+    const auto& toast = registry.ctx<Res_ToastState>();
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();
 
@@ -79,13 +73,15 @@ void RenderToasts(Registry& registry, float /*dt*/) {
 
     float curY = START_Y;
 
-    for (int i = 0; i < Res_ToastState::MAX_TOASTS; ++i) {
-        const ToastEntry* e = toast.GetActive(i);
-        if (!e) break;
+    // O(n) 单次遍历环形缓冲区（从最旧→最新）
+    for (int k = 0; k < Res_ToastState::MAX_TOASTS; ++k) {
+        int idx = (toast.head + k) % Res_ToastState::MAX_TOASTS;
+        const auto& e = toast.entries[idx];
+        if (!e.active) continue;
 
-        float age  = e->age;
-        float life = e->lifespan;
-        float maxL = e->maxLife;
+        float age  = e.age;
+        float life = e.lifespan;
+        float maxL = e.maxLife;
 
         // ── 计算 alpha ──
         float alpha = 1.0f;
@@ -126,31 +122,35 @@ void RenderToasts(Registry& registry, float /*dt*/) {
             IM_COL32(10, 12, 20, bgAlpha), 3.0f);
 
         // ── 绘制左侧类型色条 ──
-        ImU32 stripeColor = GetTypeColor(e->type, alpha);
+        ImU32 stripeColor = GetTypeColor(e.type, alpha);
         draw->AddRectFilled(
             ImVec2(x, y), ImVec2(x + STRIPE_W, y + cardH),
             stripeColor, 3.0f, ImDrawFlags_RoundCornersLeft);
 
-        // ── 绘制文本 ──
-        if (cardH > 10.0f) {  // 塌缩过小时不绘制文本
+        // ── 绘制文本（ClipRect 裁剪到卡片范围）──
+        if (cardH > 10.0f) {
             ImFont* font = UITheme::GetFont_Small();
             if (font) ImGui::PushFont(font);
 
-            // 图标
-            const char* icon = GetTypeIcon(e->type);
-            ImU32 iconColor = GetTypeColor(e->type, alpha * 0.9f);
+            // 裁剪矩形：防止文本溢出卡片右侧
+            draw->PushClipRect(ImVec2(x, y), ImVec2(x + CARD_W, y + cardH), true);
+
+            const char* icon = GetTypeIcon(e.type);
+            ImU32 iconColor = GetTypeColor(e.type, alpha * 0.9f);
 
             float fontH = ImGui::GetFontSize();
             float textY = y + (cardH - fontH) * 0.5f;
-            draw->AddText(ImVec2(x + STRIPE_W + 6.0f, textY), iconColor, icon);
+            float textX = x + STRIPE_W + 6.0f;
+            draw->AddText(ImVec2(textX, textY), iconColor, icon);
 
-            // 消息文本
             float iconW = ImGui::CalcTextSize(icon).x;
             uint8_t textAlpha = static_cast<uint8_t>(alpha * 230.0f);
             draw->AddText(
-                ImVec2(x + STRIPE_W + 6.0f + iconW, textY),
+                ImVec2(textX + iconW, textY),
                 IM_COL32(217, 230, 235, textAlpha),
-                e->text);
+                e.text);
+
+            draw->PopClipRect();
 
             if (font) ImGui::PopFont();
         }

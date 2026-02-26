@@ -115,21 +115,22 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             LOG_INFO("[Sys_UI] F7 transition type=" << (int)ui.transitionType);
         }
 
-        // F8: 推送测试 Toast（循环4种类型）
-        if (devKb->KeyPressed(KeyCodes::F8) && registry.has_ctx<Res_ToastState>()) {
-            auto& t = registry.ctx<Res_ToastState>();
-            static uint8_t toastCycle = 0;
-            const char* msgs[] = {
-                "System online — diagnostics OK",
-                "Firewall scan detected nearby",
-                "INTRUSION ALERT — cover blown!",
-                "Access key acquired successfully"
-            };
-            auto type = static_cast<ToastType>(toastCycle % 4);
-            t.PushToast(msgs[toastCycle % 4], type);
-            LOG_INFO("[Sys_UI] F8 toast type=" << (int)type);
-            ++toastCycle;
-        }
+    }
+
+    // ── F8: 推送测试 Toast（仅 devMode，不依赖 GameplayState）──
+    if (ui.devMode && devKb && devKb->KeyPressed(KeyCodes::F8)
+        && registry.has_ctx<Res_ToastState>()) {
+        auto& t = registry.ctx<Res_ToastState>();
+        const char* msgs[] = {
+            "System online — diagnostics OK",
+            "Firewall scan detected nearby",
+            "INTRUSION ALERT — cover blown!",
+            "Access key acquired successfully"
+        };
+        auto type = static_cast<ToastType>(t.debugCycle % 4);
+        t.PushToast(msgs[t.debugCycle % 4], type);
+        LOG_INFO("[Sys_UI] F8 toast type=" << (int)type);
+        ++t.debugCycle;
     }
 
     // ── I 键：背包开关 ──
