@@ -110,6 +110,51 @@ EntityID PrefabFactory::CreateFloor(Registry& reg, ECS::MeshHandle cubeMesh)
     return entity;
 }
 
+// 在 PrefabFactory.cpp 中添加
+// ============================================================
+// CreateLevel  →  PREFAB_ENV_LEVEL (用于 Level1.obj)
+// ============================================================
+EntityID PrefabFactory::CreateLevel1(Registry& reg, ECS::MeshHandle levelMesh)
+{
+    EntityID entity = reg.Create();
+
+    // 1. Transform: 使用 1.0 缩放，位置重置为原点
+    // Level1.obj 的顶点已经包含了关卡布局，不需要像 cube 那样放大
+    reg.Emplace<C_D_Transform>(entity,
+        Vector3(0.0f, 0.0f, 0.0f),
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    // 2. MeshRenderer
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        levelMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // 3. RigidBody: 必须设为静态体
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    // 4. Collider: 注意！Level1 是复杂模型
+    // 如果你的物理引擎支持 MeshCollider，应使用 Mesh 类型。
+    // 这里暂时使用较大的 Box 作为底层物理边界，或根据需要配置
+    C_D_Collider col{};
+    col.type   = ColliderType::Box;
+    col.half_x = 20.0f; // 根据 Level1.obj 顶点范围调整
+    col.half_y = 1.0f;
+    col.half_z = 20.0f;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // 5. DebugName
+    AttachDebugName(reg, entity, "ENTITY_Env_Level_Main");
+
+    LOG_INFO("[PrefabFactory] CreateLevel id=" << entity << " with default scale (1,1,1)");
+
+    return entity;
+}
+
 // ============================================================
 // CreatePhysicsCube  →  PREFAB_PHYSICS_CUBE
 // ============================================================

@@ -65,7 +65,10 @@ if(USE_VULKAN)
 			Source/Game/Components/C_D_AIState.h
 			Source/Game/Components/C_D_AIPreception.h
 			Source/Game/Components/Res_EnemyEnums.h
-	)
+			Source/Game/Scenes/Scene_NavTest.cpp
+			Source/Game/Scenes/Scene_NavTest.h
+            Source/Game/Components/Res_NavTestState.h
+    )
 
 foreach (file ${SHADER_FILES})
     get_filename_component(file_name ${file} NAME)

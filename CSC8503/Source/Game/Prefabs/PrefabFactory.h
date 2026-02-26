@@ -66,6 +66,17 @@ public:
         ECS::MeshHandle cubeMesh
     );
 
+    // 在 PrefabFactory.h 的“环境”部分添加
+    /**
+     * @brief 创建静态关卡实体（PREFAB_ENV_LEVEL）
+     * 适用于 Level1.obj 等自带尺寸的模型，缩放默认为 1.0
+     */
+    static ECS::EntityID CreateLevel1(
+        ECS::Registry&  reg,
+        ECS::MeshHandle levelMesh
+    );
+
+
     // ============================================================
     // 动态物体
     // ============================================================
