@@ -74,6 +74,7 @@ namespace NCL {
 		virtual void	LockMouseToWindow(bool lock) {};
 		virtual void	ShowOSPointer(bool show) {};
 		virtual void	WarpCursorToCenter() {};
+		virtual bool	IsActiveWindow() const { return true; };
 
 		virtual void	SetWindowPosition(int x, int y) {};
 		virtual void	SetFullScreen(bool state) {};
