@@ -16,6 +16,7 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_ImGuiEnemyAI.h"
 #endif
 
 // ============================================================
@@ -63,13 +64,14 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_PhysicsTest] floor entity id=" << entity_floor_main);
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
-    //    执行顺序：Camera(50) → Physics(100) → EnemyAI(120) → Render(200) → ImGui(300)
+    //    执行顺序：Camera(50) → Physics(100) → EnemyAI(120) → Render(200) → ImGui(300) → EnemyMonitor(310)
     systems.Register<ECS::Sys_Camera>   ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>  (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyAI>  (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>    (300);   // 菜单栏 + 性能窗口 + Cube 控制面板
+    systems.Register<ECS::Sys_ImGui>         (300);   // 菜单栏 + 性能窗口 + Cube 控制面板
+    systems.Register<ECS::Sys_ImGuiEnemyAI>  (310);   // 通用敌人状态监控表格（场景无关）
 #endif
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
@@ -86,7 +88,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 void Scene_PhysicsTest::OnExit(ECS::Registry&      registry,
                                ECS::SystemManager& systems)
 {
-    // 逆序停机：ImGui(300) → Render(200) → EnemyAI(120) → Physics(100) → Camera(50)
+    // 逆序停机：EnemyMonitor(310) → ImGui(300) → Render(200) → EnemyAI(120) → Physics(100) → Camera(50)
     systems.DestroyAll(registry);
 
     // TODO: registry.Clear() —— 回收所有活动实体 ID，保留内存容量（Capacity）。
