@@ -1,6 +1,7 @@
 #include "SceneManager.h"
 #include "Game/Utils/Assert.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/Res_Time.h"
 
 namespace ECS {
 
@@ -42,6 +43,15 @@ void SceneManager::PushScene(IScene* scene) {
 
 void SceneManager::Update(float dt) {
     if (!m_CurrentScene || m_Shutdown) return;
+
+    // 更新全局时间资源 Res_Time
+    if (!m_Registry.has_ctx<Res_Time>()) {
+        m_Registry.ctx_emplace<Res_Time>();
+    }
+    auto& time = m_Registry.ctx<Res_Time>();
+    time.deltaTime = dt;
+    time.totalTime += dt * time.timeScale;
+    time.frameCount++;
 
     m_Systems.UpdateAll(m_Registry, dt);
 }

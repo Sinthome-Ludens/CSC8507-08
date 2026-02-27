@@ -90,6 +90,9 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
     }
 
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
+
+    // 将 Jolt PhysicsSystem 指针注册到 Registry Context，供其他系统（如 Sys_Network）访问
+    registry.ctx_emplace<JPH::PhysicsSystem*>(m_PhysicsSystem.get());
 }
 
 // ============================================================
@@ -267,17 +270,29 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 }
 
 // ============================================================
-// SyncTransformsFromJolt（动态体）
+// SyncTransformsFromJolt（动态体 Jolt→ECS / 运动学体 ECS→Jolt）
 // ============================================================
 void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
     reg.view<C_D_Transform, C_D_RigidBody>().each(
         [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb) {
-            // 只同步动态体（非静态、非运动学、已创建）
-            if (!rb.body_created || rb.is_static || rb.is_kinematic) return;
+            if (!rb.body_created || rb.is_static) return;
 
             JPH::BodyID jid(rb.jolt_body_id);
+
+            if (rb.is_kinematic) {
+                // 运动学体：将 ECS Transform（由插值/输入驱动）写回 Jolt，
+                // 使其在物理世界中实际移动，从而能与动态体产生碰撞。
+                bi.MoveKinematic(
+                    jid,
+                    JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
+                    JPH::Quat(tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w),
+                    FIXED_DT);
+                return;
+            }
+
+            // 动态体：Jolt → ECS
             if (!bi.IsActive(jid) && !bi.IsAdded(jid)) return;
 
             JPH::RVec3 pos = bi.GetPosition(jid);
