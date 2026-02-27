@@ -32,8 +32,13 @@ public:
     void OnUpdate (Registry& registry, float dt) override;
     void OnDestroy(Registry& registry)           override;
 
+    /// 启用/禁用 Debug 自由飞行模式（默认关闭）
+    void SetDebugMode(bool on) { m_DebugMode = on; }
+    bool IsDebugMode() const   { return m_DebugMode; }
+
 private:
     NCL::CSC8503::GameWorld* m_GameWorld = nullptr; ///< Bridge：NCL 世界引用（非游戏状态）
+    bool m_DebugMode = false; ///< Debug 模式：启用 WASD/鼠标自由飞行
 };
 
 } // namespace ECS

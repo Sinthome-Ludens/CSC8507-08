@@ -37,8 +37,8 @@ void Sys_Camera::OnAwake(Registry& registry) {
     // ── 通过 PrefabFactory 创建主相机实体 ──────────────────────
     EntityID entity_camera_main = PrefabFactory::CreateCameraMain(
         registry,
-        Vector3(0.0f, 15.0f, 40.0f),
-        -20.0f,  // pitch：略俯视
+        Vector3(0.0f, 25.0f, 6.7f),
+        -75.0f,  // pitch：75° 俯视角
         0.0f     // yaw：朝 -Z 方向
     );
 
@@ -76,55 +76,57 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
     registry.view<C_T_MainCamera, C_D_Camera, C_D_Transform>().each(
         [&](EntityID /*id*/, C_T_MainCamera&, C_D_Camera& cam, C_D_Transform& tf)
         {
-            // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）────
-            auto* kb = Window::GetKeyboard();
-            if (kb && windowActive) {
-                const bool altHeld = kb->KeyDown(KeyCodes::MENU);
-                if (altHeld != cam.cursor_free) {
-                    cam.cursor_free = altHeld;
-                    if (win) {
-                        win->ShowOSPointer(altHeld);
-                        win->LockMouseToWindow(!altHeld);
+            // ── Debug 模式：WASD/鼠标自由飞行（默认关闭）────────────────
+            if (m_DebugMode) {
+                // Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）
+                auto* kb = Window::GetKeyboard();
+                if (kb && windowActive) {
+                    const bool altHeld = kb->KeyDown(KeyCodes::MENU);
+                    if (altHeld != cam.cursor_free) {
+                        cam.cursor_free = altHeld;
+                        if (win) {
+                            win->ShowOSPointer(altHeld);
+                            win->LockMouseToWindow(!altHeld);
+                        }
                     }
+                }
+
+                // 鼠标旋转（cursor_free 模式下禁用）
+                auto* mouse = Window::GetMouse();
+                if (mouse && windowActive && !cam.cursor_free) {
+                    const Vector2 delta = mouse->GetRelativePosition();
+                    cam.yaw   -= delta.x * cam.sensitivity;
+                    cam.pitch -= delta.y * cam.sensitivity;
+                    cam.pitch  = std::clamp(cam.pitch, -89.0f, 89.0f);
+
+                    if (win) win->WarpCursorToCenter();
+                }
+
+                // 键盘平移（WASD + Q/E）
+                auto* kb2 = Window::GetKeyboard();
+                if (kb2 && windowActive) {
+                    const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
+                    const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
+
+                    const Vector3 forward(
+                        -sinf(yawRad) * cosf(pitchRad),
+                         sinf(pitchRad),
+                        -cosf(yawRad) * cosf(pitchRad)
+                    );
+                    const Vector3 right(cosf(yawRad), 0.0f, -sinf(yawRad));
+                    const Vector3 up(0.0f, 1.0f, 0.0f);
+
+                    const float speed = cam.move_speed * dt;
+                    if (kb2->KeyDown(KeyCodes::W)) tf.position += forward * speed;
+                    if (kb2->KeyDown(KeyCodes::S)) tf.position -= forward * speed;
+                    if (kb2->KeyDown(KeyCodes::A)) tf.position -= right   * speed;
+                    if (kb2->KeyDown(KeyCodes::D)) tf.position += right   * speed;
+                    if (kb2->KeyDown(KeyCodes::Q)) tf.position -= up      * speed;
+                    if (kb2->KeyDown(KeyCodes::E)) tf.position += up      * speed;
                 }
             }
 
-            // ── 鼠标旋转（cursor_free 模式下禁用）──────────────────────────
-            auto* mouse = Window::GetMouse();
-            if (mouse && windowActive && !cam.cursor_free) {
-                const Vector2 delta = mouse->GetRelativePosition();
-                cam.yaw   -= delta.x * cam.sensitivity;
-                cam.pitch -= delta.y * cam.sensitivity;
-                cam.pitch  = std::clamp(cam.pitch, -89.0f, 89.0f);
-
-                // 每帧将光标归位到窗口中心：防止光标漂到边缘导致原始输入受限
-                if (win) win->WarpCursorToCenter();
-            }
-
-            // ── 键盘平移（WASD + Q/E，cursor_free 时仍可移动）──────────────
-            if (kb && windowActive) {
-                const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
-                const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
-
-                // 前方向量（包含 pitch，实现仰望/俯视时仍能前进）
-                const Vector3 forward(
-                    -sinf(yawRad) * cosf(pitchRad),
-                     sinf(pitchRad),
-                    -cosf(yawRad) * cosf(pitchRad)
-                );
-                const Vector3 right(cosf(yawRad), 0.0f, -sinf(yawRad));
-                const Vector3 up(0.0f, 1.0f, 0.0f);
-
-                const float speed = cam.move_speed * dt;
-                if (kb->KeyDown(KeyCodes::W)) tf.position += forward * speed;
-                if (kb->KeyDown(KeyCodes::S)) tf.position -= forward * speed;
-                if (kb->KeyDown(KeyCodes::A)) tf.position -= right   * speed;
-                if (kb->KeyDown(KeyCodes::D)) tf.position += right   * speed;
-                if (kb->KeyDown(KeyCodes::Q)) tf.position -= up      * speed;
-                if (kb->KeyDown(KeyCodes::E)) tf.position += up      * speed;
-            }
-
-            // ── Bridge：同步到 NCL GameWorld 相机 ───────────────────
+            // ── Bridge：始终同步到 NCL GameWorld 相机 ───────────────────
             m_GameWorld->GetMainCamera()
                 .SetPosition(tf.position)
                 .SetPitch(cam.pitch)
