@@ -1,6 +1,11 @@
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
 #include <iostream>
+#include <cfloat>
+#include <cmath>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 
 using namespace NCL::Maths;
 
@@ -84,15 +89,13 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
     m_PhysicsSystem->SetContactListener(&m_ContactListener);
 
     // 注册 EventBus 到 Registry Context（EventBus 不可复制，以裸指针注册）
-    if (!registry.has_ctx<ECS::EventBus*>()) {
-        m_EventBus = std::make_unique<ECS::EventBus>();
-        registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
-    }
+    // 无条件覆盖，防止场景切换后残留悬空指针
+    m_EventBus = std::make_unique<ECS::EventBus>();
+    registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
 
     // 注册 Sys_Physics* 到 ctx，供其他系统（如 Sys_Gameplay / Sys_Movement）访问物理接口
-    if (!registry.has_ctx<Sys_Physics*>()) {
-        registry.ctx_emplace<Sys_Physics*>(this);
-    }
+    // 无条件覆盖，防止场景切换后残留悬空指针
+    registry.ctx_emplace<Sys_Physics*>(this);
 
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
 }
@@ -164,6 +167,14 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     m_PhysicsSystem.reset();
     m_JobSystem.reset();
     m_TempAllocator.reset();
+
+    // 清除 ctx 中的裸指针，防止场景切换后悬空引用
+    if (registry.has_ctx<Sys_Physics*>()) {
+        registry.ctx<Sys_Physics*>() = nullptr;
+    }
+    if (registry.has_ctx<ECS::EventBus*>()) {
+        registry.ctx<ECS::EventBus*>() = nullptr;
+    }
 
     // Jolt 全局资源（Factory 等）保持存活，避免多系统场景问题
     m_BroadPhaseOptimized = false;
@@ -439,6 +450,13 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
     RaycastHit result{};
     if (!m_PhysicsSystem) return result;
 
+    // 归一化方向向量，防止调用方传入非单位向量
+    float len = std::sqrt(dx * dx + dy * dy + dz * dz);
+    if (len < 1e-6f) return result;   // 零方向，直接返回未命中
+    dx /= len;
+    dy /= len;
+    dz /= len;
+
     // 构造 Jolt 射线（方向向量长度 = maxDist，fraction 1.0 = 最大距离处）
     JPH::RRayCast ray(JPH::RVec3(ox, oy, oz),
                       JPH::Vec3(dx * maxDist, dy * maxDist, dz * maxDist));
@@ -475,7 +493,7 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
 // ============================================================
 // ReplaceShapeCapsule — 运行时替换碰撞体为 Capsule
 // ============================================================
-void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float radius, float halfHeight) {
+void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight, float radius) {
     if (!m_PhysicsSystem) return;
 
     auto& bi = m_PhysicsSystem->GetBodyInterface();

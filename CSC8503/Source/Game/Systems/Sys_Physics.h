@@ -24,9 +24,6 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
-#include <Jolt/Physics/Collision/RayCast.h>
-#include <Jolt/Physics/Collision/CastResult.h>
-#include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 
 #include <unordered_map>
 #include <vector>
@@ -211,12 +208,13 @@ public:
     };
 
     /// 从 (ox,oy,oz) 沿 (dx,dy,dz) 方向射线检测，最大距离 maxDist
+    /// 方向向量无需归一化，内部会自动归一化
     RaycastHit CastRay(float ox, float oy, float oz,
                        float dx, float dy, float dz,
                        float maxDist);
 
     /// 运行时替换指定 Body 的碰撞体形状为 Capsule（姿态切换用）
-    void ReplaceShapeCapsule(uint32_t joltBodyID, float radius, float halfHeight);
+    void ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight, float radius);
 
     /// 直接设置动态体的世界位置（贴墙吸附用）
     void SetPosition(uint32_t joltBodyID, float px, float py, float pz);
