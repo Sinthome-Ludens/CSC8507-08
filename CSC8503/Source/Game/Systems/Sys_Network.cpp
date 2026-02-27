@@ -26,6 +26,9 @@
 
 namespace ECS {
 
+/**
+ * @brief 注册网络数据包类型的处理函数映射
+ */
 void Sys_Network::RegisterHandlers() {
     m_PacketHandlers[SYS_WELCOME]    = &Sys_Network::HandleWelcomePacket;
     m_PacketHandlers[SYNC_TRANSFORM] = &Sys_Network::HandleSyncTransform;
@@ -33,6 +36,10 @@ void Sys_Network::RegisterHandlers() {
     m_PacketHandlers[GAME_EVENT]     = &Sys_Network::HandleGameAction;
 }
 
+/**
+ * @brief 系统初始化阶段，配置事件并初始化 ENet 网络环境
+ * @param reg ECS 注册表
+ */
 void Sys_Network::OnAwake(Registry& reg) {
     RegisterHandlers();
     InitializeEvents(reg);
@@ -51,6 +58,10 @@ void Sys_Network::OnAwake(Registry& reg) {
     }
 }
 
+/**
+ * @brief 初始化事件总线并注册网络相关事件的监听器
+ * @param reg ECS 注册表
+ */
 void Sys_Network::InitializeEvents(Registry& reg) {
     // 缓存 Registry 指针供 EventBus 回调使用
     m_Registry = &reg;
@@ -66,6 +77,10 @@ void Sys_Network::InitializeEvents(Registry& reg) {
     );
 }
 
+/**
+ * @brief 将当前节点初始化为服务器，监听默认端口等待连接
+ * @param resNet 网络资源对象，用于存储服务器主机与状态
+ */
 void Sys_Network::InitializeServer(Res_Network& resNet) {
     ENetAddress address;
     address.host = ENET_HOST_ANY;
@@ -82,6 +97,10 @@ void Sys_Network::InitializeServer(Res_Network& resNet) {
     LOG_INFO("Network Server started on port 32499.");
 }
 
+/**
+ * @brief 将当前节点初始化为客户端，并向指定的服务器发起连接
+ * @param resNet 网络资源对象，用于存储客户端主机与连接状态
+ */
 void Sys_Network::InitializeClient(Res_Network& resNet) {
     resNet.host = enet_host_create(NULL, 1, 2, 0, 0);
     if (resNet.host == nullptr) {
@@ -105,6 +124,11 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
     LOG_INFO("Network Client connecting to 127.0.0.1:32499...");
 }
 
+/**
+ * @brief 每帧更新函数，处理网络事件、收集本地输入并进行状态广播
+ * @param reg ECS 注册表
+ * @param dt 帧耗时
+ */
 void Sys_Network::OnUpdate(Registry& reg, float dt) {
     auto& resNet = reg.ctx<Res_Network>();
     if (!resNet.host) return;
@@ -124,6 +148,11 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
     }
 }
 
+/**
+ * @brief 轮询并处理底层的 ENet 网络事件（连接、接收数据、断开）
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ */
 void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
     ENetEvent event;
     while (enet_host_service(resNet.host, &event, 0) > 0) {
@@ -168,6 +197,12 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
     }
 }
 
+/**
+ * @brief 接收数据包的分发器，根据包头类型调用对应的处理函数
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event 包含接收数据包的 ENet 事件
+ */
 void Sys_Network::HandleReceivePacket(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
     if (event.packet->dataLength < sizeof(Net_PacketHeader)) return;
 
@@ -183,6 +218,13 @@ void Sys_Network::HandleReceivePacket(Registry& reg, Res_Network& resNet, const 
 }
 
 // --- 数据包处理回调函数实现 ---
+
+/**
+ * @brief 处理 SYS_WELCOME 数据包（仅客户端），接收服务器分配的 ClientID
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
 void Sys_Network::HandleWelcomePacket(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
     if (resNet.mode != PeerType::CLIENT) return;
     
@@ -198,6 +240,12 @@ void Sys_Network::HandleWelcomePacket(Registry& reg, Res_Network& resNet, const 
     }
 }
 
+/**
+ * @brief 处理 SYNC_TRANSFORM 数据包（仅客户端），将服务器同步的位置数据存入插值缓冲区
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
 void Sys_Network::HandleSyncTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
     if (resNet.mode != PeerType::CLIENT) return;
 
@@ -218,6 +266,12 @@ void Sys_Network::HandleSyncTransform(Registry& reg, Res_Network& resNet, const 
     }
 }
 
+/**
+ * @brief 处理 CLIENT_INPUT 数据包（仅服务端），接收并更新对应客户端的按键输入状态
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
 void Sys_Network::HandleClientInput(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
     if (resNet.mode != PeerType::SERVER) return;
 
@@ -226,6 +280,12 @@ void Sys_Network::HandleClientInput(Registry& reg, Res_Network& resNet, const EN
     UpdatePlayerInput(reg, GetClientID(event), pkt->buttonMask);
 }
 
+/**
+ * @brief 处理 GAME_EVENT 数据包，将网络接收到的游戏动作作为本地事件抛出供其他系统消费
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
 void Sys_Network::HandleGameAction(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
     auto* pkt = GetPacketData<Net_Packet_GameAction>(event);
     if (!pkt) return;
@@ -241,6 +301,11 @@ void Sys_Network::HandleGameAction(Registry& reg, Res_Network& resNet, const ENe
     }
 }
 
+/**
+ * @brief 收集本地玩家输入，客户端会将其打包发送给服务端，服务端则直接应用于本地控制的实体
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ */
 void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
     if (!reg.has_ctx<Res_Input>()) return;
     auto& input = reg.ctx<Res_Input>();
@@ -277,6 +342,12 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
     }
 }
 
+/**
+ * @brief 将输入位掩码应用到特定客户端所拥有的实体上
+ * @param reg ECS 注册表
+ * @param clientID 对应的客户端唯一标识 ID
+ * @param buttonMask 玩家输入的按键位掩码
+ */
 void Sys_Network::UpdatePlayerInput(Registry& reg, uint32_t clientID, uint32_t buttonMask) {
     reg.view<C_D_NetworkIdentity>().each(
         [&](EntityID id, C_D_NetworkIdentity& net) {
@@ -291,6 +362,11 @@ void Sys_Network::UpdatePlayerInput(Registry& reg, uint32_t clientID, uint32_t b
     );
 }
 
+/**
+ * @brief （仅服务端）将所有网络实体的最新变换信息（Transform）打包广播给所有连接的客户端
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ */
 void Sys_Network::BroadcastWorldState(Registry& reg, Res_Network& resNet) {
     uint32_t currentTimestamp = (uint32_t)(reg.ctx<Res_Time>().totalTime * 1000.0f);
 
@@ -306,8 +382,17 @@ void Sys_Network::BroadcastWorldState(Registry& reg, Res_Network& resNet) {
     });
 }
 
+/**
+ * @brief 固定物理帧更新，目前暂未使用
+ * @param reg ECS 注册表
+ * @param dt 固定时间步长
+ */
 void Sys_Network::OnFixedUpdate(Registry& reg, float dt) {}
 
+/**
+ * @brief 系统销毁阶段，清理 ENet 资源与事件订阅，避免内存泄漏
+ * @param reg ECS 注册表
+ */
 void Sys_Network::OnDestroy(Registry& reg) {
     // 取消订阅，防止析构后依然收到回调
     if (reg.has_ctx<EventBus*>()) {
@@ -324,6 +409,10 @@ void Sys_Network::OnDestroy(Registry& reg) {
     LOG_INFO("Network System shut down. Sent: " << resNet.packetsSent << ", Received: " << resNet.packetsReceived);
 }
 
+/**
+ * @brief 监听本地产生的游戏动作事件，并将其打包发送到网络中
+ * @param evt 游戏动作事件对象
+ */
 void Sys_Network::OnLocalGameAction(const Evt_Net_GameAction& evt) {
     // 1. 防止死循环回音：如果这个事件是从网络收到的，就不再发回网络
     if (!evt.isLocalOrigin) return;
