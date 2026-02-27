@@ -112,11 +112,8 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&      registry,
     //           → Sys_Camera(50) → Sys_Input(10)
     systems.DestroyAll(registry);
 
-    // TODO: registry.Clear() —— 回收所有活动实体 ID，保留内存容量（Capacity）。
-    //   当前 Registry 尚未实现 Clear() 接口，待补充后启用：
-    //   registry.Clear();
-    //   规范要求（游戏开发.md §3.3.2）：OnExit 必须调用 registry.Clear()，
-    //   防止上一关实体状态污染下一关。
+    // 回收所有活动实体，防止上一关状态污染下一关
+    registry.Clear();
 
     LOG_INFO("[Scene_PhysicsTest] OnExit complete. All systems destroyed.");
 }

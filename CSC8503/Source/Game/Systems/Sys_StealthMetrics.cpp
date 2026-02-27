@@ -21,14 +21,14 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;
 
-    // 噪音节流计时器
-    m_NoiseCooldown -= dt;
-    if (m_NoiseCooldown < 0.0f) m_NoiseCooldown = 0.0f;
-
     registry.view<C_D_Input, C_D_Transform, C_D_RigidBody, C_T_Player, C_D_PlayerState>().each(
         [&](EntityID id, C_D_Input& input, C_D_Transform& tf, C_D_RigidBody& rb,
             C_T_Player&, C_D_PlayerState& ps) {
             if (!rb.body_created) return;
+
+            // 每实体噪音节流计时器递减
+            ps.noiseCooldown -= dt;
+            if (ps.noiseCooldown < 0.0f) ps.noiseCooldown = 0.0f;
 
             Vector3 vel = physics->GetLinearVelocity(rb.jolt_body_id);
             float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);
@@ -75,7 +75,7 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             }
 
             // ── 噪音事件发布（节流） ──
-            if (isMoving && ps.noiseLevel >= 0.01f && m_NoiseCooldown <= 0.0f) {
+            if (isMoving && ps.noiseLevel >= 0.01f && ps.noiseCooldown <= 0.0f) {
                 if (registry.has_ctx<EventBus*>()) {
                     auto& bus = *registry.ctx<EventBus*>();
 
@@ -86,7 +86,7 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
                     evt.type     = ps.isDisguised ? NoiseType::BoxScrape : NoiseType::Footstep;
 
                     bus.publish_deferred(evt);
-                    m_NoiseCooldown = NOISE_THROTTLE;
+                    ps.noiseCooldown = NOISE_THROTTLE;
 
                     LOG_INFO("[Sys_StealthMetrics] Noise: type="
                              << (int)evt.type << " vol=" << evt.volume);
