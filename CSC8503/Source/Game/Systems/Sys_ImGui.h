@@ -44,6 +44,7 @@ private:
     bool m_ShowDemoWindow  = false;
     bool m_ShowDebugWindow = true;
     bool m_ShowNCLStatus   = true;
+    bool m_WireframeMode   = false;
 };
 
 } // namespace ECS

@@ -42,6 +42,7 @@ namespace NCL::Win32Code {
 		void	LockMouseToWindow(bool lock)		override;
 		void	ShowOSPointer(bool show)			override;
 		void	WarpCursorToCenter()				override;
+		bool	IsActiveWindow() const			override { return active; }
 		void	SetConsolePosition(int x, int y)	override;
 		void	ShowConsole(bool state)				override;
 		void	SetFullScreen(bool state)			override;

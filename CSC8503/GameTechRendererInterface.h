@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 namespace NCL::Rendering {
 	class Mesh;
@@ -12,6 +13,7 @@ namespace NCL::CSC8503 {
 	public:
 		virtual NCL::Rendering::Mesh*		LoadMesh(const std::string& name)		= 0;
 		virtual NCL::Rendering::Texture*	LoadTexture(const std::string& name)	= 0;
+		virtual void SetWireframeMode(bool /*enabled*/) {}
 	};
 }
 
