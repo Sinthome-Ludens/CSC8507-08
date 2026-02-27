@@ -25,6 +25,17 @@ enum Net_PacketType : uint8_t {
     CLIENT_INPUT         ///< 客户端输入数据包（用于服务器权威架构）
 };
 
+// 传输可靠性
+enum class NetDelivery {
+    Unreliable = 0,               // 不可靠传输（UDP特性，快，可能丢包）
+    Reliable   = ENET_PACKET_FLAG_RELIABLE // 可靠传输（类似TCP重传，慢，保证到达）
+};
+
+// 发送范围
+enum class NetTarget {
+    Single,    // 发送给当前绑定的 peer
+    Broadcast  // 广播给所有连接的客户端
+};
 /**
  * @struct Net_PacketHeader
  * @brief 所有网络数据包的公共包头

@@ -187,9 +187,10 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                 break;
             }
             case ENET_EVENT_TYPE_DISCONNECT: {
-                LOG_INFO("Peer disconnected.");
+                uint32_t disconnectedID = (resNet.mode == PeerType::SERVER) ? GetClientID(event) : 0u;
+                LOG_INFO("Peer disconnected. ID: " << disconnectedID);
                 if (reg.has_ctx<EventBus*>()) {
-                    reg.ctx<EventBus*>()->publish_deferred<Evt_Net_PeerDisconnected>({ 0u });
+                    reg.ctx<EventBus*>()->publish_deferred<Evt_Net_PeerDisconnected>({ disconnectedID });
                 }
                 if (resNet.mode == PeerType::CLIENT) resNet.connected = false;
                 break;
@@ -323,24 +324,23 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
         pkt.type = CLIENT_INPUT;
         pkt.timestamp = (uint32_t)(reg.ctx<Res_Time>().totalTime * 1000.0f);
         pkt.buttonMask = currentMask;
-        
-                bool isMoving = (currentMask != 0);
-                bool stateChanged = (currentMask != m_LastInputMask);
-        
-                static float inputTimer = 0.0f;
-                inputTimer += reg.ctx<Res_Time>().deltaTime;
-        
-                if (stateChanged) {
-                    // 状态改变时（无论是按下新键还是松开），发送一次可靠包
-                    SendPacket(resNet, pkt, false, true);
-                    inputTimer = 0.0f; // 重置计时器
-                } else if (isMoving && inputTimer >= m_SendRate) {
-                    // 持续按键时，按照设定频率发送不可靠包
-                    SendPacket(resNet, pkt, false, false);
-                    inputTimer -= m_SendRate;
-                    if (inputTimer > m_SendRate) inputTimer = 0.0f; // 防止螺旋
-                }
-                m_LastInputMask = currentMask;    }    
+        bool isMoving = (currentMask != 0);
+        bool stateChanged = (currentMask != m_LastInputMask);
+        static float inputTimer = 0.0f;
+        inputTimer += reg.ctx<Res_Time>().deltaTime;
+
+        if (stateChanged) {
+            // 状态改变时（无论是按下新键还是松开），发送一次可靠包
+            SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Reliable);
+            inputTimer = 0.0f; // 重置计时器
+        } else if (isMoving && inputTimer >= m_SendRate) {
+            // 持续按键时，按照设定频率发送不可靠包
+            SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Unreliable);
+            inputTimer -= m_SendRate;
+            if (inputTimer > m_SendRate) inputTimer = 0.0f; // 防止螺旋
+        }
+        m_LastInputMask = currentMask;
+    }
 
     // --- 2. Server：处理主机本地玩家的输入 ---
     if (resNet.mode == PeerType::SERVER) {
@@ -384,7 +384,7 @@ void Sys_Network::BroadcastWorldState(Registry& reg, Res_Network& resNet) {
         pkt.pos[0] = tf.position.x; pkt.pos[1] = tf.position.y; pkt.pos[2] = tf.position.z;
         pkt.rot[0] = tf.rotation.x; pkt.rot[1] = tf.rotation.y; pkt.rot[2] = tf.rotation.z; pkt.rot[3] = tf.rotation.w;
         
-        SendPacket(resNet, pkt, true);
+        SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Unreliable);
     });
 }
 
@@ -448,7 +448,7 @@ void Sys_Network::OnLocalGameAction(const Evt_Net_GameAction& evt) {
 
     // Server 广播给所有人，Client 发送给 Server
     bool isServer = (resNet.mode == PeerType::SERVER);
-    SendPacket(resNet, pkt, isServer, true);
+    SendPacket(resNet, pkt, isServer ? NetTarget::Broadcast : NetTarget::Single, NetDelivery::Reliable);
 }
 
 } // namespace ECS

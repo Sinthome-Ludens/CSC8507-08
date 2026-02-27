@@ -105,10 +105,11 @@ private:
      * @param reliable 是否可靠传输（true=可靠，false=不可靠分片）
      */
     template<typename T>
-    void SendPacket(Res_Network& resNet, T& packet, bool broadcast = false, bool reliable = false) {
-        enet_uint32 flags = reliable ? ENET_PACKET_FLAG_RELIABLE : 0;
+    void SendPacket(Res_Network& resNet, T& packet, NetTarget target = NetTarget::Single, NetDelivery delivery = NetDelivery::Unreliable) {
+        // 将枚举转换为 ENet 内部标识
+        enet_uint32 flags = static_cast<enet_uint32>(delivery);
         ENetPacket* p = enet_packet_create(&packet, sizeof(T), flags);
-        if (broadcast) {
+        if (target == NetTarget::Broadcast) {
             enet_host_broadcast(resNet.host, 0, p);
         } else if (resNet.peer) {
             enet_peer_send(resNet.peer, 0, p);
