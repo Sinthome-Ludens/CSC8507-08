@@ -80,12 +80,11 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     }
 
     // 4. 注册系统
-    //TODO: 系统优先级调整，确认相机的优先级，是否应该在物理之后渲染之前更新相机？
     systems.Register<ECS::Sys_Input>        ( 10);
-    systems.Register<ECS::Sys_Camera>       ( 50);
     systems.Register<ECS::Sys_Physics>      (100);
     systems.Register<ECS::Sys_Network>      (150);
     systems.Register<ECS::Sys_Interpolation>(160);
+    systems.Register<ECS::Sys_Camera>       (180);
     systems.Register<ECS::Sys_Render>       (200);
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>        (300);

@@ -78,6 +78,7 @@ void Sys_Network::InitializeServer(Res_Network& resNet) {
     }
     resNet.localClientID = 0;
     resNet.connected = true;
+    m_NextClientID = 1; 
     LOG_INFO("Network Server started on port 32499.");
 }
 
@@ -100,6 +101,7 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
         LOG_ERROR("No available peers for initiating an ENet connection.");
         return;
     }
+    m_LastInputMask = 0;
     LOG_INFO("Network Client connecting to 127.0.0.1:32499...");
 }
 
@@ -130,8 +132,7 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
             case ENET_EVENT_TYPE_CONNECT: {
                 std::cout << "[INFO] A new peer connected.\n";
                 if (resNet.mode == PeerType::SERVER) {
-                    static uint32_t nextClientID = 1;
-                    uint32_t newClientID = nextClientID++;
+                    uint32_t newClientID = m_NextClientID++;
                     event.peer->data = (void*)(uintptr_t)newClientID;
                     if (reg.has_ctx<EventBus*>()) {
                         reg.ctx<EventBus*>()->publish_deferred<Evt_Net_PeerConnected>({ newClientID });
@@ -257,9 +258,8 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
         pkt.timestamp = (uint32_t)(reg.ctx<Res_Time>().totalTime * 1000.0f);
         pkt.buttonMask = currentMask;
         
-        static uint32_t lastMask = 0;
         bool isMoving = (currentMask != 0);
-        bool stateChanged = (currentMask != lastMask);
+        bool stateChanged = (currentMask != m_LastInputMask);
         
         if (isMoving) {
             // 持续按键时，高频发送不可靠包
@@ -268,7 +268,7 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
             // 刚松开按键时，发送一次可靠包，确保服务端能停下
             SendPacket(resNet, pkt, true);
         }
-        lastMask = currentMask;
+        m_LastInputMask = currentMask;
     }    
 
     // --- 2. Server：处理主机本地玩家的输入 ---

@@ -120,6 +120,9 @@ private:
     // ── 事件监听与发送 ──
     Registry* m_Registry = nullptr; ///< 缓存的注册表指针，用于在事件回调中获取网络资源
     SubscriptionID m_ActionSubID = 0; ///< 保存事件订阅的 ID
+    uint32_t m_NextClientID = 1; ///< 服务端分配给下一个连接客户端的 ID
+    uint32_t m_LastInputMask = 0; ///< 记录客户端上一帧的输入，用于判断状态变化
+
     void OnLocalGameAction(const Evt_Net_GameAction& evt);
 };
 
