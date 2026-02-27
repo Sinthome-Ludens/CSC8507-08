@@ -222,7 +222,7 @@ void Sys_Network::HandleClientInput(Registry& reg, Res_Network& resNet, const EN
 
     auto* pkt = GetPacketData<Net_Packet_ClientInput>(event);
     if (!pkt) return;
-    UpdatePlayerInput(reg, GetClientID(event), pkt->up, pkt->down, pkt->left, pkt->right);
+    UpdatePlayerInput(reg, GetClientID(event), pkt->buttonMask);
 }
 
 void Sys_Network::HandleGameAction(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
@@ -243,41 +243,41 @@ void Sys_Network::HandleGameAction(Registry& reg, Res_Network& resNet, const ENe
 void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
     if (!reg.has_ctx<Res_Input>()) return;
     auto& input = reg.ctx<Res_Input>();
+
+    uint32_t currentMask = 0;
+    if (input.keyStates[NCL::KeyCodes::UP])    currentMask |= PlayerInputFlags::Up;
+    if (input.keyStates[NCL::KeyCodes::DOWN])  currentMask |= PlayerInputFlags::Down;
+    if (input.keyStates[NCL::KeyCodes::LEFT])  currentMask |= PlayerInputFlags::Left;
+    if (input.keyStates[NCL::KeyCodes::RIGHT]) currentMask |= PlayerInputFlags::Right;
     
     // --- 1. Client：收集输入并发送给 Server ---
     if (resNet.mode == PeerType::CLIENT && resNet.peer != nullptr) {
         Net_Packet_ClientInput pkt;
         pkt.type = CLIENT_INPUT;
         pkt.timestamp = (uint32_t)(reg.ctx<Res_Time>().totalTime * 1000.0f);
-        pkt.up = input.keyStates[NCL::KeyCodes::UP];
-        pkt.down = input.keyStates[NCL::KeyCodes::DOWN];
-        pkt.left = input.keyStates[NCL::KeyCodes::LEFT];
-                    pkt.right = input.keyStates[NCL::KeyCodes::RIGHT];
-                    
-                    static Net_Packet_ClientInput lastPkt = {};
-                    bool isMoving = pkt.up || pkt.down || pkt.left || pkt.right;
-                    bool stateChanged = (pkt.up != lastPkt.up) || (pkt.down != lastPkt.down) || 
-                                        (pkt.left != lastPkt.left) || (pkt.right != lastPkt.right);
-                    
-                    if (isMoving) {
-                        // 持续按键时，高频发送不可靠包
-                        SendPacket(resNet, pkt, false);
-                    } else if (stateChanged) {
-                        // 刚松开按键时，发送一次可靠包，确保服务端能停下
-                        SendPacket(resNet, pkt, true);
-                    }
-                    lastPkt = pkt;
-                }    
+        pkt.buttonMask = currentMask;
+        
+        static uint32_t lastMask = 0;
+        bool isMoving = (currentMask != 0);
+        bool stateChanged = (currentMask != lastMask);
+        
+        if (isMoving) {
+            // 持续按键时，高频发送不可靠包
+            SendPacket(resNet, pkt, false);
+        } else if (stateChanged) {
+            // 刚松开按键时，发送一次可靠包，确保服务端能停下
+            SendPacket(resNet, pkt, true);
+        }
+        lastMask = currentMask;
+    }    
+
     // --- 2. Server：处理主机本地玩家的输入 ---
     if (resNet.mode == PeerType::SERVER) {
-        UpdatePlayerInput(reg, resNet.localClientID, input.keyStates[NCL::KeyCodes::UP], 
-                      input.keyStates[NCL::KeyCodes::DOWN], 
-                      input.keyStates[NCL::KeyCodes::LEFT], 
-                      input.keyStates[NCL::KeyCodes::RIGHT]);
+        UpdatePlayerInput(reg, resNet.localClientID, currentMask);
     }
 }
 
-void Sys_Network::UpdatePlayerInput(Registry& reg, uint32_t clientID, bool up, bool down, bool left, bool right) {
+void Sys_Network::UpdatePlayerInput(Registry& reg, uint32_t clientID, uint32_t buttonMask) {
     reg.view<C_D_NetworkIdentity>().each(
         [&](EntityID id, C_D_NetworkIdentity& net) {
             if (net.ownerClientID == clientID) {
@@ -285,10 +285,7 @@ void Sys_Network::UpdatePlayerInput(Registry& reg, uint32_t clientID, bool up, b
                     reg.Emplace<C_D_PlayerInput>(id);
                 }
                 auto& input = reg.Get<C_D_PlayerInput>(id);
-                input.up    = up;
-                input.down  = down;
-                input.left  = left;
-                input.right = right;
+                input.buttonMask = buttonMask;
             }
         }
     );

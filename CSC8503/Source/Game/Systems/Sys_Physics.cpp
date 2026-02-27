@@ -439,13 +439,13 @@ void ECS::Sys_Physics::ApplyPlayerInputs(Registry& reg) {
     reg.view<C_D_PlayerInput, C_D_RigidBody>().each(
         [&](EntityID id, C_D_PlayerInput& input, C_D_RigidBody& rb) {
             if (!rb.body_created || rb.is_kinematic || rb.is_static) return;
-            
+
             float vx = 0.0f, vz = 0.0f;
-            if (input.left)  vx -= speed;
-            if (input.right) vx += speed;
-            if (input.up)    vz -= speed;
-            if (input.down)  vz += speed;
-            
+            if (input.buttonMask & PlayerInputFlags::Left)  vx -= speed;
+            if (input.buttonMask & PlayerInputFlags::Right) vx += speed;
+            if (input.buttonMask & PlayerInputFlags::Up)    vz -= speed;
+            if (input.buttonMask & PlayerInputFlags::Down)  vz += speed;
+
             if (vx != 0.0f || vz != 0.0f) {
                 JPH::BodyID jid(rb.jolt_body_id);
                 bi.ActivateBody(jid);

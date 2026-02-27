@@ -102,10 +102,7 @@ struct Net_Packet_GameAction : public Net_PacketHeader {
  * 客户端将键盘/手柄的意图打包发送给服务端，由服务端进行物理模拟。
  */
 struct Net_Packet_ClientInput : public Net_PacketHeader {
-    bool up;
-    bool down;
-    bool left;
-    bool right;
+    uint32_t buttonMask;
 };
 
 #pragma pack(pop)
