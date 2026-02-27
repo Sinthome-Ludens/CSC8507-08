@@ -61,6 +61,9 @@ void Sys_Camera::OnAwake(Registry& registry) {
         .SetPitch(cam.pitch)
         .SetYaw(cam.yaw);
 
+    // ── 注册 Sys_Camera* 到 ctx，供 Sys_PlayerCamera 读取 debug 状态 ──
+    registry.ctx_emplace<Sys_Camera*>(this);
+
     LOG_INFO("[Sys_Camera] OnAwake - 主相机实体 id=" << entity_camera_main);
 }
 
@@ -73,9 +76,29 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
     auto* win = Window::GetWindow();
     const bool windowActive = (win != nullptr) && win->IsActiveWindow();
 
+    // ── F1 键切换 Debug 模式 ──────────────────────────────────────
+    auto* kbGlobal = Window::GetKeyboard();
+    if (kbGlobal && windowActive) {
+        bool f1Down = kbGlobal->KeyPressed(KeyCodes::F1);
+        if (f1Down) {
+            m_DebugMode = !m_DebugMode;
+            LOG_INFO("[Sys_Camera] Debug mode " << (m_DebugMode ? "ON" : "OFF"));
+            // 关闭 debug 时重置鼠标状态，避免卡在 cursor_free
+            if (!m_DebugMode && win) {
+                win->ShowOSPointer(false);
+                win->LockMouseToWindow(true);
+            }
+        }
+    }
+
     registry.view<C_T_MainCamera, C_D_Camera, C_D_Transform>().each(
         [&](EntityID /*id*/, C_T_MainCamera&, C_D_Camera& cam, C_D_Transform& tf)
         {
+            // 关闭 debug 时重置 cursor_free 状态
+            if (!m_DebugMode) {
+                cam.cursor_free = false;
+            }
+
             // ── Debug 模式：WASD/鼠标自由飞行（默认关闭）────────────────
             if (m_DebugMode) {
                 // Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）
@@ -103,8 +126,7 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                 }
 
                 // 键盘平移（WASD + Q/E）
-                auto* kb2 = Window::GetKeyboard();
-                if (kb2 && windowActive) {
+                if (kb && windowActive) {
                     const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
                     const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
 
@@ -117,12 +139,12 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                     const Vector3 up(0.0f, 1.0f, 0.0f);
 
                     const float speed = cam.move_speed * dt;
-                    if (kb2->KeyDown(KeyCodes::W)) tf.position += forward * speed;
-                    if (kb2->KeyDown(KeyCodes::S)) tf.position -= forward * speed;
-                    if (kb2->KeyDown(KeyCodes::A)) tf.position -= right   * speed;
-                    if (kb2->KeyDown(KeyCodes::D)) tf.position += right   * speed;
-                    if (kb2->KeyDown(KeyCodes::Q)) tf.position -= up      * speed;
-                    if (kb2->KeyDown(KeyCodes::E)) tf.position += up      * speed;
+                    if (kb->KeyDown(KeyCodes::W)) tf.position += forward * speed;
+                    if (kb->KeyDown(KeyCodes::S)) tf.position -= forward * speed;
+                    if (kb->KeyDown(KeyCodes::A)) tf.position -= right   * speed;
+                    if (kb->KeyDown(KeyCodes::D)) tf.position += right   * speed;
+                    if (kb->KeyDown(KeyCodes::Q)) tf.position -= up      * speed;
+                    if (kb->KeyDown(KeyCodes::E)) tf.position += up      * speed;
                 }
             }
 
@@ -139,6 +161,9 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
 // OnDestroy
 // ============================================================
 void Sys_Camera::OnDestroy(Registry& registry) {
+    if (registry.has_ctx<Sys_Camera*>()) {
+        registry.ctx<Sys_Camera*>() = nullptr;
+    }
     m_GameWorld = nullptr;
     LOG_INFO("[Sys_Camera] OnDestroy");
 }

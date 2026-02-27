@@ -4,8 +4,7 @@
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/C_T_MainCamera.h"
 #include "Game/Components/C_T_Player.h"
-#include "Game/Utils/Log.h"
-
+#include "Game/Systems/Sys_Camera.h"
 #include <algorithm>
 
 using namespace NCL::Maths;
@@ -13,6 +12,12 @@ using namespace NCL::Maths;
 namespace ECS {
 
 void Sys_PlayerCamera::OnUpdate(Registry& registry, float dt) {
+    // Debug 模式下跳过跟随，让 Sys_Camera 自由飞行
+    if (registry.has_ctx<Sys_Camera*>()) {
+        auto* cam = registry.ctx<Sys_Camera*>();
+        if (cam && cam->IsDebugMode()) return;
+    }
+
     // 1. 找到玩家位置
     Vector3 playerPos{0, 0, 0};
     bool foundPlayer = false;
