@@ -396,6 +396,19 @@ void ECS::Sys_Physics::ApplyImpulse(uint32_t joltBodyID, float ix, float iy, flo
         JPH::BodyID(joltBodyID), ToJolt(ix, iy, iz));
 }
 
+void ECS::Sys_Physics::AddForce(uint32_t joltBodyID, float fx, float fy, float fz) {
+    if (!m_PhysicsSystem) return;
+    m_PhysicsSystem->GetBodyInterface().AddForce(
+        JPH::BodyID(joltBodyID), ToJolt(fx, fy, fz));
+}
+
+Vector3 ECS::Sys_Physics::GetLinearVelocity(uint32_t joltBodyID) {
+    if (!m_PhysicsSystem) return Vector3(0, 0, 0);
+    JPH::Vec3 v = m_PhysicsSystem->GetBodyInterface().GetLinearVelocity(
+        JPH::BodyID(joltBodyID));
+    return Vector3(v.GetX(), v.GetY(), v.GetZ());
+}
+
 void ECS::Sys_Physics::MoveKinematic(
     uint32_t joltBodyID,
     float px, float py, float pz,

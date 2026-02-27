@@ -187,6 +187,12 @@ public:
                        float qx, float qy, float qz, float qw,
                        float dt);
 
+    /// 给 Jolt 刚体施加持续力（动态体，需每帧调用）
+    void AddForce(uint32_t joltBodyID, float fx, float fy, float fz);
+
+    /// 获取 Jolt 刚体当前线速度（动态体）
+    NCL::Maths::Vector3 GetLinearVelocity(uint32_t joltBodyID);
+
     /// 获取 Jolt PhysicsSystem 指针（供调试/ImGui 使用）
     JPH::PhysicsSystem* GetJoltPhysicsSystem() const { return m_PhysicsSystem.get(); }
 
