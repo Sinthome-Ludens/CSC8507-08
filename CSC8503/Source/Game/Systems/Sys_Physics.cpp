@@ -89,6 +89,11 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
         registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
     }
 
+    // 注册 Sys_Physics* 到 ctx，供其他系统（如 Sys_Gameplay / Sys_Movement）访问物理接口
+    if (!registry.has_ctx<Sys_Physics*>()) {
+        registry.ctx_emplace<Sys_Physics*>(this);
+    }
+
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
 }
 
