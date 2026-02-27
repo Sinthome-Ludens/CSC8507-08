@@ -99,6 +99,14 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
 void Scene_NetworkGame::OnExit(ECS::Registry&      registry,
                                ECS::SystemManager& systems)
 {
+    // 清理悬空指针（在系统销毁前）
+    if (registry.has_ctx<ECS::EventBus*>()) {
+        registry.ctx<ECS::EventBus*>() = nullptr;
+    }
+    if (registry.has_ctx<JPH::PhysicsSystem*>()) {
+        registry.ctx<JPH::PhysicsSystem*>() = nullptr;
+    }
+    
     systems.DestroyAll(registry);
     registry.Clear();
     LOG_INFO("[Scene_NetworkGame] OnExit complete.");

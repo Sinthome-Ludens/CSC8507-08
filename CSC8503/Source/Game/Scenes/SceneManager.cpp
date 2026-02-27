@@ -2,6 +2,7 @@
 #include "Game/Utils/Assert.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Time.h"
+#include "Core/ECS/EventBus.h"
 
 namespace ECS {
 
@@ -54,6 +55,13 @@ void SceneManager::Update(float dt) {
     time.frameCount++;
 
     m_Systems.UpdateAll(m_Registry, dt);
+    // 修复：刷新延迟事件队列
+    if (m_Registry.has_ctx<EventBus*>()) {
+        auto* eventBus = m_Registry.ctx<EventBus*>();
+        if (eventBus) {
+            eventBus->flush();
+        }
+    }
 }
 
 // ============================================================

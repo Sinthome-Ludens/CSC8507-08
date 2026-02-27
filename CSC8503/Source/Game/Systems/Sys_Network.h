@@ -105,7 +105,7 @@ private:
      */
     template<typename T>
     void SendPacket(Res_Network& resNet, T& packet, bool broadcast = false, bool reliable = false) {
-        enet_uint32 flags = reliable ? ENET_PACKET_FLAG_RELIABLE : ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT;
+        enet_uint32 flags = reliable ? ENET_PACKET_FLAG_RELIABLE : 0;
         ENetPacket* p = enet_packet_create(&packet, sizeof(T), flags);
         if (broadcast) {
             enet_host_broadcast(resNet.host, 0, p);

@@ -139,15 +139,15 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
 
     // 2. 处理本地输入（客户端发包，服务端直接驱动物理）
     HandleLocalInput(reg, resNet);
-    
+
     // 3. 服务端定时广播同步状态
     m_TimeSinceLastSend += dt;
     if (m_TimeSinceLastSend >= m_SendRate && resNet.mode == PeerType::SERVER) {
-        m_TimeSinceLastSend = 0.0f;
+        m_TimeSinceLastSend -= m_SendRate;
+        if (m_TimeSinceLastSend > m_SendRate) m_TimeSinceLastSend = 0.0f; // prevent spiral
         BroadcastWorldState(reg, resNet);
     }
 }
-
 /**
  * @brief 轮询并处理底层的 ENet 网络事件（连接、接收数据、断开）
  * @param reg ECS 注册表
@@ -323,18 +323,23 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
         pkt.timestamp = (uint32_t)(reg.ctx<Res_Time>().totalTime * 1000.0f);
         pkt.buttonMask = currentMask;
         
-        bool isMoving = (currentMask != 0);
-        bool stateChanged = (currentMask != m_LastInputMask);
+                bool isMoving = (currentMask != 0);
+                bool stateChanged = (currentMask != m_LastInputMask);
         
-        if (isMoving) {
-            // 持续按键时，高频发送不可靠包
-            SendPacket(resNet, pkt, false, false);
-        } else if (stateChanged) {
-            // 刚松开按键时，发送一次可靠包，确保服务端能停下
-            SendPacket(resNet, pkt, false, true);
-        }
-        m_LastInputMask = currentMask;
-    }    
+                static float inputTimer = 0.0f;
+                inputTimer += reg.ctx<Res_Time>().deltaTime;
+        
+                if (stateChanged) {
+                    // 状态改变时（无论是按下新键还是松开），发送一次可靠包
+                    SendPacket(resNet, pkt, false, true);
+                    inputTimer = 0.0f; // 重置计时器
+                } else if (isMoving && inputTimer >= m_SendRate) {
+                    // 持续按键时，按照设定频率发送不可靠包
+                    SendPacket(resNet, pkt, false, false);
+                    inputTimer -= m_SendRate;
+                    if (inputTimer > m_SendRate) inputTimer = 0.0f; // 防止螺旋
+                }
+                m_LastInputMask = currentMask;    }    
 
     // --- 2. Server：处理主机本地玩家的输入 ---
     if (resNet.mode == PeerType::SERVER) {

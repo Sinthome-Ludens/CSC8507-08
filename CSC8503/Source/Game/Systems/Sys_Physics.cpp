@@ -91,9 +91,6 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
     }
 
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
-
-    // 将 Jolt PhysicsSystem 指针注册到 Registry Context，供其他系统（如 Sys_Network）访问
-    registry.ctx_emplace<JPH::PhysicsSystem*>(m_PhysicsSystem.get());
 }
 
 // ============================================================
@@ -446,12 +443,12 @@ void ECS::Sys_Physics::ApplyPlayerInputs(Registry& reg) {
             if (input.buttonMask & PlayerInputFlags::Up)    vz -= speed;
             if (input.buttonMask & PlayerInputFlags::Down)  vz += speed;
 
+            JPH::BodyID jid(rb.jolt_body_id);
             if (vx != 0.0f || vz != 0.0f) {
-                JPH::BodyID jid(rb.jolt_body_id);
                 bi.ActivateBody(jid);
-                JPH::Vec3 curVel = bi.GetLinearVelocity(jid);
-                SetLinearVelocity(rb.jolt_body_id, vx, curVel.GetY(), vz);
             }
+            JPH::Vec3 curVel = bi.GetLinearVelocity(jid);
+            SetLinearVelocity(rb.jolt_body_id, vx, curVel.GetY(), vz);
         }
     );
 }
