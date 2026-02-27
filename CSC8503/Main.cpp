@@ -33,6 +33,7 @@
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Scenes/SceneManager.h"
 #include "Game/Scenes/Scene_PhysicsTest.h"
+#include "Game/Scenes/Scene_NavTest.h"
 
 #ifdef USE_IMGUI
 #include "Core/Bridge/ImGuiAdapter.h"
@@ -100,7 +101,7 @@ int main() {
 	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics, renderer});
 
 	// 进入首个场景（OnEnter：加载资源 → 创建初始实体 → AwakeAll）
-	sceneManager.PushScene(new Scene_PhysicsTest());
+	sceneManager.PushScene(new Scene_NavTest());
 
 	w->GetTimer().GetTimeDeltaSeconds();
 	while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {

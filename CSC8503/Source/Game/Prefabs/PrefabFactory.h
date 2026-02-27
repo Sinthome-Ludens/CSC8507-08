@@ -106,4 +106,47 @@ public:
         int                 spawnIndex,
         NCL::Maths::Vector3 spawnPos
     );
+
+    // ============================================================
+    // 导航实体（NavTest 场景专用）
+    // ============================================================
+
+    /**
+     * @brief 创建带 NavAgent 的导航敌人实体（PREFAB_NAV_ENEMY）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody(锁旋转), C_D_Collider(Capsule),
+     *        C_T_Enemy, C_D_AIState, C_D_AIPreception,
+     *        C_D_NavAgent, C_T_Pathfinder, C_D_DebugName
+     *
+     * @param reg          ECS Registry
+     * @param enemyMesh    敌人网格句柄
+     * @param spawnIndex   生成序号
+     * @param spawnPos     生成位置（世界坐标）
+     * @return 导航敌人实体 ID
+     */
+    static ECS::EntityID CreateNavEnemy(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     enemyMesh,
+        int                 spawnIndex,
+        NCL::Maths::Vector3 spawnPos
+    );
+
+    /**
+     * @brief 创建导航目标实体（PREFAB_NAV_TARGET）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody(静态), C_D_Collider(Box),
+     *        C_T_NavTarget, C_D_DebugName
+     *
+     * @param reg          ECS Registry
+     * @param targetMesh   目标网格句柄
+     * @param spawnIndex   生成序号
+     * @param spawnPos     生成位置（世界坐标）
+     * @return 目标实体 ID
+     */
+    static ECS::EntityID CreateNavTarget(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     targetMesh,
+        int                 spawnIndex,
+        NCL::Maths::Vector3 spawnPos
+    );
 };
