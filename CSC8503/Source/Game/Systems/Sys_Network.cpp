@@ -260,10 +260,13 @@ void Sys_Network::HandleSyncTransform(Registry& reg, Res_Network& resNet, const 
         EntityID target = it->second;
         if (reg.Has<C_D_InterpBuffer>(target)) {
             auto& buffer = reg.Get<C_D_InterpBuffer>(target);
+            
+            //抛弃服务器发来的时间戳，改用客户端收到该包的本地时间戳。
+            float localReceiveTimeMs = reg.ctx<Res_Time>().totalTime * 1000.0f;
             buffer.AddSnapshot(
                 NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]),
                 NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]),
-                (float)pkt->timestamp
+                localReceiveTimeMs
             );
         }
     }

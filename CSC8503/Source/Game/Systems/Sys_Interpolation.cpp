@@ -16,8 +16,6 @@ void Sys_Interpolation::OnUpdate(Registry& reg, float dt) {
     auto& resNet = reg.ctx<Res_Network>();
     auto& resTime = reg.ctx<Res_Time>();
 
-    // 我们不渲染远程实体的“最新”位置，而是回溯到 (当前时间 - 延迟) 的时刻
-    // 目标回放时刻 = 当前总时间 - 渲染延迟
     float targetTime = (resTime.totalTime - m_RenderDelay) * 1000.0f; // 转为毫秒
 
     // 遍历所有具有 变换、网络身份、插值缓冲区 的实体
