@@ -422,3 +422,89 @@ void ECS::Sys_Physics::MoveKinematic(
         JPH::Quat(qx, qy, qz, qw),
         dt);
 }
+
+// ============================================================
+// CastRay — 射线检测（POD 接口）
+// ============================================================
+ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
+    float ox, float oy, float oz,
+    float dx, float dy, float dz,
+    float maxDist)
+{
+    RaycastHit result{};
+    if (!m_PhysicsSystem) return result;
+
+    // 构造 Jolt 射线（方向向量长度 = maxDist，fraction 1.0 = 最大距离处）
+    JPH::RRayCast ray(JPH::RVec3(ox, oy, oz),
+                      JPH::Vec3(dx * maxDist, dy * maxDist, dz * maxDist));
+
+    JPH::RayCastResult hit;
+    hit.mFraction = 1.0f + FLT_EPSILON; // 初始化为未命中
+
+    const auto& query = m_PhysicsSystem->GetNarrowPhaseQuery();
+    if (query.CastRay(ray, hit)) {
+        result.hit      = true;
+        result.fraction = hit.mFraction;
+        result.bodyID   = hit.mBodyID.GetIndexAndSequenceNumber();
+
+        // 计算命中点
+        JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
+        result.pointX = static_cast<float>(hitPoint.GetX());
+        result.pointY = static_cast<float>(hitPoint.GetY());
+        result.pointZ = static_cast<float>(hitPoint.GetZ());
+
+        // 获取命中面的法线（需要 BodyLock 访问 Body 对象）
+        JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), hit.mBodyID);
+        if (lock.Succeeded()) {
+            const JPH::Body& body = lock.GetBody();
+            JPH::Vec3 normal = body.GetWorldSpaceSurfaceNormal(
+                hit.mSubShapeID2, hitPoint);
+            result.normalX = normal.GetX();
+            result.normalY = normal.GetY();
+            result.normalZ = normal.GetZ();
+        }
+    }
+    return result;
+}
+
+// ============================================================
+// ReplaceShapeCapsule — 运行时替换碰撞体为 Capsule
+// ============================================================
+void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float radius, float halfHeight) {
+    if (!m_PhysicsSystem) return;
+
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+    JPH::BodyID jid(joltBodyID);
+
+    // 创建新的 Capsule 形状
+    JPH::CapsuleShapeSettings capsuleSettings(halfHeight, radius);
+    auto shapeResult = capsuleSettings.Create();
+    if (shapeResult.HasError()) {
+        LOG_ERROR("[Sys_Physics] ReplaceShapeCapsule failed: " << shapeResult.GetError().c_str());
+        return;
+    }
+
+    // 替换形状，保留原有质量属性（false = 不用新形状默认密度重算质量）
+    bi.SetShape(jid, shapeResult.Get(), false,
+                JPH::EActivation::Activate);
+}
+
+// ============================================================
+// SetPosition — 直接设置动态体世界位置
+// ============================================================
+void ECS::Sys_Physics::SetPosition(uint32_t joltBodyID, float px, float py, float pz) {
+    if (!m_PhysicsSystem) return;
+
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+    bi.SetPosition(JPH::BodyID(joltBodyID),
+                   JPH::RVec3(px, py, pz),
+                   JPH::EActivation::Activate);
+}
+
+// ============================================================
+// ActivateBody — 强制唤醒 Body
+// ============================================================
+void ECS::Sys_Physics::ActivateBody(uint32_t joltBodyID) {
+    if (!m_PhysicsSystem) return;
+    m_PhysicsSystem->GetBodyInterface().ActivateBody(JPH::BodyID(joltBodyID));
+}

@@ -24,6 +24,9 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 
 #include <unordered_map>
 #include <vector>
@@ -195,6 +198,31 @@ public:
 
     /// 获取 Jolt PhysicsSystem 指针（供调试/ImGui 使用）
     JPH::PhysicsSystem* GetJoltPhysicsSystem() const { return m_PhysicsSystem.get(); }
+
+    // --- 射线检测 / 碰撞体替换 / 位置设置（供 Sys_Gameplay / Sys_Movement 等系统调用）---
+
+    /// 射线检测结果（POD，不暴露 Jolt 类型）
+    struct RaycastHit {
+        bool     hit       = false;
+        float    fraction  = 1.0f;
+        float    pointX    = 0.0f, pointY = 0.0f, pointZ = 0.0f;
+        float    normalX   = 0.0f, normalY = 0.0f, normalZ = 0.0f;
+        uint32_t bodyID    = 0xFFFFFFFF;
+    };
+
+    /// 从 (ox,oy,oz) 沿 (dx,dy,dz) 方向射线检测，最大距离 maxDist
+    RaycastHit CastRay(float ox, float oy, float oz,
+                       float dx, float dy, float dz,
+                       float maxDist);
+
+    /// 运行时替换指定 Body 的碰撞体形状为 Capsule（姿态切换用）
+    void ReplaceShapeCapsule(uint32_t joltBodyID, float radius, float halfHeight);
+
+    /// 直接设置动态体的世界位置（贴墙吸附用）
+    void SetPosition(uint32_t joltBodyID, float px, float py, float pz);
+
+    /// 强制激活 Body（防止 sleep 状态下 AddForce 无效）
+    void ActivateBody(uint32_t joltBodyID);
 
 private:
     // --- Jolt 对象（生命周期由 Sys_Physics 管理）---
