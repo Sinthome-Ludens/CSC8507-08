@@ -62,6 +62,11 @@ private:
 
     void RegisterHandlers();
 
+    // ── 初始化阶段函数 ──
+    void InitializeEvents(Registry& reg);
+    void InitializeServer(Res_Network& resNet);
+    void InitializeClient(Res_Network& resNet);
+
     // ── 内部阶段函数 ──
     void ProcessNetworkEvents(Registry& reg, Res_Network& resNet);
     void HandleReceivePacket(Registry& reg, Res_Network& resNet, const ENetEvent& event);
@@ -69,6 +74,7 @@ private:
     void BroadcastWorldState(Registry& reg, Res_Network& resNet);
 
     // ── 数据包处理回调函数 ──
+    void HandleWelcomePacket(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleSyncTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleClientInput(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleGameAction(Registry& reg, Res_Network& resNet, const ENetEvent& event);

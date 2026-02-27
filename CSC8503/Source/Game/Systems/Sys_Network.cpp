@@ -28,6 +28,7 @@
 namespace ECS {
 
 void Sys_Network::RegisterHandlers() {
+    m_PacketHandlers[SYS_WELCOME]    = &Sys_Network::HandleWelcomePacket;
     m_PacketHandlers[SYNC_TRANSFORM] = &Sys_Network::HandleSyncTransform;
     m_PacketHandlers[CLIENT_INPUT]   = &Sys_Network::HandleClientInput;
     m_PacketHandlers[GAME_EVENT]     = &Sys_Network::HandleGameAction;
@@ -35,7 +36,23 @@ void Sys_Network::RegisterHandlers() {
 
 void Sys_Network::OnAwake(Registry& reg) {
     RegisterHandlers();
-    
+    InitializeEvents(reg);
+
+    if (enet_initialize() != 0) {
+        LOG_ERROR("An error occurred while initializing ENet.");
+        return;
+    }
+
+    auto& resNet = reg.ctx<Res_Network>();
+    if (resNet.mode == PeerType::SERVER) {
+        InitializeServer(resNet);
+    } 
+    else if (resNet.mode == PeerType::CLIENT) {
+        InitializeClient(resNet);
+    }
+}
+
+void Sys_Network::InitializeEvents(Registry& reg) {
     // 缓存 Registry 指针供 EventBus 回调使用
     m_Registry = &reg;
     
@@ -48,48 +65,43 @@ void Sys_Network::OnAwake(Registry& reg) {
     m_ActionSubID = reg.ctx<EventBus*>()->subscribe<Evt_Net_GameAction>(
         [this](const Evt_Net_GameAction& evt) { this->OnLocalGameAction(evt); }
     );
+}
 
-    if (enet_initialize() != 0) {
-        std::cerr << "[ERROR] An error occurred while initializing ENet.\n";
+void Sys_Network::InitializeServer(Res_Network& resNet) {
+    ENetAddress address;
+    address.host = ENET_HOST_ANY;
+    address.port = 32499;
+
+    resNet.host = enet_host_create(&address, 4, 2, 0, 0);
+    if (resNet.host == nullptr) {
+        LOG_ERROR("An error occurred while trying to create an ENet server host.");
         return;
     }
+    resNet.localClientID = 0;
+    resNet.connected = true;
+    LOG_INFO("Network Server started on port 32499.");
+}
 
-    auto& resNet = reg.ctx<Res_Network>();
-    if (resNet.mode == PeerType::SERVER) {
-        ENetAddress address;
-        address.host = ENET_HOST_ANY;
-        address.port = 32499;
-
-        resNet.host = enet_host_create(&address, 4, 2, 0, 0);
-        if (resNet.host == nullptr) {
-            LOG_ERROR("An error occurred while trying to create an ENet server host.");
-            return;
-        }
-        resNet.localClientID = 0;
-        resNet.connected = true;
-        LOG_INFO("Network Server started on port 32499.");
-    } 
-    else if (resNet.mode == PeerType::CLIENT) {
-        resNet.host = enet_host_create(NULL, 1, 2, 0, 0);
-        if (resNet.host == nullptr) {
-            LOG_ERROR("An error occurred while trying to create an ENet client host.");
-            return;
-        }
-        // 注意：客户端实际 ID 应在 SYS_WELCOME 包中由 Server 分配。
-        // 由于测试场景中写死为 1，这里也暂时使用 1 保证匹配 Server 分配的新 ID。
-        resNet.localClientID = 1;
-
-        ENetAddress address;
-        enet_address_set_host(&address, "127.0.0.1");
-        address.port = 32499;
-
-        resNet.peer = enet_host_connect(resNet.host, &address, 2, 0);
-        if (resNet.peer == nullptr) {
-            LOG_ERROR("No available peers for initiating an ENet connection.");
-            return;
-        }
-        LOG_INFO("Network Client connecting to 127.0.0.1:32499...");
+void Sys_Network::InitializeClient(Res_Network& resNet) {
+    resNet.host = enet_host_create(NULL, 1, 2, 0, 0);
+    if (resNet.host == nullptr) {
+        LOG_ERROR("An error occurred while trying to create an ENet client host.");
+        return;
     }
+    // 客户端实际 ID 应在 SYS_WELCOME 包中由 Server 分配。
+    // 初始化为最大值表示尚未分配
+    resNet.localClientID = UINT32_MAX;
+
+    ENetAddress address;
+    enet_address_set_host(&address, "127.0.0.1");
+    address.port = 32499;
+
+    resNet.peer = enet_host_connect(resNet.host, &address, 2, 0);
+    if (resNet.peer == nullptr) {
+        LOG_ERROR("No available peers for initiating an ENet connection.");
+        return;
+    }
+    LOG_INFO("Network Client connecting to 127.0.0.1:32499...");
 }
 
 void Sys_Network::OnUpdate(Registry& reg, float dt) {
@@ -119,16 +131,22 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
             case ENET_EVENT_TYPE_CONNECT: {
                 std::cout << "[INFO] A new peer connected.\n";
                 if (resNet.mode == PeerType::SERVER) {
-                    uint32_t newClientID = 1; // 临时分配的硬编码ID
+                    static uint32_t nextClientID = 1;
+                    uint32_t newClientID = nextClientID++;
                     event.peer->data = (void*)(uintptr_t)newClientID;
                     if (reg.has_ctx<EventBus*>()) {
                         reg.ctx<EventBus*>()->publish_deferred<Evt_Net_PeerConnected>({ newClientID });
                     }
+                    
+                    // 发送 Welcome 数据包分配 ID 给客户端
+                    Net_Packet_Welcome welcomePkt;
+                    welcomePkt.type = SYS_WELCOME;
+                    welcomePkt.clientID = newClientID;
+                    ENetPacket* packet = enet_packet_create(&welcomePkt, sizeof(Net_Packet_Welcome), ENET_PACKET_FLAG_RELIABLE);
+                    enet_peer_send(event.peer, 0, packet);
                 } else {
                     resNet.connected = true;
-                    if (reg.has_ctx<EventBus*>()) {
-                        reg.ctx<EventBus*>()->publish_deferred<Evt_Net_PeerConnected>({ 0u });
-                    }
+                    // Client 侧不在此处抛出事件，在收到 SYS_WELCOME 知道自己 ID 时再抛出
                 }
                 break;
             }
@@ -165,6 +183,21 @@ void Sys_Network::HandleReceivePacket(Registry& reg, Res_Network& resNet, const 
 }
 
 // --- 数据包处理回调函数实现 ---
+void Sys_Network::HandleWelcomePacket(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (resNet.mode != PeerType::CLIENT) return;
+    
+    auto* pkt = GetPacketData<Net_Packet_Welcome>(event);
+    if (!pkt) return;
+
+    resNet.localClientID = pkt->clientID;
+    LOG_INFO("Received SYS_WELCOME. Assigned Client ID: " << resNet.localClientID);
+    
+    // 此时已经收到真实的 ClientID，可以在这里抛出事件通知其他系统进行玩家实体的创建等逻辑
+    if (reg.has_ctx<EventBus*>()) {
+        reg.ctx<EventBus*>()->publish_deferred<Evt_Net_PeerConnected>({ pkt->clientID });
+    }
+}
+
 void Sys_Network::HandleSyncTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
     if (resNet.mode != PeerType::CLIENT) return;
 

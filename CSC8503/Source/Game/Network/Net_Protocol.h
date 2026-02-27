@@ -56,12 +56,11 @@ struct Net_Packet_Handshake : public Net_PacketHeader {
  * 和玩家出生位置。
  */
 struct Net_Packet_Welcome : public Net_PacketHeader {
-    uint32_t clientID; ///< 服务端分配的客户端唯一ID
-    uint32_t levelID;  ///< 当前关卡或场景ID
-
-    float spawnX;      ///< 玩家出生位置 X 坐标
-    float spawnY;      ///< 玩家出生位置 Y 坐标
-    float spawnZ;      ///< 玩家出生位置 Z 坐标
+    uint32_t levelID  = 1;       ///< 默认从第 1 关开始
+    float spawnX = 0.0f;         ///< 坐标默认 0
+    float spawnY = 0.0f;
+    float spawnZ = 0.0f;
+    uint32_t clientID;       ///< 默认 ID 为 0
 };
 
 /**
