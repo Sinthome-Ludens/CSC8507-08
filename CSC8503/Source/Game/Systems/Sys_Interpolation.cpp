@@ -52,7 +52,8 @@ void Sys_Interpolation::OnUpdate(Registry& reg, float dt) {
             auto& s1 = buffer.snapshots[bestIdx];
             auto& s2 = buffer.snapshots[nextIdx];
 
-            float t = (targetTime - s1.timestamp) / (s2.timestamp - s1.timestamp);
+            float delta = s2.timestamp - s1.timestamp;
+            float t = (delta > 0.0001f) ? (targetTime - s1.timestamp) / delta : 1.0f;
             t = std::clamp(t, 0.0f, 1.0f);
             // 位置：使用线性插值 (Lerp)
             tf.position = s1.pos * (1.0f - t) + s2.pos * t;
