@@ -16,6 +16,7 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_ImGuiNavTest.h"
 #endif
 
 // ============================================================
@@ -54,7 +55,7 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_NavTest] floor entity id=" << entity_floor);
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
-    //    执行顺序：Camera(50) → Physics(100) → Navigation(130) → Render(200) → EnemyAI(250) → ImGui(300)
+    //    执行顺序：Camera(50) → Physics(100) → Navigation(130) → Render(200) → EnemyAI(250) → ImGui(300) → NavTest(310)
     systems.Register<ECS::Sys_Camera>   ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>  (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
 
@@ -66,7 +67,8 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 isSpotted）
 
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>    (300);   // 菜单栏 + 性能窗口
+    systems.Register<ECS::Sys_ImGui>        (300);   // 菜单栏 + 性能窗口
+    systems.Register<ECS::Sys_ImGuiNavTest> (310);   // NavTest 敌人/目标生成控制面板
 #endif
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
@@ -83,7 +85,7 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 void Scene_NavTest::OnExit(ECS::Registry&      registry,
                            ECS::SystemManager& systems)
 {
-    // 逆序停机：ImGui(300) → EnemyAI(250) → Render(200) → Navigation(130) → Physics(100) → Camera(50)
+    // 逆序停机：NavTest(310) → ImGui(300) → EnemyAI(250) → Render(200) → Navigation(130) → Physics(100) → Camera(50)
     systems.DestroyAll(registry);
     m_Pathfinder.reset();
 
