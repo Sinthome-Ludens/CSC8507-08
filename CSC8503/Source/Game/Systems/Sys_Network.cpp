@@ -68,7 +68,8 @@ void Sys_Network::InitializeEvents(Registry& reg) {
     
     // 确保 EventBus 存在并注册事件监听
     if (!reg.has_ctx<EventBus*>()) {
-        reg.ctx_emplace<EventBus*>(new EventBus());
+        m_EventBus = std::make_unique<EventBus>();
+        reg.ctx_emplace<EventBus*>(m_EventBus.get());
     }
     
     // 捕获 this 指针并绑定成员函数
@@ -401,8 +402,16 @@ void Sys_Network::OnFixedUpdate(Registry& reg, float dt) {}
 void Sys_Network::OnDestroy(Registry& reg) {
     // 取消订阅，防止析构后依然收到回调
     if (reg.has_ctx<EventBus*>()) {
-        reg.ctx<EventBus*>()->unsubscribe<Evt_Net_GameAction>(m_ActionSubID);
+        EventBus* bus = reg.ctx<EventBus*>();
+        if (bus) {
+            bus->unsubscribe<Evt_Net_GameAction>(m_ActionSubID);
+        }
+        // 如果此系统拥有并注册了 EventBus，将其从上下文中移除（置空）
+        if (m_EventBus && bus == m_EventBus.get()) {
+            reg.ctx_erase<EventBus*>();
+        }
     }
+    m_EventBus.reset();
     m_Registry = nullptr;
 
     auto& resNet = reg.ctx<Res_Network>();
