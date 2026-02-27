@@ -1,5 +1,6 @@
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/C_D_PlayerInput.h"
 #include <iostream>
 
 using namespace NCL::Maths;
@@ -133,6 +134,9 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     m_Accumulator += dt;
     int steps = 0;
     while (m_Accumulator >= FIXED_DT && steps < 4) {  // 最多步进 4 次防止螺旋死亡
+        // 2.8 处理玩家输入驱动（严格在每次物理步进前应用，防止多步进时的摩擦力衰减导致插值抖动）
+        ApplyPlayerInputs(registry);
+
         m_PhysicsSystem->Update(FIXED_DT, 1, m_TempAllocator.get(), m_JobSystem.get());
         m_Accumulator -= FIXED_DT;
         ++steps;
@@ -423,4 +427,31 @@ void ECS::Sys_Physics::MoveKinematic(
         JPH::RVec3(px, py, pz),
         JPH::Quat(qx, qy, qz, qw),
         dt);
+}
+
+// ============================================================
+// ApplyPlayerInputs
+// ============================================================
+void ECS::Sys_Physics::ApplyPlayerInputs(Registry& reg) {
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+    const float speed = 10.0f;
+
+    reg.view<C_D_PlayerInput, C_D_RigidBody>().each(
+        [&](EntityID id, C_D_PlayerInput& input, C_D_RigidBody& rb) {
+            if (!rb.body_created || rb.is_kinematic || rb.is_static) return;
+            
+            float vx = 0.0f, vz = 0.0f;
+            if (input.left)  vx -= speed;
+            if (input.right) vx += speed;
+            if (input.up)    vz -= speed;
+            if (input.down)  vz += speed;
+            
+            if (vx != 0.0f || vz != 0.0f) {
+                JPH::BodyID jid(rb.jolt_body_id);
+                bi.ActivateBody(jid);
+                JPH::Vec3 curVel = bi.GetLinearVelocity(jid);
+                SetLinearVelocity(rb.jolt_body_id, vx, curVel.GetY(), vz);
+            }
+        }
+    );
 }

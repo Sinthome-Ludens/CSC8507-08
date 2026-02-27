@@ -93,7 +93,7 @@ private:
     /**
      * @brief 统一物理驱动逻辑：根据输入方向给指定 Client 拥有的实体施加速度。
      */
-    void ApplyMovement(Registry& reg, uint32_t clientID, bool up, bool down, bool left, bool right);
+    void UpdatePlayerInput(Registry& reg, uint32_t clientID, bool up, bool down, bool left, bool right);
 
     /**
      * @brief 统一发送辅助函数：封装数据包创建、发送及统计逻辑。

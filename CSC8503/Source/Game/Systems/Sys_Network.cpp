@@ -20,9 +20,8 @@
 #include "Core/ECS/EventBus.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/C_D_RigidBody.h"
+#include "Game/Components/C_D_PlayerInput.h"
 #include "Keyboard.h"
-#include <Jolt/Jolt.h>
-#include <Jolt/Physics/PhysicsSystem.h>
 #include <iostream>
 
 namespace ECS {
@@ -223,7 +222,7 @@ void Sys_Network::HandleClientInput(Registry& reg, Res_Network& resNet, const EN
 
     auto* pkt = GetPacketData<Net_Packet_ClientInput>(event);
     if (!pkt) return;
-    ApplyMovement(reg, GetClientID(event), pkt->up, pkt->down, pkt->left, pkt->right);
+    UpdatePlayerInput(reg, GetClientID(event), pkt->up, pkt->down, pkt->left, pkt->right);
 }
 
 void Sys_Network::HandleGameAction(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
@@ -253,42 +252,43 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
         pkt.up = input.keyStates[NCL::KeyCodes::UP];
         pkt.down = input.keyStates[NCL::KeyCodes::DOWN];
         pkt.left = input.keyStates[NCL::KeyCodes::LEFT];
-        pkt.right = input.keyStates[NCL::KeyCodes::RIGHT];
-        
-        if (pkt.up || pkt.down || pkt.left || pkt.right) {
-            SendPacket(resNet, pkt, false);
-        }
-    }
-    
+                    pkt.right = input.keyStates[NCL::KeyCodes::RIGHT];
+                    
+                    static Net_Packet_ClientInput lastPkt = {};
+                    bool isMoving = pkt.up || pkt.down || pkt.left || pkt.right;
+                    bool stateChanged = (pkt.up != lastPkt.up) || (pkt.down != lastPkt.down) || 
+                                        (pkt.left != lastPkt.left) || (pkt.right != lastPkt.right);
+                    
+                    if (isMoving) {
+                        // 持续按键时，高频发送不可靠包
+                        SendPacket(resNet, pkt, false);
+                    } else if (stateChanged) {
+                        // 刚松开按键时，发送一次可靠包，确保服务端能停下
+                        SendPacket(resNet, pkt, true);
+                    }
+                    lastPkt = pkt;
+                }    
     // --- 2. Server：处理主机本地玩家的输入 ---
     if (resNet.mode == PeerType::SERVER) {
-        ApplyMovement(reg, resNet.localClientID, input.keyStates[NCL::KeyCodes::UP], 
+        UpdatePlayerInput(reg, resNet.localClientID, input.keyStates[NCL::KeyCodes::UP], 
                       input.keyStates[NCL::KeyCodes::DOWN], 
                       input.keyStates[NCL::KeyCodes::LEFT], 
                       input.keyStates[NCL::KeyCodes::RIGHT]);
     }
 }
 
-void Sys_Network::ApplyMovement(Registry& reg, uint32_t clientID, bool up, bool down, bool left, bool right) {
-    if (!reg.has_ctx<JPH::PhysicsSystem*>()) return;
-    auto& bi = reg.ctx<JPH::PhysicsSystem*>()->GetBodyInterface();
-    const float speed = 10.0f;
-
-    reg.view<C_D_NetworkIdentity, C_D_RigidBody>().each(
-        [&](EntityID /*id*/, C_D_NetworkIdentity& net, C_D_RigidBody& rb) {
-            if (net.ownerClientID == clientID && rb.body_created && !rb.is_kinematic && !rb.is_static) {
-                float vx = 0.0f, vz = 0.0f;
-                if (left)  vx -= speed;
-                if (right) vx += speed;
-                if (up)    vz -= speed;
-                if (down)  vz += speed;
-                
-                if (vx != 0.0f || vz != 0.0f) {
-                    JPH::BodyID jid(rb.jolt_body_id);
-                    bi.ActivateBody(jid);
-                    JPH::Vec3 curVel = bi.GetLinearVelocity(jid);
-                    bi.SetLinearVelocity(jid, JPH::Vec3(vx, curVel.GetY(), vz));
+void Sys_Network::UpdatePlayerInput(Registry& reg, uint32_t clientID, bool up, bool down, bool left, bool right) {
+    reg.view<C_D_NetworkIdentity>().each(
+        [&](EntityID id, C_D_NetworkIdentity& net) {
+            if (net.ownerClientID == clientID) {
+                if (!reg.Has<C_D_PlayerInput>(id)) {
+                    reg.Emplace<C_D_PlayerInput>(id);
                 }
+                auto& input = reg.Get<C_D_PlayerInput>(id);
+                input.up    = up;
+                input.down  = down;
+                input.left  = left;
+                input.right = right;
             }
         }
     );
