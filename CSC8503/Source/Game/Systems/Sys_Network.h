@@ -101,10 +101,12 @@ private:
      * @param resNet 网络资源引用
      * @param packet 要发送的数据包对象
      * @param broadcast 是否广播（true=广播，false=发送给 resNet.peer）
+     * @param reliable 是否可靠传输（true=可靠，false=不可靠分片）
      */
     template<typename T>
-    void SendPacket(Res_Network& resNet, T& packet, bool broadcast = false) {
-        ENetPacket* p = enet_packet_create(&packet, sizeof(T), ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
+    void SendPacket(Res_Network& resNet, T& packet, bool broadcast = false, bool reliable = false) {
+        enet_uint32 flags = reliable ? ENET_PACKET_FLAG_RELIABLE : ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT;
+        ENetPacket* p = enet_packet_create(&packet, sizeof(T), flags);
         if (broadcast) {
             enet_host_broadcast(resNet.host, 0, p);
         } else if (resNet.peer) {

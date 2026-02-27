@@ -328,10 +328,10 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
         
         if (isMoving) {
             // 持续按键时，高频发送不可靠包
-            SendPacket(resNet, pkt, false);
+            SendPacket(resNet, pkt, false, false);
         } else if (stateChanged) {
             // 刚松开按键时，发送一次可靠包，确保服务端能停下
-            SendPacket(resNet, pkt, true);
+            SendPacket(resNet, pkt, false, true);
         }
         m_LastInputMask = currentMask;
     }    
@@ -434,7 +434,7 @@ void Sys_Network::OnLocalGameAction(const Evt_Net_GameAction& evt) {
 
     // Server 广播给所有人，Client 发送给 Server
     bool isServer = (resNet.mode == PeerType::SERVER);
-    SendPacket(resNet, pkt, isServer);
+    SendPacket(resNet, pkt, isServer, true);
 }
 
 } // namespace ECS
