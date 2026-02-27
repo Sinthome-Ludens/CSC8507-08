@@ -108,6 +108,16 @@ void Scene_NetworkGame::OnExit(ECS::Registry&      registry,
     }
     
     systems.DestroyAll(registry);
+
+    // Explicitly clear context resources owned/used by this scene to avoid
+    // leaving dangling raw pointers in the registry context after systems
+    // have been destroyed.
+    if (registry.has_ctx<ECS::Res_Network>()) {
+        registry.ctx_erase<ECS::Res_Network>();
+    }
+    if (registry.has_ctx<Res_UIFlags>()) {
+        registry.ctx_erase<Res_UIFlags>();
+    }
     registry.Clear();
     LOG_INFO("[Scene_NetworkGame] OnExit complete.");
 }
