@@ -28,7 +28,7 @@ enum Net_PacketType : uint8_t {
 // 传输可靠性
 enum class NetDelivery {
     Unreliable = 0,               // 不可靠传输（UDP特性，快，可能丢包）
-    Reliable   = ENET_PACKET_FLAG_RELIABLE // 可靠传输（类似TCP重传，慢，保证到达）
+    Reliable   = 1                // 可靠传输（类似TCP重传，慢，保证到达）
 };
 
 // 发送范围

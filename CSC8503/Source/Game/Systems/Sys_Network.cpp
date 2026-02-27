@@ -172,8 +172,9 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                     Net_Packet_Welcome welcomePkt;
                     welcomePkt.type = SYS_WELCOME;
                     welcomePkt.clientID = newClientID;
-                    ENetPacket* packet = enet_packet_create(&welcomePkt, sizeof(Net_Packet_Welcome), ENET_PACKET_FLAG_RELIABLE);
-                    enet_peer_send(event.peer, 0, packet);
+                    
+                    // 使用 SendPacket 助手函数，内部会处理 flags 映射
+                    SendPacket(resNet, welcomePkt, NetTarget::Single, NetDelivery::Reliable, event.peer);
                 } else {
                     resNet.connected = true;
                     // Client 侧不在此处抛出事件，在收到 SYS_WELCOME 知道自己 ID 时再抛出

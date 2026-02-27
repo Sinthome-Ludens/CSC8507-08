@@ -101,21 +101,30 @@ private:
      * @tparam T 数据包结构体类型
      * @param resNet 网络资源引用
      * @param packet 要发送的数据包对象
-     * @param broadcast 是否广播（true=广播，false=发送给 resNet.peer）
-     * @param reliable 是否可靠传输（true=可靠，false=不可靠分片）
+     * @param target 发送范围（单播或广播）
+     * @param delivery 传输可靠性
+     * @param explicitPeer 如果 target 是 Single 且提供了此参数，则发送给该 peer。若为 nullptr 则使用 resNet.peer。
      */
     template<typename T>
-    void SendPacket(Res_Network& resNet, T& packet, NetTarget target = NetTarget::Single, NetDelivery delivery = NetDelivery::Unreliable) {
+    void SendPacket(Res_Network& resNet, T& packet, NetTarget target = NetTarget::Single, NetDelivery delivery = NetDelivery::Unreliable, ENetPeer* explicitPeer = nullptr) {
         // 将枚举转换为 ENet 内部标识
-        enet_uint32 flags = static_cast<enet_uint32>(delivery);
+        enet_uint32 flags = 0;
+        if (delivery == NetDelivery::Reliable) {
+            flags |= ENET_PACKET_FLAG_RELIABLE;
+        }
+
         ENetPacket* p = enet_packet_create(&packet, sizeof(T), flags);
+        
         if (target == NetTarget::Broadcast) {
             enet_host_broadcast(resNet.host, 0, p);
-        } else if (resNet.peer) {
-            enet_peer_send(resNet.peer, 0, p);
         } else {
-            enet_packet_destroy(p);
-            return;
+            ENetPeer* targetPeer = explicitPeer ? explicitPeer : resNet.peer;
+            if (targetPeer) {
+                enet_peer_send(targetPeer, 0, p);
+            } else {
+                enet_packet_destroy(p);
+                return;
+            }
         }
         resNet.packetsSent++;
         resNet.bytesSent += sizeof(T);
