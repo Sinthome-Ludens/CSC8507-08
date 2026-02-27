@@ -178,6 +178,9 @@ public:
     /// 在 ECS 实体上设置 Jolt 线速度（动态体）
     void SetLinearVelocity(uint32_t joltBodyID, float vx, float vy, float vz);
 
+    /// 直接设置 Jolt 刚体的旋转（供 Sys_Navigation 调用）
+    void SetRotation(uint32_t joltBodyID, const NCL::Maths::Quaternion& rotation);
+
     /// 给 Jolt 刚体施加冲量（动态体）
     void ApplyImpulse(uint32_t joltBodyID, float ix, float iy, float iz);
 
