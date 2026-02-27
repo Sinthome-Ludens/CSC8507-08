@@ -12,7 +12,7 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
-void Sys_Movement::OnUpdate(Registry& registry, float /*dt*/) {
+void Sys_Movement::OnUpdate(Registry& registry, float dt) {
     if (!registry.has_ctx<Sys_Physics*>()) return;
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;
@@ -30,20 +30,23 @@ void Sys_Movement::OnUpdate(Registry& registry, float /*dt*/) {
             float maxSpeed = BASE_SPEED;
             float force    = BASE_FORCE;
 
-            if (ps.isSprinting) {
+            // ps.isSprinting 由上游系统（Sys_StealthMetrics）写入；
+            // 若上游尚未注册，回退到直接读取 input.shiftDown
+            if (ps.isSprinting || input.shiftDown) {
                 maxSpeed *= RUN_SPEED_MUL;
                 force    *= RUN_SPEED_MUL;
             }
 
             maxSpeed *= ps.moveSpeedMul;
-            force    *= stanceMul;  // force 不乘 disguiseMul：由 maxSpeed 限速
+            force    *= stanceMul;  // force 只受姿态影响；其它减速（如伪装）通过 ps.moveSpeedMul 仅体现在 maxSpeed 上
 
             if (input.hasInput) {
                 float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);
                 if (horizSpeed < maxSpeed) {
                     physics->ActivateBody(rb.jolt_body_id);
-                    physics->AddForce(rb.jolt_body_id,
-                                      input.moveX * force, 0.0f, input.moveZ * force);
+                    float ix = input.moveX * force * dt;
+                    float iz = input.moveZ * force * dt;
+                    physics->ApplyImpulse(rb.jolt_body_id, ix, 0.0f, iz);
                 }
             } else {
                 // 零惯性制动：松手即停（保留 Y 轴重力速度）
