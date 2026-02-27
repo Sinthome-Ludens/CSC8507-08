@@ -172,7 +172,7 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                     Net_Packet_Welcome welcomePkt;
                     welcomePkt.type = SYS_WELCOME;
                     welcomePkt.clientID = newClientID;
-                    
+                    welcomePkt.timestamp = 0;
                     // 使用 SendPacket 助手函数，内部会处理 flags 映射
                     SendPacket(resNet, welcomePkt, NetTarget::Single, NetDelivery::Reliable, event.peer);
                 } else {
@@ -384,6 +384,9 @@ void Sys_Network::BroadcastWorldState(Registry& reg, Res_Network& resNet) {
         pkt.netID = net.netID;
         pkt.pos[0] = tf.position.x; pkt.pos[1] = tf.position.y; pkt.pos[2] = tf.position.z;
         pkt.rot[0] = tf.rotation.x; pkt.rot[1] = tf.rotation.y; pkt.rot[2] = tf.rotation.z; pkt.rot[3] = tf.rotation.w;
+        
+        // 目前测试场景无需真实速度，但必须初始化为 0，防止发送未初始化的内存垃圾数据
+        pkt.linearVel[0] = pkt.linearVel[1] = pkt.linearVel[2] = 0.0f;
         
         SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Unreliable);
     });
