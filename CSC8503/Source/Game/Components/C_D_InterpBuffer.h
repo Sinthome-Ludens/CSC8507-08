@@ -42,9 +42,25 @@ struct TransformSnapshot {
  * 仅由 Sys_Network 在接收到别人数据时写入最新值，由 Sys_Interpolation 读取历史快照做平滑。
  */
 struct C_D_InterpBuffer {
-    TransformSnapshot snapshots[10]; ///< 容量为 10 的环形快照缓冲数组
-    int               head  = 0;     ///< 指向最新插入的一项索引（写指针）
-    int               count = 0;     ///< 当前缓冲区内的有效元素个数（最多为 10）
+    static constexpr int CAPACITY = 10;
+    
+    TransformSnapshot snapshots[CAPACITY]; ///< 环形快照缓冲数组
+    int               head  = 0;           ///< 指向最新插入的一项索引（写指针）
+    int               count = 0;           ///< 当前缓冲区内的有效元素个数
+
+    /**
+     * @brief 添加一个状态快照到环形缓冲区
+     */
+    void AddSnapshot(const NCL::Maths::Vector3& pos, const NCL::Maths::Quaternion& rot, float timestamp) {
+        snapshots[head].pos = pos;
+        snapshots[head].rot = rot;
+        snapshots[head].timestamp = timestamp;
+        
+        head = (head + 1) % CAPACITY;
+        if (count < CAPACITY) {
+            count++;
+        }
+    }
 };
 
 } // namespace ECS

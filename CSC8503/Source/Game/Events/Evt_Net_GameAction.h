@@ -17,4 +17,11 @@ struct Evt_Net_GameAction {
     uint32_t targetNetID; ///< 动作目标实体的网络 ID（如有，0 为无效/空）
     uint8_t  actionCode;  ///< 动作类型代码（如：开火、跳跃、交互等）
     int32_t  param1;      ///< 补充参数（如伤害值、技能 ID 等）
+    
+    /**
+     * @brief 标志事件的发源地
+     * true: 本地逻辑系统产生的事件（Sys_Network 监听到后应当打包发送到网络）
+     * false: 从网络上接收到并解析出来的事件（仅供本地系统消费，Sys_Network 不应再次发送）
+     */
+    bool     isLocalOrigin = true; 
 };
