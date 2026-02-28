@@ -255,6 +255,7 @@ private:
     void SyncTransformsFromJolt(Registry& reg);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);
+    void ApplyPlayerInputs(Registry& reg);
 
     // NCL ↔ Jolt 转换
     static JPH::Vec3  ToJolt(float x, float y, float z);

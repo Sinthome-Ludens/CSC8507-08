@@ -10,6 +10,12 @@
 #include "Core/ECS/SystemManager.h"
 #include "Core/ECS/EventBus.h"
 #include "Game/Utils/Assert.h"
+#include "Game/Components/Res_Network.h"
+#include "Game/Components/C_D_NetworkIdentity.h"
+#include "Game/Components/C_D_InterpBuffer.h"
+#include "Game/Events/Evt_Net_PeerConnected.h"
+#include "Game/Events/Evt_Net_PeerDisconnected.h"
+#include "Game/Events/Evt_Net_GameAction.h"
 
 #include <iostream>
 #include <cmath>
@@ -185,6 +191,76 @@ void TestECS_LifeCycle() {
     std::cout << "[PASS] Entity Lifecycle test\n";
 }
 
+void TestECS_NetworkComponents() {
+    std::cout << "\n========== Test 5: Network Components & Resources ==========\n";
+    ECS::Registry registry;
+
+    // Test Res_Network
+    auto& resNet = registry.ctx_emplace<ECS::Res_Network>();
+    resNet.mode = ECS::PeerType::SERVER;
+    resNet.connected = true;
+    GAME_ASSERT(registry.has_ctx<ECS::Res_Network>(), "Should have Res_Network context");
+    GAME_ASSERT(registry.ctx<ECS::Res_Network>().mode == ECS::PeerType::SERVER, "Mode should be SERVER");
+
+    // Test C_D_NetworkIdentity
+    auto e0 = registry.Create();
+    registry.Emplace<ECS::C_D_NetworkIdentity>(e0, 1u, 0u);
+    GAME_ASSERT(registry.Has<ECS::C_D_NetworkIdentity>(e0), "Entity0 should have NetworkIdentity");
+    auto& netId = registry.Get<ECS::C_D_NetworkIdentity>(e0);
+    GAME_ASSERT(netId.netID == 1, "netID should be 1");
+    GAME_ASSERT(netId.ownerClientID == 0, "ownerClientID should be 0");
+
+    // Test C_D_InterpBuffer
+    auto e1 = registry.Create();
+    registry.Emplace<ECS::C_D_InterpBuffer>(e1);
+    GAME_ASSERT(registry.Has<ECS::C_D_InterpBuffer>(e1), "Entity1 should have InterpBuffer");
+    GAME_ASSERT(!registry.Has<ECS::C_D_InterpBuffer>(e0), "Entity0 should NOT have InterpBuffer");
+    
+    auto& buffer = registry.Get<ECS::C_D_InterpBuffer>(e1);
+    buffer.snapshots[0].pos = NCL::Maths::Vector3(1.0f, 2.0f, 3.0f);
+    buffer.count = 1;
+    GAME_ASSERT(buffer.count == 1, "InterpBuffer count should be 1");
+
+    std::cout << "[PASS] Network Components & Resources test\n";
+}
+
+void TestECS_NetworkEvents() {
+    std::cout << "\n========== Test 6: Network Events ==========\n";
+    ECS::EventBus bus;
+    
+    int connectedCount = 0;
+    int disconnectedCount = 0;
+    int actionCount = 0;
+
+    bus.subscribe<Evt_Net_PeerConnected>([&connectedCount](const Evt_Net_PeerConnected& evt) {
+        if (evt.clientID == 42) connectedCount++;
+    });
+
+    bus.subscribe<Evt_Net_PeerDisconnected>([&disconnectedCount](const Evt_Net_PeerDisconnected& evt) {
+        if (evt.clientID == 42) disconnectedCount++;
+    });
+
+    bus.subscribe<Evt_Net_GameAction>([&actionCount](const Evt_Net_GameAction& evt) {
+        if (evt.sourceNetID == 100 && evt.targetNetID == 200 && evt.actionCode == 5 && evt.param1 == 999) actionCount++;
+    });
+
+    bus.publish_deferred(Evt_Net_PeerConnected{ 42 });
+    bus.publish_deferred(Evt_Net_PeerDisconnected{ 42 });
+    bus.publish_deferred(Evt_Net_GameAction{ 100, 200, 5, 999 });
+
+    GAME_ASSERT(connectedCount == 0, "Deferred publish should NOT trigger yet");
+    GAME_ASSERT(disconnectedCount == 0, "Deferred publish should NOT trigger yet");
+    GAME_ASSERT(actionCount == 0, "Deferred publish should NOT trigger yet");
+
+    bus.flush();
+
+    GAME_ASSERT(connectedCount == 1, "Flush should trigger connected callback");
+    GAME_ASSERT(disconnectedCount == 1, "Flush should trigger disconnected callback");
+    GAME_ASSERT(actionCount == 1, "Flush should trigger action callback");
+
+    std::cout << "[PASS] Network Events test\n";
+}
+
 void RunECSTests() {
     std::cout << "\n";
     std::cout << "========================================\n";
@@ -196,6 +272,8 @@ void RunECSTests() {
         TestECS_Systems();
         TestECS_Events();
         TestECS_LifeCycle();
+        TestECS_NetworkComponents();
+        TestECS_NetworkEvents();
 
         std::cout << "\n";
         std::cout << "========================================\n";

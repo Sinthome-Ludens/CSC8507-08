@@ -1,5 +1,6 @@
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/C_D_PlayerInput.h"
 #include <iostream>
 #include <cfloat>
 #include <cmath>
@@ -138,6 +139,9 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     m_Accumulator += dt;
     int steps = 0;
     while (m_Accumulator >= FIXED_DT && steps < 4) {  // 最多步进 4 次防止螺旋死亡
+        // 2.8 处理玩家输入驱动（严格在每次物理步进前应用，防止多步进时的摩擦力衰减导致插值抖动）
+        ApplyPlayerInputs(registry);
+
         m_PhysicsSystem->Update(FIXED_DT, 1, m_TempAllocator.get(), m_JobSystem.get());
         m_Accumulator -= FIXED_DT;
         ++steps;
@@ -168,13 +172,19 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     m_JobSystem.reset();
     m_TempAllocator.reset();
 
-    // 清除 ctx 中的裸指针，防止场景切换后悬空引用
+// 清除 ctx 中的裸指针，防止场景切换后悬空引用 (保留自 feat 分支)
     if (registry.has_ctx<Sys_Physics*>()) {
-        registry.ctx<Sys_Physics*>() = nullptr;
+        registry.ctx_erase<Sys_Physics*>(); // 优化为彻底擦除，而非赋值为 nullptr
     }
+
+    // 如果此系统拥有并注册了 EventBus，将其从上下文中移除，防止留下悬空指针 (保留自 master 分支)
     if (registry.has_ctx<ECS::EventBus*>()) {
-        registry.ctx<ECS::EventBus*>() = nullptr;
+        ECS::EventBus* bus = registry.ctx<ECS::EventBus*>();
+        if (m_EventBus && bus == m_EventBus.get()) {
+            registry.ctx_erase<ECS::EventBus*>();
+        }
     }
+    m_EventBus.reset();
 
     // Jolt 全局资源（Factory 等）保持存活，避免多系统场景问题
     m_BroadPhaseOptimized = false;
@@ -283,17 +293,29 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 }
 
 // ============================================================
-// SyncTransformsFromJolt（动态体）
+// SyncTransformsFromJolt（动态体 Jolt→ECS / 运动学体 ECS→Jolt）
 // ============================================================
 void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
     reg.view<C_D_Transform, C_D_RigidBody>().each(
         [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb) {
-            // 只同步动态体（非静态、非运动学、已创建）
-            if (!rb.body_created || rb.is_static || rb.is_kinematic) return;
+            if (!rb.body_created || rb.is_static) return;
 
             JPH::BodyID jid(rb.jolt_body_id);
+
+            if (rb.is_kinematic) {
+                // 运动学体：将 ECS Transform（由插值/输入驱动）写回 Jolt，
+                // 使其在物理世界中实际移动，从而能与动态体产生碰撞。
+                bi.MoveKinematic(
+                    jid,
+                    JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
+                    JPH::Quat(tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w),
+                    FIXED_DT);
+                return;
+            }
+
+            // 动态体：Jolt → ECS
             if (!bi.IsActive(jid) && !bi.IsAdded(jid)) return;
 
             JPH::RVec3 pos = bi.GetPosition(jid);
@@ -530,4 +552,29 @@ void ECS::Sys_Physics::SetPosition(uint32_t joltBodyID, float px, float py, floa
 void ECS::Sys_Physics::ActivateBody(uint32_t joltBodyID) {
     if (!m_PhysicsSystem) return;
     m_PhysicsSystem->GetBodyInterface().ActivateBody(JPH::BodyID(joltBodyID));
+}
+// ApplyPlayerInputs
+// ============================================================
+void ECS::Sys_Physics::ApplyPlayerInputs(Registry& reg) {
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+    const float speed = 10.0f;
+
+    reg.view<C_D_PlayerInput, C_D_RigidBody>().each(
+        [&](EntityID id, C_D_PlayerInput& input, C_D_RigidBody& rb) {
+            if (!rb.body_created || rb.is_kinematic || rb.is_static) return;
+
+            float vx = 0.0f, vz = 0.0f;
+            if (input.buttonMask & PlayerInputFlags::Left)  vx -= speed;
+            if (input.buttonMask & PlayerInputFlags::Right) vx += speed;
+            if (input.buttonMask & PlayerInputFlags::Up)    vz -= speed;
+            if (input.buttonMask & PlayerInputFlags::Down)  vz += speed;
+
+            JPH::BodyID jid(rb.jolt_body_id);
+            if (vx != 0.0f || vz != 0.0f) {
+                bi.ActivateBody(jid);
+            }
+            JPH::Vec3 curVel = bi.GetLinearVelocity(jid);
+            SetLinearVelocity(rb.jolt_body_id, vx, curVel.GetY(), vz);
+        }
+    );
 }
