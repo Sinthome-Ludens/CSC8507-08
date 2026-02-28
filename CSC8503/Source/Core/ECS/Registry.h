@@ -297,6 +297,13 @@ public:
     template<typename T>
     bool has_ctx() const;
 
+    /**
+     * @brief 移除 T 类型全局资源。
+     * @tparam T 资源类型。
+     */
+    template<typename T>
+    void ctx_erase();
+
     // -------------------------------------------------------------------------
     // Pool Utilities
     // -------------------------------------------------------------------------
@@ -689,6 +696,11 @@ T& Registry::ctx_emplace(Args&&... args) {
 template<typename T>
 bool Registry::has_ctx() const {
     return m_Context.find(std::type_index(typeid(T))) != m_Context.end();
+}
+
+template<typename T>
+inline void Registry::ctx_erase() {
+    m_Context.erase(std::type_index(typeid(T)));
 }
 
 template<typename T>
