@@ -63,7 +63,6 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     registry.Emplace<ECS::C_D_NetworkIdentity>(cube1, 1u, 0u);   // netID=1, owner=0(Server)
     resNet.netIdMap[1] = cube1;
 
-    // Cube_2：Client 控制（ownerClientID = 42）
     ECS::EntityID cube2 = PrefabFactory::CreatePhysicsCube(
         registry, cubeMesh, 1, NCL::Maths::Vector3(3.0f, 10.0f, 0.0f));
     registry.Emplace<ECS::C_D_NetworkIdentity>(cube2, 2u, 1u);  // netID=2, owner=42(Client)

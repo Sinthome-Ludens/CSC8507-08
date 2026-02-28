@@ -2,7 +2,6 @@
  * @file C_D_NetworkIdentity.h
  * @brief 网络身份组件：为需要进行网络同步的实体提供唯一的身份标识
  *
-/**
  * @details
  * 网络身份标识（Network Identity）
  * * 本结构体用于解决多人环境下的两个核心问题：

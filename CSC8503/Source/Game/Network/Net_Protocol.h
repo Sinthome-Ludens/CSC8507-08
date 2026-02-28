@@ -131,4 +131,4 @@ static_assert(sizeof(Net_Packet_Transform) == 49, "Net_Packet_Transform size mis
 static_assert(sizeof(Net_Packet_GameAction) == 18, "Net_Packet_GameAction size mismatch");
 static_assert(sizeof(Net_Packet_ClientInput) == 9, "Net_Packet_ClientInput size mismatch");
 
-} // namespace NCL::CSC8503::ECS
+}

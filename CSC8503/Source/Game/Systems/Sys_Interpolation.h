@@ -10,8 +10,6 @@ namespace ECS {
  * @details
  * 该系统会根据 `Res_Time` 的当前时间，在 `C_D_InterpBuffer` 中的快照之间进行线性插值（Lerp/Slerp），
  * 并将结果应用到 `C_D_Transform`。
- * 
- * 只有 `ownerClientID` 不等于本地 ID 的实体才会被插值。
  */
 class Sys_Interpolation : public ISystem {
 public:

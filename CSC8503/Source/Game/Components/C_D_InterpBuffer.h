@@ -2,7 +2,6 @@
  * @file C_D_InterpBuffer.h
  * @brief 插值缓冲组件：用于对远程实体的状态进行平滑插值，消除网络抖动。
  *
-/**
  * @details
  * 远程实体插值缓冲区（Remote Interpolation Buffer）
  * * 本组件专门用于平滑处理网络波动，消除远程对象在本地表现出的“跳变”或“平移感”。
