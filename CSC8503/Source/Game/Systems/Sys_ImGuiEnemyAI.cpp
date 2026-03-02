@@ -50,7 +50,7 @@ void Sys_ImGuiEnemyAI::RenderEnemyMonitorWindow(Registry& registry) {
             ImGui::TableNextRow();
 
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%d", (int)id);
+            ImGui::Text("%u", static_cast<unsigned>(id));
 
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("%.1f, %.1f, %.1f",

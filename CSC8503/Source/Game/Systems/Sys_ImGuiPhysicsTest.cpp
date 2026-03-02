@@ -73,7 +73,8 @@ void Sys_ImGuiPhysicsTest::SpawnEnemy(Registry& registry) {
             const float yawRad = cam.yaw * (3.14159265f / 180.0f);
             const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
             spawnPos   = tf.position + forward * 5.0f;
-            spawnPos.y = -4.0f;  // 胶囊底部与地板（-6）齐平：高度约 1 单位
+            // 将胶囊底部放在地板顶面上：地板顶约在 y=-5，胶囊 bottom offset ≈1.5 -> 中心 y≈-3.5
+            spawnPos.y = -3.5f;
         }
     }
 
