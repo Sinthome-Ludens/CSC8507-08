@@ -13,7 +13,7 @@ namespace ECS {
  *   - 通过 PrefabFactory::CreatePhysicsCapsule() 生成胶囊实体
  *   - 删除最后生成的胶囊实体
  *
- * 系统无状态，所有数据存储于 Res_CapsuleState context。
+ * 系统无状态，所有数据（含面板可见性 show_window）存储于 Res_CapsuleState context。
  * 通过 registry.has_ctx<Res_CapsuleState>() 检测功能是否可用。
  *
  * 执行优先级：301（紧跟 Sys_ImGui 300 之后）
@@ -28,8 +28,6 @@ private:
     void RenderCapsuleControlWindow(Registry& registry);
     void SpawnCapsule              (Registry& registry);
     void DeleteLastCapsule         (Registry& registry);
-
-    bool m_ShowCapsuleControls = true;
 };
 
 } // namespace ECS

@@ -25,7 +25,8 @@ void Sys_ImGuiCapsuleGen::OnDestroy(Registry& /*registry*/) {
 
 void Sys_ImGuiCapsuleGen::OnUpdate(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_CapsuleState>()) return;
-    if (m_ShowCapsuleControls) RenderCapsuleControlWindow(registry);
+    auto& state = registry.ctx<Res_CapsuleState>();
+    if (state.show_window) RenderCapsuleControlWindow(registry);
 }
 
 // ============================================================
@@ -35,7 +36,7 @@ void Sys_ImGuiCapsuleGen::OnUpdate(Registry& registry, float /*dt*/) {
 void Sys_ImGuiCapsuleGen::RenderCapsuleControlWindow(Registry& registry) {
     auto& state = registry.ctx<Res_CapsuleState>();
 
-    ImGui::Begin("Capsule Controls", &m_ShowCapsuleControls);
+    ImGui::Begin("Capsule Controls", &state.show_window);
     ImGui::Text("== Capsule Factory ==");
     ImGui::Separator();
 
@@ -70,10 +71,14 @@ void Sys_ImGuiCapsuleGen::SpawnCapsule(Registry& registry) {
         {
             auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
             auto& cam = registry.Get<C_D_Camera>   (camCtx.active_camera);
-            const float yawRad = cam.yaw * (3.14159265f / 180.0f);
-            const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
+            const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
+            const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
+            const Vector3 forward(
+                -sinf(yawRad) * cosf(pitchRad),
+                 sinf(pitchRad),
+                -cosf(yawRad) * cosf(pitchRad)
+            );
             spawnPos = tf.position + forward * 5.0f;
-            spawnPos.y = tf.position.y + 2.0f;
             constexpr float MIN_SPAWN_Y = -2.0f;
             spawnPos.y = std::max(spawnPos.y, MIN_SPAWN_Y);
         }
