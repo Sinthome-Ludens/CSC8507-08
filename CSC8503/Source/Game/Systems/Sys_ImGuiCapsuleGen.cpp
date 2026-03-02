@@ -3,6 +3,7 @@
 
 #include <imgui.h>
 #include <cmath>
+#include <algorithm>
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/Res_CapsuleState.h"

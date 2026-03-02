@@ -33,9 +33,10 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         NCL::Assets::MESHDIR + "cube.obj");
     LOG_INFO("[Scene_PhysicsTest] cube mesh loaded, handle=" << cubeMesh);
 
+    // NOTE: Use the cube mesh as a visual proxy for capsules, since Capsule.obj is not available.
     ECS::MeshHandle capsuleMesh = ECS::AssetManager::Instance().LoadMesh(
-        NCL::Assets::MESHDIR + "Capsule.obj");
-    LOG_INFO("[Scene_PhysicsTest] capsule mesh loaded, handle=" << capsuleMesh);
+        NCL::Assets::MESHDIR + "cube.obj");
+    LOG_INFO("[Scene_PhysicsTest] capsule proxy mesh (cube) loaded, handle=" << capsuleMesh);
 
     // ── 2. 注册场景级全局资源到 Registry context ────────────────────────
     //    Res_NCL_Pointers 由 SceneManager 构造时已预注册，此处无需重复。

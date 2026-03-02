@@ -19,10 +19,9 @@
       "is_static":       false
     },
     "C_D_Collider": {
-      "type":        "Box",
-      "half_x":      0.5,
-      "half_y":      0.5,
-      "half_z":      0.5,
+      "type":        "Capsule",
+      "radius":      0.5,
+      "half_height": 0.5,
       "friction":    0.5,
       "restitution": 0.1
     },
