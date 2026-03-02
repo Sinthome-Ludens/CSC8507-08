@@ -34,6 +34,14 @@
 
 using namespace NCL::Maths;
 
+namespace {
+struct EventPublishState {
+    std::unordered_set<ECS::ContactKey, ECS::ContactKeyHash> active_trigger_pairs;
+};
+
+static std::unordered_map<const ECS::Sys_Physics*, EventPublishState> g_event_publish_state;
+}
+
 // ============================================================
 // Jolt ↔ NCL 转换工具（内部静态函数）
 // ============================================================
@@ -112,6 +120,8 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
 
     // 注册 ContactListener
     m_PhysicsSystem->SetContactListener(&m_ContactListener);
+
+    g_event_publish_state[this];
 
     // 注册 EventBus 到 Registry Context（EventBus 不可复制，以裸指针注册）
     if (!registry.has_ctx<ECS::EventBus*>()) {
@@ -239,6 +249,8 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     if (registry.has_ctx<ECS::Sys_Physics*>()) {
         registry.ctx<ECS::Sys_Physics*>() = nullptr;
     }
+
+    g_event_publish_state.erase(this);
 
     // Jolt 全局资源（Factory 等）保持存活，避免多系统场景问题
     m_BroadPhaseOptimized = false;
@@ -397,7 +409,14 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
         return;
     }
 
+    auto& state = g_event_publish_state[this];
+    std::unordered_set<ContactKey, ContactKeyHash> published_collision_this_frame;
+    std::unordered_set<ContactKey, ContactKeyHash> published_enter_this_frame;
+    std::unordered_set<ContactKey, ContactKeyHash> published_exit_this_frame;
+
     for (auto& c : contacts) {
+        const ContactKey key = ContactKey::Make(c.body_id_a, c.body_id_b);
+
         // 查找对应的 ECS 实体
         auto itA = m_BodyToEntity.find(c.body_id_a);
         auto itB = m_BodyToEntity.find(c.body_id_b);
@@ -438,27 +457,32 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
             }
 
             if (c.is_exit) {
-                // TriggerExit
-                Evt_Phys_TriggerExit evt;
-                evt.entity_trigger = triggerEntity;
-                evt.entity_other   = otherEntity;
-                bus->publish<Evt_Phys_TriggerExit>(evt);
+                const bool existed = state.active_trigger_pairs.erase(key) > 0;
+                if (existed && published_exit_this_frame.insert(key).second) {
+                    Evt_Phys_TriggerExit evt;
+                    evt.entity_trigger = triggerEntity;
+                    evt.entity_other   = otherEntity;
+                    bus->publish<Evt_Phys_TriggerExit>(evt);
+                }
             } else {
-                // TriggerEnter
-                Evt_Phys_TriggerEnter evt;
-                evt.entity_trigger = triggerEntity;
-                evt.entity_other   = otherEntity;
-                bus->publish<Evt_Phys_TriggerEnter>(evt);
+                const bool newly_entered = state.active_trigger_pairs.insert(key).second;
+                if (newly_entered && published_enter_this_frame.insert(key).second) {
+                    Evt_Phys_TriggerEnter evt;
+                    evt.entity_trigger = triggerEntity;
+                    evt.entity_other   = otherEntity;
+                    bus->publish<Evt_Phys_TriggerEnter>(evt);
+                }
             }
         } else {
-            // 普通碰撞
-            Evt_Phys_Collision evt;
-            evt.entity_a            = entA;
-            evt.entity_b            = entB;
-            evt.contact_point       = Vector3(c.contact_x, c.contact_y, c.contact_z);
-            evt.contact_normal      = Vector3(c.normal_x,  c.normal_y,  c.normal_z);
-            evt.separating_velocity = c.separating_velocity;
-            bus->publish<Evt_Phys_Collision>(evt);
+            if (published_collision_this_frame.insert(key).second) {
+                Evt_Phys_Collision evt;
+                evt.entity_a            = entA;
+                evt.entity_b            = entB;
+                evt.contact_point       = Vector3(c.contact_x, c.contact_y, c.contact_z);
+                evt.contact_normal      = Vector3(c.normal_x,  c.normal_y,  c.normal_z);
+                evt.separating_velocity = c.separating_velocity;
+                bus->publish<Evt_Phys_Collision>(evt);
+            }
         }
     }
 }
