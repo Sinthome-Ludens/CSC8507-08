@@ -23,6 +23,7 @@
  * - `RaycastAll`：执行单射线多命中查询并输出命中列表。
  * - `ShapeCastSphere`：执行球体扫掠最近命中查询。
  * - `OverlapSphere`：执行球体区域重叠查询。
+ * - `GetDebugStats`：获取当前物理调试统计快照（只读）。
  *
  * ## Raycast 过滤优先级（固定顺序）
  * 1. `ignore_entity`
@@ -257,6 +258,57 @@ struct QueryOptions {
     bool dedupe_by_entity = true;      ///< 是否按实体去重
 };
 
+/**
+ * @brief 物理接触键（用于事件去重与接触状态追踪）。
+ */
+struct ContactKey {
+    uint32_t body_a = 0;
+    uint32_t body_b = 0;
+
+    static ContactKey Make(uint32_t lhs, uint32_t rhs) {
+        if (lhs <= rhs) {
+            return ContactKey{lhs, rhs};
+        }
+        return ContactKey{rhs, lhs};
+    }
+
+    bool operator==(const ContactKey& other) const {
+        return body_a == other.body_a && body_b == other.body_b;
+    }
+};
+
+/**
+ * @brief ContactKey 哈希器。
+ */
+struct ContactKeyHash {
+    std::size_t operator()(const ContactKey& key) const noexcept {
+        const std::size_t hi = static_cast<std::size_t>(key.body_a);
+        const std::size_t lo = static_cast<std::size_t>(key.body_b);
+        return (hi << 32) ^ lo;
+    }
+};
+
+/**
+ * @brief 物理调试统计快照。
+ */
+struct PhysicsDebugStats {
+    uint32_t total_bodies = 0;
+    uint32_t dynamic_bodies = 0;
+    uint32_t static_bodies = 0;
+    uint32_t trigger_bodies = 0;
+
+    uint32_t fixed_steps_last_frame = 0;
+
+    uint32_t collision_events_published = 0;
+    uint32_t trigger_enter_events_published = 0;
+    uint32_t trigger_exit_events_published = 0;
+
+    uint32_t raycast_nearest_queries = 0;
+    uint32_t raycast_all_queries = 0;
+    uint32_t shape_cast_sphere_queries = 0;
+    uint32_t overlap_sphere_queries = 0;
+};
+
 class Sys_Physics : public ISystem {
 public:
     // 物理常量
@@ -319,6 +371,9 @@ public:
                       const QueryOptions& options,
                       std::vector<EntityID>& outEntities) const;
 
+    /// 获取物理调试统计快照（只读）
+    const PhysicsDebugStats& GetDebugStats() const { return m_DebugStats; }
+
     /// 获取 Jolt PhysicsSystem 指针（供调试/ImGui 使用）
     JPH::PhysicsSystem* GetJoltPhysicsSystem() const { return m_PhysicsSystem.get(); }
 
@@ -344,6 +399,8 @@ private:
 
     // BroadPhase 优化标志（场景加载完毕后调用一次 OptimizeBroadPhase）
     bool m_BroadPhaseOptimized = false;
+
+    PhysicsDebugStats m_DebugStats;
 
     // --- 私有方法 ---
     void InitJolt();
