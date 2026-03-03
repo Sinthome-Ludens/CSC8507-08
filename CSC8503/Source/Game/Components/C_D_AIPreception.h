@@ -1,11 +1,4 @@
+// 此文件已废弃——请改用 C_D_AIPerception.h（修正拼写）
 #pragma once
-
-namespace ECS {
-    struct C_D_AIPreception {
-        float detection_value = 0.0f;
-        float detection_value_increase = 15.0f;
-        float detection_value_decrease = 5.0f;
-        bool  is_spotted = false;
-        float hunt_lock_timer = 0.0f; // Hunt 状态锁定计时器
-    };
-}
+#include "C_D_AIPerception.h"
+namespace ECS { using C_D_AIPreception = C_D_AIPerception; }

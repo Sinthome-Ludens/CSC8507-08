@@ -13,8 +13,5 @@ namespace ECS {
 
         void OnUpdate(Registry& registry, float dt) override;
 
-    private:
-        void UpdateAIState(Registry& registry, EntityID entity, float dt);
-        void UpdateHackingLogic(Registry& registry, EntityID entity, float dt);
     };
 }

@@ -9,7 +9,7 @@
 #include "Game/Components/C_D_Collider.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/C_D_AIState.h"
-#include "Game/Components/C_D_AIPreception.h"
+#include "Game/Components/C_D_AIPerception.h"
 #include "Game/Utils/Log.h"
 
 #include <cstring>
@@ -203,10 +203,10 @@ EntityID PrefabFactory::CreatePhysicsEnemy(
     reg.Emplace<C_T_Enemy>(entity);
     reg.Emplace<C_D_AIState>(entity);
 
-    auto& detect = reg.Emplace<C_D_AIPreception>(entity);
-    detect.detectionValue         = 0.0f;
-    detect.detectionValueIncrease = 15.0f;
-    detect.detectionValueDecrease = 5.0f;
+    auto& detect = reg.Emplace<C_D_AIPerception>(entity);
+    detect.detection_value          = 0.0f;
+    detect.detection_value_increase = 15.0f;
+    detect.detection_value_decrease = 5.0f;
 
     char debugName[64];
     std::snprintf(debugName, sizeof(debugName), "ENTITY_Enemy_%02d", spawnIndex);
