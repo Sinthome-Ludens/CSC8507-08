@@ -35,7 +35,7 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_NavTest] cube mesh loaded, handle=" << cubeMesh);
 
     ECS::MeshHandle capsuleMesh = ECS::AssetManager::Instance().LoadMesh(
-        NCL::Assets::MESHDIR + "Capsule.obj");
+        NCL::Assets::MESHDIR + "Capsule.msh");
     LOG_INFO("[Scene_NavTest] capsule mesh loaded, handle=" << capsuleMesh);
 
     // ── 2. 注册场景级全局资源到 Registry context ────────────────────────
@@ -43,7 +43,9 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_UIFlags>();
     }
 
-    if (!registry.has_ctx<Res_NavTestState>()) {
+    // 无条件重置：场景重进时 DestroyAll 已销毁旧实体，ctx 中残留的实体 ID 列表
+    // 若不清空会导致 "Delete Last" 操作访问已失效 ID
+    {
         Res_NavTestState navState;
         navState.enemyMeshHandle  = capsuleMesh;
         navState.targetMeshHandle = cubeMesh;

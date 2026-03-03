@@ -120,7 +120,7 @@ int main() {
 			w->SetWindowPosition(0, 0);
 		}
 
-		w->SetTitle("ECS Physics Test - frame time: " + std::to_string(1000.0f * dt) + " ms");
+		w->SetTitle("ECS NavTest - frame time: " + std::to_string(1000.0f * dt) + " ms");
 
 #ifdef USE_IMGUI
 		ECS::ImGuiAdapter::NewFrame();

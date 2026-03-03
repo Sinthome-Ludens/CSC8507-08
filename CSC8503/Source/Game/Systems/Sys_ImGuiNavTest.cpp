@@ -144,7 +144,7 @@ void Sys_ImGuiNavTest::SpawnTarget(Registry& registry) {
     }
 
     Vector3 spawnPos = CalcNavSpawnPos(registry);
-    spawnPos.y = -5.0f;  // 目标方块放在地板上
+    spawnPos.y = -4.5f;  // 地板顶面 y=-5.0，目标半高 0.5 → 中心在 -4.5，贴地放置
     EntityID id = PrefabFactory::CreateNavTarget(
         registry, state.targetMeshHandle, state.targetSpawnIndex, spawnPos);
     ++state.targetSpawnIndex;
