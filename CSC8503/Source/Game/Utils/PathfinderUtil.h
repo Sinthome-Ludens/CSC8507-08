@@ -5,13 +5,6 @@
 namespace ECS {
 
 /**
- * @brief 通用路点数据（内部辅助，供 PathfinderUtil 使用）
- */
-struct NavWaypoint {
-    float x, y, z;
-};
-
-/**
  * @brief 抽象寻路接口
  *
  * 通过接口隔离具体寻路算法，方便后续替换为 NavMesh A* 实现。

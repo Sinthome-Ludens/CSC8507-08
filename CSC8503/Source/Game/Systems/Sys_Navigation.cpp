@@ -11,6 +11,7 @@
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #include "Game/Systems/Sys_Physics.h"
+#include "Game/Utils/Log.h"
 
 namespace ECS {
 
@@ -34,7 +35,7 @@ static void ApplyRotationToward(C_D_NavAgent& agent, C_D_Transform& tf,
     NCL::Maths::Quaternion targetRot =
         NCL::Maths::Quaternion::EulerAnglesToQuaternion(0, targetYaw, 0);
     tf.rotation = NCL::Maths::Quaternion::Slerp(
-        tf.rotation, targetRot, agent.rotation_speed * dt);
+        tf.rotation, targetRot, std::min(agent.rotation_speed * dt, 1.0f));
 
     if (physics && rb.body_created) {
         physics->SetRotation(rb.jolt_body_id, tf.rotation);
@@ -76,7 +77,7 @@ static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
         NCL::Maths::Quaternion targetRot =
             NCL::Maths::Quaternion::EulerAnglesToQuaternion(0, targetYaw, 0);
         tf.rotation = NCL::Maths::Quaternion::Slerp(
-            tf.rotation, targetRot, agent.rotation_speed * dt);
+            tf.rotation, targetRot, std::min(agent.rotation_speed * dt, 1.0f));
         if (physics && rb.body_created) {
             physics->SetRotation(rb.jolt_body_id, tf.rotation);
         }
@@ -84,7 +85,7 @@ static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
 
     if (physics && rb.body_created) {
         physics->SetLinearVelocity(rb.jolt_body_id,
-            dir.x * agent.speed, -9.8f * dt, dir.z * agent.speed);
+            dir.x * agent.speed, 0.0f, dir.z * agent.speed);
     }
 }
 
@@ -108,13 +109,24 @@ static void CopyPathToAgent(C_D_NavAgent& agent,
 // 主更新
 // ─────────────────────────────────────────────────────────────────────────────
 void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
-    if (!m_Pathfinder) return;
+    if (!m_Pathfinder) {
+        LOG_WARN("[Sys_Navigation] Pathfinder is null, skipping update.");
+        return;
+    }
 
     // 从 Registry context 获取 Sys_Physics 指针（由 Sys_Physics::OnAwake 注册）
     Sys_Physics* physics = nullptr;
     if (registry.has_ctx<Sys_Physics*>()) {
         physics = registry.ctx<Sys_Physics*>();
     }
+
+    // 预收集所有 NavTarget，避免在 agent 循环内重复 ECS 视图扫描（O(n×m) → O(n+m)）
+    struct TargetEntry { const char* type; NCL::Maths::Vector3 pos; };
+    std::vector<TargetEntry> allTargets;
+    registry.view<C_T_NavTarget, C_D_Transform>().each(
+        [&](EntityID, C_T_NavTarget& tTag, C_D_Transform& tTf) {
+            allTargets.push_back({ tTag.target_type, tTf.position });
+        });
 
     auto agents = registry.view<C_T_Pathfinder, C_D_NavAgent, C_D_Transform, C_D_RigidBody>();
 
@@ -129,18 +141,17 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
         bool targetFound = false;
         float minDistanceSq = 1e10f;
 
-        auto targets = registry.view<C_T_NavTarget, C_D_Transform>();
-        targets.each([&](EntityID /*tEnt*/, C_T_NavTarget& tTag, C_D_Transform& tTf) {
-            if (std::strcmp(tTag.target_type, agent.search_tag) == 0) {
-                NCL::Maths::Vector3 diff = tTf.position - tf.position;
+        for (const auto& entry : allTargets) {
+            if (std::strcmp(entry.type, agent.search_tag) == 0) {
+                NCL::Maths::Vector3 diff = entry.pos - tf.position;
                 float dSq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
                 if (dSq < minDistanceSq) {
                     minDistanceSq = dSq;
-                    liveTargetPos = tTf.position;
+                    liveTargetPos = entry.pos;
                     targetFound   = true;
                 }
             }
-        });
+        }
 
         // 找到目标时持续更新最后已知位置
         if (targetFound) {
@@ -192,8 +203,9 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                 // 首次进入：对当前最后已知位置做快照，立即规划路径
                 agent.alert_snapshot_pos = agent.last_known_target_pos;
                 std::vector<NCL::Maths::Vector3> tempPath;
-                m_Pathfinder->FindPath(tf.position, agent.alert_snapshot_pos, tempPath);
-                CopyPathToAgent(agent, tempPath);
+                if (m_Pathfinder->FindPath(tf.position, agent.alert_snapshot_pos, tempPath)) {
+                    CopyPathToAgent(agent, tempPath);
+                }
                 agent.timer = 0.0f;
             }
             FollowPath(agent, tf, rb, physics, dt);
@@ -205,12 +217,23 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
         default: {
             if (!targetFound) break;
 
-            agent.timer += dt;
-            if (agent.timer >= agent.update_frequency) {
+            bool justEntered = (agent.prev_state != EnemyState::Hunt);
+            if (justEntered) {
+                // 首次进入 Hunt：立即规划路径，不等待计时器
                 std::vector<NCL::Maths::Vector3> tempPath;
-                m_Pathfinder->FindPath(tf.position, liveTargetPos, tempPath);
-                CopyPathToAgent(agent, tempPath);
+                if (m_Pathfinder->FindPath(tf.position, liveTargetPos, tempPath)) {
+                    CopyPathToAgent(agent, tempPath);
+                }
                 agent.timer = 0.0f;
+            } else {
+                agent.timer += dt;
+                if (agent.timer >= agent.update_frequency) {
+                    std::vector<NCL::Maths::Vector3> tempPath;
+                    if (m_Pathfinder->FindPath(tf.position, liveTargetPos, tempPath)) {
+                        CopyPathToAgent(agent, tempPath);
+                    }
+                    agent.timer = 0.0f;
+                }
             }
             FollowPath(agent, tf, rb, physics, dt);
             break;

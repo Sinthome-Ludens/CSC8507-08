@@ -90,9 +90,8 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
     }
 
     // 注册 Sys_Physics 自身指针，供 Sys_Navigation 调用速度控制接口
-    if (!registry.has_ctx<ECS::Sys_Physics*>()) {
-        registry.ctx_emplace<ECS::Sys_Physics*>(this);
-    }
+    // 无条件更新：场景重进时确保 ctx 持有新实例指针，避免悬空引用
+    registry.ctx_emplace<ECS::Sys_Physics*>(this);
 
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
 }
