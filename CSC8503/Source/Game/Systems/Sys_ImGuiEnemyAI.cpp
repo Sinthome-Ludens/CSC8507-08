@@ -5,7 +5,7 @@
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_AIState.h"
-#include "Game/Components/C_D_AIPreception.h"
+#include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #include "Game/Utils/Log.h"
 
@@ -43,9 +43,9 @@ void Sys_ImGuiEnemyAI::RenderEnemyMonitorWindow(Registry& registry) {
         ImGui::TableSetupColumn("Detection");
         ImGui::TableHeadersRow();
 
-        auto view = registry.view<C_T_Enemy, C_D_Transform, C_D_AIState, C_D_AIPreception>();
+        auto view = registry.view<C_T_Enemy, C_D_Transform, C_D_AIState, C_D_AIPerception>();
         view.each([&](EntityID id, C_T_Enemy&, C_D_Transform& tf,
-                      C_D_AIState& aiState, C_D_AIPreception& det)
+                      C_D_AIState& aiState, C_D_AIPerception& det)
         {
             ImGui::TableNextRow();
 
@@ -58,13 +58,13 @@ void Sys_ImGuiEnemyAI::RenderEnemyMonitorWindow(Registry& registry) {
 
             ImGui::TableSetColumnIndex(2);
             const char* stateStr =
-                (aiState.currentState == EnemyState::Safe)    ? "SAFE"    :
-                (aiState.currentState == EnemyState::Caution) ? "CAUTION" :
-                (aiState.currentState == EnemyState::Alert)   ? "ALERT"   : "HUNT";
+                (aiState.current_state == EnemyState::Safe)    ? "SAFE"    :
+                (aiState.current_state == EnemyState::Caution) ? "CAUTION" :
+                (aiState.current_state == EnemyState::Alert)   ? "ALERT"   : "HUNT";
             ImGui::TextUnformatted(stateStr);
 
             ImGui::TableSetColumnIndex(3);
-            ImGui::ProgressBar(det.detectionValue / 100.0f, ImVec2(-1.0f, 0.0f));
+            ImGui::ProgressBar(det.detection_value / 100.0f, ImVec2(-1.0f, 0.0f));
         });
 
         ImGui::EndTable();
