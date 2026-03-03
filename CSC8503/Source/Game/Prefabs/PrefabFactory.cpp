@@ -7,6 +7,9 @@
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
+#include "Game/Components/C_T_Enemy.h"
+#include "Game/Components/C_D_AIState.h"
+#include "Game/Components/C_D_AIPerception.h"
 #include "Game/Utils/Log.h"
 
 #include <cstring>
@@ -133,10 +136,10 @@ EntityID PrefabFactory::CreatePhysicsCube(
 
     // C_D_RigidBody（动态体，匹配 Prefab_Physics_Cube.json）
     C_D_RigidBody rb{};
-    rb.mass            = 1.0f;
-    rb.gravity_factor  = 1.0f;
-    rb.linear_damping  = 0.05f;
-    rb.angular_damping = 0.05f;
+    rb.mass             = 1.0f;
+    rb.gravity_factor   = 1.0f;
+    rb.linear_damping   = 0.05f;
+    rb.angular_damping  = 0.05f;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
     // C_D_Collider（Box 1×1×1，cube.obj 顶点 ±1.0，scale (1,1,1) → 世界半尺寸 (1,1,1)）
@@ -155,6 +158,61 @@ EntityID PrefabFactory::CreatePhysicsCube(
     AttachDebugName(reg, entity, debugName);
 
     LOG_INFO("[PrefabFactory] CreatePhysicsCube id=" << entity
+             << " index=" << spawnIndex
+             << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreatePhysicsEnemy  →  PREFAB_PHYSICS_ENEMY
+// ============================================================
+EntityID PrefabFactory::CreatePhysicsEnemy(
+    Registry&       reg,
+    ECS::MeshHandle enemyMesh,
+    int             spawnIndex,
+    Vector3         spawnPos)
+{
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        enemyMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    C_D_RigidBody rb{};
+    rb.mass            = 1.0f;
+    rb.gravity_factor  = 1.0f;
+    rb.lock_rotation_x = true;  // 防止胶囊体前后翻转
+    rb.lock_rotation_z = true;  // 防止胶囊体左右翻转
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    C_D_Collider col{};
+    col.type   = ColliderType::Capsule;
+    col.half_x = 0.5f;  // radius
+    col.half_y = 1.0f;  // half_height
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // EnemyAI 核心组件
+    reg.Emplace<C_T_Enemy>(entity);
+    reg.Emplace<C_D_AIState>(entity);
+
+    auto& detect = reg.Emplace<C_D_AIPerception>(entity);
+    detect.detection_value              = 0.0f;
+    detect.detection_value_increase     = 15.0f;
+    detect.detection_value_decrease     = 5.0f;
+
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_Enemy_%02d", spawnIndex);
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreatePhysicsEnemy id=" << entity
              << " index=" << spawnIndex
              << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
 
