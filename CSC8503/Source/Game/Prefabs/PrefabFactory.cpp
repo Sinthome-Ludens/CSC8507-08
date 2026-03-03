@@ -136,10 +136,10 @@ EntityID PrefabFactory::CreatePhysicsCube(
 
     // C_D_RigidBody（动态体，匹配 Prefab_Physics_Cube.json）
     C_D_RigidBody rb{};
-    rb.mass            = 1.0f;
-    rb.gravity_factor  = 1.0f;
-    rb.linear_damping  = 0.05f;
-    rb.angular_damping = 0.05f;
+    rb.mass             = 1.0f;
+    rb.gravity_factor   = 1.0f;
+    rb.linear_damping   = 0.05f;
+    rb.angular_damping  = 0.05f;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
     // C_D_Collider（Box 1×1×1，cube.obj 顶点 ±1.0，scale (1,1,1) → 世界半尺寸 (1,1,1)）
@@ -204,15 +204,64 @@ EntityID PrefabFactory::CreatePhysicsEnemy(
     reg.Emplace<C_D_AIState>(entity);
 
     auto& detect = reg.Emplace<C_D_AIPerception>(entity);
-    detect.detection_value          = 0.0f;
-    detect.detection_value_increase = 15.0f;
-    detect.detection_value_decrease = 5.0f;
+    detect.detection_value              = 0.0f;
+    detect.detection_value_increase     = 15.0f;
+    detect.detection_value_decrease     = 5.0f;
 
     char debugName[64];
     std::snprintf(debugName, sizeof(debugName), "ENTITY_Enemy_%02d", spawnIndex);
     AttachDebugName(reg, entity, debugName);
 
     LOG_INFO("[PrefabFactory] CreatePhysicsEnemy id=" << entity
+             << " index=" << spawnIndex
+             << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreatePhysicsCapsule  →  PREFAB_PHYSICS_CAPSULE
+// ============================================================
+EntityID PrefabFactory::CreatePhysicsCapsule(
+    Registry&       reg,
+    ECS::MeshHandle capsuleMesh,
+    int             spawnIndex,
+    Vector3         spawnPos)
+{
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        capsuleMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    C_D_RigidBody rb{};
+    rb.mass            = 1.0f;
+    rb.gravity_factor  = 1.0f;
+    rb.linear_damping  = 0.05f;
+    rb.angular_damping = 0.05f;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    // Capsule.obj 总高度 2.0：2 * half_height(0.5) + 2 * radius(0.5) = 2.0
+    C_D_Collider col{};
+    col.type        = ColliderType::Capsule;
+    col.half_x      = 0.5f;   // radius
+    col.half_y      = 0.5f;   // half_height（不含半球部分）
+    col.friction    = 0.5f;
+    col.restitution = 0.0f;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_Physics_Capsule_%02d", spawnIndex);
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreatePhysicsCapsule id=" << entity
              << " index=" << spawnIndex
              << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
 
