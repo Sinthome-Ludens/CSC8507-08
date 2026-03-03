@@ -34,7 +34,7 @@ static void ApplyRotationToward(C_D_NavAgent& agent, C_D_Transform& tf,
     NCL::Maths::Quaternion targetRot =
         NCL::Maths::Quaternion::EulerAnglesToQuaternion(0, targetYaw, 0);
     tf.rotation = NCL::Maths::Quaternion::Slerp(
-        tf.rotation, targetRot, agent.rotationSpeed * dt);
+        tf.rotation, targetRot, agent.rotation_speed * dt);
 
     if (physics && rb.body_created) {
         physics->SetRotation(rb.jolt_body_id, tf.rotation);
@@ -42,24 +42,24 @@ static void ApplyRotationToward(C_D_NavAgent& agent, C_D_Transform& tf,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 辅助：按 pathWaypoints 推进路点并施加速度（Alert / Hunt 共用）
+// 辅助：按 path_waypoints 推进路点并施加速度（Alert / Hunt 共用）
 // ─────────────────────────────────────────────────────────────────────────────
 static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
                        C_D_RigidBody& rb, Sys_Physics* physics, float dt)
 {
-    if (!agent.isActive || agent.pathLength == 0) return;
+    if (!agent.is_active || agent.path_length == 0) return;
 
-    NCL::Maths::Vector3 targetPoint = agent.pathWaypoints[agent.currentWaypointIndex];
+    NCL::Maths::Vector3 targetPoint = agent.path_waypoints[agent.current_waypoint_index];
     NCL::Maths::Vector3 dir = targetPoint - tf.position;
     dir.y = 0.0f;
 
     float distSq = dir.x * dir.x + dir.z * dir.z;
     if (distSq < 0.25f) { // 到达路点阈值 0.5m
-        if (agent.currentWaypointIndex < agent.pathLength - 1) {
-            agent.currentWaypointIndex++;
+        if (agent.current_waypoint_index < agent.path_length - 1) {
+            agent.current_waypoint_index++;
         } else {
             // 到达终点
-            agent.isActive = false;
+            agent.is_active = false;
             if (physics && rb.body_created) {
                 physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
             }
@@ -71,12 +71,12 @@ static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
     dir.x /= dist;
     dir.z /= dist;
 
-    if (agent.smoothRotation) {
+    if (agent.smooth_rotation) {
         float targetYaw = atan2f(-dir.x, -dir.z) * 57.29577f;
         NCL::Maths::Quaternion targetRot =
             NCL::Maths::Quaternion::EulerAnglesToQuaternion(0, targetYaw, 0);
         tf.rotation = NCL::Maths::Quaternion::Slerp(
-            tf.rotation, targetRot, agent.rotationSpeed * dt);
+            tf.rotation, targetRot, agent.rotation_speed * dt);
         if (physics && rb.body_created) {
             physics->SetRotation(rb.jolt_body_id, tf.rotation);
         }
@@ -97,11 +97,11 @@ static void CopyPathToAgent(C_D_NavAgent& agent,
     const int count = static_cast<int>(
         std::min(path.size(), static_cast<size_t>(NAV_MAX_WAYPOINTS)));
     for (int i = 0; i < count; ++i) {
-        agent.pathWaypoints[i] = path[i];
+        agent.path_waypoints[i] = path[i];
     }
-    agent.pathLength           = count;
-    agent.currentWaypointIndex = 0;
-    agent.isActive             = (count > 0);
+    agent.path_length              = count;
+    agent.current_waypoint_index   = 0;
+    agent.is_active                = (count > 0);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
 
         auto targets = registry.view<C_T_NavTarget, C_D_Transform>();
         targets.each([&](EntityID /*tEnt*/, C_T_NavTarget& tTag, C_D_Transform& tTf) {
-            if (std::strcmp(tTag.targetType, agent.searchTag) == 0) {
+            if (std::strcmp(tTag.target_type, agent.search_tag) == 0) {
                 NCL::Maths::Vector3 diff = tTf.position - tf.position;
                 float dSq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
                 if (dSq < minDistanceSq) {
@@ -144,22 +144,22 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
 
         // 找到目标时持续更新最后已知位置
         if (targetFound) {
-            agent.lastKnownTargetPos = liveTargetPos;
-            agent.hasLastKnownPos    = true;
+            agent.last_known_target_pos = liveTargetPos;
+            agent.has_last_known_pos    = true;
         }
 
         // ── Step 2: 按 AI 状态分支（无 AIState 组件视为 Hunt）─────────────
-        EnemyState curState = aiState ? aiState->currentState : EnemyState::Hunt;
+        EnemyState curState = aiState ? aiState->current_state : EnemyState::Hunt;
 
         switch (curState) {
 
         // ── Safe：完全静止 ────────────────────────────────────────────────
         case EnemyState::Safe: {
-            if (agent.isActive) {
-                agent.pathLength           = 0;
-                agent.currentWaypointIndex = 0;
-                agent.isActive             = false;
-                agent.timer                = agent.updateFrequency;
+            if (agent.is_active) {
+                agent.path_length              = 0;
+                agent.current_waypoint_index   = 0;
+                agent.is_active                = false;
+                agent.timer                    = agent.update_frequency;
                 if (physics && rb.body_created) {
                     physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
                 }
@@ -169,30 +169,30 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
 
         // ── Caution：停止移动，朝向最后已知目标位置旋转 ──────────────────
         case EnemyState::Caution: {
-            if (agent.isActive) {
-                agent.pathLength           = 0;
-                agent.currentWaypointIndex = 0;
-                agent.isActive             = false;
-                agent.timer                = agent.updateFrequency;
+            if (agent.is_active) {
+                agent.path_length              = 0;
+                agent.current_waypoint_index   = 0;
+                agent.is_active                = false;
+                agent.timer                    = agent.update_frequency;
                 if (physics && rb.body_created) {
                     physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
                 }
             }
-            if (agent.smoothRotation && agent.hasLastKnownPos) {
+            if (agent.smooth_rotation && agent.has_last_known_pos) {
                 ApplyRotationToward(agent, tf, rb, physics,
-                                    agent.lastKnownTargetPos, dt);
+                                    agent.last_known_target_pos, dt);
             }
             break;
         }
 
         // ── Alert：移动到进入 Alert 时的目标位置快照 ─────────────────────
         case EnemyState::Alert: {
-            bool justEntered = (agent.prevState != EnemyState::Alert);
-            if (justEntered && agent.hasLastKnownPos) {
+            bool justEntered = (agent.prev_state != EnemyState::Alert);
+            if (justEntered && agent.has_last_known_pos) {
                 // 首次进入：对当前最后已知位置做快照，立即规划路径
-                agent.alertSnapshotPos = agent.lastKnownTargetPos;
+                agent.alert_snapshot_pos = agent.last_known_target_pos;
                 std::vector<NCL::Maths::Vector3> tempPath;
-                m_Pathfinder->FindPath(tf.position, agent.alertSnapshotPos, tempPath);
+                m_Pathfinder->FindPath(tf.position, agent.alert_snapshot_pos, tempPath);
                 CopyPathToAgent(agent, tempPath);
                 agent.timer = 0.0f;
             }
@@ -206,7 +206,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
             if (!targetFound) break;
 
             agent.timer += dt;
-            if (agent.timer >= agent.updateFrequency) {
+            if (agent.timer >= agent.update_frequency) {
                 std::vector<NCL::Maths::Vector3> tempPath;
                 m_Pathfinder->FindPath(tf.position, liveTargetPos, tempPath);
                 CopyPathToAgent(agent, tempPath);
@@ -217,9 +217,9 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
         }
         }
 
-        // ── Step 3: 更新 prevState 供下一帧检测状态切换 ──────────────────
+        // ── Step 3: 更新 prev_state 供下一帧检测状态切换 ──────────────────
         if (aiState) {
-            agent.prevState = aiState->currentState;
+            agent.prev_state = aiState->current_state;
         }
     });
 }
