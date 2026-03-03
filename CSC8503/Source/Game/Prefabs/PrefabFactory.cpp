@@ -10,6 +10,9 @@
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_D_AIPerception.h"
+#include "Game/Components/C_D_NavAgent.h"
+#include "Game/Components/C_T_Pathfinder.h"
+#include "Game/Components/C_T_NavTarget.h"
 #include "Game/Utils/Log.h"
 
 #include <cstring>
@@ -220,7 +223,115 @@ EntityID PrefabFactory::CreatePhysicsEnemy(
 }
 
 // ============================================================
-// CreatePhysicsCapsule  →  PREFAB_PHYSICS_CAPSULE
+// CreateNavEnemy  →  PREFAB_NAV_ENEMY (来自 feat/navtest-scene)
+// ============================================================
+EntityID PrefabFactory::CreateNavEnemy(
+    Registry&       reg,
+    ECS::MeshHandle enemyMesh,
+    int             spawnIndex,
+    Vector3         spawnPos)
+{
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        enemyMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    C_D_RigidBody rb{};
+    rb.mass            = 1.0f;
+    rb.gravity_factor  = 1.0f;
+    rb.lock_rotation_x = true;
+    rb.lock_rotation_z = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    C_D_Collider col{};
+    col.type   = ColliderType::Capsule;
+    col.half_x = 0.5f;
+    col.half_y = 1.0f;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // EnemyAI 核心组件（状态机）
+    reg.Emplace<C_T_Enemy>(entity);
+    reg.Emplace<C_D_AIState>(entity);
+
+    auto& detect = reg.Emplace<C_D_AIPerception>(entity);
+    detect.detection_value          = 0.0f;
+    detect.detection_value_increase = 15.0f;
+    detect.detection_value_decrease = 5.0f;
+
+    // NavAgent 导航组件
+    reg.Emplace<C_D_NavAgent>(entity);      // 使用默认参数（speed=5, search_tag="Player"）
+    reg.Emplace<C_T_Pathfinder>(entity);    // 启用寻路标签
+
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_Nav_Enemy_%02d", spawnIndex);
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreateNavEnemy id=" << entity
+             << " index=" << spawnIndex
+             << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateNavTarget  →  PREFAB_NAV_TARGET (来自 feat/navtest-scene)
+// ============================================================
+EntityID PrefabFactory::CreateNavTarget(
+    Registry&       reg,
+    ECS::MeshHandle targetMesh,
+    int             spawnIndex,
+    Vector3         spawnPos)
+{
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(0.5f, 0.5f, 0.5f)  // 较小的目标方块
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        targetMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // 静态体（不会被物理推动）
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    C_D_Collider col{};
+    col.type   = ColliderType::Box;
+    col.half_x = 0.5f;
+    col.half_y = 0.5f;
+    col.half_z = 0.5f;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // NavTarget 标签（searchTag="Player" 默认匹配）
+    auto& target = reg.Emplace<C_T_NavTarget>(entity);
+    strncpy_s(target.target_type, sizeof(target.target_type), "Player", sizeof(target.target_type) - 1);
+
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_Nav_Target_%02d", spawnIndex);
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreateNavTarget id=" << entity
+             << " index=" << spawnIndex
+             << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreatePhysicsCapsule  →  PREFAB_PHYSICS_CAPSULE (来自 master)
 // ============================================================
 EntityID PrefabFactory::CreatePhysicsCapsule(
     Registry&       reg,
