@@ -36,7 +36,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_PhysicsTest] cube mesh loaded, handle=" << cubeMesh);
 
     ECS::MeshHandle capsuleMesh = ECS::AssetManager::Instance().LoadMesh(
-        NCL::Assets::MESHDIR + "Capsule.obj");
+        NCL::Assets::MESHDIR + "Capsule.msh");
     LOG_INFO("[Scene_PhysicsTest] capsule mesh loaded, handle=" << capsuleMesh);
 
     // ── 2. 注册场景级全局资源到 Registry context ────────────────────────

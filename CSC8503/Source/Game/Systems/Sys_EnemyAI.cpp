@@ -13,15 +13,18 @@ namespace ECS {
         view.each([&](EntityID entity, C_T_Enemy&, C_D_AIState& state, C_D_AIPerception& detect) {
 
             // ── 1. 警戒度增减 ────────────────────────────────────────────
+            // Hunt 锁定计时器无条件倒计时（spotted 时也扣），截断到 0
+            if (detect.hunt_lock_timer > 0.0f)
+                detect.hunt_lock_timer = std::max(0.0f, detect.hunt_lock_timer - dt);
+
             if (detect.is_spotted) {
                 // 玩家在视野内：警戒度持续上升
                 detect.detection_value += detect.detection_value_increase * dt;
             } else {
                 if (state.current_state == EnemyState::Hunt && detect.hunt_lock_timer > 0.0f) {
-                    // Hunt 锁定期：只倒计时，警戒度不下降，并强制 >= 50
-                    detect.hunt_lock_timer -= dt;
-                    if (detect.detection_value < 50.0f) {
-                        detect.detection_value = 50.0f;
+                    // Hunt 锁定期：警戒度不下降，并强制 >= hunt_threshold
+                    if (detect.detection_value < detect.hunt_threshold) {
+                        detect.detection_value = detect.hunt_threshold;
                     }
                 } else {
                     // 普通下降
@@ -36,15 +39,15 @@ namespace ECS {
             EnemyState nextState = state.current_state;
             const float v = detect.detection_value;
 
-            if (v >= 50.0f) {
+            if (v >= detect.hunt_threshold) {
                 if (state.current_state != EnemyState::Hunt) {
                     detect.hunt_lock_timer = 5.0f; // 进入 Hunt 时启动 5 秒锁定
                     LOG_INFO("SYS_ENEMY_AI: Entity " << (int)entity << " -> HUNT (lock 5s)");
                 }
                 nextState = EnemyState::Hunt;
-            } else if (v >= 30.0f) {
+            } else if (v >= detect.alert_threshold) {
                 nextState = EnemyState::Alert;
-            } else if (v >= 15.0f) {
+            } else if (v >= detect.caution_threshold) {
                 nextState = EnemyState::Caution;
             } else {
                 nextState = EnemyState::Safe;

@@ -4,8 +4,8 @@
 namespace ECS {
     /**
      * @brief 敌人 AI 逻辑系统
-     * 职责：处理状态切换、侦测值计算及非暴力交互逻辑
-     * 执行优先级：120 (晚于 Sys_Physics)
+     * 职责：管理感知警戒度（detection_value）增减及四状态（Safe/Caution/Alert/Hunt）切换
+     * 执行优先级：120（晚于 Sys_Physics，早于 Sys_Render）
      */
     class Sys_EnemyAI : public ISystem {
     public:
