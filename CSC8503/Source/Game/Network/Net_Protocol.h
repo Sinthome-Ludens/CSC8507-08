@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace NCL::CSC8503::ECS {
+namespace ECS {
 
 #pragma pack(push, 1)
 
@@ -21,9 +21,21 @@ enum Net_PacketType : uint8_t {
     SYS_WELCOME,         ///< 服务端确认连接并发送初始化数据
     SYS_DISCONNECT,      ///< 断开连接通知
     SYNC_TRANSFORM,      ///< Transform状态同步数据包
-    GAME_EVENT           ///< 游戏事件数据包（客户端或服务端在发生攻击、交互、技能释放等游戏行为时发送）
+    GAME_EVENT,          ///< 游戏事件数据包（客户端或服务端在发生攻击、交互、技能释放等游戏行为时发送）
+    CLIENT_INPUT         ///< 客户端输入数据包（用于服务器权威架构）
 };
 
+// 传输可靠性
+enum class NetDelivery {
+    Unreliable = 0,               // 不可靠传输（UDP特性，快，可能丢包）
+    Reliable   = 1                // 可靠传输（类似TCP重传，慢，保证到达）
+};
+
+// 发送范围
+enum class NetTarget {
+    Single,    // 发送给当前绑定的 peer
+    Broadcast  // 广播给所有连接的客户端
+};
 /**
  * @struct Net_PacketHeader
  * @brief 所有网络数据包的公共包头
@@ -55,12 +67,11 @@ struct Net_Packet_Handshake : public Net_PacketHeader {
  * 和玩家出生位置。
  */
 struct Net_Packet_Welcome : public Net_PacketHeader {
-    uint32_t clientID; ///< 服务端分配的客户端唯一ID
-    uint32_t levelID;  ///< 当前关卡或场景ID
-
-    float spawnX;      ///< 玩家出生位置 X 坐标
-    float spawnY;      ///< 玩家出生位置 Y 坐标
-    float spawnZ;      ///< 玩家出生位置 Z 坐标
+    uint32_t levelID  = 1;       ///< 默认从第 1 关开始
+    float spawnX = 0.0f;         ///< 坐标默认 0
+    float spawnY = 0.0f;
+    float spawnZ = 0.0f;
+    uint32_t clientID;       ///< 默认 ID 为 0
 };
 
 /**
@@ -72,19 +83,9 @@ struct Net_Packet_Welcome : public Net_PacketHeader {
  */
 struct Net_Packet_Transform : public Net_PacketHeader {
     uint32_t netID; ///< 实体网络唯一ID
-
-    float posX;     ///< 位置 X
-    float posY;     ///< 位置 Y
-    float posZ;     ///< 位置 Z
-
-    float rotX;     ///< 四元数旋转 X
-    float rotY;     ///< 四元数旋转 Y
-    float rotZ;     ///< 四元数旋转 Z
-    float rotW;     ///< 四元数旋转 W
-
-    float velX;     ///< 速度 X
-    float velY;     ///< 速度 Y
-    float velZ;     ///< 速度 Z
+    float pos[3];            ///< 位置 (x, y, z)
+    float rot[4];            ///< 旋转四元数 (x, y, z, w)
+    float linearVel[3];      ///< 线性速度（可选，用于预测）
 };
 
 /**
@@ -105,6 +106,16 @@ struct Net_Packet_GameAction : public Net_PacketHeader {
     int32_t param1;       ///< 自定义参数（例如伤害值或物品ID）
 };
 
+/**
+ * @struct Net_Packet_ClientInput
+ * @brief 客户端输入数据包
+ *
+ * 客户端将键盘/手柄的意图打包发送给服务端，由服务端进行物理模拟。
+ */
+struct Net_Packet_ClientInput : public Net_PacketHeader {
+    uint32_t buttonMask;
+};
+
 #pragma pack(pop)
 
 /**
@@ -118,5 +129,6 @@ static_assert(sizeof(Net_Packet_Handshake) == 9, "Net_Packet_Handshake size mism
 static_assert(sizeof(Net_Packet_Welcome) == 25, "Net_Packet_Welcome size mismatch");
 static_assert(sizeof(Net_Packet_Transform) == 49, "Net_Packet_Transform size mismatch");
 static_assert(sizeof(Net_Packet_GameAction) == 18, "Net_Packet_GameAction size mismatch");
+static_assert(sizeof(Net_Packet_ClientInput) == 9, "Net_Packet_ClientInput size mismatch");
 
-} // namespace NCL::CSC8503::ECS
+}
