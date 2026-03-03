@@ -261,13 +261,13 @@ EntityID PrefabFactory::CreateNavEnemy(
     reg.Emplace<C_T_Enemy>(entity);
     reg.Emplace<C_D_AIState>(entity);
 
-    auto& detect = reg.Emplace<C_D_AIPreception>(entity);
-    detect.detectionValue         = 0.0f;
-    detect.detectionValueIncrease = 15.0f;
-    detect.detectionValueDecrease = 5.0f;
+    auto& detect = reg.Emplace<C_D_AIPerception>(entity);
+    detect.detection_value          = 0.0f;
+    detect.detection_value_increase = 15.0f;
+    detect.detection_value_decrease = 5.0f;
 
     // NavAgent 导航组件
-    reg.Emplace<C_D_NavAgent>(entity);      // 使用默认参数（speed=5, searchTag="Player"）
+    reg.Emplace<C_D_NavAgent>(entity);      // 使用默认参数（speed=5, search_tag="Player"）
     reg.Emplace<C_T_Pathfinder>(entity);    // 启用寻路标签
 
     char debugName[64];
@@ -317,7 +317,7 @@ EntityID PrefabFactory::CreateNavTarget(
 
     // NavTarget 标签（searchTag="Player" 默认匹配）
     auto& target = reg.Emplace<C_T_NavTarget>(entity);
-    strncpy_s(target.targetType, sizeof(target.targetType), "Player", sizeof(target.targetType) - 1);
+    strncpy_s(target.target_type, sizeof(target.target_type), "Player", sizeof(target.target_type) - 1);
 
     char debugName[64];
     std::snprintf(debugName, sizeof(debugName), "ENTITY_Nav_Target_%02d", spawnIndex);

@@ -115,7 +115,7 @@ public:
      * @brief 创建带 NavAgent 的导航敌人实体（PREFAB_NAV_ENEMY）
      *
      * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody(锁旋转), C_D_Collider(Capsule),
-     *        C_T_Enemy, C_D_AIState, C_D_AIPreception,
+     *        C_T_Enemy, C_D_AIState, C_D_AIPerception,
      *        C_D_NavAgent, C_T_Pathfinder, C_D_DebugName
      *
      * @param reg          ECS Registry

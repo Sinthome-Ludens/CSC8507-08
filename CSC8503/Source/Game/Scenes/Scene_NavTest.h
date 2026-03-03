@@ -12,7 +12,7 @@
  *   - Sys_Physics     (100) — Jolt 物理引擎（Body 创建 + Transform 同步）
  *   - Sys_Navigation  (130) — NavAgent 路径查找 + 物理速度驱动移动
  *   - Sys_Render      (200) — ECS 实体 → NCL 代理 GameObject 桥接渲染
- *   - Sys_EnemyAI     (250) — 敌人警戒状态机（读取 C_D_AIPreception::isSpotted）
+ *   - Sys_EnemyAI     (250) — 敌人警戒状态机（读取 C_D_AIPerception::is_spotted）
  *   - Sys_ImGui       (300) — 菜单栏 + Debug 窗口    [仅 USE_IMGUI]
  *   - Sys_ImGuiNavTest(310) — NavTest 敌人/目标生成控制面板 [仅 USE_IMGUI]
  */

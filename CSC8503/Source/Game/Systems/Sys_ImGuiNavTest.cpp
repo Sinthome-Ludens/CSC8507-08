@@ -6,7 +6,7 @@
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/C_T_Enemy.h"
-#include "Game/Components/C_D_AIPreception.h"
+#include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/Res_NavTestState.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Prefabs/PrefabFactory.h"
@@ -87,10 +87,10 @@ void Sys_ImGuiNavTest::RenderNavTestWindow(Registry& registry) {
     static float batchValue = 100.0f;
     ImGui::SliderFloat("Detection Value", &batchValue, 0.0f, 100.0f);
     if (ImGui::Button("Set All Enemies Detected", ImVec2(220, 30))) {
-        auto view = registry.view<C_T_Enemy, C_D_AIPreception>();
-        view.each([&](EntityID, C_T_Enemy&, C_D_AIPreception& det) {
-            det.detectionValue = batchValue;
-            det.isSpotted      = (batchValue >= 50.0f);
+        auto view = registry.view<C_T_Enemy, C_D_AIPerception>();
+        view.each([&](EntityID, C_T_Enemy&, C_D_AIPerception& det) {
+            det.detection_value = batchValue;
+            det.is_spotted      = (batchValue >= 50.0f);
         });
     }
 
