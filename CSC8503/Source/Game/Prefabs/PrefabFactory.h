@@ -92,7 +92,7 @@ public:
      * @brief 创建带 EnemyAI 组件的敌人实体（PREFAB_PHYSICS_ENEMY）
      *
      * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody(锁旋转), C_D_Collider(Capsule),
-     *        C_T_Enemy, C_D_AIState, C_D_AIPreception, C_D_DebugName
+     *        C_T_Enemy, C_D_AIState, C_D_AIPerception, C_D_DebugName
      *
      * @param reg          ECS Registry
      * @param enemyMesh    敌人网格句柄
