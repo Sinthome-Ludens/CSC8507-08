@@ -57,6 +57,7 @@ void Sys_Raycast::OnAwake(Registry& /*registry*/) {
 
 void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
     bool showWindow = m_ShowWindow;
+    bool castThisFrame = false;
     if (registry.has_ctx<Res_UIFlags>()) {
         showWindow = registry.ctx<Res_UIFlags>().showRaycast;
     }
@@ -67,9 +68,7 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
         ImGui::Checkbox("Enable Raycast", &m_EnableRaycast);
         ImGui::Checkbox("Show Ray", &m_ShowRay);
         ImGui::SliderFloat("Max Distance", &m_LastResult.maxDistance, 1.0f, 200.0f, "%.1f");
-        if (ImGui::Button("Cast Once", ImVec2(140, 28))) {
-            m_RequestCast = true;
-        }
+        castThisFrame = ImGui::Button("Cast Once", ImVec2(140, 28));
 
         ImGui::Separator();
         ImGui::Text("Last Result: %s", m_LastResult.hit ? "HIT" : "MISS");
@@ -85,9 +84,7 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
         registry.ctx<Res_UIFlags>().showRaycast = showWindow;
     }
 
-    if (m_RequestCast) {
-        m_RequestCast = false;
-
+    if (castThisFrame) {
         if (!m_EnableRaycast) {
             LOG_INFO("[Sys_Raycast] Cast skipped: raycast disabled");
         } else if (!registry.has_ctx<Sys_Physics*>()) {
