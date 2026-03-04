@@ -22,6 +22,7 @@ private:
     bool m_CWasPressed = false;
     bool m_VWasPressed = false;
     bool m_EWasPressed = false;
+    bool m_FWasPressed = false;
 };
 
 } // namespace ECS

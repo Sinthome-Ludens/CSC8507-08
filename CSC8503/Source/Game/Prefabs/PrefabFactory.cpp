@@ -11,6 +11,8 @@
 #include "Game/Components/C_T_InvisibleWall.h"
 #include "Game/Components/C_D_PlayerState.h"
 #include "Game/Components/C_D_Input.h"
+#include "Game/Components/C_D_CQCState.h"
+#include "Game/Components/C_D_EnemyDormant.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_D_AIPerception.h"
@@ -169,6 +171,9 @@ EntityID PrefabFactory::CreatePlayer(
     // C_D_Input（输入数据，由 Sys_InputDispatch 每帧写入）
     reg.Emplace<ECS::C_D_Input>(entity, ECS::C_D_Input{});
 
+    // C_D_CQCState（CQC 近身制服状态）
+    reg.Emplace<ECS::C_D_CQCState>(entity, ECS::C_D_CQCState{});
+
     // C_D_DebugName
     AttachDebugName(reg, entity, "ENTITY_Player_Main");
 
@@ -322,6 +327,7 @@ EntityID PrefabFactory::CreatePhysicsEnemy(
     // EnemyAI 核心组件
     reg.Emplace<C_T_Enemy>(entity);
     reg.Emplace<C_D_AIState>(entity);
+    reg.Emplace<C_D_EnemyDormant>(entity, C_D_EnemyDormant{});
 
     auto& detect = reg.Emplace<C_D_AIPerception>(entity);
     detect.detection_value              = 0.0f;
@@ -377,6 +383,7 @@ EntityID PrefabFactory::CreateNavEnemy(
     // EnemyAI 核心组件（状态机）
     reg.Emplace<C_T_Enemy>(entity);
     reg.Emplace<C_D_AIState>(entity);
+    reg.Emplace<C_D_EnemyDormant>(entity, C_D_EnemyDormant{});
 
     auto& detect = reg.Emplace<C_D_AIPerception>(entity);
     detect.detection_value          = 0.0f;
