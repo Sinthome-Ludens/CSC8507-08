@@ -37,7 +37,6 @@ private:
     bool m_EnableRaycast = true;
     bool m_ShowRay = true;
 
-    bool m_RequestCast = false;
     RaycastResult m_LastResult;
 };
 
