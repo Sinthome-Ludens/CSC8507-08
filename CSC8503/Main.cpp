@@ -170,5 +170,9 @@ int main(int argc, char** argv) {
 	ECS::ImGuiAdapter::Shutdown();
 #endif
 
+	delete physics;
+	delete renderer;
+	delete world;
+
 	Window::DestroyGameWindow();
 }

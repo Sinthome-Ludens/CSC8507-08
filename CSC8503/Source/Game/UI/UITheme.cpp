@@ -2,6 +2,7 @@
 #ifdef USE_IMGUI
 
 #include <imgui.h>
+#include <fstream>
 #include "Assets.h"
 #include "Game/Utils/Log.h"
 
@@ -93,7 +94,7 @@ void ApplyTheme() {
     c[ImGuiCol_PlotHistogram]         = kAccentDim;
     c[ImGuiCol_PlotHistogramHovered]  = kAccent;
 
-    c[ImGuiCol_TextSelectedBg]        = {0.00f, 0.00f, 0.00f, 0.20f};
+    c[ImGuiCol_TextSelectedBg]        = {0.063f, 0.051f, 0.039f, 0.20f};
 
     c[ImGuiCol_DragDropTarget]        = kAccentHover;
 
@@ -103,48 +104,55 @@ void ApplyTheme() {
 
     c[ImGuiCol_ModalWindowDimBg]      = {0.0f, 0.0f, 0.0f, 0.70f};
 
-    LOG_INFO("[UITheme] Clean white + black accent theme applied.");
+    LOG_INFO("[UITheme] Warm cream + orange accent theme applied.");
 }
 
 // ============================================================
 // LoadFonts
 // ============================================================
 
+// 检查文件是否存在（AddFontFromFileTTF 在部分 ImGui 版本中文件缺失也返回非空指针）
+static bool FileExists(const std::string& path) {
+    std::ifstream f(path);
+    return f.good();
+}
+
+// 安全加载字体：先检查文件存在性，再调用 AddFontFromFileTTF
+static ImFont* SafeLoadFont(ImGuiIO& io, const std::string& path, float size,
+                            const char* name, const ImWchar* glyphRanges = nullptr) {
+    if (!FileExists(path)) {
+        LOG_WARN("[UITheme] Font file not found: " << path << ", using default for " << name);
+        return io.Fonts->AddFontDefault();
+    }
+    ImFontConfig cfg;
+    cfg.OversampleH = 1;
+    cfg.OversampleV = 1;
+    cfg.PixelSnapH  = true;
+    cfg.GlyphRanges = glyphRanges;
+    ImFont* font = io.Fonts->AddFontFromFileTTF(path.c_str(), size, &cfg, glyphRanges);
+    if (!font) {
+        LOG_WARN("[UITheme] Failed to load " << name << ", using default.");
+        return io.Fonts->AddFontDefault();
+    }
+    return font;
+}
+
 void LoadFonts() {
     if (s_FontTerminal) return;
 
     ImGuiIO& io = ImGui::GetIO();
 
-    const std::string cousinePath = NCL::Assets::FONTSSDIR + "Cousine-Regular.ttf";
-    const std::string robotoPath  = NCL::Assets::FONTSSDIR + "Roboto-Medium.ttf";
+    const std::string pixelFontPath = NCL::Assets::FONTSSDIR + "ZLabsRoundPix_16px_M_CN.ttf";
+    const ImWchar* cnRanges = io.Fonts->GetGlyphRangesChineseSimplifiedCommon();
 
-    s_FontTerminal = io.Fonts->AddFontFromFileTTF(cousinePath.c_str(), 16.0f);
-    if (!s_FontTerminal) {
-        LOG_WARN("[UITheme] Failed to load Cousine-Regular 16px, using default.");
-        s_FontTerminal = io.Fonts->AddFontDefault();
-    }
-
-    s_FontTerminalLarge = io.Fonts->AddFontFromFileTTF(cousinePath.c_str(), 28.0f);
-    if (!s_FontTerminalLarge) {
-        LOG_WARN("[UITheme] Failed to load Cousine-Regular 28px, using default.");
-        s_FontTerminalLarge = io.Fonts->AddFontDefault();
-    }
-
-    s_FontBody = io.Fonts->AddFontFromFileTTF(robotoPath.c_str(), 16.0f);
-    if (!s_FontBody) {
-        LOG_WARN("[UITheme] Failed to load Roboto-Medium 16px, using default.");
-        s_FontBody = io.Fonts->AddFontDefault();
-    }
-
-    s_FontSmall = io.Fonts->AddFontFromFileTTF(robotoPath.c_str(), 13.0f);
-    if (!s_FontSmall) {
-        LOG_WARN("[UITheme] Failed to load Roboto-Medium 13px, using default.");
-        s_FontSmall = io.Fonts->AddFontDefault();
-    }
+    s_FontTerminal      = SafeLoadFont(io, pixelFontPath, 16.0f, "ZLabsRoundPix 16px", cnRanges);
+    s_FontTerminalLarge = SafeLoadFont(io, pixelFontPath, 32.0f, "ZLabsRoundPix 32px", cnRanges);
+    s_FontBody          = SafeLoadFont(io, pixelFontPath, 16.0f, "ZLabsRoundPix 16px", cnRanges);
+    s_FontSmall         = SafeLoadFont(io, pixelFontPath, 13.0f, "ZLabsRoundPix 13px", cnRanges);
 
     io.Fonts->Build();
 
-    LOG_INFO("[UITheme] Fonts loaded: Terminal(16), TerminalLarge(28), Body(16), Small(13).");
+    LOG_INFO("[UITheme] Fonts loaded: ZLabsRoundPix — Terminal(16), Large(32), Body(16), Small(13).");
 }
 
 // ============================================================

@@ -136,6 +136,7 @@ private:
     SubscriptionID m_ActionSubID = 0; ///< 保存事件订阅的 ID
     uint32_t m_NextClientID = 1; ///< 服务端分配给下一个连接客户端的 ID
     uint32_t m_LastInputMask = 0; ///< 记录客户端上一帧的输入，用于判断状态变化
+    float m_InputTimer = 0.0f;    ///< 客户端输入发送计时器
 
     void OnLocalGameAction(const Evt_Net_GameAction& evt);
 };

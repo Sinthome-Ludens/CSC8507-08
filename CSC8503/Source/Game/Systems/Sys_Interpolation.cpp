@@ -26,11 +26,8 @@ void Sys_Interpolation::OnUpdate(Registry& reg, float dt) {
         if (resNet.mode == PeerType::SERVER) return; 
 
         if (buffer.count < 2) return;
-        // TODO: 环形缓冲区顺序处理优化
-        // WARNING: 当前实现假设快照是按时间戳(Timestamp)顺序连续存入缓冲区的。
-        // 如果网络层收到乱序包（例如先收到了 T+2，后收到了 T+1），
-        // 这里的线性索引(curr + 1)会导致插值逻辑崩溃或画面闪烁。
-        // 建议：在存储快照时进行按时间戳插入排序，或在此处查找时增加时间戳合法性检查。
+        // NOTE: InterpBuffer_AddSnapshot 已保证缓冲区按时间戳严格递增排列，
+        // 乱序/重复网络包在写入时即被丢弃，因此此处线性索引(curr + 1)是安全的。
         // 在缓冲区中寻找合适的两个快照进行插值
         int bestIdx = -1;
         int nextIdx = -1;

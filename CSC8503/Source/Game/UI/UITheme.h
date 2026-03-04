@@ -6,62 +6,62 @@
 namespace ECS::UITheme {
 
 // ============================================================
-// Colors — Clean white + black accent
+// Colors — Warm cream + orange accent (#F5EEE8 / #FC6F29)
 // ============================================================
 
-// Backgrounds (white / near-white)
-constexpr ImVec4 kBgWindow         = {0.97f, 0.97f, 0.98f, 0.98f};
-constexpr ImVec4 kBgChildWindow    = {0.96f, 0.96f, 0.97f, 0.95f};
-constexpr ImVec4 kBgPopup          = {0.98f, 0.98f, 0.99f, 0.97f};
-constexpr ImVec4 kBgMenuBar        = {0.95f, 0.95f, 0.96f, 0.98f};
-constexpr ImVec4 kBgTitleBar       = {0.94f, 0.94f, 0.96f, 0.98f};
-constexpr ImVec4 kBgTitleBarActive = {0.92f, 0.93f, 0.95f, 1.00f};
+// Backgrounds (unified #F5EEE8 — fully opaque)
+inline const ImVec4 kBgWindow         = {0.961f, 0.933f, 0.910f, 1.00f};
+inline const ImVec4 kBgChildWindow    = {0.961f, 0.933f, 0.910f, 1.00f};
+inline const ImVec4 kBgPopup          = {0.961f, 0.933f, 0.910f, 1.00f};
+inline const ImVec4 kBgMenuBar        = {0.961f, 0.933f, 0.910f, 1.00f};
+inline const ImVec4 kBgTitleBar       = {0.961f, 0.933f, 0.910f, 1.00f};
+inline const ImVec4 kBgTitleBarActive = {0.94f,  0.91f,  0.89f,  1.00f};
 
-// Primary accent (black)
-constexpr ImVec4 kAccent           = {0.00f, 0.00f, 0.00f, 1.00f};
-constexpr ImVec4 kAccentHover      = {0.20f, 0.20f, 0.20f, 1.00f};
-constexpr ImVec4 kAccentPressed    = {0.10f, 0.10f, 0.10f, 1.00f};
-constexpr ImVec4 kAccentDim        = {0.35f, 0.35f, 0.35f, 1.00f};
+// Primary accent (#FC6F29 orange)
+inline const ImVec4 kAccent           = {0.988f, 0.435f, 0.161f, 1.00f};
+inline const ImVec4 kAccentHover      = {1.000f, 0.530f, 0.280f, 1.00f};
+inline const ImVec4 kAccentPressed    = {0.900f, 0.380f, 0.120f, 1.00f};
+inline const ImVec4 kAccentDim        = {0.988f, 0.435f, 0.161f, 0.50f};
 
-// Text (black)
-constexpr ImVec4 kTextPrimary      = {0.00f, 0.00f, 0.00f, 1.00f};
-constexpr ImVec4 kTextSecondary    = {0.25f, 0.25f, 0.25f, 1.00f};
-constexpr ImVec4 kTextDisabled     = {0.55f, 0.55f, 0.55f, 1.00f};
+// Text (#100D0A)
+inline const ImVec4 kTextPrimary      = {0.063f, 0.051f, 0.039f, 1.00f};
+inline const ImVec4 kTextSecondary    = {0.20f,  0.18f,  0.16f,  1.00f};
+inline const ImVec4 kTextDisabled     = {0.55f,  0.55f,  0.55f,  1.00f};
 
-// Borders (light gray)
-constexpr ImVec4 kBorderNormal     = {0.84f, 0.86f, 0.89f, 0.80f};
-constexpr ImVec4 kBorderActive     = {0.00f, 0.00f, 0.00f, 0.80f};
+// Borders
+inline const ImVec4 kBorderNormal     = {0.78f,  0.76f,  0.74f,  0.80f};
+inline const ImVec4 kBorderActive     = {0.988f, 0.435f, 0.161f, 0.80f};
 
-// Buttons (light bg + black accent)
-constexpr ImVec4 kButton           = {0.93f, 0.94f, 0.95f, 1.00f};
-constexpr ImVec4 kButtonHover      = {0.86f, 0.87f, 0.88f, 1.00f};
-constexpr ImVec4 kButtonActive     = {0.10f, 0.10f, 0.10f, 1.00f};
+// Buttons (#C8C8C8 normal / #FC6F29 active)
+inline const ImVec4 kButton           = {0.784f, 0.784f, 0.784f, 1.00f};
+inline const ImVec4 kButtonHover      = {0.72f,  0.72f,  0.72f,  1.00f};
+inline const ImVec4 kButtonActive     = {0.988f, 0.435f, 0.161f, 1.00f};
 
-// Sliders (black)
-constexpr ImVec4 kSliderGrab       = {0.00f, 0.00f, 0.00f, 1.00f};
-constexpr ImVec4 kSliderGrabActive = {0.20f, 0.20f, 0.20f, 1.00f};
+// Sliders (orange accent)
+inline const ImVec4 kSliderGrab       = {0.988f, 0.435f, 0.161f, 1.00f};
+inline const ImVec4 kSliderGrabActive = {1.000f, 0.530f, 0.280f, 1.00f};
 
-// Header (light gray)
-constexpr ImVec4 kHeader           = {0.90f, 0.91f, 0.93f, 1.00f};
-constexpr ImVec4 kHeaderHover      = {0.86f, 0.88f, 0.90f, 1.00f};
-constexpr ImVec4 kHeaderActive     = {0.10f, 0.10f, 0.10f, 1.00f};
+// Header
+inline const ImVec4 kHeader           = {0.94f,  0.91f,  0.89f,  1.00f};
+inline const ImVec4 kHeaderHover      = {0.90f,  0.87f,  0.85f,  1.00f};
+inline const ImVec4 kHeaderActive     = {0.988f, 0.435f, 0.161f, 1.00f};
 
 // Separator
-constexpr ImVec4 kSeparator        = {0.84f, 0.86f, 0.89f, 0.60f};
+inline const ImVec4 kSeparator        = {0.78f,  0.76f,  0.74f,  0.60f};
 
-// Frame (input fields)
-constexpr ImVec4 kFrameBg          = {0.94f, 0.95f, 0.96f, 1.00f};
-constexpr ImVec4 kFrameBgHover     = {0.91f, 0.92f, 0.94f, 1.00f};
-constexpr ImVec4 kFrameBgActive    = {0.88f, 0.89f, 0.91f, 1.00f};
+// Frame (input fields — #F5EEE8)
+inline const ImVec4 kFrameBg          = {0.961f, 0.933f, 0.910f, 1.00f};
+inline const ImVec4 kFrameBgHover     = {0.94f,  0.91f,  0.89f,  1.00f};
+inline const ImVec4 kFrameBgActive    = {0.92f,  0.89f,  0.87f,  1.00f};
 
 // Tab
-constexpr ImVec4 kTab              = {0.94f, 0.95f, 0.96f, 1.00f};
-constexpr ImVec4 kTabHover         = {0.89f, 0.90f, 0.92f, 1.00f};
-constexpr ImVec4 kTabActive        = {0.10f, 0.10f, 0.10f, 1.00f};
+inline const ImVec4 kTab              = {0.94f,  0.91f,  0.89f,  1.00f};
+inline const ImVec4 kTabHover         = {0.90f,  0.87f,  0.85f,  1.00f};
+inline const ImVec4 kTabActive        = {0.988f, 0.435f, 0.161f, 1.00f};
 
 // Scrollbar
-constexpr ImVec4 kScrollbarBg      = {0.96f, 0.96f, 0.97f, 0.80f};
-constexpr ImVec4 kScrollbarGrab    = {0.84f, 0.86f, 0.89f, 0.60f};
+inline const ImVec4 kScrollbarBg      = {0.961f, 0.933f, 0.910f, 1.00f};
+inline const ImVec4 kScrollbarGrab    = {0.78f,  0.76f,  0.74f,  0.60f};
 
 // ============================================================
 // Math constants
@@ -82,10 +82,10 @@ constexpr float kTabRounding        = 1.0f;
 constexpr float kWindowBorderSize   = 1.0f;
 constexpr float kFrameBorderSize    = 0.0f;
 
-constexpr ImVec2 kWindowPadding     = {10.0f, 10.0f};
-constexpr ImVec2 kFramePadding      = {6.0f, 4.0f};
-constexpr ImVec2 kItemSpacing       = {8.0f, 6.0f};
-constexpr ImVec2 kItemInnerSpacing  = {6.0f, 4.0f};
+inline const ImVec2 kWindowPadding     = {10.0f, 10.0f};
+inline const ImVec2 kFramePadding      = {6.0f, 4.0f};
+inline const ImVec2 kItemSpacing       = {8.0f, 6.0f};
+inline const ImVec2 kItemInnerSpacing  = {6.0f, 4.0f};
 
 // ============================================================
 // Function declarations
@@ -94,10 +94,10 @@ constexpr ImVec2 kItemInnerSpacing  = {6.0f, 4.0f};
 void ApplyTheme();
 void LoadFonts();
 
-ImFont* GetFont_Terminal();       // Cousine-Regular 16px
-ImFont* GetFont_TerminalLarge();  // Cousine-Regular 28px
-ImFont* GetFont_Body();           // Roboto-Medium 16px
-ImFont* GetFont_Small();          // Roboto-Medium 13px
+ImFont* GetFont_Terminal();       // ZLabsRoundPix 16px
+ImFont* GetFont_TerminalLarge();  // ZLabsRoundPix 32px
+ImFont* GetFont_Body();           // ZLabsRoundPix 16px
+ImFont* GetFont_Small();          // ZLabsRoundPix 13px
 
 } // namespace ECS::UITheme
 

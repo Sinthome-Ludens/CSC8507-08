@@ -263,7 +263,7 @@ void Sys_Network::HandleSyncTransform(Registry& reg, Res_Network& resNet, const 
             
             //抛弃服务器发来的时间戳，改用客户端收到该包的本地时间戳。
             float localReceiveTimeMs = reg.ctx<Res_Time>().totalTime * 1000.0f;
-            buffer.AddSnapshot(
+            InterpBuffer_AddSnapshot(buffer,
                 NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]),
                 NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]),
                 localReceiveTimeMs
@@ -330,18 +330,17 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
         pkt.buttonMask = currentMask;
         bool isMoving = (currentMask != 0);
         bool stateChanged = (currentMask != m_LastInputMask);
-        static float inputTimer = 0.0f;
-        inputTimer += reg.ctx<Res_Time>().deltaTime;
+        m_InputTimer += reg.ctx<Res_Time>().deltaTime;
 
         if (stateChanged) {
             // 状态改变时（无论是按下新键还是松开），发送一次可靠包
             SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Reliable);
-            inputTimer = 0.0f; // 重置计时器
-        } else if (isMoving && inputTimer >= m_SendRate) {
+            m_InputTimer = 0.0f; // 重置计时器
+        } else if (isMoving && m_InputTimer >= m_SendRate) {
             // 持续按键时，按照设定频率发送不可靠包
             SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Unreliable);
-            inputTimer -= m_SendRate;
-            if (inputTimer > m_SendRate) inputTimer = 0.0f; // 防止螺旋
+            m_InputTimer -= m_SendRate;
+            if (m_InputTimer > m_SendRate) m_InputTimer = 0.0f; // 防止螺旋
         }
         m_LastInputMask = currentMask;
     }

@@ -19,13 +19,8 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
                               const Res_NCL_Pointers& /*nclPtrs*/)
 {
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>(300);
-    systems.Register<ECS::Sys_UI>  (500);
-#endif
-
-    systems.AwakeAll(registry);
-
-#ifdef USE_IMGUI
+    // Res_UIState 必须在 AwakeAll 之前初始化，
+    // 否则 Sys_UI::OnAwake 会以默认值创建它，导致 firstLaunch 判断失效
     {
         bool firstLaunch = !registry.has_ctx<ECS::Res_UIState>();
         if (firstLaunch) {
@@ -33,16 +28,25 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
         }
         auto& ui = registry.ctx<ECS::Res_UIState>();
 
-        ui.activeScreen      = firstLaunch ? ECS::UIScreen::TitleScreen
-                                           : ECS::UIScreen::Splash;
-        ui.titleTimer        = 0.0f;
-        ui.splashTimer       = 0.0f;
-        ui.menuSelectedIndex = 0;
-        ui.previousScreen    = ECS::UIScreen::None;
-        ui.prePauseScreen    = ECS::UIScreen::None;
-        ui.pendingSceneRequest = ECS::SceneRequest::None;
+        // 重置导航状态，但保留用户设置（音量/灵敏度/全屏等）
+        // TitleScreen 尚未实现（commit #2），暂时统一从 Splash 开始
+        ui.activeScreen        = ECS::UIScreen::Splash;
+        ui.titleTimer          = 0.0f;
+        ui.splashTimer         = 0.0f;
+        ui.menuSelectedIndex       = 0;
+        ui.settingsSelectedIndex   = 0;
+        ui.pauseSelectedIndex      = 0;
+        ui.gameOverSelectedIndex   = 0;
+        ui.previousScreen          = ECS::UIScreen::None;
+        ui.prePauseScreen          = ECS::UIScreen::None;
+        ui.pendingSceneRequest     = ECS::SceneRequest::None;
     }
+
+    systems.Register<ECS::Sys_ImGui>(300);
+    systems.Register<ECS::Sys_UI>  (500);
 #endif
+
+    systems.AwakeAll(registry);
 
     LOG_INFO("[Scene_MainMenu] OnEnter complete. "
              << systems.Count() << " systems awake.");
@@ -56,6 +60,7 @@ void Scene_MainMenu::OnExit(ECS::Registry&      registry,
                              ECS::SystemManager& systems)
 {
     systems.DestroyAll(registry);
+    registry.Clear();
 
-    LOG_INFO("[Scene_MainMenu] OnExit complete. All systems destroyed.");
+    LOG_INFO("[Scene_MainMenu] OnExit complete. All systems destroyed, entities cleared.");
 }

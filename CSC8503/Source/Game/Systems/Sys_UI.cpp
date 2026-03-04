@@ -11,6 +11,9 @@ using namespace NCL;
 
 namespace ECS {
 
+// globalTime 循环上限（≈ 2000π），防止 sinf/cosf 在大浮点值下精度退化
+static constexpr float kGlobalTimeWrap = 6283.1853f;  // 2000 * PI
+
 // ============================================================
 // OnAwake
 // ============================================================
@@ -35,7 +38,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     auto& ui = registry.ctx<Res_UIState>();
 
     ui.globalTime += dt;
-    if (ui.globalTime > 6283.0f) ui.globalTime -= 6283.0f;
+    if (ui.globalTime > kGlobalTimeWrap) ui.globalTime -= kGlobalTimeWrap;
 
     if (ui.activeScreen == UIScreen::TitleScreen) {
         ui.titleTimer += dt;
@@ -51,14 +54,10 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     // ESC navigation
     if (kb && kb->KeyPressed(KeyCodes::ESCAPE)) {
         switch (ui.activeScreen) {
-            case UIScreen::Settings: {
-                UIScreen backTo = (ui.previousScreen == UIScreen::PauseMenu)
-                                 ? UIScreen::PauseMenu : UIScreen::MainMenu;
-                ui.activeScreen = backTo;
-                ui.previousScreen = UIScreen::Settings;
-                LOG_INFO("[Sys_UI] Settings -> " << (int)backTo << " (ESC)");
+            case UIScreen::Settings:
+                UI::NavigateBackFromSettings(ui);
+                LOG_INFO("[Sys_UI] Settings -> back (ESC)");
                 break;
-            }
             case UIScreen::MainMenu:
                 ui.previousScreen = ui.activeScreen;
                 ui.activeScreen = UIScreen::Splash;
@@ -86,9 +85,9 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         case UIScreen::MainMenu:   UI::RenderMainMenu(registry, dt);        break;
         case UIScreen::Settings:   UI::RenderSettingsScreen(registry, dt);  break;
         case UIScreen::PauseMenu:  UI::RenderPauseMenu(registry, dt);      break;
-        case UIScreen::TitleScreen:
-        case UIScreen::HUD:
-        case UIScreen::GameOver:
+        case UIScreen::TitleScreen: break;  // TODO: commit #2 — UI_TitleScreen
+        case UIScreen::HUD:         break;  // TODO: commit #5 — UI_HUD
+        case UIScreen::GameOver:    break;  // TODO: commit #7 — UI_GameOver
         case UIScreen::None:
         default:
             break;

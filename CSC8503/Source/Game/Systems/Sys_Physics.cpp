@@ -98,9 +98,7 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
     // 无条件覆盖，防止场景切换后残留悬空指针
     registry.ctx_emplace<Sys_Physics*>(this);
 
-    // 注册 Sys_Physics 自身指针，供 Sys_Navigation 调用速度控制接口
-    // 无条件更新：场景重进时确保 ctx 持有新实例指针，避免悬空引用
-    registry.ctx_emplace<ECS::Sys_Physics*>(this);
+    // 注：Sys_Physics* 和 ECS::Sys_Physics* 是同一类型，line 99 已注册
 
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
 }
