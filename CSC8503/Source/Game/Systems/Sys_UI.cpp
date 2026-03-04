@@ -1,0 +1,112 @@
+#include "Sys_UI.h"
+#ifdef USE_IMGUI
+
+#include "Window.h"
+#include "Game/Components/Res_UIState.h"
+#include "Game/UI/UITheme.h"
+#include "Game/UI/UI_Menus.h"
+#include "Game/Utils/Log.h"
+
+using namespace NCL;
+
+namespace ECS {
+
+// ============================================================
+// OnAwake
+// ============================================================
+
+void Sys_UI::OnAwake(Registry& registry) {
+    UITheme::LoadFonts();
+    UITheme::ApplyTheme();
+
+    if (!registry.has_ctx<Res_UIState>()) {
+        registry.ctx_emplace<Res_UIState>();
+    }
+
+    LOG_INFO("[Sys_UI] OnAwake — Fonts loaded, theme applied, Res_UIState registered.");
+}
+
+// ============================================================
+// OnUpdate
+// ============================================================
+
+void Sys_UI::OnUpdate(Registry& registry, float dt) {
+    if (!registry.has_ctx<Res_UIState>()) return;
+    auto& ui = registry.ctx<Res_UIState>();
+
+    ui.globalTime += dt;
+    if (ui.globalTime > 6283.0f) ui.globalTime -= 6283.0f;
+
+    if (ui.activeScreen == UIScreen::TitleScreen) {
+        ui.titleTimer += dt;
+    }
+
+    // F1: toggle devMode
+    const Keyboard* kb = Window::GetKeyboard();
+    if (kb && kb->KeyPressed(KeyCodes::F1)) {
+        ui.devMode = !ui.devMode;
+        LOG_INFO("[Sys_UI] DevMode: " << (ui.devMode ? "ON" : "OFF"));
+    }
+
+    // ESC navigation
+    if (kb && kb->KeyPressed(KeyCodes::ESCAPE)) {
+        switch (ui.activeScreen) {
+            case UIScreen::Settings: {
+                UIScreen backTo = (ui.previousScreen == UIScreen::PauseMenu)
+                                 ? UIScreen::PauseMenu : UIScreen::MainMenu;
+                ui.activeScreen = backTo;
+                ui.previousScreen = UIScreen::Settings;
+                LOG_INFO("[Sys_UI] Settings -> " << (int)backTo << " (ESC)");
+                break;
+            }
+            case UIScreen::MainMenu:
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen = UIScreen::Splash;
+                ui.splashTimer = 0.0f;
+                LOG_INFO("[Sys_UI] MainMenu -> Splash (ESC)");
+                break;
+            case UIScreen::HUD:
+                ui.prePauseScreen = ui.activeScreen;
+                ui.activeScreen = UIScreen::PauseMenu;
+                ui.pauseSelectedIndex = 0;
+                LOG_INFO("[Sys_UI] HUD -> PauseMenu (ESC)");
+                break;
+            case UIScreen::PauseMenu:
+                ui.activeScreen = ui.prePauseScreen;
+                LOG_INFO("[Sys_UI] PauseMenu -> Resume (ESC)");
+                break;
+            default:
+                break;
+        }
+    }
+
+    // Dispatch to render functions
+    switch (ui.activeScreen) {
+        case UIScreen::Splash:     UI::RenderSplashScreen(registry, dt);    break;
+        case UIScreen::MainMenu:   UI::RenderMainMenu(registry, dt);        break;
+        case UIScreen::Settings:   UI::RenderSettingsScreen(registry, dt);  break;
+        case UIScreen::PauseMenu:  UI::RenderPauseMenu(registry, dt);      break;
+        case UIScreen::TitleScreen:
+        case UIScreen::HUD:
+        case UIScreen::GameOver:
+        case UIScreen::None:
+        default:
+            break;
+    }
+
+    // Update input blocking flag
+    ui.isUIBlockingInput = (ui.activeScreen != UIScreen::None
+                         && ui.activeScreen != UIScreen::HUD);
+}
+
+// ============================================================
+// OnDestroy
+// ============================================================
+
+void Sys_UI::OnDestroy(Registry& /*registry*/) {
+    LOG_INFO("[Sys_UI] OnDestroy.");
+}
+
+} // namespace ECS
+
+#endif // USE_IMGUI

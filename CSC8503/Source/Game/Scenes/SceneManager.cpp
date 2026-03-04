@@ -75,18 +75,28 @@ void SceneManager::EndFrame() {
     m_Registry.ProcessPendingDestroy();
 
     // 2. 延迟场景切换（安全序列：检查 → OnExit → delete → OnEnter）
-    IScene* next = m_CurrentScene->GetNextScene();
+    //    优先检查外部请求（Main.cpp），其次检查内部请求（IScene::RequestSceneChange）
+    IScene* next = m_PendingScene ? m_PendingScene : m_CurrentScene->GetNextScene();
     if (next) {
+        m_PendingScene = nullptr;
         m_CurrentScene->ClearNextScene();
 
         IScene* old = m_CurrentScene;
-        m_CurrentScene = nullptr;   // 先置空，避免 ExitCurrentScene 内部误读
+        m_CurrentScene = nullptr;
         old->OnExit(m_Registry, m_Systems);
         LOG_INFO("[SceneManager] Scene exited (deferred switch).");
         delete old;
 
         EnterScene(next);
     }
+}
+
+// ============================================================
+// RequestSceneChange
+// ============================================================
+
+void SceneManager::RequestSceneChange(IScene* next) {
+    m_PendingScene = next;
 }
 
 // ============================================================
