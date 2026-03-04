@@ -11,7 +11,6 @@
 #include "Game/Components/Res_TestState.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Prefabs/PrefabFactory.h"
-#include "Game/Systems/Sys_Physics.h"
 #include "Game/Utils/Log.h"
 #include "GameWorld.h"
 #include "Constraint.h"
