@@ -3,8 +3,10 @@
 
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_ToastState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_Menus.h"
+#include "Game/UI/UI_Toast.h"
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
@@ -26,7 +28,11 @@ void Sys_UI::OnAwake(Registry& registry) {
         registry.ctx_emplace<Res_UIState>();
     }
 
-    LOG_INFO("[Sys_UI] OnAwake — Fonts loaded, theme applied, Res_UIState registered.");
+    if (!registry.has_ctx<Res_ToastState>()) {
+        registry.ctx_emplace<Res_ToastState>();
+    }
+
+    LOG_INFO("[Sys_UI] OnAwake — Fonts loaded, theme applied, Res_UIState + Res_ToastState registered.");
 }
 
 // ============================================================
@@ -96,6 +102,9 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     // Update input blocking flag
     ui.isUIBlockingInput = (ui.activeScreen != UIScreen::None
                          && ui.activeScreen != UIScreen::HUD);
+
+    // ── Toast 通知渲染（覆盖所有屏幕）──
+    UI::RenderToasts(registry, dt);
 }
 
 // ============================================================

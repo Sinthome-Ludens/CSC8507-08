@@ -8,6 +8,7 @@
 #include "Game/Systems/Sys_ImGui.h"
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/UI/UI_Toast.h"
 #endif
 
 // ============================================================
@@ -47,6 +48,10 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
 #endif
 
     systems.AwakeAll(registry);
+
+#ifdef USE_IMGUI
+    ECS::UI::PushToast(registry, "SYSTEM ONLINE", ECS::ToastType::Success, 2.5f);
+#endif
 
     LOG_INFO("[Scene_MainMenu] OnEnter complete. "
              << systems.Count() << " systems awake.");
