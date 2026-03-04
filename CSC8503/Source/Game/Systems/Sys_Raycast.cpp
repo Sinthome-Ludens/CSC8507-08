@@ -2,6 +2,7 @@
 
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Components/Res_CameraContext.h"
+#include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/C_D_RigidBody.h"
@@ -55,9 +56,14 @@ void Sys_Raycast::OnAwake(Registry& /*registry*/) {
 }
 
 void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
+    bool showWindow = m_ShowWindow;
+    if (registry.has_ctx<Res_UIFlags>()) {
+        showWindow = registry.ctx<Res_UIFlags>().showRaycast;
+    }
+
 #ifdef USE_IMGUI
-    if (m_ShowWindow) {
-        ImGui::Begin("Raycast", &m_ShowWindow);
+    if (showWindow) {
+        ImGui::Begin("Raycast", &showWindow);
         ImGui::Checkbox("Enable Raycast", &m_EnableRaycast);
         ImGui::Checkbox("Show Ray", &m_ShowRay);
         ImGui::SliderFloat("Max Distance", &m_LastResult.maxDistance, 1.0f, 200.0f, "%.1f");
@@ -73,6 +79,11 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
         ImGui::End();
     }
 #endif
+
+    m_ShowWindow = showWindow;
+    if (registry.has_ctx<Res_UIFlags>()) {
+        registry.ctx<Res_UIFlags>().showRaycast = showWindow;
+    }
 
     if (m_RequestCast) {
         m_RequestCast = false;
