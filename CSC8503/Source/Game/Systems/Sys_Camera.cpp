@@ -43,7 +43,7 @@ void Sys_Camera::OnAwake(Registry& registry) {
     );
 
     // ── 注册 Res_CameraContext（供其他 System 快速获取相机信息）──
-    if (!registry.has_ctx<Res_CameraContext>()) {
+    {
         Res_CameraContext ctx{};
         ctx.active_camera = entity_camera_main;
         registry.ctx_emplace<Res_CameraContext>(ctx);

@@ -45,25 +45,23 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     // ── 2. 注册场景级全局资源到 Registry context ────────────────────────
     //    Res_NCL_Pointers 由 SceneManager 构造时已预注册，此处无需重复。
 
-    if (!registry.has_ctx<Res_UIFlags>()) {
-        registry.ctx_emplace<Res_UIFlags>();
-    }
+    registry.ctx_emplace<Res_UIFlags>();
 
-    if (!registry.has_ctx<Res_TestState>()) {
+    {
         Res_TestState state;
         state.cubeMeshHandle = cubeMesh;
         registry.ctx_emplace<Res_TestState>(std::move(state));
     }
 
     // 敌人实体池状态（由 Sys_ImGuiPhysicsTest 读写）
-    if (!registry.has_ctx<Res_EnemyTestState>()) {
+    {
         Res_EnemyTestState enemyState;
         enemyState.enemyMeshHandle = capsuleMesh;
         registry.ctx_emplace<Res_EnemyTestState>(std::move(enemyState));
     }
 
     // 胶囊生成状态（由 Sys_ImGuiCapsuleGen 读写）
-    if (!registry.has_ctx<Res_CapsuleState>()) {
+    {
         Res_CapsuleState capsuleState;
         capsuleState.capsuleMeshHandle = capsuleMesh;
         registry.ctx_emplace<Res_CapsuleState>(std::move(capsuleState));
@@ -106,11 +104,7 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
     // → Render(200) → EnemyAI(120) → Physics(100) → Camera(50)
     systems.DestroyAll(registry);
 
-    // TODO: registry.Clear() —— 回收所有活动实体 ID，保留内存容量（Capacity）。
-    //    当前 Registry 尚未实现 Clear() 接口，待补充后启用：
-    //    registry.Clear();
-    //    规范要求（游戏开发.md §3.3.2）：OnExit 必须调用 registry.Clear()，
-    //    防止上一关实体状态污染下一关。
+    registry.Clear();
 
-    LOG_INFO("[Scene_PhysicsTest] OnExit complete. All systems destroyed.");
+    LOG_INFO("[Scene_PhysicsTest] OnExit complete. All systems destroyed, entities cleared.");
 }
