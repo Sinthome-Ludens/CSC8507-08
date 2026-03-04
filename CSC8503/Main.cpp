@@ -33,6 +33,8 @@
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Scenes/SceneManager.h"
 #include "Game/Scenes/Scene_PhysicsTest.h"
+// 合并：保留 NavTest 用于测试，保留 NetworkGame 用于 master 功能
+#include "Game/Scenes/Scene_NavTest.h"
 #include "Game/Scenes/Scene_NetworkGame.h"
 
 #ifdef USE_IMGUI
@@ -111,58 +113,60 @@ int main(int argc, char** argv) {
 	// SceneManager 持有 Registry + SystemManager，并预注册 Res_NCL_Pointers
 	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics, renderer});
 
-        // 进入首个场景（OnEnter：加载资源 → 创建初始实体 → AwakeAll）
-        sceneManager.PushScene(new Scene_PhysicsTest());
+    // 合并策略：优先使用 NavTest 场景（Feature分支），但保留 Master 分支的循环逻辑
+	sceneManager.PushScene(new Scene_NavTest());
+    // sceneManager.PushScene(new Scene_PhysicsTest()); // 如需原版物理测试，解注此行
 
-        w->GetTimer().GetTimeDeltaSeconds();
-        while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
-                float dt = w->GetTimer().GetTimeDeltaSeconds();
-                if (dt > 0.1f) {
-                        std::cout << "Skipping large time delta" << std::endl;
-                        continue;
-                }
-                if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
-                        w->ShowConsole(true);
-                }
-                if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
-                        w->ShowConsole(false);
-                }
-                if (Window::GetKeyboard()->KeyPressed(KeyCodes::T)) {
-                        w->SetWindowPosition(0, 0);
-                }
+    w->GetTimer().GetTimeDeltaSeconds();
+    while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
+            float dt = w->GetTimer().GetTimeDeltaSeconds();
+            if (dt > 0.1f) {
+                    std::cout << "Skipping large time delta" << std::endl;
+                    continue;
+            }
+            if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
+                    w->ShowConsole(true);
+            }
+            if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
+                    w->ShowConsole(false);
+            }
+            if (Window::GetKeyboard()->KeyPressed(KeyCodes::T)) {
+                    w->SetWindowPosition(0, 0);
+            }
 
-                w->SetTitle("ECS Physics Test - frame time: " + std::to_string(1000.0f * dt) + " ms");    
+            w->SetTitle("ECS NavTest - frame time: " + std::to_string(1000.0f * dt) + " ms");    
 
 #ifdef USE_IMGUI
-                ECS::ImGuiAdapter::NewFrame();
+            ECS::ImGuiAdapter::NewFrame();
 #endif
 
-                // 帧前半段：ECS UpdateAll（Camera→Physics→Render→ImGui）
-                sceneManager.Update(dt);
+            // 帧前半段：ECS UpdateAll（Camera→Physics→Render→ImGui）
+            sceneManager.Update(dt);
 
-                // NCL 渲染（GameTechRenderer 自动渲染 GameWorld 中的所有代理对象）
-                world->UpdateWorld(dt);
-                physics->Update(dt);   // NCL 物理运行空世界（ECS 实体由 Jolt 管理）
-                renderer->Update(dt);
-                renderer->RenderScene();   // BeginFrame + RenderFrame + EndFrame（不交换缓冲区）
+            // NCL 渲染（GameTechRenderer 自动渲染 GameWorld 中的所有代理对象）
+            // 合并：保留 master 分支的渲染逻辑
+            world->UpdateWorld(dt);
+            physics->Update(dt);   // NCL 物理运行空世界（ECS 实体由 Jolt 管理）
+            renderer->Update(dt);
+            renderer->RenderScene();   // BeginFrame + RenderFrame + EndFrame（不交换缓冲区）
 
 #ifdef USE_IMGUI
-                ECS::ImGuiAdapter::Render(); // ImGui 叠加在 3D 场景之上，swap 之前渲染
+            ECS::ImGuiAdapter::Render(); // ImGui 叠加在 3D 场景之上，swap 之前渲染
 #endif
 
-                renderer->PresentFrame();  // 呈现完整帧（3D + ImGui）
+            renderer->PresentFrame();  // 呈现完整帧（3D + ImGui）
 
-                // 帧后半段：ProcessPendingDestroy + 延迟场景切换检测
-                sceneManager.EndFrame();
+            // 帧后半段：ProcessPendingDestroy + 延迟场景切换检测
+            sceneManager.EndFrame();
 
-                Debug::UpdateRenderables(dt);
-        }
+            Debug::UpdateRenderables(dt);
+    }
 
-        // 安全退出当前场景（OnExit → DestroyAll → delete）
-        sceneManager.Shutdown();
+    // 安全退出当前场景（OnExit → DestroyAll → delete）
+    sceneManager.Shutdown();
 
 #ifdef USE_IMGUI
-        ECS::ImGuiAdapter::Shutdown();
+    ECS::ImGuiAdapter::Shutdown();
 #endif
 
 #elif ENABLE_NETWORK_SCENE
