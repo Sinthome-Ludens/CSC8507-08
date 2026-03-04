@@ -5,6 +5,7 @@
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/Res_CameraContext.h"
+#include "Game/Components/Res_UIFlags.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Utils/Log.h"
 
@@ -55,6 +56,10 @@ void Sys_Raycast::OnAwake(Registry& /*registry*/) {
 }
 
 void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
+    if (registry.has_ctx<Res_UIFlags>()) {
+        m_ShowWindow = registry.ctx<Res_UIFlags>().showRaycast;
+    }
+
     bool castThisFrame = false;
 
 #ifdef USE_IMGUI
@@ -73,6 +78,10 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
         ImGui::End();
     }
 #endif
+
+    if (registry.has_ctx<Res_UIFlags>()) {
+        registry.ctx<Res_UIFlags>().showRaycast = m_ShowWindow;
+    }
 
     if (castThisFrame) {
         if (!m_EnableRaycast) {
