@@ -44,6 +44,12 @@ struct C_D_PlayerState {
     // ── 伪装 ──
     bool isDisguised = false;
 
+    // ── 强制站起标志（由 Sys_PlayerDisguise / Sys_StealthMetrics 设置，Sys_PlayerStance 执行后重置） ──
+    bool forceStandPending = false;
+
+    // ── 噪音节流 ──
+    float noiseCooldown  = 0.0f;  ///< 噪音事件节流计时器
+
     // ── 碰撞体参数（当前姿态） ──
     float colliderRadius     = 0.5f; ///< 胶囊半径
     float colliderHalfHeight = 1.0f; ///< 胶囊半高
