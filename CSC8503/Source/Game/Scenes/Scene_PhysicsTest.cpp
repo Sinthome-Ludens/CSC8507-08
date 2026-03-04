@@ -18,6 +18,7 @@
 #include "Game/Systems/Sys_Movement.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_Physics.h"
+#include "Game/Systems/Sys_PlayerCamera.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Utils/Log.h"
 
@@ -101,12 +102,13 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_PhysicsTest] 4 invisible boundary walls created");
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
-    //    执行顺序：Input(10) → Camera(50) → InputDispatch(55)
+    //    执行顺序：Input(10) → InputDispatch(55)
     //              → Disguise(59) → Stance(60) → StealthMetrics(62)
-    //              → Movement(65) → Physics(100) → EnemyAI(120) → Render(200)
-    //              → ImGui(300) → CapsuleGen(301) → EnemyMonitor(310) → PhysicsTest(320)
+    //              → Movement(65) → Physics(100) → EnemyAI(120)
+    //              → PlayerCamera(150) → Camera(155, Bridge 同步 + debug 飞行)
+    //              → Render(200) → ImGui(300) → CapsuleGen(301)
+    //              → EnemyMonitor(310) → PhysicsTest(320)
     systems.Register<ECS::Sys_Input>           ( 10);   // NCL → Res_Input（via InputAdapter）
-    systems.Register<ECS::Sys_Camera>          ( 50);   // 相机实体创建 + NCL Bridge 同步
     systems.Register<ECS::Sys_InputDispatch>   ( 55);   // Res_Input → per-entity C_D_Input
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);   // 伪装切换、C_T_Hidden 管理
     systems.Register<ECS::Sys_PlayerStance>    ( 60);   // 蹲/站切换、碰撞体替换
@@ -114,6 +116,8 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Movement>        ( 65);   // 物理移动
     systems.Register<ECS::Sys_Physics>         (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
+    systems.Register<ECS::Sys_PlayerCamera>    (150);   // 第三人称跟随相机
+    systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
     systems.Register<ECS::Sys_Render>          (200);   // ECS 实体 → NCL 代理对象桥接
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + Cube 控制面板
@@ -137,9 +141,9 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
                                ECS::SystemManager& systems)
 {
     // 逆序停机：PhysicsTest(320) → EnemyMonitor(310) → CapsuleGen(301) → ImGui(300)
-    //           → Render(200) → EnemyAI(120) → Physics(100) → Movement(65)
-    //           → StealthMetrics(62) → Stance(60) → Disguise(59)
-    //           → InputDispatch(55) → Camera(50) → Input(10)
+    //           → Render(200) → Camera(155) → PlayerCamera(150) → EnemyAI(120)
+    //           → Physics(100) → Movement(65) → StealthMetrics(62) → Stance(60)
+    //           → Disguise(59) → InputDispatch(55) → Input(10)
     systems.DestroyAll(registry);
 
     // 回收所有活动实体，防止上一关状态污染下一关
