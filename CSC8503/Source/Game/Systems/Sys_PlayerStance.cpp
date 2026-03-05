@@ -10,6 +10,10 @@
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
 
+namespace {
+    constexpr float SKIN_OFFSET = 0.05f; // 防止碰撞体嵌入地面的皮肤偏移
+}
+
 namespace ECS {
 
 void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
@@ -33,8 +37,8 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
                     ps.colliderHalfHeight = STAND_HALF_HEIGHT;
                     physics->ReplaceShapeCapsule(rb.jolt_body_id, STAND_HALF_HEIGHT, CAPSULE_RADIUS);
 
-                    float oldBottom = tf.position.y - (oldHalfHeight + CAPSULE_RADIUS);
-                    float newCenterY = oldBottom + STAND_HALF_HEIGHT + CAPSULE_RADIUS + 0.05f;
+                    float oldBottom = (tf.position.y - SKIN_OFFSET) - (oldHalfHeight + CAPSULE_RADIUS);
+                    float newCenterY = oldBottom + STAND_HALF_HEIGHT + CAPSULE_RADIUS + SKIN_OFFSET;
                     physics->SetPosition(rb.jolt_body_id, tf.position.x, newCenterY, tf.position.z);
                     tf.position.y = newCenterY;
                     physics->ActivateBody(rb.jolt_body_id);
@@ -66,21 +70,23 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
             }
 
             PlayerStance oldStance = ps.stance;
-            bool changed = false;
+
+            // 根据输入计算本帧目标姿态，只允许一次状态切换
+            PlayerStance newStance = ps.stance;
 
             // C 键：Standing → Crouching
             if (cPressed && ps.stance == PlayerStance::Standing) {
-                ps.stance = PlayerStance::Crouching;
-                changed = true;
+                newStance = PlayerStance::Crouching;
+            }
+            // V 键：Crouching → Standing（与 C 键互斥，同一帧只生效一个）
+            else if (vPressed && ps.stance == PlayerStance::Crouching) {
+                newStance = PlayerStance::Standing;
             }
 
-            // V 键：Crouching → Standing
-            if (vPressed && ps.stance == PlayerStance::Crouching) {
-                ps.stance = PlayerStance::Standing;
-                changed = true;
-            }
+            // 如果最终姿态与原姿态相同，则不做任何处理
+            if (newStance == oldStance) return;
 
-            if (!changed) return;
+            ps.stance = newStance;
 
             // 确定新碰撞体半高
             float oldHalfHeight = (oldStance == PlayerStance::Standing)
@@ -93,8 +99,8 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
             physics->ReplaceShapeCapsule(rb.jolt_body_id, newHalfHeight, CAPSULE_RADIUS);
 
             // 2) 调整 Y 位置，保持脚底不动
-            float oldBottom = tf.position.y - (oldHalfHeight + CAPSULE_RADIUS);
-            float newCenterY = oldBottom + newHalfHeight + CAPSULE_RADIUS + 0.05f;
+            float oldBottom = (tf.position.y - SKIN_OFFSET) - (oldHalfHeight + CAPSULE_RADIUS);
+            float newCenterY = oldBottom + newHalfHeight + CAPSULE_RADIUS + SKIN_OFFSET;
             physics->SetPosition(rb.jolt_body_id, tf.position.x, newCenterY, tf.position.z);
             tf.position.y = newCenterY;
 

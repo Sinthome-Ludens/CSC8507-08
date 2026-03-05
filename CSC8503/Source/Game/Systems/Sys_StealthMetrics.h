@@ -30,6 +30,7 @@ private:
     // ── 伪装常量 ──
     static constexpr float DISGUISE_MUL   = 0.3f;
     static constexpr float NOISE_THROTTLE = 0.3f;
+
 };
 
 } // namespace ECS

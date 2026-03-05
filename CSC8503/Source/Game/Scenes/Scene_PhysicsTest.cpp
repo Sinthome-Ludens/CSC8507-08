@@ -144,6 +144,8 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
     systems.DestroyAll(registry);
 
     // 回收所有活动实体，防止上一关状态污染下一关
+    // 注意：Clear() 不清除 ctx，但各系统 OnAwake 使用无条件 ctx_emplace 覆盖模式，
+    // 场景重进时自动替换悬空指针，无需手动清除 ctx。
     registry.Clear();
 
     LOG_INFO("[Scene_PhysicsTest] OnExit complete. All systems destroyed.");

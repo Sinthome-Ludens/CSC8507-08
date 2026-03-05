@@ -26,6 +26,10 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             C_T_Player&, C_D_PlayerState& ps) {
             if (!rb.body_created) return;
 
+            // 每实体噪音节流计时器递减（放在开头，只递减一次）
+            ps.noiseCooldown -= dt;
+            if (ps.noiseCooldown < 0.0f) ps.noiseCooldown = 0.0f;
+
             Vector3 vel = physics->GetLinearVelocity(rb.jolt_body_id);
             float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);
             bool isMoving = (horizSpeed > 0.1f);
@@ -37,12 +41,12 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             float disguiseMul = ps.isDisguised ? DISGUISE_MUL : 1.0f;
             ps.moveSpeedMul = stanceMul * disguiseMul;
 
-            // 奔跑意图：Shift + 有输入 + 非伪装
             bool wantSprint = input.shiftDown && input.hasInput && !ps.isDisguised;
 
-            // 奔跑强制中断下蹲：蹲伏时按 Shift 移动 → 请求站起
             if (wantSprint && ps.stance == PlayerStance::Crouching) {
                 ps.forceStandPending = true;
+                stanceMul = STANCE_MUL_STANDING;
+                ps.moveSpeedMul = stanceMul * disguiseMul;
             }
 
             bool canSprint = wantSprint && ps.stance == PlayerStance::Standing;
@@ -63,13 +67,11 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
                         ps.noiseLevel       = isMoving ? (ps.isSprinting ? 0.6f : 0.2f) * 0.4f : 0.0f;
                         break;
                     default:
+                        ps.visibilityFactor = 0.0f;
+                        ps.noiseLevel       = 0.0f;
                         break;
                 }
             }
-
-            // ── 噪音节流计时器（per-entity） ──
-            ps.noiseCooldown -= dt;
-            if (ps.noiseCooldown < 0.0f) ps.noiseCooldown = 0.0f;
 
             // ── 噪音事件发布（节流） ──
             if (isMoving && ps.noiseLevel >= 0.01f && ps.noiseCooldown <= 0.0f) {
