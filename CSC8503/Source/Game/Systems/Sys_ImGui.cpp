@@ -168,7 +168,10 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 
     if (ImGui::Button("Spawn Cube",  ImVec2(120, 30))) SpawnCube(registry);
     ImGui::SameLine();
+    const bool canDeleteCube = registry.has_ctx<Res_TestState>() && !registry.ctx<Res_TestState>().cubeEntities.empty();
+    if (!canDeleteCube) ImGui::BeginDisabled();
     if (ImGui::Button("Delete Last", ImVec2(120, 30))) DeleteLastCube(registry);
+    if (!canDeleteCube) ImGui::EndDisabled();
 
     ImGui::Spacing();
     ImGui::Text("== Capsule Factory ==");
