@@ -32,7 +32,7 @@ struct C_D_PlayerState {
 
     // ── 潜行指标 ──
     float noiseLevel      = 0.0f; ///< 当前噪音等级 [0, 1]
-    float visibilityFactor= 1.0f; ///< 当前可见度因子 [0, 1]
+    float visibilityFactor = 1.0f; ///< 当前可见度因子 [0, 1]
 
     // ── 贴墙 ──
     WallState wallState   = WallState::None;
@@ -46,6 +46,9 @@ struct C_D_PlayerState {
 
     // ── 强制站起标志（由 Sys_PlayerDisguise / Sys_StealthMetrics 设置，Sys_PlayerStance 执行后重置） ──
     bool forceStandPending = false;
+
+    // ── 噪音节流（per-entity） ──
+    float noiseCooldown = 0.0f;
 
     // ── 碰撞体参数（当前姿态） ──
     float colliderRadius     = 0.5f; ///< 胶囊半径

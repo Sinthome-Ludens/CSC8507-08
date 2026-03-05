@@ -30,9 +30,6 @@ private:
     // ── 伪装常量 ──
     static constexpr float DISGUISE_MUL   = 0.3f;
     static constexpr float NOISE_THROTTLE = 0.3f;
-
-    // ── 噪音节流计时器 ──
-    float m_NoiseCooldown = 0.0f;
 };
 
 } // namespace ECS

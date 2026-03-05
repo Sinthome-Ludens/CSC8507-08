@@ -84,15 +84,12 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
     m_PhysicsSystem->SetContactListener(&m_ContactListener);
 
     // 注册 EventBus 到 Registry Context（EventBus 不可复制，以裸指针注册）
-    if (!registry.has_ctx<ECS::EventBus*>()) {
-        m_EventBus = std::make_unique<ECS::EventBus>();
-        registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
-    }
+    // 无条件覆盖：场景重进时 registry.Clear() 不清 ctx，旧指针可能悬空
+    m_EventBus = std::make_unique<ECS::EventBus>();
+    registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
 
-    // 注册 Sys_Physics* 到 ctx，供其他系统（如 Sys_Gameplay / Sys_Movement）访问物理接口
-    if (!registry.has_ctx<Sys_Physics*>()) {
-        registry.ctx_emplace<Sys_Physics*>(this);
-    }
+    // 注册 Sys_Physics* 到 ctx，供其他系统（如 Sys_Movement / Sys_StealthMetrics）访问物理接口
+    registry.ctx_emplace<Sys_Physics*>(this);
 
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
 }
@@ -164,6 +161,15 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     m_PhysicsSystem.reset();
     m_JobSystem.reset();
     m_TempAllocator.reset();
+
+    // 置空 ctx 指针，防止场景重进时其他系统访问悬空指针
+    if (registry.has_ctx<Sys_Physics*>()) {
+        registry.ctx<Sys_Physics*>() = nullptr;
+    }
+    if (registry.has_ctx<ECS::EventBus*>()) {
+        registry.ctx<ECS::EventBus*>() = nullptr;
+    }
+    m_EventBus.reset();
 
     // Jolt 全局资源（Factory 等）保持存活，避免多系统场景问题
     m_BroadPhaseOptimized = false;

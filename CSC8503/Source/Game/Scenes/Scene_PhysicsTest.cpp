@@ -41,11 +41,9 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     // ── 2. 注册场景级全局资源到 Registry context ────────────────────────
     //    Res_NCL_Pointers 由 SceneManager 构造时已预注册，此处无需重复。
 
-    if (!registry.has_ctx<Res_UIFlags>()) {
-        registry.ctx_emplace<Res_UIFlags>();
-    }
+    registry.ctx_emplace<Res_UIFlags>(Res_UIFlags{});
 
-    if (!registry.has_ctx<Res_TestState>()) {
+    {
         Res_TestState state;
         state.cubeMeshHandle = cubeMesh;
         registry.ctx_emplace<Res_TestState>(std::move(state));
@@ -58,7 +56,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 
     // 玩家实体（地板 Y=-6，地板厚度=1，顶面 Y=-5；胶囊半高=1+半径0.5=1.5，底部中心需 Y=-3.5）
     ECS::EntityID entity_player = PrefabFactory::CreatePlayer(
-        registry, cubeMesh, NCL::Maths::Vector3(0.0f, 0.0f, 0.0f));
+        registry, cubeMesh, NCL::Maths::Vector3(0.0f, -3.5f, 0.0f));
     LOG_INFO("[Scene_PhysicsTest] player entity id=" << entity_player);
 
     // 隐形碰撞墙 — 地板四周边界（XZ=±50，墙厚 1，高 10，紧贴地板边缘不重叠）

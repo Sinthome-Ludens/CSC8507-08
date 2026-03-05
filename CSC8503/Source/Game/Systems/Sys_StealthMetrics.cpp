@@ -21,10 +21,6 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;
 
-    // 噪音节流计时器
-    m_NoiseCooldown -= dt;
-    if (m_NoiseCooldown < 0.0f) m_NoiseCooldown = 0.0f;
-
     registry.view<C_D_Input, C_D_Transform, C_D_RigidBody, C_T_Player, C_D_PlayerState>().each(
         [&](EntityID id, C_D_Input& input, C_D_Transform& tf, C_D_RigidBody& rb,
             C_T_Player&, C_D_PlayerState& ps) {
@@ -47,9 +43,6 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             // 奔跑强制中断下蹲：蹲伏时按 Shift 移动 → 请求站起
             if (wantSprint && ps.stance == PlayerStance::Crouching) {
                 ps.forceStandPending = true;
-                // 预设为站立乘数（Sys_PlayerStance 下一帧执行）
-                stanceMul = STANCE_MUL_STANDING;
-                ps.moveSpeedMul = stanceMul * disguiseMul;
             }
 
             bool canSprint = wantSprint && ps.stance == PlayerStance::Standing;
@@ -74,19 +67,22 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
                 }
             }
 
-            // ── 噪音事件发布（节流） ──
-            if (isMoving && ps.noiseLevel >= 0.01f && m_NoiseCooldown <= 0.0f) {
-                if (registry.has_ctx<EventBus*>()) {
-                    auto& bus = *registry.ctx<EventBus*>();
+            // ── 噪音节流计时器（per-entity） ──
+            ps.noiseCooldown -= dt;
+            if (ps.noiseCooldown < 0.0f) ps.noiseCooldown = 0.0f;
 
+            // ── 噪音事件发布（节流） ──
+            if (isMoving && ps.noiseLevel >= 0.01f && ps.noiseCooldown <= 0.0f) {
+                auto* bus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;
+                if (bus) {
                     Evt_Player_Noise evt{};
                     evt.source   = id;
                     evt.position = tf.position;
                     evt.volume   = ps.noiseLevel;
                     evt.type     = ps.isDisguised ? NoiseType::BoxScrape : NoiseType::Footstep;
 
-                    bus.publish_deferred(evt);
-                    m_NoiseCooldown = NOISE_THROTTLE;
+                    bus->publish_deferred(evt);
+                    ps.noiseCooldown = NOISE_THROTTLE;
 
                     LOG_INFO("[Sys_StealthMetrics] Noise: type="
                              << (int)evt.type << " vol=" << evt.volume);
