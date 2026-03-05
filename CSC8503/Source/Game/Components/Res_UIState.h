@@ -13,6 +13,9 @@ enum class UIScreen : uint8_t {
     PauseMenu,
     HUD,
     GameOver,
+    Inventory,
+    Loadout,
+    Team,
 };
 
 enum class SceneRequest : uint8_t {
@@ -48,6 +51,21 @@ struct Res_UIState {
     float     masterVolume       = 0.8f;
     float     sfxVolume          = 0.8f;
     float     mouseSensitivity   = 0.5f;
+
+    // Loadout / Inventory / Team
+    int8_t    loadoutSelectedIndex  = 0;
+    int8_t    inventorySelectedSlot = 0;
+    float     teamStartTime        = 0.0f;
+
+    // Item wheel
+    bool      itemWheelOpen        = false;
+    int8_t    itemWheelSelected    = -1;
+
+    // Scene transition
+    float     transitionTimer      = 0.0f;
+    float     transitionDuration   = 0.5f;
+    bool      transitionActive     = false;
+    int8_t    transitionType       = 0;   // 0=FadeIn, 1=FadeOut
 };
 
 } // namespace ECS

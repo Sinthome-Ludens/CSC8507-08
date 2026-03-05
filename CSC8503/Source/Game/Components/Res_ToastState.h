@@ -7,6 +7,8 @@ namespace ECS {
 enum class ToastType : uint8_t {
     Info = 0,
     Success,
+    Warning,
+    Danger,
 };
 
 struct ToastEntry {
