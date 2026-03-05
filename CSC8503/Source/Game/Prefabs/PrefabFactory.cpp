@@ -7,6 +7,10 @@
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
+#include "Game/Components/C_T_Player.h"
+#include "Game/Components/C_T_InvisibleWall.h"
+#include "Game/Components/C_D_PlayerState.h"
+#include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_D_AIPerception.h"
@@ -109,6 +113,119 @@ EntityID PrefabFactory::CreateFloor(Registry& reg, ECS::MeshHandle cubeMesh)
     AttachDebugName(reg, entity, "ENTITY_Env_Floor_Main");
 
     LOG_INFO("[PrefabFactory] CreateFloor id=" << entity);
+
+    return entity;
+}
+
+// ============================================================
+// CreatePlayer  →  PREFAB_PLAYER
+// ============================================================
+EntityID PrefabFactory::CreatePlayer(
+    Registry&       reg,
+    ECS::MeshHandle cubeMesh,
+    Vector3         spawnPos)
+{
+    EntityID entity = reg.Create();
+
+    // C_D_Transform
+    reg.Emplace<C_D_Transform>(entity,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    // C_D_MeshRenderer（暂用 cube，后续替换为角色模型）
+    reg.Emplace<ECS::C_D_MeshRenderer>(entity,
+        cubeMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // C_D_RigidBody（动态体，高线性阻尼辅助限速，锁定全轴旋转防翻滚）
+    C_D_RigidBody rb{};
+    rb.mass            = 5.0f;
+    rb.gravity_factor  = 1.0f;
+    rb.linear_damping  = 0.5f;
+    rb.angular_damping = 0.05f;
+    rb.lock_rotation_x = true;
+    rb.lock_rotation_y = true;
+    rb.lock_rotation_z = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    // C_D_Collider（Capsule：半径 0.5，半高 1.0）
+    C_D_Collider col{};
+    col.type        = ColliderType::Capsule;
+    col.half_x      = 0.5f;   // radius
+    col.half_y      = 1.0f;   // half height
+    col.friction    = 0.5f;
+    col.restitution = 0.0f;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // C_T_Player 标签
+    reg.Emplace<ECS::C_T_Player>(entity);
+
+    // C_D_PlayerState（MGS 风格潜行状态）
+    reg.Emplace<ECS::C_D_PlayerState>(entity, ECS::C_D_PlayerState{});
+
+    // C_D_Input（输入数据，由 Sys_InputDispatch 每帧写入）
+    reg.Emplace<ECS::C_D_Input>(entity, ECS::C_D_Input{});
+
+    // C_D_DebugName
+    AttachDebugName(reg, entity, "ENTITY_Player_Main");
+
+    LOG_INFO("[PrefabFactory] CreatePlayer id=" << entity
+             << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateInvisibleWall  →  PREFAB_ENV_INVISIBLE_WALL
+// ============================================================
+EntityID PrefabFactory::CreateInvisibleWall(
+    Registry&   reg,
+    int         wallIndex,
+    Vector3     position,
+    Vector3     halfExtents,
+    Quaternion  rotation)
+{
+    EntityID entity = reg.Create();
+
+    // C_D_Transform（位置/旋转由参数指定，scale 固定 1）
+    reg.Emplace<C_D_Transform>(entity,
+        position,
+        rotation,
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    // C_D_RigidBody（静态体）
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    // C_D_Collider（Box，无摩擦无弹性 → 纯阻挡）
+    C_D_Collider col{};
+    col.type        = ColliderType::Box;
+    col.half_x      = halfExtents.x;
+    col.half_y      = halfExtents.y;
+    col.half_z      = halfExtents.z;
+    col.friction    = 0.0f;
+    col.restitution = 0.0f;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // C_T_InvisibleWall 标签
+    reg.Emplace<ECS::C_T_InvisibleWall>(entity);
+
+    // 不挂载 C_D_MeshRenderer → 渲染不可见
+
+    // C_D_DebugName（含序号，匹配 ENTITY_Env_InvisibleWall_XX 规范）
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_Env_InvisibleWall_%02d", wallIndex);
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreateInvisibleWall id=" << entity
+             << " index=" << wallIndex
+             << " pos=(" << position.x << "," << position.y << "," << position.z
+             << ") half=(" << halfExtents.x << "," << halfExtents.y << "," << halfExtents.z << ")");
 
     return entity;
 }

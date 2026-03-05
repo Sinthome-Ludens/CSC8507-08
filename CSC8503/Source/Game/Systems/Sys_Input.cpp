@@ -1,7 +1,7 @@
 #include "Sys_Input.h"
-#include "Game/Components/Res_Input.h"
-#include "Core/Bridge/InputAdapter.h"
 #include "Window.h"
+#include "Core/Bridge/InputAdapter.h"
+#include "Game/Components/Res_Input.h"
 #include "Game/Utils/Log.h"
 
 namespace ECS {
