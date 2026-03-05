@@ -136,29 +136,32 @@ int main(int argc, char** argv) {
 					ui.pendingSceneRequest = ECS::SceneRequest::None;
 				}
 
-				// Debug scene selector
-				if (reg.has_ctx<Res_UIFlags>()) {
-					auto& flags = reg.ctx<Res_UIFlags>();
-					if (flags.debugSceneIndex >= 0) {
-						switch (flags.debugSceneIndex) {
-							case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());     break;
-							case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest());  break;
-							case 2: sceneManager.RequestSceneChange(new Scene_NavTest());      break;
-							case 3: sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::SERVER)); break;
-						}
-						flags.debugSceneIndex = -1;
-					}
-				}
-
 				// Fullscreen toggle
 				if (ui.fullscreenChanged) {
 					w->SetFullScreen(ui.isFullscreen);
 					ui.fullscreenChanged = false;
 				}
 
-				// Mouse management: show cursor when UI is blocking input
-				w->ShowOSPointer(ui.isUIBlockingInput);
-				w->LockMouseToWindow(!ui.isUIBlockingInput);
+				// Mouse management: only override when UI is blocking (menu mode)
+				// In HUD mode (isUIBlockingInput=false), let Sys_Camera control cursor
+				if (ui.isUIBlockingInput) {
+					w->ShowOSPointer(true);
+					w->LockMouseToWindow(false);
+				}
+			}
+
+			// Debug scene selector (independent of Res_UIState)
+			if (reg.has_ctx<Res_UIFlags>()) {
+				auto& flags = reg.ctx<Res_UIFlags>();
+				if (flags.debugSceneIndex >= 0) {
+					switch (flags.debugSceneIndex) {
+						case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());     break;
+						case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest());  break;
+						case 2: sceneManager.RequestSceneChange(new Scene_NavTest());      break;
+						case 3: sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::SERVER)); break;
+					}
+					flags.debugSceneIndex = -1;
+				}
 			}
 		}
 

@@ -79,14 +79,13 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
             // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）────
             auto* kb = Window::GetKeyboard();
             if (kb && windowActive) {
-                const bool altHeld = kb->KeyDown(KeyCodes::MENU);
-                if (altHeld != cam.cursor_free) {
-                    cam.cursor_free = altHeld;
-                    if (win) {
-                        win->ShowOSPointer(altHeld);
-                        win->LockMouseToWindow(!altHeld);
-                    }
-                }
+                cam.cursor_free = kb->KeyDown(KeyCodes::MENU);
+            }
+
+            // 每帧设置光标状态（而非仅在状态变化时），确保进入 HUD 时正确初始化
+            if (win && windowActive) {
+                win->ShowOSPointer(cam.cursor_free);
+                win->LockMouseToWindow(!cam.cursor_free);
             }
 
             // ── 鼠标旋转（cursor_free 模式下禁用）──────────────────────────

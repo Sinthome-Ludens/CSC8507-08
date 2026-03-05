@@ -90,6 +90,7 @@ void Scene_NavTest::OnExit(ECS::Registry&      registry,
     // 逆序停机：NavTest(310) → ImGui(300) → EnemyAI(250) → Render(200) → Navigation(130) → Physics(100) → Camera(50)
     systems.DestroyAll(registry);
     m_Pathfinder.reset();
+    registry.Clear();  // FIX: 清除残留实体，防止新场景渲染僵尸代理
 
     LOG_INFO("[Scene_NavTest] OnExit complete. All systems destroyed.");
 }

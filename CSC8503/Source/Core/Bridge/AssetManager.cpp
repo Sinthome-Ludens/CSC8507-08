@@ -25,6 +25,8 @@ AssetManager::~AssetManager() {
 }
 
 void AssetManager::Init() {
+    if (m_DefaultMeshHandle != INVALID_HANDLE) return; // 幂等守卫
+
     LOG_INFO("[AssetManager] Initializing...");
 
     // 创建默认立方体网格
@@ -32,6 +34,7 @@ void AssetManager::Init() {
     m_MeshCache[1].resource.reset(defaultMesh);
     m_MeshCache[1].refCount = 1; // 永不卸载
     m_DefaultMeshHandle = 1;
+    m_NextMeshHandle = 2;  // FIX: 跳过 handle 1，避免 LoadMesh 覆盖默认资源
 
     // TODO: 创建默认纹理（紫黑格）
     m_DefaultTextureHandle = INVALID_HANDLE;
