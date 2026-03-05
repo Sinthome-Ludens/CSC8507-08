@@ -191,6 +191,15 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
                     }
                 }
 
+                // 稳态生成策略：按索引做小网格偏移，降低同点重叠导致的爆冲
+                constexpr float GRID_STEP = 1.25f;
+                constexpr int GRID_COLS = 4;
+                const int idx = state.capsuleSpawnIndex;
+                const int gx = idx % GRID_COLS;
+                const int gz = idx / GRID_COLS;
+                spawnPos.x += (gx - (GRID_COLS / 2)) * GRID_STEP;
+                spawnPos.z += (gz % GRID_COLS) * GRID_STEP;
+
                 EntityID entity_capsule = PrefabFactory::CreatePhysicsCapsule(
                     registry, state.capsuleMeshHandle, state.capsuleSpawnIndex, spawnPos);
                 ++state.capsuleSpawnIndex;
