@@ -53,7 +53,12 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     if (!registry.has_ctx<Res_TestState>()) {
         Res_TestState state;
         state.cubeMeshHandle = cubeMesh;
+        state.capsuleMeshHandle = capsuleMesh;
         registry.ctx_emplace<Res_TestState>(std::move(state));
+    } else {
+        auto& state = registry.ctx<Res_TestState>();
+        state.cubeMeshHandle = cubeMesh;
+        state.capsuleMeshHandle = capsuleMesh;
     }
 
     // 敌人实体池状态（由 Sys_ImGuiPhysicsTest 读写）
