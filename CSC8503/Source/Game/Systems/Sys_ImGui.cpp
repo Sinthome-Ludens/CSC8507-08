@@ -449,14 +449,24 @@ void Sys_ImGui::SetGravityAll(Registry& registry, float factor) {
     if (!registry.has_ctx<Res_TestState>()) return;
     auto& state = registry.ctx<Res_TestState>();
 
+    int affected = 0;
+
     for (EntityID id : state.cubeEntities) {
         if (registry.Valid(id) && registry.Has<C_D_RigidBody>(id)) {
             registry.Get<C_D_RigidBody>(id).gravity_factor = factor;
+            ++affected;
+        }
+    }
+
+    for (EntityID id : state.capsuleEntities) {
+        if (registry.Valid(id) && registry.Has<C_D_RigidBody>(id)) {
+            registry.Get<C_D_RigidBody>(id).gravity_factor = factor;
+            ++affected;
         }
     }
 
     LOG_INFO("[Sys_ImGui] gravity_factor=" << factor
-             << " applied to " << state.cubeEntities.size() << " cubes.");
+             << " applied to " << affected << " test rigidbodies.");
 }
 
 } // namespace ECS
