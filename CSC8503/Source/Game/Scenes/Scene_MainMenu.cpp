@@ -80,6 +80,12 @@ void Scene_MainMenu::OnExit(ECS::Registry&      registry,
                              ECS::SystemManager& systems)
 {
     systems.DestroyAll(registry);
+
+#ifdef USE_IMGUI
+    // 清除场景级 ctx 资源，防止跨场景状态泄漏（registry.Clear() 不清除 ctx）
+    if (registry.has_ctx<Res_UIFlags>()) registry.ctx_erase<Res_UIFlags>();
+#endif
+
     registry.Clear();
 
     LOG_INFO("[Scene_MainMenu] OnExit complete. All systems destroyed, entities cleared.");

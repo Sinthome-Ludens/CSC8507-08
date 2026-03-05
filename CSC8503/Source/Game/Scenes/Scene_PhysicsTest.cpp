@@ -136,6 +136,15 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
     // → Render(200) → EnemyAI(120) → Physics(100) → Camera(50)
     systems.DestroyAll(registry);
 
+    // 清除场景级 ctx 资源，防止跨场景状态泄漏（registry.Clear() 不清除 ctx）
+    if (registry.has_ctx<Res_UIFlags>())        registry.ctx_erase<Res_UIFlags>();
+    if (registry.has_ctx<Res_TestState>())      registry.ctx_erase<Res_TestState>();
+    if (registry.has_ctx<Res_EnemyTestState>()) registry.ctx_erase<Res_EnemyTestState>();
+    if (registry.has_ctx<Res_CapsuleState>())   registry.ctx_erase<Res_CapsuleState>();
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_GameState>()) registry.ctx_erase<ECS::Res_GameState>();
+#endif
+
     registry.Clear();
 
     LOG_INFO("[Scene_PhysicsTest] OnExit complete. All systems destroyed, entities cleared.");
