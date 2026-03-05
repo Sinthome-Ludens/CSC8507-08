@@ -21,6 +21,7 @@ struct C_D_Input {
     bool  crouchJustPressed   = false;  ///< C 键
     bool  standJustPressed    = false;  ///< V 键
     bool  disguiseJustPressed = false;  ///< E 键
+    bool  cqcJustPressed      = false;  ///< F 键
 };
 
 } // namespace ECS

@@ -8,7 +8,7 @@ namespace ECS {
  * @brief 输入分发系统（优先级 55）
  *
  * 职责：从全局 Res_Input 读取输入状态，转换为每个玩家实体的 C_D_Input。
- * 包含 C/V/E 上升沿检测。
+ * 包含 C/V/E/F 上升沿检测。
  *
  * 读：Res_Input（Registry ctx）
  * 写：C_D_Input（per-entity）
@@ -22,6 +22,7 @@ private:
     bool m_CWasPressed = false;
     bool m_VWasPressed = false;
     bool m_EWasPressed = false;
+    bool m_FWasPressed = false;
 };
 
 } // namespace ECS

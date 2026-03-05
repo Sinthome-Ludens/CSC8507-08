@@ -39,6 +39,10 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
     bool ePressed = eDown && !m_EWasPressed;
     m_EWasPressed = eDown;
 
+    bool fDown = res.keyStates[NCL::KeyCodes::F];
+    bool fPressed = fDown && !m_FWasPressed;
+    m_FWasPressed = fDown;
+
     // ── 写入所有玩家实体的 C_D_Input ──
     registry.view<C_T_Player, C_D_Input>().each(
         [&](EntityID /*id*/, C_T_Player&, C_D_Input& input) {
@@ -49,6 +53,7 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
             input.crouchJustPressed  = cPressed;
             input.standJustPressed   = vPressed;
             input.disguiseJustPressed = ePressed;
+            input.cqcJustPressed     = fPressed;
         }
     );
 }

@@ -113,7 +113,7 @@ int main(int argc, char** argv) {
 	// SceneManager 持有 Registry + SystemManager，并预注册 Res_NCL_Pointers
 	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics, renderer});
 
-    sceneManager.PushScene(new Scene_PhysicsTest());
+	sceneManager.PushScene(new Scene_PhysicsTest());
 
     w->GetTimer().GetTimeDeltaSeconds();
     while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
                     w->SetWindowPosition(0, 0);
             }
 
-            w->SetTitle("ECS NavTest - frame time: " + std::to_string(1000.0f * dt) + " ms");    
+            w->SetTitle("ECS PhysicsTest - frame time: " + std::to_string(1000.0f * dt) + " ms");    
 
 #ifdef USE_IMGUI
             ECS::ImGuiAdapter::NewFrame();

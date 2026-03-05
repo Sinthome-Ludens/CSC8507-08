@@ -3,6 +3,7 @@
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_PlayerState.h"
+#include "Game/Components/C_D_CQCState.h"
 #include "Game/Components/C_T_Player.h"
 #include "Game/Systems/Sys_Physics.h"
 
@@ -17,10 +18,17 @@ void Sys_Movement::OnUpdate(Registry& registry, float /*dt*/) {
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;
 
-    registry.view<C_D_Input, C_D_RigidBody, C_T_Player, C_D_PlayerState>().each(
+    registry.view<C_D_Input, C_D_RigidBody, C_T_Player, C_D_PlayerState, C_D_CQCState>().each(
         [&](EntityID /*id*/, C_D_Input& input, C_D_RigidBody& rb,
-            C_T_Player&, C_D_PlayerState& ps) {
+            C_T_Player&, C_D_PlayerState& ps, C_D_CQCState& cqc) {
             if (!rb.body_created) return;
+
+            // CQC 进行中：冻结水平移动，保留重力
+            if (cqc.phase != CQCPhase::None) {
+                Vector3 vel = physics->GetLinearVelocity(rb.jolt_body_id);
+                physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, vel.y, 0.0f);
+                return;
+            }
 
             Vector3 vel = physics->GetLinearVelocity(rb.jolt_body_id);
 

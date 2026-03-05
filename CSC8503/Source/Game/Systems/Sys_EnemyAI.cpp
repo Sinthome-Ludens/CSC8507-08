@@ -2,6 +2,7 @@
 #include <algorithm>
 #include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/C_D_AIState.h"
+#include "Game/Components/C_D_EnemyDormant.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Utils/Log.h"
 
@@ -11,6 +12,11 @@ namespace ECS {
         auto view = registry.view<C_T_Enemy, C_D_AIState, C_D_AIPerception>();
 
         view.each([&](EntityID entity, C_T_Enemy&, C_D_AIState& state, C_D_AIPerception& detect) {
+            // 休眠敌人跳过 AI 逻辑
+            if (registry.Has<C_D_EnemyDormant>(entity)) {
+                auto& dormant = registry.Get<C_D_EnemyDormant>(entity);
+                if (dormant.isDormant) return;
+            }
 
             // ── 1. 警戒度增减 ────────────────────────────────────────────
             // Hunt 锁定计时器无条件倒计时（spotted 时也扣），截断到 0
