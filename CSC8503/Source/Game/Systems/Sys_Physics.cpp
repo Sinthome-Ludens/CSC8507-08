@@ -1,6 +1,11 @@
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
 #include <iostream>
+#include <cfloat>
+#include <cmath>
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 
 using namespace NCL::Maths;
 
@@ -26,6 +31,7 @@ static Quaternion FromJoltQuat(JPH::QuatArg q) {
 // ============================================================
 namespace {
     bool g_JoltInitialized = false;
+    std::unordered_map<uint32_t, float> g_LastGravityFactors;
 }
 
 void ECS::Sys_Physics::InitJolt() {
@@ -84,15 +90,17 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
     m_PhysicsSystem->SetContactListener(&m_ContactListener);
 
     // 注册 EventBus 到 Registry Context（EventBus 不可复制，以裸指针注册）
-    if (!registry.has_ctx<ECS::EventBus*>()) {
-        m_EventBus = std::make_unique<ECS::EventBus>();
-        registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
-    }
+    // 无条件覆盖：场景重进时 registry.Clear() 不清 ctx，旧指针可能悬空
+    m_EventBus = std::make_unique<ECS::EventBus>();
+    registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
 
-    // 注册 Sys_Physics* 到 ctx，供其他系统（如 Sys_Gameplay / Sys_Movement）访问物理接口
-    if (!registry.has_ctx<Sys_Physics*>()) {
-        registry.ctx_emplace<Sys_Physics*>(this);
-    }
+    // 注册 Sys_Physics* 到 ctx，供其他系统（如 Sys_Movement / Sys_StealthMetrics）访问物理接口
+    // 无条件覆盖，防止场景切换后残留悬空指针
+    registry.ctx_emplace<Sys_Physics*>(this);
+
+    // 注册 Sys_Physics 自身指针，供 Sys_Navigation 调用速度控制接口
+    // 无条件更新：场景重进时确保 ctx 持有新实例指针，避免悬空引用
+    registry.ctx_emplace<ECS::Sys_Physics*>(this);
 
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
 }
@@ -127,7 +135,21 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
         auto& bi = m_PhysicsSystem->GetBodyInterface();
         registry.view<C_D_RigidBody>().each([&](EntityID id, C_D_RigidBody& rb) {
             if (!rb.body_created || rb.is_static) return;
+
+            const uint32_t bodyID = rb.jolt_body_id;
+            const auto itPrev = g_LastGravityFactors.find(bodyID);
+            const float previous = (itPrev != g_LastGravityFactors.end())
+                ? itPrev->second
+                : rb.gravity_factor;
+
             bi.SetGravityFactor(JPH::BodyID(rb.jolt_body_id), rb.gravity_factor);
+
+            constexpr float EPS = 1e-4f;
+            if (previous <= EPS && rb.gravity_factor > EPS) {
+                bi.ActivateBody(JPH::BodyID(rb.jolt_body_id));
+            }
+
+            g_LastGravityFactors[bodyID] = rb.gravity_factor;
         });
     }
 
@@ -159,11 +181,26 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
         bi.DestroyBody(jid);
     }
     m_BodyToEntity.clear();
+    g_LastGravityFactors.clear();
 
     // 析构顺序：PhysicsSystem → JobSystem → TempAllocator
     m_PhysicsSystem.reset();
     m_JobSystem.reset();
     m_TempAllocator.reset();
+
+    // 清除 ctx 中的裸指针，防止场景切换后悬空引用
+    if (registry.has_ctx<Sys_Physics*>()) {
+        registry.ctx_erase<Sys_Physics*>();
+    }
+
+    // 如果此系统拥有并注册了 EventBus，将其从上下文中移除，防止留下悬空指针
+    if (registry.has_ctx<ECS::EventBus*>()) {
+        ECS::EventBus* bus = registry.ctx<ECS::EventBus*>();
+        if (m_EventBus && bus == m_EventBus.get()) {
+            registry.ctx_erase<ECS::EventBus*>();
+        }
+    }
+    m_EventBus.reset();
 
     // Jolt 全局资源（Factory 等）保持存活，避免多系统场景问题
     m_BroadPhaseOptimized = false;
@@ -272,17 +309,29 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 }
 
 // ============================================================
-// SyncTransformsFromJolt（动态体）
+// SyncTransformsFromJolt（动态体 Jolt→ECS / 运动学体 ECS→Jolt）
 // ============================================================
 void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
     reg.view<C_D_Transform, C_D_RigidBody>().each(
         [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb) {
-            // 只同步动态体（非静态、非运动学、已创建）
-            if (!rb.body_created || rb.is_static || rb.is_kinematic) return;
+            if (!rb.body_created || rb.is_static) return;
 
             JPH::BodyID jid(rb.jolt_body_id);
+
+            if (rb.is_kinematic) {
+                // 运动学体：将 ECS Transform（由插值/输入驱动）写回 Jolt，
+                // 使其在物理世界中实际移动，从而能与动态体产生碰撞。
+                bi.MoveKinematic(
+                    jid,
+                    JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
+                    JPH::Quat(tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w),
+                    FIXED_DT);
+                return;
+            }
+
+            // 动态体：Jolt → ECS
             if (!bi.IsActive(jid) && !bi.IsAdded(jid)) return;
 
             JPH::RVec3 pos = bi.GetPosition(jid);
@@ -429,7 +478,19 @@ void ECS::Sys_Physics::MoveKinematic(
 }
 
 // ============================================================
-// CastRay — 射线检测（POD 接口）
+// SetRotation（供 Sys_Navigation 调用 - 来自 feat/navmesh-system）
+// ============================================================
+void ECS::Sys_Physics::SetRotation(uint32_t joltBodyID,
+                                   const NCL::Maths::Quaternion& rotation)
+{
+    if (!m_PhysicsSystem) return;
+    m_PhysicsSystem->GetBodyInterface().SetRotation(
+        JPH::BodyID(joltBodyID),
+        ToJoltQuat(rotation.x, rotation.y, rotation.z, rotation.w),
+        JPH::EActivation::Activate);
+}
+// ============================================================
+// CastRay — 射线检测（POD 接口 - 来自 master）
 // ============================================================
 ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
     float ox, float oy, float oz,
@@ -438,26 +499,31 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
 {
     RaycastHit result{};
     if (!m_PhysicsSystem) return result;
-
+    // 归一化方向向量，防止调用方传入非单位向量
+    float len = std::sqrt(dx * dx + dy * dy + dz * dz);
+    if (len < 1e-6f) return result;   // 零方向，直接返回未命中
+    dx /= len;
+    dy /= len;
+    dz /= len;
     // 构造 Jolt 射线（方向向量长度 = maxDist，fraction 1.0 = 最大距离处）
     JPH::RRayCast ray(JPH::RVec3(ox, oy, oz),
                       JPH::Vec3(dx * maxDist, dy * maxDist, dz * maxDist));
-
     JPH::RayCastResult hit;
     hit.mFraction = 1.0f + FLT_EPSILON; // 初始化为未命中
-
     const auto& query = m_PhysicsSystem->GetNarrowPhaseQuery();
     if (query.CastRay(ray, hit)) {
         result.hit      = true;
         result.fraction = hit.mFraction;
-        result.bodyID   = hit.mBodyID.GetIndexAndSequenceNumber();
-
+        const uint32_t rawBodyID = hit.mBodyID.GetIndexAndSequenceNumber();
+        const auto itEntity = m_BodyToEntity.find(rawBodyID);
+        if (itEntity != m_BodyToEntity.end()) {
+            result.entity = itEntity->second;
+        }
         // 计算命中点
         JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
         result.pointX = static_cast<float>(hitPoint.GetX());
         result.pointY = static_cast<float>(hitPoint.GetY());
         result.pointZ = static_cast<float>(hitPoint.GetZ());
-
         // 获取命中面的法线（需要 BodyLock 访问 Body 对象）
         JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), hit.mBodyID);
         if (lock.Succeeded()) {
@@ -471,16 +537,13 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
     }
     return result;
 }
-
 // ============================================================
-// ReplaceShapeCapsule — 运行时替换碰撞体为 Capsule
+// ReplaceShapeCapsule — 运行时替换碰撞体为 Capsule (来自 master)
 // ============================================================
-void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float radius, float halfHeight) {
+void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight, float radius) {
     if (!m_PhysicsSystem) return;
-
     auto& bi = m_PhysicsSystem->GetBodyInterface();
     JPH::BodyID jid(joltBodyID);
-
     // 创建新的 Capsule 形状
     JPH::CapsuleShapeSettings capsuleSettings(halfHeight, radius);
     auto shapeResult = capsuleSettings.Create();
@@ -488,26 +551,22 @@ void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float radius, fl
         LOG_ERROR("[Sys_Physics] ReplaceShapeCapsule failed: " << shapeResult.GetError().c_str());
         return;
     }
-
     // 替换形状，保留原有质量属性（false = 不用新形状默认密度重算质量）
     bi.SetShape(jid, shapeResult.Get(), false,
                 JPH::EActivation::Activate);
 }
-
 // ============================================================
-// SetPosition — 直接设置动态体世界位置
+// SetPosition — 直接设置动态体世界位置 (来自 master)
 // ============================================================
 void ECS::Sys_Physics::SetPosition(uint32_t joltBodyID, float px, float py, float pz) {
     if (!m_PhysicsSystem) return;
-
     auto& bi = m_PhysicsSystem->GetBodyInterface();
     bi.SetPosition(JPH::BodyID(joltBodyID),
                    JPH::RVec3(px, py, pz),
                    JPH::EActivation::Activate);
 }
-
 // ============================================================
-// ActivateBody — 强制唤醒 Body
+// ActivateBody — 强制唤醒 Body (来自 master)
 // ============================================================
 void ECS::Sys_Physics::ActivateBody(uint32_t joltBodyID) {
     if (!m_PhysicsSystem) return;

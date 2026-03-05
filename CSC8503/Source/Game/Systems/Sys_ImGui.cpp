@@ -7,6 +7,9 @@
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_Network.h"
+#include "Game/Components/C_D_NetworkIdentity.h"
+#include "Game/Components/C_D_InterpBuffer.h"
 #include "Game/Components/Res_TestState.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Prefabs/PrefabFactory.h"
@@ -50,6 +53,7 @@ void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (flags.showTestControls) RenderTestControlsWindow(registry);
         if (flags.showCubeDebug)    RenderCubeDebugWindow(registry);
+        if (flags.showNetworkDebug && registry.has_ctx<Res_Network>()) RenderNetworkDebugWindow(registry);
     }
 }
 
@@ -64,6 +68,9 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
         ImGui::MenuItem("Demo Window",  nullptr, &m_ShowDemoWindow);
         ImGui::MenuItem("Debug Window", nullptr, &m_ShowDebugWindow);
         ImGui::MenuItem("NCL Status",   nullptr, &m_ShowNCLStatus);
+        if (registry.has_ctx<Res_UIFlags>()) {
+            ImGui::MenuItem("Network Debug", nullptr, &registry.ctx<Res_UIFlags>().showNetworkDebug);
+        }
         ImGui::EndMenu();
     }
 
@@ -73,6 +80,8 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
         if (ImGui::BeginMenu("Test Scene")) {
             ImGui::MenuItem("Test Controls", nullptr, &flags.showTestControls);
             ImGui::MenuItem("Cube Debug",    nullptr, &flags.showCubeDebug);
+            ImGui::MenuItem("Network Debug", nullptr, &flags.showNetworkDebug);
+            ImGui::MenuItem("Raycast",       nullptr, &flags.showRaycast);
             ImGui::EndMenu();
         }
     }
@@ -213,6 +222,77 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
 
     if (state.cubeEntities.empty()) {
         ImGui::TextDisabled("No cube entities.");
+    }
+
+    ImGui::End();
+}
+
+// ============================================================
+// RenderNetworkDebugWindow
+// ============================================================
+
+void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
+    if (!registry.has_ctx<Res_Network>()) return;
+    auto& resNet = registry.ctx<Res_Network>();
+    auto& flags = registry.ctx<Res_UIFlags>();
+
+    ImGui::Begin("Network Debug", &flags.showNetworkDebug);
+
+    // 1. 连接状态
+    ImGui::Text("Mode: ");
+    ImGui::SameLine();
+    if (resNet.mode == PeerType::SERVER)      ImGui::TextColored(ImVec4(0, 1, 0, 1), "SERVER");
+    else if (resNet.mode == PeerType::CLIENT) ImGui::TextColored(ImVec4(0, 1, 1, 1), "CLIENT");
+    else                                      ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "OFFLINE");
+
+    ImGui::Text("Status: %s", resNet.connected ? "CONNECTED" : "DISCONNECTED");
+    ImGui::Text("Local Client ID: %u", resNet.localClientID);
+    ImGui::Text("RTT: %u ms", resNet.rtt);
+
+    ImGui::Separator();
+
+    // 2. 流量统计
+    if (ImGui::CollapsingHeader("Traffic Stats", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Columns(2, "traffic");
+        ImGui::Text("Packets Sent:");     ImGui::NextColumn(); ImGui::Text("%llu", resNet.packetsSent);     ImGui::NextColumn();
+        ImGui::Text("Packets Recv:");     ImGui::NextColumn(); ImGui::Text("%llu", resNet.packetsReceived); ImGui::NextColumn();
+        ImGui::Text("Bytes Sent:");       ImGui::NextColumn(); ImGui::Text("%.2f KB", resNet.bytesSent / 1024.0f);   ImGui::NextColumn();
+        ImGui::Text("Bytes Recv:");       ImGui::NextColumn(); ImGui::Text("%.2f KB", resNet.bytesReceived / 1024.0f); ImGui::NextColumn();
+        ImGui::Columns(1);
+    }
+
+    ImGui::Separator();
+
+    // 3. NetID 映射表
+    if (ImGui::CollapsingHeader("NetID Map", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::BeginTable("netid_table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+            ImGui::TableSetupColumn("NetID");
+            ImGui::TableSetupColumn("EntityID");
+            ImGui::TableSetupColumn("Owner");
+            ImGui::TableHeadersRow();
+
+            for (auto const& [netID, entityID] : resNet.netIdMap) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0); ImGui::Text("%u", netID);
+                ImGui::TableSetColumnIndex(1); ImGui::Text("%u", entityID);
+                
+                uint32_t owner = 0;
+                if (registry.Valid(entityID) && registry.Has<C_D_NetworkIdentity>(entityID)) {
+                    owner = registry.Get<C_D_NetworkIdentity>(entityID).ownerClientID;
+                }
+                ImGui::TableSetColumnIndex(2); ImGui::Text("%u", owner);
+            }
+            ImGui::EndTable();
+        }
+    }
+
+    ImGui::Separator();
+
+    // 4. 插值状态
+    if (ImGui::CollapsingHeader("Interpolation Buffers")) {
+        registry.view<C_D_NetworkIdentity, C_D_InterpBuffer>().each([&](EntityID id, auto& net, auto& buffer) {
+            ImGui::Text("Entity %u (NetID %u): %d snapshots", id, net.netID, buffer.count);
+        });
     }
 
     ImGui::End();

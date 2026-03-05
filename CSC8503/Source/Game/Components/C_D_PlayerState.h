@@ -23,6 +23,7 @@ enum class WallState : uint8_t {
  *
  * 存储姿态、噪音、可见度、贴墙等潜行相关数据。
  * 由 Sys_PlayerDisguise / Sys_PlayerStance / Sys_StealthMetrics 写入，供 AI 守卫系统读取。
+ * 由多个系统写入：Sys_PlayerStance（姿态与碰撞体）、Sys_StealthMetrics（噪音/可见度等潜行指标）、Sys_PlayerDisguise（伪装与强制站起标志）等；供 AI 守卫及其他相关游戏逻辑读取。
  */
 struct C_D_PlayerState {
     // ── 姿态 ──
@@ -32,7 +33,7 @@ struct C_D_PlayerState {
 
     // ── 潜行指标 ──
     float noiseLevel      = 0.0f; ///< 当前噪音等级 [0, 1]
-    float visibilityFactor= 1.0f; ///< 当前可见度因子 [0, 1]
+    float visibilityFactor = 1.0f; ///< 当前可见度因子 [0, 1]
 
     // ── 贴墙 ──
     WallState wallState   = WallState::None;
@@ -49,6 +50,8 @@ struct C_D_PlayerState {
 
     // ── 噪音节流 ──
     float noiseCooldown  = 0.0f;  ///< 噪音事件节流计时器
+    // ── 噪音节流（per-entity） ──
+    float noiseCooldown = 0.0f;
 
     // ── 碰撞体参数（当前姿态） ──
     float colliderRadius     = 0.5f; ///< 胶囊半径

@@ -31,11 +31,11 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
                 // 但仍需处理 forceStandPending（伪装进入时强制站起）
                 if (ps.forceStandPending && ps.stance != PlayerStance::Standing) {
                     PlayerStance oldStance = ps.stance;
-                    float oldHalfHeight = CROUCH_HALF_HEIGHT;
+                    float oldHalfHeight = ps.colliderHalfHeight;
 
                     ps.stance = PlayerStance::Standing;
                     ps.colliderHalfHeight = STAND_HALF_HEIGHT;
-                    physics->ReplaceShapeCapsule(rb.jolt_body_id, CAPSULE_RADIUS, STAND_HALF_HEIGHT);
+                    physics->ReplaceShapeCapsule(rb.jolt_body_id, STAND_HALF_HEIGHT, CAPSULE_RADIUS);
 
                     float oldBottom = (tf.position.y - SKIN_OFFSET) - (oldHalfHeight + CAPSULE_RADIUS);
                     float newCenterY = oldBottom + STAND_HALF_HEIGHT + CAPSULE_RADIUS + SKIN_OFFSET;
@@ -43,13 +43,13 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
                     tf.position.y = newCenterY;
                     physics->ActivateBody(rb.jolt_body_id);
 
-                    if (registry.has_ctx<EventBus*>()) {
-                        auto& bus = *registry.ctx<EventBus*>();
+                    auto* bus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;
+                    if (bus) {
                         Evt_Player_StanceChanged evt{};
                         evt.player    = id;
                         evt.oldStance = oldStance;
                         evt.newStance = PlayerStance::Standing;
-                        bus.publish_deferred(evt);
+                        bus->publish_deferred(evt);
                     }
 
                     LOG_INFO("[Sys_PlayerStance] ForceStand: " << (int)oldStance << " -> Standing");
@@ -96,7 +96,7 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
             ps.colliderHalfHeight = newHalfHeight;
 
             // 1) 替换碰撞体形状
-            physics->ReplaceShapeCapsule(rb.jolt_body_id, CAPSULE_RADIUS, newHalfHeight);
+            physics->ReplaceShapeCapsule(rb.jolt_body_id, newHalfHeight, CAPSULE_RADIUS);
 
             // 2) 调整 Y 位置，保持脚底不动
             float oldBottom = (tf.position.y - SKIN_OFFSET) - (oldHalfHeight + CAPSULE_RADIUS);
@@ -108,13 +108,13 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
             physics->ActivateBody(rb.jolt_body_id);
 
             // 发布姿态切换事件
-            if (registry.has_ctx<EventBus*>()) {
-                auto& bus = *registry.ctx<EventBus*>();
+            auto* bus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;
+            if (bus) {
                 Evt_Player_StanceChanged evt{};
                 evt.player    = id;
                 evt.oldStance = oldStance;
                 evt.newStance = ps.stance;
-                bus.publish_deferred(evt);
+                bus->publish_deferred(evt);
             }
 
             LOG_INFO("[Sys_PlayerStance] Stance: " << (int)oldStance << " -> " << (int)ps.stance);

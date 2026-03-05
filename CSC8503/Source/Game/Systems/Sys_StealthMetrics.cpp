@@ -26,7 +26,7 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             C_T_Player&, C_D_PlayerState& ps) {
             if (!rb.body_created) return;
 
-            // 每实体噪音节流计时器递减
+            // 每实体噪音节流计时器递减（放在开头，只递减一次）
             ps.noiseCooldown -= dt;
             if (ps.noiseCooldown < 0.0f) ps.noiseCooldown = 0.0f;
 
@@ -41,14 +41,10 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             float disguiseMul = ps.isDisguised ? DISGUISE_MUL : 1.0f;
             ps.moveSpeedMul = stanceMul * disguiseMul;
 
-            // 奔跑意图：Shift + 有输入 + 非伪装
             bool wantSprint = input.shiftDown && input.hasInput && !ps.isDisguised;
 
-            // 奔跑强制中断下蹲：蹲伏时按 Shift 移动 → 请求站起
             if (wantSprint && ps.stance == PlayerStance::Crouching) {
                 ps.forceStandPending = true;
-                // 立即覆盖为站立乘数，让 Sys_Movement 本帧即可用站立速度响应
-                // （Sys_PlayerStance 将在下一帧完成碰撞体切换）
                 stanceMul = STANCE_MUL_STANDING;
                 ps.moveSpeedMul = stanceMul * disguiseMul;
             }
@@ -79,16 +75,15 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
 
             // ── 噪音事件发布（节流） ──
             if (isMoving && ps.noiseLevel >= 0.01f && ps.noiseCooldown <= 0.0f) {
-                if (registry.has_ctx<EventBus*>()) {
-                    auto& bus = *registry.ctx<EventBus*>();
-
+                auto* bus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;
+                if (bus) {
                     Evt_Player_Noise evt{};
                     evt.source   = id;
                     evt.position = tf.position;
                     evt.volume   = ps.noiseLevel;
-                    evt.type     = ps.isDisguised ? NoiseType::BoxScrape : NoiseType::Footstep;
+                    evt.type     = ps.isDisguised ? PlayerNoiseType::BoxScrape : PlayerNoiseType::Footstep;
 
-                    bus.publish_deferred(evt);
+                    bus->publish_deferred(evt);
                     ps.noiseCooldown = NOISE_THROTTLE;
 
                     LOG_INFO("[Sys_StealthMetrics] Noise: type="
