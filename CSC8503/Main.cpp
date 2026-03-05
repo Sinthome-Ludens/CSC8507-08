@@ -52,8 +52,8 @@ using namespace CSC8503;
 void RunECSTests();
 
 #define ENABLE_ECS_TEST          0  // 1 = 启用 ECS 单元测试（控制台）
-#define ENABLE_PHYSICS_TEST_SCENE 0  // 1 = 启用 ECS 物理测试场景（替换 TutorialGame）
-#define ENABLE_NETWORK_SCENE      1  // 1 = 启用 ECS 网络联机场景
+#define ENABLE_PHYSICS_TEST_SCENE 1  // 1 = 启用 ECS 物理测试场景（替换 TutorialGame）
+#define ENABLE_NETWORK_SCENE      0  // 1 = 启用 ECS 网络联机场景
 #define NETWORK_AS_SERVER         1  // 1 = 以服务器模式启动，0 = 以客户端模式启动
 
 void TestPathfinding() {
@@ -113,9 +113,7 @@ int main(int argc, char** argv) {
 	// SceneManager 持有 Registry + SystemManager，并预注册 Res_NCL_Pointers
 	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics, renderer});
 
-    // 合并策略：优先使用 NavTest 场景（Feature分支），但保留 Master 分支的循环逻辑
-	sceneManager.PushScene(new Scene_NavTest());
-    // sceneManager.PushScene(new Scene_PhysicsTest()); // 如需原版物理测试，解注此行
+    sceneManager.PushScene(new Scene_PhysicsTest());
 
     w->GetTimer().GetTimeDeltaSeconds();
     while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
