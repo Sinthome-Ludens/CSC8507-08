@@ -32,6 +32,7 @@
 
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_UIFlags.h"
 #include "Game/Scenes/SceneManager.h"
 #include "Game/Scenes/Scene_PhysicsTest.h"
 #include "Game/Scenes/Scene_MainMenu.h"
@@ -133,6 +134,20 @@ int main(int argc, char** argv) {
 							break;
 					}
 					ui.pendingSceneRequest = ECS::SceneRequest::None;
+				}
+
+				// Debug scene selector
+				if (reg.has_ctx<Res_UIFlags>()) {
+					auto& flags = reg.ctx<Res_UIFlags>();
+					if (flags.debugSceneIndex >= 0) {
+						switch (flags.debugSceneIndex) {
+							case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());     break;
+							case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest());  break;
+							case 2: sceneManager.RequestSceneChange(new Scene_NavTest());      break;
+							case 3: sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::SERVER)); break;
+						}
+						flags.debugSceneIndex = -1;
+					}
 				}
 
 				// Fullscreen toggle

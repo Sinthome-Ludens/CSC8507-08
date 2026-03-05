@@ -10,4 +10,6 @@ struct Res_UIFlags {
     bool showTestControls = true;  ///< 是否显示 "ECS Test Controls" 控制面板
     bool showCubeDebug    = true;  ///< 是否显示 "Cube Debug Info" 浮动 debug 窗口
     bool showNetworkDebug = true;  ///< 是否显示 "Network Debug" 控制面板
+
+    int8_t debugSceneIndex = -1;  ///< -1=无请求, 0=MainMenu, 1=PhysicsTest, 2=NavTest, 3=NetworkGame(Server)
 };

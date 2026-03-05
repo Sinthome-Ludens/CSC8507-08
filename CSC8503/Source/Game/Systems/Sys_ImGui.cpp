@@ -48,7 +48,7 @@ void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
     if (m_ShowDebugWindow) RenderDebugWindow(registry, dt);
     if (m_ShowNCLStatus)   RenderNCLStatus(registry);
 
-    // Test Scene 窗口：由 Res_UIFlags context 控制显隐
+    // 调试窗口：由 Res_UIFlags context 控制显隐
     if (registry.has_ctx<Res_UIFlags>()) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (flags.showTestControls) RenderTestControlsWindow(registry);
@@ -69,20 +69,24 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
         ImGui::MenuItem("Debug Window", nullptr, &m_ShowDebugWindow);
         ImGui::MenuItem("NCL Status",   nullptr, &m_ShowNCLStatus);
         if (registry.has_ctx<Res_UIFlags>()) {
-            ImGui::MenuItem("Network Debug", nullptr, &registry.ctx<Res_UIFlags>().showNetworkDebug);
+            auto& flags = registry.ctx<Res_UIFlags>();
+            ImGui::MenuItem("Test Controls", nullptr, &flags.showTestControls);
+            ImGui::MenuItem("Cube Debug",    nullptr, &flags.showCubeDebug);
+            ImGui::MenuItem("Network Debug", nullptr, &flags.showNetworkDebug);
         }
         ImGui::EndMenu();
     }
 
-    // Test Scene 子菜单：通过 Res_UIFlags context 控制各浮窗可见性
-    if (registry.has_ctx<Res_UIFlags>()) {
-        auto& flags = registry.ctx<Res_UIFlags>();
-        if (ImGui::BeginMenu("Test Scene")) {
-            ImGui::MenuItem("Test Controls", nullptr, &flags.showTestControls);
-            ImGui::MenuItem("Cube Debug",    nullptr, &flags.showCubeDebug);
-            ImGui::MenuItem("Network Debug", nullptr, &flags.showNetworkDebug);
-            ImGui::EndMenu();
+    // DebugSceneSelector：列出所有可用场景，点击即可切换
+    if (ImGui::BeginMenu("DebugSceneSelector")) {
+        if (registry.has_ctx<Res_UIFlags>()) {
+            auto& flags = registry.ctx<Res_UIFlags>();
+            if (ImGui::MenuItem("Scene_MainMenu"))      flags.debugSceneIndex = 0;
+            if (ImGui::MenuItem("Scene_PhysicsTest"))    flags.debugSceneIndex = 1;
+            if (ImGui::MenuItem("Scene_NavTest"))        flags.debugSceneIndex = 2;
+            if (ImGui::MenuItem("Scene_NetworkGame"))    flags.debugSceneIndex = 3;
         }
+        ImGui::EndMenu();
     }
 
     ImGui::EndMainMenuBar();

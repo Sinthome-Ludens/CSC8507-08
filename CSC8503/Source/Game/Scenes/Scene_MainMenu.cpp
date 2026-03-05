@@ -8,6 +8,7 @@
 #include "Game/Systems/Sys_ImGui.h"
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_UIFlags.h"
 #include "Game/UI/UI_Toast.h"
 #endif
 
@@ -51,6 +52,10 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
         ui.transitionActive        = false;
         ui.transitionType          = 0;
         ui.transitionSceneRequest  = ECS::SceneRequest::None;
+    }
+
+    if (!registry.has_ctx<Res_UIFlags>()) {
+        registry.ctx_emplace<Res_UIFlags>();
     }
 
     systems.Register<ECS::Sys_ImGui>(300);
