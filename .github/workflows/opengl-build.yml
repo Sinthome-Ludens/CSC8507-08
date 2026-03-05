@@ -1,0 +1,91 @@
+name: OpenGL Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: Build configuration
+        required: true
+        default: Debug
+        type: choice
+        options:
+          - Debug
+          - Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      ASSIMP_TAG: v6.0.4
+      ENET_TAG: v1.3.18
+      JOLT_TAG: v5.5.0
+      JSON_TAG: v3.12.0
+      IMGUI_TAG: v1.92.6-docking
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure git for long paths
+        run: git config --global core.longpaths true
+
+      - name: Fetch External dependencies
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path External -Force | Out-Null
+          git clone --depth 1 --branch $env:ASSIMP_TAG https://github.com/assimp/assimp.git External/assimp
+          git clone --depth 1 --branch $env:ENET_TAG https://github.com/lsalzman/enet.git External/enet
+          git clone --depth 1 --branch $env:JOLT_TAG https://github.com/jrouwe/JoltPhysics.git External/JoltPhysics
+          git clone --depth 1 --branch $env:JSON_TAG https://github.com/nlohmann/json.git External/nlohmann_json
+          git clone --depth 1 --branch $env:IMGUI_TAG https://github.com/ocornut/imgui.git External/imgui
+
+      - name: Configure CMake (OpenGL only)
+        shell: pwsh
+        run: |
+          $cfg = "${{ inputs.build_type }}".ToLower()
+          $buildDir = "${{ github.workspace }}/cmake-build-$cfg-visual-studio"
+          cmake -S "${{ github.workspace }}" -B "$buildDir" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} -DUSE_OPENGL=ON -DUSE_VULKAN=OFF -DUSE_IMGUI=ON -DASSET_ROOT=./Assets/
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $cfg = "${{ inputs.build_type }}".ToLower()
+          $buildDir = "${{ github.workspace }}/cmake-build-$cfg-visual-studio"
+          cmake --build "$buildDir" --config "${{ inputs.build_type }}"
+
+      - name: Stage build artifact
+        shell: pwsh
+        run: |
+          $cfg = "${{ inputs.build_type }}"
+          $cfgLower = $cfg.ToLower()
+          $buildDir = "${{ github.workspace }}/cmake-build-$cfgLower-visual-studio"
+          $binDir = Join-Path $buildDir $cfg
+          $stageDir = Join-Path "${{ github.workspace }}" "artifact-opengl-$cfgLower"
+
+          if (Test-Path $stageDir) { Remove-Item -Recurse -Force $stageDir }
+          New-Item -ItemType Directory -Path $stageDir | Out-Null
+
+          Copy-Item (Join-Path $binDir "CSC8503.exe") $stageDir -Force
+
+          Get-ChildItem -Path $buildDir -Recurse -Filter *.dll | ForEach-Object {
+            Copy-Item $_.FullName $stageDir -Force
+          }
+
+          $assetsRoot = Join-Path $stageDir "Assets"
+          New-Item -ItemType Directory -Path $assetsRoot -Force | Out-Null
+          $assetDirs = @("Shaders", "Meshes", "Textures", "Fonts", "Data", "GLTF", "Prefabs")
+          foreach ($dir in $assetDirs) {
+            $src = Join-Path "${{ github.workspace }}" "Assets/$dir"
+            if (Test-Path $src) {
+              Copy-Item $src (Join-Path $assetsRoot $dir) -Recurse -Force
+            }
+          }
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opengl-${{ inputs.build_type }}-windows-x64
+          path: artifact-opengl-*

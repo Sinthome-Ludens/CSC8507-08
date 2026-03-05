@@ -70,7 +70,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 if(USE_VULKAN)
 	find_package(Vulkan)
 endif() 
-set(ASSET_ROOT "${CMAKE_SOURCE_DIR}/Assets/" CACHE STRING "" FORCE)
+set(ASSET_ROOT "${CMAKE_SOURCE_DIR}/Assets/" CACHE STRING "Asset root directory")
 add_compile_definitions(ASSETROOTLOCATION="${ASSET_ROOT}") 
 
 if(USE_VULKAN)
