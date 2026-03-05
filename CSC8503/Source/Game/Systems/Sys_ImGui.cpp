@@ -1,3 +1,7 @@
+/**
+ * @file Sys_ImGui.cpp
+ * @brief ImGui 渲染系统实现：主菜单栏、调试窗口、Cube/Capsule 测试控制面板
+ */
 #include "Sys_ImGui.h"
 #ifdef USE_IMGUI
 
@@ -177,8 +181,7 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
     ImGui::Text("== Capsule Factory ==");
     ImGui::Separator();
 
-    static bool sCapsuleOverlapSpawn = false;
-    ImGui::Checkbox("Overlap Spawn", &sCapsuleOverlapSpawn);
+    ImGui::Checkbox("Overlap Spawn", &m_CapsuleOverlapSpawn);
 
     if (registry.has_ctx<Res_TestState>()) {
         auto& state = registry.ctx<Res_TestState>();
@@ -209,7 +212,7 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
             }
 
             const int idx = state.capsuleSpawnIndex;
-            if (sCapsuleOverlapSpawn) {
+            if (m_CapsuleOverlapSpawn) {
                 // 近重叠模式：围绕同一点做微小扰动，便于观察胶囊间挤压/分离
                 constexpr float OVERLAP_RADIUS = 0.05f;
                 constexpr float PI = 3.14159265f;
@@ -235,7 +238,6 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
                      << " (total=" << state.capsuleEntities.size() << ")");
         }
         if (!canSpawnCapsule) ImGui::EndDisabled();
-        if (!canSpawnCapsule) ImGui::TextDisabled("Capsule mesh unavailable");
 
         ImGui::SameLine();
         const bool canDeleteCapsule = !state.capsuleEntities.empty();
@@ -250,6 +252,7 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
             }
         }
         if (!canDeleteCapsule) ImGui::EndDisabled();
+        if (!canSpawnCapsule) ImGui::TextDisabled("Capsule mesh unavailable");
     }
 
     ImGui::Spacing();

@@ -1,3 +1,7 @@
+/**
+ * @file Sys_ImGui.h
+ * @brief ImGui 渲染系统声明：菜单栏、调试窗口、Test Controls 控制面板
+ */
 #pragma once
 #ifdef USE_IMGUI
 
@@ -42,10 +46,11 @@ private:
     void SetGravityAll (Registry& registry, float factor); ///< 批量修改 gravity_factor
 
     // ── 窗口可见标志（系统配置，非游戏状态）────────────────────────────
-    bool m_ShowDemoWindow  = false;
-    bool m_ShowDebugWindow = true;
-    bool m_ShowNCLStatus   = true;
-    bool m_WireframeMode   = false;
+    bool m_ShowDemoWindow       = false;
+    bool m_ShowDebugWindow      = true;
+    bool m_ShowNCLStatus        = true;
+    bool m_WireframeMode        = false;
+    bool m_CapsuleOverlapSpawn  = false; ///< 胶囊近重叠生成模式开关
 };
 
 } // namespace ECS

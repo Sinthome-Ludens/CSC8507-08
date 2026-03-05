@@ -1,3 +1,7 @@
+/**
+ * @file Scene_PhysicsTest.cpp
+ * @brief 物理测试场景实现：资源加载、实体初始化、系统注册与生命周期管理
+ */
 #include "Scene_PhysicsTest.h"
 
 #include "Assets.h"

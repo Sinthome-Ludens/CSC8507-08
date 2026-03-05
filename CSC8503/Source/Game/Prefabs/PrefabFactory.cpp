@@ -1,3 +1,7 @@
+/**
+ * @file PrefabFactory.cpp
+ * @brief 实体预制体工厂实现：所有 ECS 实体（相机/地板/方块/胶囊/AI/导航）的硬编码创建入口
+ */
 #include "PrefabFactory.h"
 
 #include "Game/Components/C_D_Transform.h"
