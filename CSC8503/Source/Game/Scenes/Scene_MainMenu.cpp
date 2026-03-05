@@ -30,8 +30,7 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
         auto& ui = registry.ctx<ECS::Res_UIState>();
 
         // 重置导航状态，但保留用户设置（音量/灵敏度/全屏等）
-        // TitleScreen 尚未实现（commit #2），暂时统一从 Splash 开始
-        ui.activeScreen        = ECS::UIScreen::Splash;
+        ui.activeScreen        = ECS::UIScreen::TitleScreen;
         ui.titleTimer          = 0.0f;
         ui.splashTimer         = 0.0f;
         ui.menuSelectedIndex       = 0;
@@ -41,6 +40,16 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
         ui.previousScreen          = ECS::UIScreen::None;
         ui.prePauseScreen          = ECS::UIScreen::None;
         ui.pendingSceneRequest     = ECS::SceneRequest::None;
+
+        // New UI state fields
+        ui.loadoutSelectedIndex    = 0;
+        ui.inventorySelectedSlot   = 0;
+        ui.teamStartTime           = 0.0f;
+        ui.itemWheelOpen           = false;
+        ui.itemWheelSelected       = -1;
+        ui.transitionTimer         = 0.0f;
+        ui.transitionActive        = false;
+        ui.transitionType          = 0;
     }
 
     systems.Register<ECS::Sys_ImGui>(300);

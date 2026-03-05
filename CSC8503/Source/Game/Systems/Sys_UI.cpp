@@ -7,6 +7,16 @@
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_Menus.h"
 #include "Game/UI/UI_Toast.h"
+#include "Game/UI/UI_TitleScreen.h"
+#include "Game/UI/UI_Effects.h"
+#include "Game/UI/UI_HUD.h"
+#include "Game/UI/UI_GameOver.h"
+#include "Game/UI/UI_Team.h"
+#include "Game/UI/UI_Loadout.h"
+#include "Game/UI/UI_Inventory.h"
+#include "Game/UI/UI_Chat.h"
+#include "Game/UI/UI_ItemWheel.h"
+#include "Game/UI/UI_Interaction.h"
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
@@ -80,30 +90,88 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                 ui.activeScreen = ui.prePauseScreen;
                 LOG_INFO("[Sys_UI] PauseMenu -> Resume (ESC)");
                 break;
+            case UIScreen::Inventory:
+                ui.activeScreen = UIScreen::HUD;
+                LOG_INFO("[Sys_UI] Inventory -> HUD (ESC)");
+                break;
+            case UIScreen::Loadout:
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen = UIScreen::MainMenu;
+                ui.menuSelectedIndex = 0;
+                LOG_INFO("[Sys_UI] Loadout -> MainMenu (ESC)");
+                break;
+            case UIScreen::Team:
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen = UIScreen::MainMenu;
+                ui.menuSelectedIndex = 0;
+                LOG_INFO("[Sys_UI] Team -> MainMenu (ESC)");
+                break;
+            case UIScreen::GameOver:
+                // GameOver has its own menu; ESC does nothing
+                break;
             default:
                 break;
         }
     }
 
+    // I key: toggle HUD <-> Inventory (only when in HUD or Inventory)
+    if (kb && kb->KeyPressed(KeyCodes::I)) {
+        if (ui.activeScreen == UIScreen::HUD) {
+            ui.activeScreen = UIScreen::Inventory;
+            ui.inventorySelectedSlot = 0;
+            LOG_INFO("[Sys_UI] HUD -> Inventory (I)");
+        } else if (ui.activeScreen == UIScreen::Inventory) {
+            ui.activeScreen = UIScreen::HUD;
+            LOG_INFO("[Sys_UI] Inventory -> HUD (I)");
+        }
+    }
+
+    // TAB key: toggle ItemWheel (only when in HUD)
+    if (kb && ui.activeScreen == UIScreen::HUD) {
+        if (kb->KeyPressed(KeyCodes::TAB)) {
+            ui.itemWheelOpen = !ui.itemWheelOpen;
+            ui.itemWheelSelected = -1;
+            LOG_INFO("[Sys_UI] ItemWheel: " << (ui.itemWheelOpen ? "OPEN" : "CLOSED"));
+        }
+    } else {
+        ui.itemWheelOpen = false;
+    }
+
     // Dispatch to render functions
     switch (ui.activeScreen) {
-        case UIScreen::Splash:     UI::RenderSplashScreen(registry, dt);    break;
-        case UIScreen::MainMenu:   UI::RenderMainMenu(registry, dt);        break;
-        case UIScreen::Settings:   UI::RenderSettingsScreen(registry, dt);  break;
-        case UIScreen::PauseMenu:  UI::RenderPauseMenu(registry, dt);      break;
-        case UIScreen::TitleScreen: break;  // TODO: commit #2 — UI_TitleScreen
-        case UIScreen::HUD:         break;  // TODO: commit #5 — UI_HUD
-        case UIScreen::GameOver:    break;  // TODO: commit #7 — UI_GameOver
+        case UIScreen::TitleScreen: UI::RenderTitleScreen(registry, dt);     break;
+        case UIScreen::Splash:      UI::RenderSplashScreen(registry, dt);    break;
+        case UIScreen::MainMenu:    UI::RenderMainMenu(registry, dt);        break;
+        case UIScreen::Settings:    UI::RenderSettingsScreen(registry, dt);  break;
+        case UIScreen::PauseMenu:   UI::RenderPauseMenu(registry, dt);      break;
+        case UIScreen::HUD:         UI::RenderHUD(registry, dt);             break;
+        case UIScreen::GameOver:    UI::RenderGameOverScreen(registry, dt);  break;
+        case UIScreen::Inventory:   UI::RenderInventoryScreen(registry, dt); break;
+        case UIScreen::Loadout:     UI::RenderLoadoutScreen(registry, dt);   break;
+        case UIScreen::Team:        UI::RenderTeamScreen(registry, dt);      break;
         case UIScreen::None:
         default:
             break;
+    }
+
+    // HUD overlays (chat, interaction prompts, item wheel)
+    if (ui.activeScreen == UIScreen::HUD) {
+        UI::RenderChatPanel(registry, dt);
+        UI::RenderInteractionPrompts(registry, dt);
+        UI::RenderItemWheel(registry, dt);
     }
 
     // Update input blocking flag
     ui.isUIBlockingInput = (ui.activeScreen != UIScreen::None
                          && ui.activeScreen != UIScreen::HUD);
 
-    // ── Toast 通知渲染（覆盖所有屏幕）──
+    // Scanline overlay (subtle CRT effect, always on)
+    UI::RenderScanlineOverlay(ui.globalTime);
+
+    // Scene transition overlay
+    UI::RenderTransitionOverlay(registry, dt);
+
+    // Toast 通知渲染（覆盖所有屏幕）
     UI::RenderToasts(registry, dt);
 }
 
