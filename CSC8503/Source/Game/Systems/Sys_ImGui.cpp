@@ -219,17 +219,18 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
         if (!canSpawnCapsule) ImGui::TextDisabled("Capsule mesh unavailable");
 
         ImGui::SameLine();
+        const bool canDeleteCapsule = !state.capsuleEntities.empty();
+        if (!canDeleteCapsule) ImGui::BeginDisabled();
         if (ImGui::Button("Delete Capsule", ImVec2(120, 30))) {
-            if (!state.capsuleEntities.empty()) {
-                EntityID last = state.capsuleEntities.back();
-                state.capsuleEntities.pop_back();
+            EntityID last = state.capsuleEntities.back();
+            state.capsuleEntities.pop_back();
 
-                if (registry.Valid(last)) {
-                    registry.Destroy(last);
-                    LOG_INFO("[Sys_ImGui] Destroyed capsule entity id=" << last);
-                }
+            if (registry.Valid(last)) {
+                registry.Destroy(last);
+                LOG_INFO("[Sys_ImGui] Destroyed capsule entity id=" << last);
             }
         }
+        if (!canDeleteCapsule) ImGui::EndDisabled();
     }
 
     ImGui::Spacing();
