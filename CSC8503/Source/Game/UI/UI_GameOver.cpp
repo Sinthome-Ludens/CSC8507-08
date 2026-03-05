@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <cmath>
 #include <cstdio>
+#include <algorithm>
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
@@ -49,73 +50,124 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float cx = vpPos.x + vpSize.x * 0.5f;
 
     // Get game data
-    uint32_t score = 0;
-    uint32_t enemies = 0;
+    uint8_t reason = 0;
+    float alertLevel = 0.0f;
+    float alertMax = 150.0f;
+    float playTime = 0.0f;
     if (registry.has_ctx<Res_GameState>()) {
         auto& gs = registry.ctx<Res_GameState>();
-        score   = gs.score;
-        enemies = gs.enemyCount;
+        reason     = gs.gameOverReason;
+        alertLevel = gs.alertLevel;
+        alertMax   = gs.alertMax;
+        playTime   = gs.playTime;
     }
 
-    // Result title
+    // ── Dynamic title based on reason ──────────────────────
+    const char* resultTitle;
+    const char* resultSubtitle;
+    ImU32 titleColor;
+    bool isSuccess = false;
+
+    switch (reason) {
+        case 1: // Countdown expired
+            resultTitle    = "MISSION FAILED";
+            resultSubtitle = "COUNTDOWN EXPIRED";
+            titleColor     = IM_COL32(220, 60, 40, 255);
+            break;
+        case 2: // Detected
+            resultTitle    = "MISSION FAILED";
+            resultSubtitle = "OPERATOR DETECTED";
+            titleColor     = IM_COL32(220, 60, 40, 255);
+            break;
+        case 3: // Success
+            resultTitle    = "MISSION COMPLETE";
+            resultSubtitle = "ALL OBJECTIVES ACHIEVED";
+            titleColor     = IM_COL32(252, 111, 41, 255);
+            isSuccess      = true;
+            break;
+        default:
+            resultTitle    = "MISSION TERMINATED";
+            resultSubtitle = "";
+            titleColor     = IM_COL32(200, 200, 200, 255);
+            break;
+    }
+
+    // Title
     ImFont* titleFont = UITheme::GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
-
-    const char* resultTitle = "MISSION COMPLETE";
     ImVec2 titleSize = ImGui::CalcTextSize(resultTitle);
     float titleX = cx - titleSize.x * 0.5f;
     float titleY = vpPos.y + vpSize.y * 0.15f;
-    draw->AddText(ImVec2(titleX, titleY),
-        IM_COL32(16, 13, 10, 255), resultTitle);
-
+    draw->AddText(ImVec2(titleX, titleY), titleColor, resultTitle);
     if (titleFont) ImGui::PopFont();
 
+    // Subtitle
+    ImFont* termFont = UITheme::GetFont_Terminal();
+    if (termFont) ImGui::PushFont(termFont);
+    ImVec2 subSize = ImGui::CalcTextSize(resultSubtitle);
+    draw->AddText(ImVec2(cx - subSize.x * 0.5f, titleY + titleSize.y + 6.0f),
+        IM_COL32(16, 13, 10, 180), resultSubtitle);
+    if (termFont) ImGui::PopFont();
+
     // Decorative line
-    float lineY = titleY + titleSize.y + 12.0f;
+    float lineY = titleY + titleSize.y + 32.0f;
     draw->AddLine(ImVec2(cx - 120.0f, lineY), ImVec2(cx + 120.0f, lineY),
         IM_COL32(200, 200, 200, 120), 1.0f);
 
-    // Rating
+    // ── Rating ────────────────────────────────────────────
     ImFont* bodyFont = UITheme::GetFont_Body();
     if (bodyFont) ImGui::PushFont(bodyFont);
 
-    const char* rating = (score >= 500) ? "RATING: S" :
-                         (score >= 300) ? "RATING: A" :
-                         (score >= 100) ? "RATING: B" : "RATING: C";
+    const char* rating;
+    if (!isSuccess) {
+        rating = "RATING: F";
+    } else if (alertLevel < 30.0f) {
+        rating = "RATING: S";
+    } else if (alertLevel < 75.0f) {
+        rating = "RATING: A";
+    } else {
+        rating = "RATING: B";
+    }
+
     ImVec2 ratingSize = ImGui::CalcTextSize(rating);
-    float ratingY = lineY + 20.0f;
+    float ratingY = lineY + 16.0f;
     draw->AddText(ImVec2(cx - ratingSize.x * 0.5f, ratingY),
         IM_COL32(252, 111, 41, 255), rating);
-
     if (bodyFont) ImGui::PopFont();
 
-    // Statistics panel
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    // ── Statistics panel ──────────────────────────────────
     if (termFont) ImGui::PushFont(termFont);
 
-    float statsY = ratingY + 50.0f;
-    float statsX = cx - 100.0f;
+    float statsY = ratingY + 46.0f;
+    float statsX = cx - 110.0f;
 
+    // Play time MM:SS
+    int totalSec = (int)playTime;
+    int mm = totalSec / 60;
+    int ss = totalSec % 60;
     char buf[64];
-    snprintf(buf, sizeof(buf), "SCORE:     %u", score);
+
+    snprintf(buf, sizeof(buf), "TIME:      %02d:%02d", mm, ss);
     draw->AddText(ImVec2(statsX, statsY),
         IM_COL32(16, 13, 10, 220), buf);
 
-    snprintf(buf, sizeof(buf), "HOSTILES:  %u", enemies);
+    snprintf(buf, sizeof(buf), "ALERT:     %.0f / %.0f", alertLevel, alertMax);
     draw->AddText(ImVec2(statsX, statsY + 28.0f),
         IM_COL32(16, 13, 10, 220), buf);
 
+    const char* detectedStr = (reason == 2) ? "YES" : "NO";
+    snprintf(buf, sizeof(buf), "DETECTED:  %s", detectedStr);
     draw->AddText(ImVec2(statsX, statsY + 56.0f),
-        IM_COL32(16, 13, 10, 220), "DETECTED:  NO");
+        IM_COL32(16, 13, 10, 220), buf);
 
     if (termFont) ImGui::PopFont();
 
-    // Separator before menu
+    // ── Separator before menu ─────────────────────────────
     float sepY = statsY + 100.0f;
     draw->AddLine(ImVec2(cx - 80.0f, sepY), ImVec2(cx + 80.0f, sepY),
         IM_COL32(200, 200, 200, 100), 1.0f);
 
-    // Menu items
+    // ── Menu items ────────────────────────────────────────
     if (termFont) ImGui::PushFont(termFont);
 
     float menuStartY = sepY + 20.0f;
