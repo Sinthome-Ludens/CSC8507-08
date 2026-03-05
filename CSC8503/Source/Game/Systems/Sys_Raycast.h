@@ -30,7 +30,7 @@ private:
         float hitZ = 0.0f;
 
         uint32_t bodyID = 0xFFFFFFFFu;
-        uint32_t entityID = 0xFFFFFFFFu;
+        uint32_t entityID = ECS::Entity::NULL_ENTITY;
     };
 
     bool m_ShowWindow = true;
