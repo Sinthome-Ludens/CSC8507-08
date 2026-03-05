@@ -128,7 +128,7 @@ EntityID PrefabFactory::CreatePhysicsCube(
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(1.0f, 1.0f, 1.0f)
+        Vector3(0.47f, 0.47f, 0.47f)
     );
 
     // C_D_MeshRenderer
