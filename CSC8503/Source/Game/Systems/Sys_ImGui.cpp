@@ -205,7 +205,7 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
             const int gx = idx % GRID_COLS;
             const int gz = idx / GRID_COLS;
             spawnPos.x += (gx - (GRID_COLS / 2)) * GRID_STEP;
-            spawnPos.z += (gz % GRID_COLS) * GRID_STEP;
+            spawnPos.z += gz * GRID_STEP;
 
             EntityID entity_capsule = PrefabFactory::CreatePhysicsCapsule(
                 registry, state.capsuleMeshHandle, state.capsuleSpawnIndex, spawnPos);
