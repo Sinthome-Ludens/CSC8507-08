@@ -4,6 +4,8 @@
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_ToastState.h"
+#include "Game/Components/Res_InventoryState.h"
+#include "Game/Components/Res_ChatState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_Menus.h"
 #include "Game/UI/UI_Toast.h"
@@ -42,7 +44,15 @@ void Sys_UI::OnAwake(Registry& registry) {
         registry.ctx_emplace<Res_ToastState>();
     }
 
-    LOG_INFO("[Sys_UI] OnAwake — Fonts loaded, theme applied, Res_UIState + Res_ToastState registered.");
+    if (!registry.has_ctx<Res_InventoryState>()) {
+        registry.ctx_emplace<Res_InventoryState>();
+    }
+
+    if (!registry.has_ctx<Res_ChatState>()) {
+        registry.ctx_emplace<Res_ChatState>();
+    }
+
+    LOG_INFO("[Sys_UI] OnAwake — Fonts loaded, theme applied, all UI resources registered.");
 }
 
 // ============================================================
@@ -56,9 +66,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     ui.globalTime += dt;
     if (ui.globalTime > kGlobalTimeWrap) ui.globalTime -= kGlobalTimeWrap;
 
-    if (ui.activeScreen == UIScreen::TitleScreen) {
-        ui.titleTimer += dt;
-    }
+    // titleTimer 由 UI_TitleScreen::RenderTitleScreen 自行递增，此处不再重复
 
     // F1: toggle devMode
     const Keyboard* kb = Window::GetKeyboard();

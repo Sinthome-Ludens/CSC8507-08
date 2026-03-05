@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <algorithm>
 #include "Game/Components/Res_UIState.h"
 #include "Game/UI/UITheme.h"
@@ -93,12 +94,12 @@ void RenderTeamScreen(Registry& registry, float dt) {
             const char* name = kTeamMembers[i].name;
             int nameLen = (int)strlen(name);
             int visibleChars = std::min((int)(memberTime / charDelay), nameLen);
+            visibleChars = std::min(visibleChars, 63);  // 防止越界
 
             char nameBuf[64] = {};
-            for (int c = 0; c < visibleChars && c < 63; ++c) {
+            for (int c = 0; c < visibleChars; ++c) {
                 nameBuf[c] = name[c];
             }
-            nameBuf[visibleChars] = '\0';
 
             ImVec2 nameSize = ImGui::CalcTextSize(nameBuf);
             draw->AddText(ImVec2(cx - nameSize.x * 0.5f, itemY),

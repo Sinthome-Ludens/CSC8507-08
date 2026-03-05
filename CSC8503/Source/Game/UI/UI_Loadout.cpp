@@ -161,9 +161,24 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
     if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
         confirmedIndex = ui.loadoutSelectedIndex;
     }
-    // Mouse click confirm
+    // Mouse click confirm — only if cursor is over an item
     if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
-        confirmedIndex = ui.loadoutSelectedIndex;
+        ImVec2 mp = ImGui::GetMousePos();
+        auto hitTest = [&](int count, int indexOffset, float colX, float colWidth) -> bool {
+            for (int i = 0; i < count; ++i) {
+                float itemY = entryStartY + i * entryH;
+                ImVec2 itemMin(colX - 5.0f, itemY - 4.0f);
+                ImVec2 itemMax(colX + colWidth, itemY + entryH - 8.0f);
+                if (mp.x >= itemMin.x && mp.x <= itemMax.x &&
+                    mp.y >= itemMin.y && mp.y <= itemMax.y) {
+                    confirmedIndex = static_cast<int8_t>(indexOffset + i);
+                    return true;
+                }
+            }
+            return false;
+        };
+        if (!hitTest(kItemCount, 0, leftX, colW))
+            hitTest(kWeaponCount, kItemCount, rightX, colW);
     }
 
     if (confirmedIndex >= 0) {

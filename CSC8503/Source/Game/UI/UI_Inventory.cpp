@@ -53,10 +53,8 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
         ImVec2(vpPos.x + vpSize.x - 40.0f, headerLineY),
         IM_COL32(200, 200, 200, 100), 1.0f);
 
-    // Get inventory state (create if missing)
-    if (!registry.has_ctx<Res_InventoryState>()) {
-        registry.ctx_emplace<Res_InventoryState>();
-    }
+    // Res_InventoryState 由 Sys_UI::OnAwake 初始化
+    if (!registry.has_ctx<Res_InventoryState>()) return;
     auto& inv = registry.ctx<Res_InventoryState>();
 
     // Grid layout: 4 columns x 3 rows

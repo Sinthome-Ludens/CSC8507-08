@@ -17,7 +17,6 @@ namespace ECS::UI {
 
 void RenderHUD(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
-    auto& ui = registry.ctx<Res_UIState>();
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;

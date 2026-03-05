@@ -3,7 +3,6 @@
 
 #include <imgui.h>
 #include <cmath>
-#include <cstdio>
 #include "Game/Components/Res_UIState.h"
 #include "Game/UI/UITheme.h"
 
@@ -29,6 +28,7 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+    ImFont* smallFont = UITheme::GetFont_Small();
 
     float cx = displaySize.x * 0.5f;
     float cy = displaySize.y * 0.5f;
@@ -50,6 +50,8 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     int hoveredSector = -1;
     if (dist > innerR * 0.5f) {
         float angle = atan2f(dy, dx);
+        // 偏移 +PI/2 使扇区 0 从顶部开始（与绘制 startAngle = -PI/2 对齐）
+        angle += UITheme::kPI * 0.5f;
         if (angle < 0.0f) angle += UITheme::kPI * 2.0f;
         hoveredSector = (int)(angle / (UITheme::kPI * 2.0f) * kSectorCount) % kSectorCount;
         ui.itemWheelSelected = static_cast<int8_t>(hoveredSector);
@@ -93,7 +95,6 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
         float lx = cx + cosf(midAngle) * labelR;
         float ly = cy + sinf(midAngle) * labelR;
 
-        ImFont* smallFont = UITheme::GetFont_Small();
         if (smallFont) ImGui::PushFont(smallFont);
         ImVec2 textSize = ImGui::CalcTextSize(kWheelItems[i]);
         draw->AddText(ImVec2(lx - textSize.x * 0.5f, ly - textSize.y * 0.5f),
@@ -109,7 +110,6 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
         IM_COL32(200, 200, 200, 150), 32, 1.5f);
 
     // Center text
-    ImFont* smallFont = UITheme::GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
     const char* centerText = "SELECT";
     ImVec2 ctSize = ImGui::CalcTextSize(centerText);
