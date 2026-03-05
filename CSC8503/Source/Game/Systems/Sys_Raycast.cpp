@@ -107,7 +107,7 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
                     m_LastResult.originZ = oz;
                     m_LastResult.hit = hit.hit;
                     m_LastResult.bodyID = hit.hit ? hit.bodyID : 0xFFFFFFFFu;
-                    m_LastResult.entityID = 0xFFFFFFFFu;
+                    m_LastResult.entityID = ECS::Entity::NULL_ENTITY;
                     m_LastResult.distance = hit.hit ? (hit.fraction * maxDist) : maxDist;
 
                     if (hit.hit) {
