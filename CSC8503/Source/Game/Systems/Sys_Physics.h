@@ -24,9 +24,6 @@
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
-#include <Jolt/Physics/Collision/RayCast.h>
-#include <Jolt/Physics/Collision/CastResult.h>
-#include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 
 #include <unordered_map>
 #include <vector>
@@ -181,6 +178,9 @@ public:
     /// 在 ECS 实体上设置 Jolt 线速度（动态体）
     void SetLinearVelocity(uint32_t joltBodyID, float vx, float vy, float vz);
 
+    /// 直接设置 Jolt 刚体的旋转（供 Sys_Navigation 调用）
+    void SetRotation(uint32_t joltBodyID, const NCL::Maths::Quaternion& rotation);
+
     /// 给 Jolt 刚体施加冲量（动态体）
     void ApplyImpulse(uint32_t joltBodyID, float ix, float iy, float iz);
 
@@ -207,16 +207,18 @@ public:
         float    fraction  = 1.0f;
         float    pointX    = 0.0f, pointY = 0.0f, pointZ = 0.0f;
         float    normalX   = 0.0f, normalY = 0.0f, normalZ = 0.0f;
-        uint32_t bodyID    = 0xFFFFFFFF;
+        EntityID entity    = Entity::NULL_ENTITY; ///< 命中的 ECS 实体 ID（统一对外语义）
     };
 
     /// 从 (ox,oy,oz) 沿 (dx,dy,dz) 方向射线检测，最大距离 maxDist
+    /// 方向向量无需归一化，内部会自动归一化
+    /// 对外只返回 ECS EntityID，不暴露 Jolt BodyID
     RaycastHit CastRay(float ox, float oy, float oz,
                        float dx, float dy, float dz,
                        float maxDist);
 
     /// 运行时替换指定 Body 的碰撞体形状为 Capsule（姿态切换用）
-    void ReplaceShapeCapsule(uint32_t joltBodyID, float radius, float halfHeight);
+    void ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight, float radius);
 
     /// 直接设置动态体的世界位置（贴墙吸附用）
     void SetPosition(uint32_t joltBodyID, float px, float py, float pz);
@@ -257,7 +259,6 @@ private:
     void SyncTransformsFromJolt(Registry& reg);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);
-
     // NCL ↔ Jolt 转换
     static JPH::Vec3  ToJolt(float x, float y, float z);
     static JPH::Quat  ToJoltQuat(float qx, float qy, float qz, float qw);

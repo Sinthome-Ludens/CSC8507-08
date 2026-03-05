@@ -31,7 +31,7 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
 
                     ps.stance = PlayerStance::Standing;
                     ps.colliderHalfHeight = STAND_HALF_HEIGHT;
-                    physics->ReplaceShapeCapsule(rb.jolt_body_id, CAPSULE_RADIUS, STAND_HALF_HEIGHT);
+                    physics->ReplaceShapeCapsule(rb.jolt_body_id, STAND_HALF_HEIGHT, CAPSULE_RADIUS);
 
                     float oldBottom = tf.position.y - (oldHalfHeight + CAPSULE_RADIUS);
                     float newCenterY = oldBottom + STAND_HALF_HEIGHT + CAPSULE_RADIUS + 0.05f;
@@ -90,7 +90,7 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
             ps.colliderHalfHeight = newHalfHeight;
 
             // 1) 替换碰撞体形状
-            physics->ReplaceShapeCapsule(rb.jolt_body_id, CAPSULE_RADIUS, newHalfHeight);
+            physics->ReplaceShapeCapsule(rb.jolt_body_id, newHalfHeight, CAPSULE_RADIUS);
 
             // 2) 调整 Y 位置，保持脚底不动
             float oldBottom = tf.position.y - (oldHalfHeight + CAPSULE_RADIUS);

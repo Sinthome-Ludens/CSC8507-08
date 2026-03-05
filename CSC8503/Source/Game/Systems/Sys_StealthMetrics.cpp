@@ -79,7 +79,7 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
                     evt.source   = id;
                     evt.position = tf.position;
                     evt.volume   = ps.noiseLevel;
-                    evt.type     = ps.isDisguised ? NoiseType::BoxScrape : NoiseType::Footstep;
+                    evt.type     = ps.isDisguised ? PlayerNoiseType::BoxScrape : PlayerNoiseType::Footstep;
 
                     bus->publish_deferred(evt);
                     ps.noiseCooldown = NOISE_THROTTLE;

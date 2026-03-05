@@ -5,14 +5,17 @@
 
 #include <cstdint>
 
+namespace ECS {
+
 /**
  * @brief 玩家噪音类型枚举
+ * 作用域限定在 ECS 命名空间内，避免与 AI/Audio 等模块的同名类型冲突。
  */
-enum class NoiseType : uint8_t {
-    Footstep  = 0, ///< 脚步声
-    WallKnock = 1, ///< 敲墙声（引诱守卫）
-    BoxScrape = 2, ///< 纸箱拖动声
-    Landing   = 3  ///< 落地声
+enum class PlayerNoiseType : uint8_t {
+    Footstep  = 0,
+    WallKnock = 1,
+    BoxScrape = 2,
+    Landing   = 3
 };
 
 /**
@@ -22,8 +25,10 @@ enum class NoiseType : uint8_t {
  * 监听者：AI 守卫系统（检测玩家位置）、Sys_Audio（音效播放）。
  */
 struct Evt_Player_Noise {
-    ECS::EntityID          source;   ///< 噪音源实体
-    NCL::Maths::Vector3    position; ///< 噪音世界坐标
-    float                  volume;   ///< 噪音音量 [0, 1]
-    NoiseType              type;     ///< 噪音类型
+    EntityID               source;
+    NCL::Maths::Vector3    position;
+    float                  volume;
+    PlayerNoiseType        type;
 };
+
+} // namespace ECS
