@@ -151,6 +151,14 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 
     ImGui::Begin("ECS Test Controls", &flags.showTestControls);
 
+    if (registry.has_ctx<Res_TestState>()) {
+        auto& state = registry.ctx<Res_TestState>();
+        state.capsuleEntities.erase(
+            std::remove_if(state.capsuleEntities.begin(), state.capsuleEntities.end(),
+                [&](ECS::EntityID id) { return !registry.Valid(id); }),
+            state.capsuleEntities.end());
+    }
+
     ImGui::Text("== Cube Factory ==");
     ImGui::Separator();
 
