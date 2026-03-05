@@ -291,6 +291,14 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     // Scanline overlay (subtle CRT effect, always on)
     UI::RenderScanlineOverlay(ui.globalTime);
 
+    // Trigger CRT transition on key scene requests
+    if (ui.pendingSceneRequest != SceneRequest::None && !ui.transitionActive) {
+        ui.transitionActive   = true;
+        ui.transitionTimer    = 0.0f;
+        ui.transitionDuration = 0.5f;
+        ui.transitionType     = 1;  // FadeOut (CRT shrink)
+    }
+
     // Scene transition overlay
     UI::RenderTransitionOverlay(registry, dt);
 

@@ -42,7 +42,7 @@ void RenderScanlineOverlay(float globalTime) {
 }
 
 // ============================================================
-// RenderTransitionOverlay — Scene transition (fade in/out)
+// RenderTransitionOverlay — CRT shrink/expand transition
 // ============================================================
 
 void RenderTransitionOverlay(Registry& registry, float dt) {
@@ -58,26 +58,120 @@ void RenderTransitionOverlay(Registry& registry, float dt) {
         return;
     }
 
-    float progress = ui.transitionTimer / ui.transitionDuration;
-    progress = std::clamp(progress, 0.0f, 1.0f);
+    float progress = std::clamp(ui.transitionTimer / ui.transitionDuration, 0.0f, 1.0f);
 
-    float alpha;
-    if (ui.transitionType == 0) {
-        // FadeIn: black -> transparent
-        alpha = 1.0f - progress;
-    } else {
-        // FadeOut: transparent -> black
-        alpha = progress;
-    }
-
-    uint8_t a = (uint8_t)(alpha * 255.0f);
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+    float cx = displaySize.x * 0.5f;
+    float cy = displaySize.y * 0.5f;
 
-    draw->AddRectFilled(
-        ImVec2(0.0f, 0.0f),
-        ImVec2(displaySize.x, displaySize.y),
-        IM_COL32(16, 13, 10, a));
+    if (ui.transitionType == 0) {
+        // FadeIn (CRT expand): black with horizontal line expanding outward
+        float t = progress;
+        // Phase 1 (0-0.4): full black with bright horizontal line
+        // Phase 2 (0.4-1.0): vertical expand from center
+        if (t < 0.4f) {
+            // Full black
+            draw->AddRectFilled(
+                ImVec2(0.0f, 0.0f), ImVec2(displaySize.x, displaySize.y),
+                IM_COL32(16, 13, 10, 255));
+            // Bright horizontal line
+            float lineH = 2.0f + t * 5.0f;
+            float lineAlpha = 200.0f + t * 55.0f;
+            draw->AddRectFilled(
+                ImVec2(0.0f, cy - lineH * 0.5f),
+                ImVec2(displaySize.x, cy + lineH * 0.5f),
+                IM_COL32(245, 238, 232, (uint8_t)lineAlpha));
+        } else {
+            // Vertical expand: reveal from center
+            float expandT = (t - 0.4f) / 0.6f;  // 0->1
+            float halfH = expandT * cy;
+
+            // Top black bar
+            if (cy - halfH > 0.0f) {
+                draw->AddRectFilled(
+                    ImVec2(0.0f, 0.0f),
+                    ImVec2(displaySize.x, cy - halfH),
+                    IM_COL32(16, 13, 10, 255));
+            }
+            // Bottom black bar
+            if (cy + halfH < displaySize.y) {
+                draw->AddRectFilled(
+                    ImVec2(0.0f, cy + halfH),
+                    ImVec2(displaySize.x, displaySize.y),
+                    IM_COL32(16, 13, 10, 255));
+            }
+
+            // Edge glow at boundaries
+            uint8_t edgeAlpha = (uint8_t)((1.0f - expandT) * 120.0f);
+            if (edgeAlpha > 5) {
+                draw->AddLine(
+                    ImVec2(0.0f, cy - halfH),
+                    ImVec2(displaySize.x, cy - halfH),
+                    IM_COL32(245, 238, 232, edgeAlpha), 2.0f);
+                draw->AddLine(
+                    ImVec2(0.0f, cy + halfH),
+                    ImVec2(displaySize.x, cy + halfH),
+                    IM_COL32(245, 238, 232, edgeAlpha), 2.0f);
+            }
+
+            // Scanline distortion during expand
+            float scanIntensity = (1.0f - expandT) * 0.5f;
+            if (scanIntensity > 0.05f) {
+                for (float y = cy - halfH; y < cy + halfH; y += 2.0f) {
+                    uint8_t scanAlpha = (uint8_t)(scanIntensity * 30.0f);
+                    draw->AddLine(
+                        ImVec2(0.0f, y), ImVec2(displaySize.x, y),
+                        IM_COL32(245, 238, 232, scanAlpha), 1.0f);
+                }
+            }
+        }
+    } else {
+        // FadeOut (CRT shrink): vertical collapse to center line, then black
+        float t = progress;
+        if (t < 0.6f) {
+            // Vertical shrink: collapse toward center
+            float shrinkT = t / 0.6f;  // 0->1
+            float halfH = (1.0f - shrinkT) * cy;
+
+            // Top black bar
+            draw->AddRectFilled(
+                ImVec2(0.0f, 0.0f),
+                ImVec2(displaySize.x, cy - halfH),
+                IM_COL32(16, 13, 10, 255));
+            // Bottom black bar
+            draw->AddRectFilled(
+                ImVec2(0.0f, cy + halfH),
+                ImVec2(displaySize.x, displaySize.y),
+                IM_COL32(16, 13, 10, 255));
+
+            // Edge glow
+            uint8_t edgeAlpha = (uint8_t)(shrinkT * 150.0f);
+            draw->AddLine(
+                ImVec2(0.0f, cy - halfH),
+                ImVec2(displaySize.x, cy - halfH),
+                IM_COL32(245, 238, 232, edgeAlpha), 2.0f);
+            draw->AddLine(
+                ImVec2(0.0f, cy + halfH),
+                ImVec2(displaySize.x, cy + halfH),
+                IM_COL32(245, 238, 232, edgeAlpha), 2.0f);
+        } else {
+            // Full black with fading horizontal line
+            draw->AddRectFilled(
+                ImVec2(0.0f, 0.0f), ImVec2(displaySize.x, displaySize.y),
+                IM_COL32(16, 13, 10, 255));
+
+            float fadeT = (t - 0.6f) / 0.4f;  // 0->1
+            float lineH = 3.0f * (1.0f - fadeT);
+            uint8_t lineAlpha = (uint8_t)(255.0f * (1.0f - fadeT));
+            if (lineH > 0.2f && lineAlpha > 5) {
+                draw->AddRectFilled(
+                    ImVec2(0.0f, cy - lineH * 0.5f),
+                    ImVec2(displaySize.x, cy + lineH * 0.5f),
+                    IM_COL32(245, 238, 232, lineAlpha));
+            }
+        }
+    }
 }
 
 } // namespace ECS::UI
