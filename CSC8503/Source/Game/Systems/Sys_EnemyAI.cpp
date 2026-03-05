@@ -1,8 +1,14 @@
 #include "Sys_EnemyAI.h"
 #include <algorithm>
+<<<<<<< Updated upstream
 #include "Game/Components/C_D_AIPreception.h"
+=======
+#include "Core/ECS/EventBus.h"
+#include "Game/Components/C_D_AIPerception.h"
+>>>>>>> Stashed changes
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_T_Enemy.h"
+#include "Game/Events/Evt_AI_EnemyEnteredHunt.h"
 #include "Game/Utils/Log.h"
 
 namespace ECS {
@@ -40,6 +46,10 @@ namespace ECS {
                 if (state.currentState != EnemyState::Hunt) {
                     detect.huntLockTimer = 5.0f; // 进入 Hunt 时启动 5 秒锁定
                     LOG_INFO("SYS_ENEMY_AI: Entity " << (int)entity << " -> HUNT (lock 5s)");
+                    // 发布 Hunt 进入事件，供全局警戒度系统订阅
+                    if (registry.has_ctx<ECS::EventBus*>()) {
+                        registry.ctx<ECS::EventBus*>()->publish(Evt_AI_EnemyEnteredHunt{ entity });
+                    }
                 }
                 nextState = EnemyState::Hunt;
             } else if (v >= 30.0f) {

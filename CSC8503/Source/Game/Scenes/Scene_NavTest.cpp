@@ -4,9 +4,11 @@
 #include "Core/Bridge/AssetManager.h"
 #include "Core/ECS/Registry.h"
 #include "Core/ECS/SystemManager.h"
+#include "Game/Components/Res_GlobalAlertLevel.h"
 #include "Game/Components/Res_NavTestState.h"
 #include "Game/Components/Res_BaseTestState.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Events/Evt_AI_EnemyEnteredHunt.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_EnemyAI.h"
@@ -109,6 +111,15 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     ECS::EntityID entity_floor_main = PrefabFactory::CreateLevel1(registry, level1Mesh);
     LOG_INFO("[Scene_NavTest] floor entity id=" << entity_floor_main);
 
+<<<<<<< Updated upstream
+=======
+    // 初始化全局警戒度资源（每次进入场景重置为 0）
+    registry.ctx_emplace<ECS::Res_GlobalAlertLevel>();
+
+    // ── 3. 初始实体生成：创建静态地板 ────────────────────────────────────
+    ECS::EntityID entity_floor = PrefabFactory::CreateFloor(registry, cubeMesh);
+    LOG_INFO("[Scene_NavTest] floor entity id=" << entity_floor);
+>>>>>>> Stashed changes
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
     systems.Register<ECS::Sys_Camera>   ( 50);
@@ -128,7 +139,22 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
 
+<<<<<<< Updated upstream
     LOG_INFO("[Scene_PhysicsTest] OnEnter complete. "
+=======
+    // 订阅敌人进入 Hunt 状态事件，增加全局警戒度
+    if (registry.has_ctx<ECS::EventBus*>()) {
+        registry.ctx<ECS::EventBus*>()->subscribe<Evt_AI_EnemyEnteredHunt>(
+            [&registry](const Evt_AI_EnemyEnteredHunt& evt) {
+                auto& alert = registry.ctx<ECS::Res_GlobalAlertLevel>();
+                alert.alert_level = std::min(100, alert.alert_level + 15);
+                LOG_INFO("[GlobalAlert] Enemy " << (int)evt.enemy_entity
+                         << " -> Hunt. Alert level: " << alert.alert_level);
+            });
+    }
+
+    LOG_INFO("[Scene_NavTest] OnEnter complete. "
+>>>>>>> Stashed changes
              << systems.Count() << " systems awake.");
 }
 
