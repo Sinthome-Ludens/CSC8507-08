@@ -375,9 +375,7 @@ void RenderHUD(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_GameState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
 
-    // playTime 累加（写操作）
-    registry.ctx<Res_GameState>().playTime += dt;
-    // 其余只读
+    // playTime 由 Sys_UI 累加，此处只读
     const auto& gs = registry.ctx<Res_GameState>();
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();

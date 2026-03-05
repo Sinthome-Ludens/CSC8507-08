@@ -255,6 +255,11 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         // 1-4 key handling removed (Fix 7): Sys_Chat is the single owner of reply input
     }
 
+    // HUD 状态下累加 playTime（写操作在 System 层，UI 只读）
+    if (ui.activeScreen == UIScreen::HUD && registry.has_ctx<Res_GameState>()) {
+        registry.ctx<Res_GameState>().playTime += dt;
+    }
+
     // Dispatch to render functions
     switch (ui.activeScreen) {
         case UIScreen::TitleScreen: UI::RenderTitleScreen(registry, dt);     break;
