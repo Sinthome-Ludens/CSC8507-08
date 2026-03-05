@@ -59,6 +59,7 @@ struct Res_UIState {
 
     // Item wheel
     bool      itemWheelOpen        = false;
+    bool      itemWheelWasOpen     = false;   ///< 辅助检测 TAB 释放
     int8_t    itemWheelSelected    = -1;
 
     // Scene transition

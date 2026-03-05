@@ -135,15 +135,36 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
     }
 
-    // TAB key: toggle ItemWheel (only when in HUD)
+    // TAB key: hold mode for ItemWheel (only when in HUD)
     if (kb && ui.activeScreen == UIScreen::HUD) {
-        if (kb->KeyPressed(KeyCodes::TAB)) {
-            ui.itemWheelOpen = !ui.itemWheelOpen;
+        bool tabDown = kb->KeyDown(KeyCodes::TAB);
+        if (tabDown && !ui.itemWheelOpen) {
+            // TAB pressed — open wheel
+            ui.itemWheelOpen = true;
+            ui.itemWheelWasOpen = true;
             ui.itemWheelSelected = -1;
-            LOG_INFO("[Sys_UI] ItemWheel: " << (ui.itemWheelOpen ? "OPEN" : "CLOSED"));
+        } else if (!tabDown && ui.itemWheelWasOpen) {
+            // TAB released — confirm selection and close
+            ui.itemWheelOpen = false;
+            ui.itemWheelWasOpen = false;
+
+            // Write selected slot to Res_GameState
+            if (ui.itemWheelSelected >= 0 && registry.has_ctx<Res_GameState>()) {
+                auto& gs = registry.ctx<Res_GameState>();
+                switch (ui.itemWheelSelected) {
+                    case 0: gs.activeItemSlot   = 0; break;
+                    case 1: gs.activeItemSlot   = 1; break;
+                    case 2: gs.activeWeaponSlot = 0; break;
+                    case 3: gs.activeWeaponSlot = 1; break;
+                    default: break;
+                }
+                LOG_INFO("[Sys_UI] ItemWheel confirmed: sector " << (int)ui.itemWheelSelected);
+            }
+            ui.itemWheelSelected = -1;
         }
     } else {
         ui.itemWheelOpen = false;
+        ui.itemWheelWasOpen = false;
     }
 
     // Chat panel: auto open/close with HUD

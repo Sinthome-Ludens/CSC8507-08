@@ -3,7 +3,9 @@
 
 #include <imgui.h>
 #include <cmath>
+#include <cstdio>
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_GameState.h"
 #include "Game/UI/UITheme.h"
 
 namespace ECS::UI {
@@ -12,12 +14,6 @@ namespace ECS::UI {
 // RenderItemWheel — 4-sector radial selector (TAB hold)
 // ============================================================
 
-static const char* kWheelItems[] = {
-    "ITEM 1",
-    "ITEM 2",
-    "ITEM 3",
-    "ITEM 4",
-};
 static constexpr int kSectorCount = 4;
 
 void RenderItemWheel(Registry& registry, float /*dt*/) {
@@ -26,11 +22,24 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
 
     if (!ui.itemWheelOpen) return;
 
+    // Read slot names from Res_GameState
+    const char* sectorNames[4] = { "---", "---", "---", "---" };
+    if (registry.has_ctx<Res_GameState>()) {
+        auto& gs = registry.ctx<Res_GameState>();
+        // Sector 0,1 = items; Sector 2,3 = weapons
+        sectorNames[0] = (gs.itemSlots[0].name[0] != '\0') ? gs.itemSlots[0].name : "---";
+        sectorNames[1] = (gs.itemSlots[1].name[0] != '\0') ? gs.itemSlots[1].name : "---";
+        sectorNames[2] = (gs.weaponSlots[0].name[0] != '\0') ? gs.weaponSlots[0].name : "---";
+        sectorNames[3] = (gs.weaponSlots[1].name[0] != '\0') ? gs.weaponSlots[1].name : "---";
+    }
+
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
     ImFont* smallFont = UITheme::GetFont_Small();
 
-    float cx = displaySize.x * 0.5f;
+    // Center in game area (excluding chat panel)
+    float gameW = displaySize.x - 320.0f;
+    float cx = gameW * 0.5f;
     float cy = displaySize.y * 0.5f;
     float outerR = 120.0f;
     float innerR = 40.0f;
@@ -50,7 +59,6 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     int hoveredSector = -1;
     if (dist > innerR * 0.5f) {
         float angle = atan2f(dy, dx);
-        // 偏移 +PI/2 使扇区 0 从顶部开始（与绘制 startAngle = -PI/2 对齐）
         angle += UITheme::kPI * 0.5f;
         if (angle < 0.0f) angle += UITheme::kPI * 2.0f;
         hoveredSector = (int)(angle / (UITheme::kPI * 2.0f) * kSectorCount) % kSectorCount;
@@ -64,7 +72,6 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
         float endAngle   = startAngle + sectorAngle;
         bool isHovered = (i == hoveredSector);
 
-        // Sector fill (arc approximation with triangles)
         ImU32 sectorColor = isHovered
             ? IM_COL32(252, 111, 41, 60)
             : IM_COL32(245, 238, 232, 180);
@@ -89,17 +96,17 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
         ImVec2 lineOuter(cx + cosf(startAngle) * outerR, cy + sinf(startAngle) * outerR);
         draw->AddLine(lineInner, lineOuter, IM_COL32(200, 200, 200, 100), 1.0f);
 
-        // Label
+        // Label (read from game state)
         float midAngle = startAngle + sectorAngle * 0.5f;
         float labelR = (innerR + outerR) * 0.5f;
         float lx = cx + cosf(midAngle) * labelR;
         float ly = cy + sinf(midAngle) * labelR;
 
         if (smallFont) ImGui::PushFont(smallFont);
-        ImVec2 textSize = ImGui::CalcTextSize(kWheelItems[i]);
+        ImVec2 textSize = ImGui::CalcTextSize(sectorNames[i]);
         draw->AddText(ImVec2(lx - textSize.x * 0.5f, ly - textSize.y * 0.5f),
             isHovered ? IM_COL32(252, 111, 41, 255) : IM_COL32(16, 13, 10, 220),
-            kWheelItems[i]);
+            sectorNames[i]);
         if (smallFont) ImGui::PopFont();
     }
 
@@ -122,6 +129,14 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
         IM_COL32(200, 200, 200, 100), 64, 1.0f);
     draw->AddCircle(ImVec2(cx, cy), innerR,
         IM_COL32(200, 200, 200, 100), 32, 1.0f);
+
+    // Category labels
+    if (smallFont) ImGui::PushFont(smallFont);
+    draw->AddText(ImVec2(cx - 20.0f, cy - outerR - 18.0f),
+        IM_COL32(252, 111, 41, 160), "ITEMS");
+    draw->AddText(ImVec2(cx - 28.0f, cy + outerR + 6.0f),
+        IM_COL32(252, 111, 41, 160), "WEAPONS");
+    if (smallFont) ImGui::PopFont();
 }
 
 } // namespace ECS::UI
