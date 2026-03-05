@@ -206,7 +206,7 @@ endif()
 # Dependencies
 ################################################################################
 if(MSVC)
-    target_link_libraries(${PROJECT_NAME} LINK_PUBLIC  "Winmm.lib")
+    target_link_libraries(${PROJECT_NAME} LINK_PUBLIC "Winmm.lib" "Ws2_32.lib")
 endif()
 
 include_directories("../NCLCoreClasses/")

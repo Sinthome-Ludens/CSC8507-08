@@ -32,7 +32,7 @@ struct C_D_PlayerState {
 
     // ── 潜行指标 ──
     float noiseLevel      = 0.0f; ///< 当前噪音等级 [0, 1]
-    float visibilityFactor= 1.0f; ///< 当前可见度因子 [0, 1]
+    float visibilityFactor = 1.0f; ///< 当前可见度因子 [0, 1]
 
     // ── 贴墙 ──
     WallState wallState   = WallState::None;

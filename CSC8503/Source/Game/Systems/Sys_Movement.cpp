@@ -13,7 +13,7 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
-void Sys_Movement::OnUpdate(Registry& registry, float dt) {
+void Sys_Movement::OnUpdate(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Sys_Physics*>()) return;
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;
@@ -48,9 +48,8 @@ void Sys_Movement::OnUpdate(Registry& registry, float dt) {
                 float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);
                 if (horizSpeed < maxSpeed) {
                     physics->ActivateBody(rb.jolt_body_id);
-                    float ix = input.moveX * force * dt;
-                    float iz = input.moveZ * force * dt;
-                    physics->ApplyImpulse(rb.jolt_body_id, ix, 0.0f, iz);
+                    physics->AddForce(rb.jolt_body_id,
+                                      input.moveX * force, 0.0f, input.moveZ * force);
                 }
             } else {
                 // 零惯性制动：松手即停（保留 Y 轴重力速度）

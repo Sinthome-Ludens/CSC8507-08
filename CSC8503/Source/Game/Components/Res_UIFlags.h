@@ -10,4 +10,5 @@ struct Res_UIFlags {
     bool showTestControls = true;  ///< 是否显示 "ECS Test Controls" 控制面板
     bool showCubeDebug    = true;  ///< 是否显示 "Cube Debug Info" 浮动 debug 窗口
     bool showNetworkDebug = true;  ///< 是否显示 "Network Debug" 控制面板
+    bool showRaycast      = true;  ///< 是否显示 "Raycast" 控制面板
 };

@@ -21,6 +21,7 @@
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_PlayerCamera.h"
+#include "Game/Systems/Sys_Raycast.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Utils/Log.h"
 
@@ -54,34 +55,30 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     // ── 2. 注册场景级全局资源到 Registry context ────────────────────────
     //    Res_NCL_Pointers 由 SceneManager 构造时已预注册，此处无需重复。
 
-    if (!registry.has_ctx<Res_UIFlags>()) {
-        registry.ctx_emplace<Res_UIFlags>();
-    }
+    registry.ctx_emplace<Res_UIFlags>(Res_UIFlags{});
 
-    if (!registry.has_ctx<Res_TestState>()) {
+    {
         Res_TestState state;
         state.cubeMeshHandle = cubeMesh;
         registry.ctx_emplace<Res_TestState>(std::move(state));
     }
 
     // 敌人实体池状态（由 Sys_ImGuiPhysicsTest 读写）
-    if (!registry.has_ctx<Res_EnemyTestState>()) {
+    {
         Res_EnemyTestState enemyState;
         enemyState.enemyMeshHandle = capsuleMesh;
         registry.ctx_emplace<Res_EnemyTestState>(std::move(enemyState));
     }
 
     // 胶囊生成状态（由 Sys_ImGuiCapsuleGen 读写）
-    if (!registry.has_ctx<Res_CapsuleState>()) {
+    {
         Res_CapsuleState capsuleState;
         capsuleState.capsuleMeshHandle = capsuleMesh;
         registry.ctx_emplace<Res_CapsuleState>(std::move(capsuleState));
     }
 
     // CQC 配置资源（数据驱动）
-    if (!registry.has_ctx<ECS::Res_CQCConfig>()) {
-        registry.ctx_emplace<ECS::Res_CQCConfig>();
-    }
+    registry.ctx_emplace<ECS::Res_CQCConfig>(ECS::Res_CQCConfig{});
 
     // ── 3. 初始实体生成：通过 PrefabFactory 创建静态地板 + 玩家 ────────────
     //    相机实体由 Sys_Camera::OnAwake 创建（符合系统职责）
@@ -113,8 +110,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     //              → Disguise(59) → Stance(60) → StealthMetrics(62)
     //              → Movement(65) → Physics(100) → EnemyAI(120)
     //              → PlayerCamera(150) → Camera(155, Bridge 同步 + debug 飞行)
-    //              → Render(200) → ImGui(300) → CapsuleGen(301)
-    //              → EnemyMonitor(310) → PhysicsTest(320)
+    //              → Render(200) → ImGui(300+) → Raycast(330)
     systems.Register<ECS::Sys_Input>           ( 10);   // NCL → Res_Input（via InputAdapter）
     systems.Register<ECS::Sys_InputDispatch>   ( 55);   // Res_Input → per-entity C_D_Input
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);   // 伪装切换、C_T_Hidden 管理
@@ -123,16 +119,18 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_PlayerCQC>       ( 63);   // CQC 近身制服 + 拟态
     systems.Register<ECS::Sys_Movement>        ( 65);   // 物理移动
     systems.Register<ECS::Sys_Physics>         (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
-    systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
+    systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人 AI 状态机
     systems.Register<ECS::Sys_PlayerCamera>    (150);   // 第三人称跟随相机
     systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
     systems.Register<ECS::Sys_Render>          (200);   // ECS 实体 → NCL 代理对象桥接
+
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + Cube 控制面板
     systems.Register<ECS::Sys_ImGuiCapsuleGen>   (301);   // 胶囊生成/删除控制面板 (Master分支功能)
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 通用敌人状态监控表格（场景无关）
     systems.Register<ECS::Sys_ImGuiPhysicsTest>  (320);   // PhysicsTest 场景敌人生成/删除控制面板 (Feat分支功能)
 #endif
+    systems.Register<ECS::Sys_Raycast>           (330);   // Raycast 独立测试窗口（按钮触发 + 可视化）
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
@@ -148,13 +146,12 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
                                ECS::SystemManager& systems)
 {
-    // 逆序停机：PhysicsTest(320) → EnemyMonitor(310) → CapsuleGen(301) → ImGui(300)
-    //           → Render(200) → Camera(155) → PlayerCamera(150) → EnemyAI(120)
-    //           → Physics(100) → Movement(65) → StealthMetrics(62) → Stance(60)
-    //           → Disguise(59) → InputDispatch(55) → Input(10)
+    // 逆序停机
     systems.DestroyAll(registry);
 
     // 回收所有活动实体，防止上一关状态污染下一关
+    // 注意：Clear() 不清除 ctx，但各系统 OnAwake 使用无条件 ctx_emplace 覆盖模式，
+    // 场景重进时自动替换悬空指针，无需手动清除 ctx。
     registry.Clear();
 
     LOG_INFO("[Scene_PhysicsTest] OnExit complete. All systems destroyed.");

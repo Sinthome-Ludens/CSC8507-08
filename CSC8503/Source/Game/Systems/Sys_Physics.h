@@ -207,11 +207,12 @@ public:
         float    fraction  = 1.0f;
         float    pointX    = 0.0f, pointY = 0.0f, pointZ = 0.0f;
         float    normalX   = 0.0f, normalY = 0.0f, normalZ = 0.0f;
-        uint32_t bodyID    = 0xFFFFFFFF;
+        EntityID entity    = Entity::NULL_ENTITY; ///< 命中的 ECS 实体 ID（统一对外语义）
     };
 
     /// 从 (ox,oy,oz) 沿 (dx,dy,dz) 方向射线检测，最大距离 maxDist
     /// 方向向量无需归一化，内部会自动归一化
+    /// 对外只返回 ECS EntityID，不暴露 Jolt BodyID
     RaycastHit CastRay(float ox, float oy, float oz,
                        float dx, float dy, float dz,
                        float maxDist);
@@ -258,8 +259,6 @@ private:
     void SyncTransformsFromJolt(Registry& reg);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);
-    void ApplyPlayerInputs(Registry& reg);
-
     // NCL ↔ Jolt 转换
     static JPH::Vec3  ToJolt(float x, float y, float z);
     static JPH::Quat  ToJoltQuat(float qx, float qy, float qz, float qw);

@@ -5,7 +5,7 @@ namespace ECS {
 /**
  * @brief 玩家输入数据组件
  *
- * 由 Sys_InputDispatch 每帧写入，Sys_Gameplay / Sys_Movement 只读访问。
+ * 由 Sys_InputDispatch 每帧写入，Sys_Movement / Sys_PlayerDisguise / Sys_PlayerStance / Sys_StealthMetrics 仅读访问。
  * 将硬件输入转换为游戏语义，解耦输入采集与逻辑消费。
  */
 struct C_D_Input {
