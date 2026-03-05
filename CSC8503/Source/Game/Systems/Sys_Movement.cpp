@@ -24,9 +24,7 @@ void Sys_Movement::OnUpdate(Registry& registry, float /*dt*/) {
 
             Vector3 vel = physics->GetLinearVelocity(rb.jolt_body_id);
 
-            // 从 Sys_Gameplay 已计算好的 PlayerState 读取
-            float stanceMul = (ps.stance == PlayerStance::Crouching) ? 0.5f : 1.0f;
-
+            // 从 Sys_StealthMetrics / Sys_PlayerStance 已计算好的 PlayerState 读取
             float maxSpeed = BASE_SPEED;
             float force    = BASE_FORCE;
 
@@ -36,7 +34,7 @@ void Sys_Movement::OnUpdate(Registry& registry, float /*dt*/) {
             }
 
             maxSpeed *= ps.moveSpeedMul;
-            force    *= stanceMul;  // force 不乘 disguiseMul：由 maxSpeed 限速
+            force    *= ps.moveSpeedMul;
 
             if (input.hasInput) {
                 float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);

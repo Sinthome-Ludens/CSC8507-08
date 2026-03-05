@@ -10,6 +10,10 @@
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
 
+namespace {
+    constexpr float SKIN_OFFSET = 0.05f; // 防止碰撞体嵌入地面的皮肤偏移
+}
+
 namespace ECS {
 
 void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
@@ -33,8 +37,8 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
                     ps.colliderHalfHeight = STAND_HALF_HEIGHT;
                     physics->ReplaceShapeCapsule(rb.jolt_body_id, CAPSULE_RADIUS, STAND_HALF_HEIGHT);
 
-                    float oldBottom = tf.position.y - (oldHalfHeight + CAPSULE_RADIUS);
-                    float newCenterY = oldBottom + STAND_HALF_HEIGHT + CAPSULE_RADIUS + 0.05f;
+                    float oldBottom = (tf.position.y - SKIN_OFFSET) - (oldHalfHeight + CAPSULE_RADIUS);
+                    float newCenterY = oldBottom + STAND_HALF_HEIGHT + CAPSULE_RADIUS + SKIN_OFFSET;
                     physics->SetPosition(rb.jolt_body_id, tf.position.x, newCenterY, tf.position.z);
                     tf.position.y = newCenterY;
                     physics->ActivateBody(rb.jolt_body_id);
@@ -95,8 +99,8 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
             physics->ReplaceShapeCapsule(rb.jolt_body_id, CAPSULE_RADIUS, newHalfHeight);
 
             // 2) 调整 Y 位置，保持脚底不动
-            float oldBottom = tf.position.y - (oldHalfHeight + CAPSULE_RADIUS);
-            float newCenterY = oldBottom + newHalfHeight + CAPSULE_RADIUS + 0.05f;
+            float oldBottom = (tf.position.y - SKIN_OFFSET) - (oldHalfHeight + CAPSULE_RADIUS);
+            float newCenterY = oldBottom + newHalfHeight + CAPSULE_RADIUS + SKIN_OFFSET;
             physics->SetPosition(rb.jolt_body_id, tf.position.x, newCenterY, tf.position.z);
             tf.position.y = newCenterY;
 

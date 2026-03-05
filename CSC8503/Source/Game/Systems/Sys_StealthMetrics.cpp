@@ -47,7 +47,8 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             // 奔跑强制中断下蹲：蹲伏时按 Shift 移动 → 请求站起
             if (wantSprint && ps.stance == PlayerStance::Crouching) {
                 ps.forceStandPending = true;
-                // 预设为站立乘数（Sys_PlayerStance 下一帧执行）
+                // 立即覆盖为站立乘数，让 Sys_Movement 本帧即可用站立速度响应
+                // （Sys_PlayerStance 将在下一帧完成碰撞体切换）
                 stanceMul = STANCE_MUL_STANDING;
                 ps.moveSpeedMul = stanceMul * disguiseMul;
             }
@@ -70,6 +71,8 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
                         ps.noiseLevel       = isMoving ? (ps.isSprinting ? 0.6f : 0.2f) * 0.4f : 0.0f;
                         break;
                     default:
+                        ps.visibilityFactor = 0.0f;
+                        ps.noiseLevel       = 0.0f;
                         break;
                 }
             }
