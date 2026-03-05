@@ -80,12 +80,22 @@ void RenderToasts(Registry& registry, float dt) {
         const ImU32 bgColor     = IM_COL32(245, 238, 232, bgAlpha);      // #F5EEE8
         const ImU32 borderColor = IM_COL32(200, 200, 200, borderAlpha);  // #C8C8C8
 
-        // ── 文字颜色：Info = 近黑，Success = 橙色 ──
+        // ── 文字颜色：Info = 近黑，Success = 橙色，Warning = 橙色暗，Danger = 红 ──
         ImU32 textColor;
-        if (entry.type == ToastType::Success) {
-            textColor = IM_COL32(252, 111, 41, textAlpha);  // #FC6F29
-        } else {
-            textColor = IM_COL32(16, 13, 10, textAlpha);    // #100D0A
+        switch (entry.type) {
+            case ToastType::Success:
+                textColor = IM_COL32(252, 111, 41, textAlpha);  // #FC6F29 orange
+                break;
+            case ToastType::Warning:
+                textColor = IM_COL32(200, 150, 30, textAlpha);  // amber
+                break;
+            case ToastType::Danger:
+                textColor = IM_COL32(200, 50, 50, textAlpha);   // red
+                break;
+            case ToastType::Info:
+            default:
+                textColor = IM_COL32(16, 13, 10, textAlpha);    // #100D0A
+                break;
         }
 
         // ── 计算文字尺寸与矩形位置 ──
