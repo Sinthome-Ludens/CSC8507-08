@@ -6,6 +6,7 @@
 #include "Game/Components/Res_ToastState.h"
 #include "Game/Components/Res_InventoryState.h"
 #include "Game/Components/Res_ChatState.h"
+#include "Game/Components/Res_GameState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_Menus.h"
 #include "Game/UI/UI_Toast.h"
@@ -143,6 +144,26 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
     } else {
         ui.itemWheelOpen = false;
+    }
+
+    // Chat panel: auto open/close with HUD
+    if (registry.has_ctx<Res_ChatState>()) {
+        auto& chat = registry.ctx<Res_ChatState>();
+        bool inHUD = (ui.activeScreen == UIScreen::HUD);
+        if (inHUD && !chat.chatOpen) {
+            chat.chatOpen = true;
+        } else if (!inHUD && chat.chatOpen) {
+            chat.chatOpen = false;
+        }
+
+        // Forward 1-4/W/S/Enter to chat reply navigation (HUD only)
+        if (inHUD && kb && chat.replyCount > 0) {
+            // Direct select with 1-4
+            if (kb->KeyPressed(KeyCodes::NUM1) && chat.replyCount > 0) chat.selectedReply = 0;
+            if (kb->KeyPressed(KeyCodes::NUM2) && chat.replyCount > 1) chat.selectedReply = 1;
+            if (kb->KeyPressed(KeyCodes::NUM3) && chat.replyCount > 2) chat.selectedReply = 2;
+            if (kb->KeyPressed(KeyCodes::NUM4) && chat.replyCount > 3) chat.selectedReply = 3;
+        }
     }
 
     // Dispatch to render functions
