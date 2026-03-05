@@ -112,6 +112,26 @@ int main(int argc, char** argv) {
 		// ── UI request processing ──
 		{
 			auto& reg = sceneManager.GetRegistry();
+
+			// Debug scene selector (优先：调试覆盖优先于 UI 场景请求)
+			if (reg.has_ctx<Res_UIFlags>()) {
+				auto& flags = reg.ctx<Res_UIFlags>();
+				if (flags.debugSceneIndex >= 0) {
+					switch (flags.debugSceneIndex) {
+						case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());     break;
+						case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest());  break;
+						case 2: sceneManager.RequestSceneChange(new Scene_NavTest());      break;
+						case 3: sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::SERVER)); break;
+					}
+					flags.debugSceneIndex = -1;
+
+					// 清除同帧的 UI 请求，避免分配后立即被覆盖删除
+					if (reg.has_ctx<ECS::Res_UIState>()) {
+						reg.ctx<ECS::Res_UIState>().pendingSceneRequest = ECS::SceneRequest::None;
+					}
+				}
+			}
+
 			if (reg.has_ctx<ECS::Res_UIState>()) {
 				auto& ui = reg.ctx<ECS::Res_UIState>();
 
@@ -140,21 +160,6 @@ int main(int argc, char** argv) {
 				if (ui.fullscreenChanged) {
 					w->SetFullScreen(ui.isFullscreen);
 					ui.fullscreenChanged = false;
-				}
-
-			}
-
-			// Debug scene selector (independent of Res_UIState)
-			if (reg.has_ctx<Res_UIFlags>()) {
-				auto& flags = reg.ctx<Res_UIFlags>();
-				if (flags.debugSceneIndex >= 0) {
-					switch (flags.debugSceneIndex) {
-						case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());     break;
-						case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest());  break;
-						case 2: sceneManager.RequestSceneChange(new Scene_NavTest());      break;
-						case 3: sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::SERVER)); break;
-					}
-					flags.debugSceneIndex = -1;
 				}
 			}
 		}
