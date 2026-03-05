@@ -7,6 +7,7 @@
 #include "Game/Components/Res_InventoryState.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/C_D_Interactable.h"
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_Menus.h"
 #include "Game/UI/UI_Toast.h"
@@ -74,6 +75,78 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     if (kb && kb->KeyPressed(KeyCodes::F1)) {
         ui.devMode = !ui.devMode;
         LOG_INFO("[Sys_UI] DevMode: " << (ui.devMode ? "ON" : "OFF"));
+    }
+
+    // ── DevMode debug hotkeys (F2-F9) ────────────────────
+    if (ui.devMode && kb && registry.has_ctx<Res_GameState>()) {
+        auto& gs = registry.ctx<Res_GameState>();
+
+        // F2: Cycle alertLevel (0/30/60/100/150)
+        if (kb->KeyPressed(KeyCodes::F2)) {
+            static const float kAlertCycle[] = { 0.0f, 30.0f, 60.0f, 100.0f, 150.0f };
+            static int sAlertIdx = 0;
+            sAlertIdx = (sAlertIdx + 1) % 5;
+            gs.alertLevel = kAlertCycle[sAlertIdx];
+            LOG_INFO("[DevMode] F2 alertLevel=" << gs.alertLevel);
+        }
+
+        // F3: Toggle countdownActive
+        if (kb->KeyPressed(KeyCodes::F3)) {
+            gs.countdownActive = !gs.countdownActive;
+            if (gs.countdownActive) gs.countdownTimer = gs.countdownMax;
+            LOG_INFO("[DevMode] F3 countdownActive=" << gs.countdownActive);
+        }
+
+        // F5: Preview GameOver (cycle reason 1/2/3)
+        if (kb->KeyPressed(KeyCodes::F5)) {
+            static uint8_t sReasonIdx = 0;
+            sReasonIdx = (sReasonIdx % 3) + 1;  // 1, 2, 3
+            gs.gameOverReason = sReasonIdx;
+            gs.isGameOver = true;
+            gs.gameOverTime = gs.playTime;
+            ui.activeScreen = UIScreen::GameOver;
+            ui.gameOverSelectedIndex = 0;
+            LOG_INFO("[DevMode] F5 GameOver reason=" << (int)gs.gameOverReason);
+        }
+
+        // F6: Cycle noiseLevel (0/0.3/0.6/1.0)
+        if (kb->KeyPressed(KeyCodes::F6)) {
+            static const float kNoiseCycle[] = { 0.0f, 0.3f, 0.6f, 1.0f };
+            static int sNoiseIdx = 0;
+            sNoiseIdx = (sNoiseIdx + 1) % 4;
+            gs.noiseLevel = kNoiseCycle[sNoiseIdx];
+            LOG_INFO("[DevMode] F6 noiseLevel=" << gs.noiseLevel);
+        }
+
+        // F7: Trigger CRT transition
+        if (kb->KeyPressed(KeyCodes::F7)) {
+            ui.transitionActive   = true;
+            ui.transitionTimer    = 0.0f;
+            ui.transitionDuration = 0.5f;
+            ui.transitionType     = (ui.transitionType == 0) ? 1 : 0;
+            LOG_INFO("[DevMode] F7 transition type=" << (int)ui.transitionType);
+        }
+
+        // F8: Push test Toast (Info/Warning/Danger/Success cycle)
+        if (kb->KeyPressed(KeyCodes::F8)) {
+            static int sToastIdx = 0;
+            const char* toastTexts[] = { "TEST INFO", "TEST WARNING", "TEST DANGER", "TEST SUCCESS" };
+            ToastType toastTypes[] = { ToastType::Info, ToastType::Warning, ToastType::Danger, ToastType::Success };
+            UI::PushToast(registry, toastTexts[sToastIdx], toastTypes[sToastIdx]);
+            LOG_INFO("[DevMode] F8 Toast: " << toastTexts[sToastIdx]);
+            sToastIdx = (sToastIdx + 1) % 4;
+        }
+
+        // F9: Toggle all C_D_Interactable.isEnabled
+        if (kb->KeyPressed(KeyCodes::F9)) {
+            static bool sInteractEnabled = true;
+            sInteractEnabled = !sInteractEnabled;
+            auto view = registry.view<C_D_Interactable>();
+            view.each([&](EntityID, C_D_Interactable& inter) {
+                inter.isEnabled = sInteractEnabled;
+            });
+            LOG_INFO("[DevMode] F9 Interactables enabled=" << sInteractEnabled);
+        }
     }
 
     // ESC navigation
