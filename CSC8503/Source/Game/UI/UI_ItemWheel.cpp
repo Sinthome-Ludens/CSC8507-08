@@ -6,6 +6,7 @@
 #include <cstdio>
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_ChatState.h"
 #include "Game/UI/UITheme.h"
 
 namespace ECS::UI {
@@ -38,7 +39,7 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     ImFont* smallFont = UITheme::GetFont_Small();
 
     // Center in game area (excluding chat panel)
-    float gameW = displaySize.x - 320.0f;
+    float gameW = displaySize.x - Res_ChatState::PANEL_WIDTH;
     float cx = gameW * 0.5f;
     float cy = displaySize.y * 0.5f;
     float outerR = 120.0f;

@@ -111,8 +111,8 @@ void Sys_Chat::OnAwake(Registry& registry) {
     if (!registry.has_ctx<Res_ChatState>()) return;
     auto& chat = registry.ctx<Res_ChatState>();
 
-    chat.PushMessage("SYSTEM", "COMMS LINK ESTABLISHED", 0, true);
-    chat.PushMessage("SYSTEM", "Awaiting operator input...", 0, true);
+    ChatState_PushMessage(chat,"SYSTEM", "COMMS LINK ESTABLISHED", 0, true);
+    ChatState_PushMessage(chat,"SYSTEM", "Awaiting operator input...", 0, true);
 
     // Set initial NPC message delay
     chat.nextMessageDelay = 8.0f;
@@ -155,7 +155,7 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
     if (newMode != chat.chatMode) {
         chat.chatMode      = newMode;
         chat.dialoguePhase = 0;
-        chat.ClearReplies();
+        ChatState_ClearReplies(chat);
 
         // Adjust NPC message delay by mode
         switch (chat.chatMode) {
@@ -198,7 +198,7 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
         auto& reply = chat.replies[confirmedReply];
 
         // Push player message
-        chat.PushMessage("YOU", reply.text, 1, false);
+        ChatState_PushMessage(chat,"YOU", reply.text, 1, false);
 
         // Apply effect to alertLevel
         if (registry.has_ctx<Res_GameState>()) {
@@ -214,7 +214,7 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
 
         // Advance dialogue phase
         chat.dialoguePhase++;
-        chat.ClearReplies();
+        ChatState_ClearReplies(chat);
         chat.nextMessageTimer = 2.0f;  // Next NPC message after 2s
         chat.waitingForReply  = false;
     }
@@ -224,13 +224,13 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
         chat.replyTimer -= dt;
         if (chat.replyTimer <= 0.0f) {
             // Timeout penalty
-            chat.PushMessage("SYSTEM", "Response timeout — alert increased", 0, true);
+            ChatState_PushMessage(chat,"SYSTEM", "Response timeout — alert increased", 0, true);
             if (registry.has_ctx<Res_GameState>()) {
                 auto& gs = registry.ctx<Res_GameState>();
                 gs.alertLevel = std::min(gs.alertMax, gs.alertLevel + 15.0f);
             }
             chat.dialoguePhase++;
-            chat.ClearReplies();
+            ChatState_ClearReplies(chat);
             chat.nextMessageTimer = 2.0f;
             LOG_INFO("[Sys_Chat] Reply timeout — alert +15");
         }
@@ -244,11 +244,11 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
             const DialogueNode* node = GetCurrentNode(chat.chatMode, chat.dialoguePhase);
             if (node) {
                 // Push NPC message
-                chat.PushMessage("HANDLER", node->npcMessage, 2, false);
+                ChatState_PushMessage(chat,"HANDLER", node->npcMessage, 2, false);
 
                 // Set up reply options
                 for (int i = 0; i < node->replyCount; ++i) {
-                    chat.AddReply(node->replies[i], node->effects[i]);
+                    ChatState_AddReply(chat,node->replies[i], node->effects[i]);
                 }
                 chat.selectedReply = 0;
 

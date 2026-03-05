@@ -44,20 +44,17 @@ static constexpr int kWeaponCount = 4;
 
 static constexpr int kTotalEntries = kItemCount + kWeaponCount;
 
-// Local equipped state (persists while on Loadout screen, written to GameState on confirm)
-static int8_t sEquippedItems[2]   = { -1, -1 };   // indices into kItems
-static int8_t sEquippedWeapons[2] = { -1, -1 };   // indices into kWeapons
-static bool   sLoadoutInitialized = false;
+// Equipped state lives in Res_UIState (loadoutEquippedItems/Weapons/Initialized)
 
 void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
 
     // Reset equipped state when first entering loadout
-    if (!sLoadoutInitialized) {
-        sEquippedItems[0] = sEquippedItems[1] = -1;
-        sEquippedWeapons[0] = sEquippedWeapons[1] = -1;
-        sLoadoutInitialized = true;
+    if (!ui.loadoutInitialized) {
+        ui.loadoutEquippedItems[0] = ui.loadoutEquippedItems[1] = -1;
+        ui.loadoutEquippedWeapons[0] = ui.loadoutEquippedWeapons[1] = -1;
+        ui.loadoutInitialized = true;
     }
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -121,22 +118,22 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
     float entryH = 50.0f;
 
     // Helper: check if index is equipped
-    auto isItemEquipped = [](int idx) -> bool {
-        return sEquippedItems[0] == idx || sEquippedItems[1] == idx;
+    auto isItemEquipped = [&](int idx) -> bool {
+        return ui.loadoutEquippedItems[0] == idx || ui.loadoutEquippedItems[1] == idx;
     };
-    auto isWeaponEquipped = [](int idx) -> bool {
-        return sEquippedWeapons[0] == idx || sEquippedWeapons[1] == idx;
+    auto isWeaponEquipped = [&](int idx) -> bool {
+        return ui.loadoutEquippedWeapons[0] == idx || ui.loadoutEquippedWeapons[1] == idx;
     };
-    auto countEquippedItems = []() -> int {
+    auto countEquippedItems = [&]() -> int {
         int c = 0;
-        if (sEquippedItems[0] >= 0) c++;
-        if (sEquippedItems[1] >= 0) c++;
+        if (ui.loadoutEquippedItems[0] >= 0) c++;
+        if (ui.loadoutEquippedItems[1] >= 0) c++;
         return c;
     };
-    auto countEquippedWeapons = []() -> int {
+    auto countEquippedWeapons = [&]() -> int {
         int c = 0;
-        if (sEquippedWeapons[0] >= 0) c++;
-        if (sEquippedWeapons[1] >= 0) c++;
+        if (ui.loadoutEquippedWeapons[0] >= 0) c++;
+        if (ui.loadoutEquippedWeapons[1] >= 0) c++;
         return c;
     };
 
@@ -234,13 +231,13 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
             int idx = confirmedIndex;
             if (isItemEquipped(idx)) {
                 // Unequip
-                if (sEquippedItems[0] == idx) sEquippedItems[0] = -1;
-                else if (sEquippedItems[1] == idx) sEquippedItems[1] = -1;
+                if (ui.loadoutEquippedItems[0] == idx) ui.loadoutEquippedItems[0] = -1;
+                else if (ui.loadoutEquippedItems[1] == idx) ui.loadoutEquippedItems[1] = -1;
                 LOG_INFO("[UI_Loadout] Unequipped item: " << kItems[idx].name);
             } else if (countEquippedItems() < 2) {
                 // Equip
-                if (sEquippedItems[0] < 0) sEquippedItems[0] = (int8_t)idx;
-                else sEquippedItems[1] = (int8_t)idx;
+                if (ui.loadoutEquippedItems[0] < 0) ui.loadoutEquippedItems[0] = (int8_t)idx;
+                else ui.loadoutEquippedItems[1] = (int8_t)idx;
                 LOG_INFO("[UI_Loadout] Equipped item: " << kItems[idx].name);
             } else {
                 PushToast(registry, "MAX 2 ITEMS — UNEQUIP FIRST", ToastType::Warning);
@@ -250,13 +247,13 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
             int idx = confirmedIndex - kItemCount;
             if (isWeaponEquipped(idx)) {
                 // Unequip
-                if (sEquippedWeapons[0] == idx) sEquippedWeapons[0] = -1;
-                else if (sEquippedWeapons[1] == idx) sEquippedWeapons[1] = -1;
+                if (ui.loadoutEquippedWeapons[0] == idx) ui.loadoutEquippedWeapons[0] = -1;
+                else if (ui.loadoutEquippedWeapons[1] == idx) ui.loadoutEquippedWeapons[1] = -1;
                 LOG_INFO("[UI_Loadout] Unequipped weapon: " << kWeapons[idx].name);
             } else if (countEquippedWeapons() < 2) {
                 // Equip
-                if (sEquippedWeapons[0] < 0) sEquippedWeapons[0] = (int8_t)idx;
-                else sEquippedWeapons[1] = (int8_t)idx;
+                if (ui.loadoutEquippedWeapons[0] < 0) ui.loadoutEquippedWeapons[0] = (int8_t)idx;
+                else ui.loadoutEquippedWeapons[1] = (int8_t)idx;
                 LOG_INFO("[UI_Loadout] Equipped weapon: " << kWeapons[idx].name);
             } else {
                 PushToast(registry, "MAX 2 WEAPONS — UNEQUIP FIRST", ToastType::Warning);
@@ -314,9 +311,12 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
 
         // Write items
         for (int s = 0; s < 2; ++s) {
-            if (sEquippedItems[s] >= 0) {
-                strncpy(gs.itemSlots[s].name, kItems[sEquippedItems[s]].name, 15);
-                gs.itemSlots[s].name[15] = '\0';
+            if (ui.loadoutEquippedItems[s] >= 0) {
+                const char* src = kItems[ui.loadoutEquippedItems[s]].name;
+                size_t len = strlen(src);
+                if (len > 15) len = 15;
+                memcpy(gs.itemSlots[s].name, src, len);
+                gs.itemSlots[s].name[len] = '\0';
                 gs.itemSlots[s].count = 1;
             } else {
                 gs.itemSlots[s].name[0] = '\0';
@@ -327,9 +327,12 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
 
         // Write weapons
         for (int s = 0; s < 2; ++s) {
-            if (sEquippedWeapons[s] >= 0) {
-                strncpy(gs.weaponSlots[s].name, kWeapons[sEquippedWeapons[s]].name, 15);
-                gs.weaponSlots[s].name[15] = '\0';
+            if (ui.loadoutEquippedWeapons[s] >= 0) {
+                const char* src = kWeapons[ui.loadoutEquippedWeapons[s]].name;
+                size_t len = strlen(src);
+                if (len > 15) len = 15;
+                memcpy(gs.weaponSlots[s].name, src, len);
+                gs.weaponSlots[s].name[len] = '\0';
                 gs.weaponSlots[s].count = 1;
             } else {
                 gs.weaponSlots[s].name[0] = '\0';
@@ -342,7 +345,7 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
         LOG_INFO("[UI_Loadout] Loadout confirmed and written to GameState");
 
         // Reset for next visit
-        sLoadoutInitialized = false;
+        ui.loadoutInitialized = false;
     }
 
     // Bottom hint

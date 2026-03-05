@@ -15,7 +15,7 @@ namespace ECS::UI {
 
 // ── 游戏区域宽度（去掉右侧聊天面板） ──────────────────────
 static float GetGameAreaWidth(float displayW) {
-    return displayW - 320.0f;  // Res_ChatState::PANEL_WIDTH
+    return displayW - Res_ChatState::PANEL_WIDTH;
 }
 
 // ============================================================
@@ -59,6 +59,7 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     float gaugeH = 14.0f;
     float gaugeX = gameW - gaugeW - 20.0f;
     float gaugeY = 16.0f;
+    float alertMax = (gs.alertMax > 0.001f) ? gs.alertMax : 1.0f;
 
     AlertStatus status = GetAlertStatus(gs.alertLevel);
     const char* statusText = GetAlertStatusText(status);
@@ -66,7 +67,7 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     // Status label + value
     if (termFont) ImGui::PushFont(termFont);
     char alertBuf[48];
-    snprintf(alertBuf, sizeof(alertBuf), "%s %.0f / %.0f", statusText, gs.alertLevel, gs.alertMax);
+    snprintf(alertBuf, sizeof(alertBuf), "%s %.0f / %.0f", statusText, gs.alertLevel, alertMax);
     ImVec2 alertTextSize = ImGui::CalcTextSize(alertBuf);
     draw->AddText(ImVec2(gaugeX + gaugeW - alertTextSize.x, gaugeY),
         IM_COL32(16, 13, 10, 220), alertBuf);
@@ -93,8 +94,8 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     float prevThresh = 0.0f;
     for (auto& seg : segments) {
         if (gs.alertLevel <= prevThresh) break;
-        float segStart = prevThresh / gs.alertMax * gaugeW;
-        float segEnd   = std::min(gs.alertLevel, seg.threshold) / gs.alertMax * gaugeW;
+        float segStart = prevThresh / alertMax * gaugeW;
+        float segEnd   = std::min(gs.alertLevel, seg.threshold) / alertMax * gaugeW;
         if (segEnd > segStart) {
             draw->AddRectFilled(
                 ImVec2(gaugeX + segStart, barY),
@@ -113,7 +114,7 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     // Segment dividers
     float dividers[] = { 15.0f, 30.0f, 50.0f, 100.0f };
     for (float d : dividers) {
-        float dx = gaugeX + (d / gs.alertMax) * gaugeW;
+        float dx = gaugeX + (d / alertMax) * gaugeW;
         draw->AddLine(ImVec2(dx, barY), ImVec2(dx, barY + gaugeH),
             IM_COL32(16, 13, 10, 80), 1.0f);
     }
@@ -311,7 +312,8 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
 // 7. RenderHUD_Degradation — 全屏退化效果叠加
 // ============================================================
 static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, float displayW, float displayH, float globalTime) {
-    float alertRatio = std::clamp(gs.alertLevel / gs.alertMax, 0.0f, 1.0f);
+    float alertMax = (gs.alertMax > 0.001f) ? gs.alertMax : 1.0f;
+    float alertRatio = std::clamp(gs.alertLevel / alertMax, 0.0f, 1.0f);
 
     // Phase 0: 0~0.2 — nothing
     if (alertRatio < 0.2f) return;
@@ -370,20 +372,18 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
 
 void RenderHUD(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_UIState>()) return;
+    if (!registry.has_ctx<Res_GameState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
+
+    // playTime 累加（写操作）
+    registry.ctx<Res_GameState>().playTime += dt;
+    // 其余只读
+    const auto& gs = registry.ctx<Res_GameState>();
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
     float gameW = GetGameAreaWidth(displaySize.x);
     float displayH = displaySize.y;
-
-    // Get game state
-    Res_GameState gs;
-    if (registry.has_ctx<Res_GameState>()) {
-        gs = registry.ctx<Res_GameState>();
-        // Accumulate play time
-        registry.ctx<Res_GameState>().playTime += dt;
-    }
 
     // Render all 7 sub-panels
     RenderHUD_MissionPanel(draw, gs, gameW);

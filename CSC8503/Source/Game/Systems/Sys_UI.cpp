@@ -81,12 +81,14 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     if (ui.devMode && kb && registry.has_ctx<Res_GameState>()) {
         auto& gs = registry.ctx<Res_GameState>();
 
-        // F2: Cycle alertLevel (0/30/60/100/150)
+        // F2: Cycle alertLevel (0/30/60/100/150) — derive next from current value
         if (kb->KeyPressed(KeyCodes::F2)) {
             static const float kAlertCycle[] = { 0.0f, 30.0f, 60.0f, 100.0f, 150.0f };
-            static int sAlertIdx = 0;
-            sAlertIdx = (sAlertIdx + 1) % 5;
-            gs.alertLevel = kAlertCycle[sAlertIdx];
+            float next = kAlertCycle[0];
+            for (int i = 0; i < 5; ++i) {
+                if (kAlertCycle[i] > gs.alertLevel + 0.01f) { next = kAlertCycle[i]; break; }
+            }
+            gs.alertLevel = next;
             LOG_INFO("[DevMode] F2 alertLevel=" << gs.alertLevel);
         }
 
@@ -97,11 +99,9 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             LOG_INFO("[DevMode] F3 countdownActive=" << gs.countdownActive);
         }
 
-        // F5: Preview GameOver (cycle reason 1/2/3)
+        // F5: Preview GameOver (cycle reason 1/2/3) — derive from current
         if (kb->KeyPressed(KeyCodes::F5)) {
-            static uint8_t sReasonIdx = 0;
-            sReasonIdx = (sReasonIdx % 3) + 1;  // 1, 2, 3
-            gs.gameOverReason = sReasonIdx;
+            gs.gameOverReason = (gs.gameOverReason % 3) + 1;
             gs.isGameOver = true;
             gs.gameOverTime = gs.playTime;
             ui.activeScreen = UIScreen::GameOver;
@@ -109,12 +109,14 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             LOG_INFO("[DevMode] F5 GameOver reason=" << (int)gs.gameOverReason);
         }
 
-        // F6: Cycle noiseLevel (0/0.3/0.6/1.0)
+        // F6: Cycle noiseLevel (0/0.3/0.6/1.0) — derive from current value
         if (kb->KeyPressed(KeyCodes::F6)) {
             static const float kNoiseCycle[] = { 0.0f, 0.3f, 0.6f, 1.0f };
-            static int sNoiseIdx = 0;
-            sNoiseIdx = (sNoiseIdx + 1) % 4;
-            gs.noiseLevel = kNoiseCycle[sNoiseIdx];
+            float next = kNoiseCycle[0];
+            for (int i = 0; i < 4; ++i) {
+                if (kNoiseCycle[i] > gs.noiseLevel + 0.01f) { next = kNoiseCycle[i]; break; }
+            }
+            gs.noiseLevel = next;
             LOG_INFO("[DevMode] F6 noiseLevel=" << gs.noiseLevel);
         }
 
@@ -129,23 +131,23 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
         // F8: Push test Toast (Info/Warning/Danger/Success cycle)
         if (kb->KeyPressed(KeyCodes::F8)) {
-            static int sToastIdx = 0;
             const char* toastTexts[] = { "TEST INFO", "TEST WARNING", "TEST DANGER", "TEST SUCCESS" };
             ToastType toastTypes[] = { ToastType::Info, ToastType::Warning, ToastType::Danger, ToastType::Success };
-            UI::PushToast(registry, toastTexts[sToastIdx], toastTypes[sToastIdx]);
-            LOG_INFO("[DevMode] F8 Toast: " << toastTexts[sToastIdx]);
-            sToastIdx = (sToastIdx + 1) % 4;
+            UI::PushToast(registry, toastTexts[ui.devToastCycle], toastTypes[ui.devToastCycle]);
+            LOG_INFO("[DevMode] F8 Toast: " << toastTexts[ui.devToastCycle]);
+            ui.devToastCycle = (ui.devToastCycle + 1) % 4;
         }
 
-        // F9: Toggle all C_D_Interactable.isEnabled
+        // F9: Toggle all C_D_Interactable.isEnabled — read first entity's value, then invert
         if (kb->KeyPressed(KeyCodes::F9)) {
-            static bool sInteractEnabled = true;
-            sInteractEnabled = !sInteractEnabled;
+            bool newVal = true;
             auto view = registry.view<C_D_Interactable>();
+            bool first = true;
             view.each([&](EntityID, C_D_Interactable& inter) {
-                inter.isEnabled = sInteractEnabled;
+                if (first) { newVal = !inter.isEnabled; first = false; }
+                inter.isEnabled = newVal;
             });
-            LOG_INFO("[DevMode] F9 Interactables enabled=" << sInteractEnabled);
+            LOG_INFO("[DevMode] F9 Interactables enabled=" << newVal);
         }
     }
 
@@ -250,14 +252,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             chat.chatOpen = false;
         }
 
-        // Forward 1-4/W/S/Enter to chat reply navigation (HUD only)
-        if (inHUD && kb && chat.replyCount > 0) {
-            // Direct select with 1-4
-            if (kb->KeyPressed(KeyCodes::NUM1) && chat.replyCount > 0) chat.selectedReply = 0;
-            if (kb->KeyPressed(KeyCodes::NUM2) && chat.replyCount > 1) chat.selectedReply = 1;
-            if (kb->KeyPressed(KeyCodes::NUM3) && chat.replyCount > 2) chat.selectedReply = 2;
-            if (kb->KeyPressed(KeyCodes::NUM4) && chat.replyCount > 3) chat.selectedReply = 3;
-        }
+        // 1-4 key handling removed (Fix 7): Sys_Chat is the single owner of reply input
     }
 
     // Dispatch to render functions
@@ -293,10 +288,11 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     // Trigger CRT transition on key scene requests
     if (ui.pendingSceneRequest != SceneRequest::None && !ui.transitionActive) {
-        ui.transitionActive   = true;
-        ui.transitionTimer    = 0.0f;
-        ui.transitionDuration = 0.5f;
-        ui.transitionType     = 1;  // FadeOut (CRT shrink)
+        ui.transitionActive      = true;
+        ui.transitionTimer       = 0.0f;
+        ui.transitionDuration    = 0.5f;
+        ui.transitionType        = 1;  // FadeOut (CRT shrink)
+        ui.pendingSceneRequest   = SceneRequest::None;  // clear to prevent re-trigger
     }
 
     // Scene transition overlay

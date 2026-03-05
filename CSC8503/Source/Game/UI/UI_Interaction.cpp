@@ -13,6 +13,7 @@
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Interactable.h"
+#include "Game/Components/Res_ChatState.h"
 #include "Game/UI/UITheme.h"
 
 using namespace NCL;
@@ -64,7 +65,7 @@ void RenderInteractionPrompts(Registry& registry, float /*dt*/) {
     Matrix4 vpMat = projMat * viewMat;
 
     Vector3 camPos = cam.GetPosition();
-    float gameW = ImGui::GetIO().DisplaySize.x - 320.0f;  // chat panel
+    float gameW = ImGui::GetIO().DisplaySize.x - Res_ChatState::PANEL_WIDTH;
     float displayH = ImGui::GetIO().DisplaySize.y;
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();

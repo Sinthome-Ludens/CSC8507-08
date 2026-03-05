@@ -67,6 +67,14 @@ struct Res_UIState {
     float     transitionDuration   = 0.5f;
     bool      transitionActive     = false;
     int8_t    transitionType       = 0;   // 0=FadeIn, 1=FadeOut
+
+    // DevMode (Fix 3: toast cycle needs memory; others derive from current state)
+    uint8_t   devToastCycle        = 0;
+
+    // Loadout temporary state (Fix 6: moved from file-scope statics)
+    int8_t    loadoutEquippedItems[2]   = { -1, -1 };
+    int8_t    loadoutEquippedWeapons[2] = { -1, -1 };
+    bool      loadoutInitialized        = false;
 };
 
 } // namespace ECS
