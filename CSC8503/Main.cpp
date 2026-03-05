@@ -142,12 +142,6 @@ int main(int argc, char** argv) {
 					ui.fullscreenChanged = false;
 				}
 
-				// Mouse management: only override when UI is blocking (menu mode)
-				// In HUD mode (isUIBlockingInput=false), let Sys_Camera control cursor
-				if (ui.isUIBlockingInput) {
-					w->ShowOSPointer(true);
-					w->LockMouseToWindow(false);
-				}
 			}
 
 			// Debug scene selector (independent of Res_UIState)

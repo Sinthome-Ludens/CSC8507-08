@@ -288,6 +288,16 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     ui.isUIBlockingInput = (ui.activeScreen != UIScreen::None
                          && ui.activeScreen != UIScreen::HUD);
 
+    // Sys_UI (priority 500) runs AFTER Sys_Camera (priority 50).
+    // When UI is blocking input (menus), override Sys_Camera's cursor state.
+    if (ui.isUIBlockingInput) {
+        auto* win = Window::GetWindow();
+        if (win) {
+            win->ShowOSPointer(true);
+            win->LockMouseToWindow(false);
+        }
+    }
+
     // Scanline overlay (subtle CRT effect, always on)
     UI::RenderScanlineOverlay(ui.globalTime);
 
