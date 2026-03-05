@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/ECS/EntityID.h"
+#include "Game/Components/C_D_MeshRenderer.h"
 #include <cstdint>
 
 namespace ECS {
@@ -22,8 +23,8 @@ struct C_D_CQCState {
     // Mimicry
     bool      isMimicking   = false;
     EntityID  mimicSource   = 0;
-    uint32_t  originalMesh  = 0;
-    uint32_t  originalMat   = 0;
+    MeshHandle     originalMesh = INVALID_HANDLE;
+    MaterialHandle originalMat  = INVALID_HANDLE;
 };
 
 } // namespace ECS

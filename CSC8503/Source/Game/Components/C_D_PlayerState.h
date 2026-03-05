@@ -22,7 +22,7 @@ enum class WallState : uint8_t {
  * @brief 玩家状态数据组件（MGS 风格潜行系统）
  *
  * 存储姿态、噪音、可见度、贴墙等潜行相关数据。
- * 由 Sys_Gameplay 写入，供 AI 守卫系统读取。
+ * 由 Sys_PlayerDisguise / Sys_PlayerStance / Sys_StealthMetrics 写入，供 AI 守卫系统读取。
  */
 struct C_D_PlayerState {
     // ── 姿态 ──

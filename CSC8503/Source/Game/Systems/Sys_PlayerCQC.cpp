@@ -78,7 +78,7 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                             evt.player = playerId;
                             evt.target = cqc.targetEnemy;
                             evt.position = playerTf.position;
-                            bus->publish(evt);
+                            bus->publish_deferred(evt);
                         }
 
                         // 冻结休眠敌人速度
@@ -110,14 +110,12 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
             // ══════════════════════════════════════════════
             if (!input.cqcJustPressed) return;
 
-            if (cqc.cooldown > 0.0f) return;
-
             // 前置条件：站立 + 非伪装 + 非冲刺
             if (ps.stance != PlayerStance::Standing) return;
             if (ps.isDisguised) return;
             if (ps.isSprinting) return;
 
-            // ── 拟态检测：对休眠敌人按 F 获得拟态 ──
+            // ── 拟态检测：对休眠敌人按 F 获得拟态（不受 cooldown 限制） ──
             {
                 EntityID bestMimicTarget = 0;
                 float bestMimicDist = FLT_MAX;
@@ -140,12 +138,12 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
 
                 if (bestMimicTarget != 0) {
                     if (!cqc.isMimicking) {
-                        // 激活拟态：保存原始外观，复制敌人外观
-                        auto& dormant = registry.Get<C_D_EnemyDormant>(bestMimicTarget);
-                        dormant.hasBeenMimicked = true;
-
+                        // 激活拟态：先验证双方都有 MeshRenderer，再标记和复制
                         if (registry.Has<C_D_MeshRenderer>(playerId) &&
                             registry.Has<C_D_MeshRenderer>(bestMimicTarget)) {
+                            auto& dormant = registry.Get<C_D_EnemyDormant>(bestMimicTarget);
+                            dormant.hasBeenMimicked = true;
+
                             auto& playerMR = registry.Get<C_D_MeshRenderer>(playerId);
                             auto& enemyMR  = registry.Get<C_D_MeshRenderer>(bestMimicTarget);
 
@@ -159,14 +157,14 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
 
                             LOG_INFO("[CQC] Mimicry activated: Player " << (int)playerId
                                      << " mimics Enemy " << (int)bestMimicTarget);
-                        }
 
-                        if (bus) {
-                            Evt_CQC_Mimicry evt{};
-                            evt.player = playerId;
-                            evt.source = bestMimicTarget;
-                            evt.activated = true;
-                            bus->publish(evt);
+                            if (bus) {
+                                Evt_CQC_Mimicry evt{};
+                                evt.player = playerId;
+                                evt.source = bestMimicTarget;
+                                evt.activated = true;
+                                bus->publish_deferred(evt);
+                            }
                         }
                     }
                     return; // 拟态操作完成，不继续 CQC 检测
@@ -175,6 +173,9 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
 
             // 已在拟态中不可发起 CQC
             if (cqc.isMimicking) return;
+
+            // cooldown 仅限制新的 CQC takedown（拟态不受此限制）
+            if (cqc.cooldown > 0.0f) return;
 
             // ── CQC 目标检测：背面扇形 ──
             EntityID bestTarget = 0;

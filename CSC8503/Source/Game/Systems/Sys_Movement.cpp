@@ -32,21 +32,17 @@ void Sys_Movement::OnUpdate(Registry& registry, float dt) {
 
             Vector3 vel = physics->GetLinearVelocity(rb.jolt_body_id);
 
-            // 从 Sys_Gameplay 已计算好的 PlayerState 读取
-            float stanceMul = (ps.stance == PlayerStance::Crouching) ? 0.5f : 1.0f;
-
+            // 从 Sys_StealthMetrics / Sys_PlayerStance 已计算好的 PlayerState 读取
             float maxSpeed = BASE_SPEED;
             float force    = BASE_FORCE;
 
-            // ps.isSprinting 由上游系统（Sys_StealthMetrics）写入；
-            // 若上游尚未注册，回退到直接读取 input.shiftDown
-            if (ps.isSprinting || input.shiftDown) {
+            if (ps.isSprinting) {
                 maxSpeed *= RUN_SPEED_MUL;
                 force    *= RUN_SPEED_MUL;
             }
 
             maxSpeed *= ps.moveSpeedMul;
-            force    *= stanceMul;  // force 只受姿态影响；其它减速（如伪装）通过 ps.moveSpeedMul 仅体现在 maxSpeed 上
+            force    *= ps.moveSpeedMul;
 
             if (input.hasInput) {
                 float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);
