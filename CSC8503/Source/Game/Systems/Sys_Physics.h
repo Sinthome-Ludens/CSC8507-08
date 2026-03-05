@@ -178,6 +178,9 @@ public:
     /// 在 ECS 实体上设置 Jolt 线速度（动态体）
     void SetLinearVelocity(uint32_t joltBodyID, float vx, float vy, float vz);
 
+    /// 直接设置 Jolt 刚体的旋转（供 Sys_Navigation 调用）
+    void SetRotation(uint32_t joltBodyID, const NCL::Maths::Quaternion& rotation);
+
     /// 给 Jolt 刚体施加冲量（动态体）
     void ApplyImpulse(uint32_t joltBodyID, float ix, float iy, float iz);
 
@@ -204,11 +207,12 @@ public:
         float    fraction  = 1.0f;
         float    pointX    = 0.0f, pointY = 0.0f, pointZ = 0.0f;
         float    normalX   = 0.0f, normalY = 0.0f, normalZ = 0.0f;
-        uint32_t bodyID    = 0xFFFFFFFF;
+        EntityID entity    = Entity::NULL_ENTITY; ///< 命中的 ECS 实体 ID（统一对外语义）
     };
 
     /// 从 (ox,oy,oz) 沿 (dx,dy,dz) 方向射线检测，最大距离 maxDist
     /// 方向向量无需归一化，内部会自动归一化
+    /// 对外只返回 ECS EntityID，不暴露 Jolt BodyID
     RaycastHit CastRay(float ox, float oy, float oz,
                        float dx, float dy, float dz,
                        float maxDist);

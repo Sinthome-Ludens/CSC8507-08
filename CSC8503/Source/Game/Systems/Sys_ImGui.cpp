@@ -81,6 +81,7 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
             ImGui::MenuItem("Test Controls", nullptr, &flags.showTestControls);
             ImGui::MenuItem("Cube Debug",    nullptr, &flags.showCubeDebug);
             ImGui::MenuItem("Network Debug", nullptr, &flags.showNetworkDebug);
+            ImGui::MenuItem("Raycast",       nullptr, &flags.showRaycast);
             ImGui::EndMenu();
         }
     }
