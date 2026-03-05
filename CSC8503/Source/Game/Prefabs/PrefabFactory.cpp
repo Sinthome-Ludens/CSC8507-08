@@ -128,7 +128,7 @@ EntityID PrefabFactory::CreatePhysicsCube(
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(0.47f, 0.47f, 0.47f)
+        Vector3(1.0f, 1.0f, 1.0f)
     );
 
     // C_D_MeshRenderer
@@ -236,7 +236,7 @@ EntityID PrefabFactory::CreateNavEnemy(
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(1.0f, 1.0f, 1.0f)
+        Vector3(0.42f, 0.47f, 0.42f)
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
@@ -344,7 +344,7 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(1.0f, 1.0f, 1.0f)
+        Vector3(0.42f, 0.47f, 0.42f)
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
@@ -361,7 +361,8 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
     rb.lock_rotation_z = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    // Capsule.obj 总高度 2.0：2 * half_height(0.5) + 2 * radius(0.5) = 2.0
+    // 物理胶囊总高度 2.0：2 * half_height(0.5) + 2 * radius(0.5) = 2.0
+    // 渲染网格 Capsule.obj 原始尺寸明显更大，因此在 Transform 中做了缩放对齐
     C_D_Collider col{};
     col.type        = ColliderType::Capsule;
     col.half_x      = 0.5f;   // radius

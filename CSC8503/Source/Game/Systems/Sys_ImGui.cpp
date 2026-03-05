@@ -177,6 +177,9 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
     ImGui::Text("== Capsule Factory ==");
     ImGui::Separator();
 
+    static bool sCapsuleOverlapSpawn = false;
+    ImGui::Checkbox("Overlap Spawn", &sCapsuleOverlapSpawn);
+
     if (registry.has_ctx<Res_TestState>()) {
         auto& state = registry.ctx<Res_TestState>();
         const bool canSpawnCapsule = (state.capsuleMeshHandle != ECS::INVALID_HANDLE);
@@ -205,14 +208,23 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
                 }
             }
 
-            // 稳态生成策略：按索引做小网格偏移，降低同点重叠导致的爆冲
-            constexpr float GRID_STEP = 1.25f;
-            constexpr int GRID_COLS = 4;
             const int idx = state.capsuleSpawnIndex;
-            const int gx = idx % GRID_COLS;
-            const int gz = idx / GRID_COLS;
-            spawnPos.x += (gx - (GRID_COLS / 2)) * GRID_STEP;
-            spawnPos.z += gz * GRID_STEP;
+            if (sCapsuleOverlapSpawn) {
+                // 近重叠模式：围绕同一点做微小扰动，便于观察胶囊间挤压/分离
+                constexpr float OVERLAP_RADIUS = 0.12f;
+                constexpr float PI = 3.14159265f;
+                const float angle = (idx % 8) * (2.0f * PI / 8.0f);
+                spawnPos.x += cosf(angle) * OVERLAP_RADIUS;
+                spawnPos.z += sinf(angle) * OVERLAP_RADIUS;
+            } else {
+                // 分散生成：按索引做网格偏移，降低同点重叠导致的爆冲
+                constexpr float GRID_STEP = 1.0f;
+                constexpr int GRID_COLS = 4;
+                const int gx = idx % GRID_COLS;
+                const int gz = idx / GRID_COLS;
+                spawnPos.x += (gx - (GRID_COLS / 2)) * GRID_STEP;
+                spawnPos.z += gz * GRID_STEP;
+            }
 
             EntityID entity_capsule = PrefabFactory::CreatePhysicsCapsule(
                 registry, state.capsuleMeshHandle, state.capsuleSpawnIndex, spawnPos);
