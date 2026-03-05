@@ -286,17 +286,52 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     // Scanline overlay (subtle CRT effect, always on)
     UI::RenderScanlineOverlay(ui.globalTime);
 
-    // Trigger CRT transition on key scene requests
+    // Trigger CRT FadeOut transition on pending scene requests
     if (ui.pendingSceneRequest != SceneRequest::None && !ui.transitionActive) {
-        ui.transitionActive      = true;
-        ui.transitionTimer       = 0.0f;
-        ui.transitionDuration    = 0.5f;
-        ui.transitionType        = 1;  // FadeOut (CRT shrink)
-        ui.pendingSceneRequest   = SceneRequest::None;  // clear to prevent re-trigger
+        ui.transitionSceneRequest = ui.pendingSceneRequest;   // 暂存到过渡期
+        ui.pendingSceneRequest    = SceneRequest::None;       // 清零防重触发
+        ui.transitionActive       = true;
+        ui.transitionTimer        = 0.0f;
+        ui.transitionDuration     = 0.5f;
+        ui.transitionType         = 1;  // FadeOut (CRT shrink)
     }
 
     // Scene transition overlay
     UI::RenderTransitionOverlay(registry, dt);
+
+    // FadeOut 结束后：根据暂存的场景请求切换屏幕，并启动 FadeIn
+    if (!ui.transitionActive && ui.transitionSceneRequest != SceneRequest::None) {
+        switch (ui.transitionSceneRequest) {
+            case SceneRequest::StartGame:
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen   = UIScreen::HUD;
+                LOG_INFO("[Sys_UI] Transition -> HUD (StartGame)");
+                break;
+            case SceneRequest::ReturnToMenu:
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen   = UIScreen::MainMenu;
+                ui.menuSelectedIndex = 0;
+                LOG_INFO("[Sys_UI] Transition -> MainMenu (ReturnToMenu)");
+                break;
+            case SceneRequest::RestartLevel:
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen   = UIScreen::HUD;
+                LOG_INFO("[Sys_UI] Transition -> HUD (RestartLevel)");
+                break;
+            case SceneRequest::QuitApp:
+                LOG_INFO("[Sys_UI] QuitApp requested");
+                break;
+            default:
+                break;
+        }
+        ui.transitionSceneRequest = SceneRequest::None;
+
+        // 启动 FadeIn（CRT 展开）
+        ui.transitionActive   = true;
+        ui.transitionTimer    = 0.0f;
+        ui.transitionDuration = 0.5f;
+        ui.transitionType     = 0;  // FadeIn (CRT expand)
+    }
 
     // Toast 通知渲染（覆盖所有屏幕）
     UI::RenderToasts(registry, dt);

@@ -63,10 +63,11 @@ struct Res_UIState {
     int8_t    itemWheelSelected    = -1;
 
     // Scene transition
-    float     transitionTimer      = 0.0f;
-    float     transitionDuration   = 0.5f;
-    bool      transitionActive     = false;
-    int8_t    transitionType       = 0;   // 0=FadeIn, 1=FadeOut
+    float        transitionTimer         = 0.0f;
+    float        transitionDuration      = 0.5f;
+    bool         transitionActive        = false;
+    int8_t       transitionType          = 0;   // 0=FadeIn, 1=FadeOut
+    SceneRequest transitionSceneRequest  = SceneRequest::None;  // 过渡期间暂存的场景请求
 
     // DevMode (Fix 3: toast cycle needs memory; others derive from current state)
     uint8_t   devToastCycle        = 0;

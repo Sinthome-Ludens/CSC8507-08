@@ -50,6 +50,7 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
         ui.transitionTimer         = 0.0f;
         ui.transitionActive        = false;
         ui.transitionType          = 0;
+        ui.transitionSceneRequest  = ECS::SceneRequest::None;
     }
 
     systems.Register<ECS::Sys_ImGui>(300);
