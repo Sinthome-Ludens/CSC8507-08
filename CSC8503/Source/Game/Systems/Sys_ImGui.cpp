@@ -172,51 +172,51 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 
     if (registry.has_ctx<Res_TestState>()) {
         auto& state = registry.ctx<Res_TestState>();
+        const bool canSpawnCapsule = (state.capsuleMeshHandle != ECS::INVALID_HANDLE);
 
+        if (!canSpawnCapsule) ImGui::BeginDisabled();
         if (ImGui::Button("Spawn Capsule", ImVec2(120, 30))) {
-            if (state.capsuleMeshHandle == ECS::INVALID_HANDLE) {
-                LOG_WARN("[Sys_ImGui] SpawnCapsule: capsule mesh handle is INVALID, skipping.");
-            } else {
-                Vector3 spawnPos(0.0f, 8.0f, 0.0f);
-                if (registry.has_ctx<Res_CameraContext>()) {
-                    auto& camCtx = registry.ctx<Res_CameraContext>();
-                    if (registry.Valid(camCtx.active_camera)
-                        && registry.Has<C_D_Transform>(camCtx.active_camera)
-                        && registry.Has<C_D_Camera>(camCtx.active_camera))
-                    {
-                        auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
-                        auto& cam = registry.Get<C_D_Camera>(camCtx.active_camera);
-                        const float yawRad   = cam.yaw * (3.14159265f / 180.0f);
-                        const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
-                        const Vector3 forward(
-                            -sinf(yawRad) * cosf(pitchRad),
-                             sinf(pitchRad),
-                            -cosf(yawRad) * cosf(pitchRad)
-                        );
-                        spawnPos = tf.position + forward * 5.0f;
-                        constexpr float MIN_SPAWN_Y = -2.0f;
-                        spawnPos.y = std::max(spawnPos.y, MIN_SPAWN_Y);
-                    }
+            Vector3 spawnPos(0.0f, 8.0f, 0.0f);
+            if (registry.has_ctx<Res_CameraContext>()) {
+                auto& camCtx = registry.ctx<Res_CameraContext>();
+                if (registry.Valid(camCtx.active_camera)
+                    && registry.Has<C_D_Transform>(camCtx.active_camera)
+                    && registry.Has<C_D_Camera>(camCtx.active_camera))
+                {
+                    auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
+                    auto& cam = registry.Get<C_D_Camera>(camCtx.active_camera);
+                    const float yawRad   = cam.yaw * (3.14159265f / 180.0f);
+                    const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
+                    const Vector3 forward(
+                        -sinf(yawRad) * cosf(pitchRad),
+                         sinf(pitchRad),
+                        -cosf(yawRad) * cosf(pitchRad)
+                    );
+                    spawnPos = tf.position + forward * 5.0f;
+                    constexpr float MIN_SPAWN_Y = -2.0f;
+                    spawnPos.y = std::max(spawnPos.y, MIN_SPAWN_Y);
                 }
-
-                // 稳态生成策略：按索引做小网格偏移，降低同点重叠导致的爆冲
-                constexpr float GRID_STEP = 1.25f;
-                constexpr int GRID_COLS = 4;
-                const int idx = state.capsuleSpawnIndex;
-                const int gx = idx % GRID_COLS;
-                const int gz = idx / GRID_COLS;
-                spawnPos.x += (gx - (GRID_COLS / 2)) * GRID_STEP;
-                spawnPos.z += (gz % GRID_COLS) * GRID_STEP;
-
-                EntityID entity_capsule = PrefabFactory::CreatePhysicsCapsule(
-                    registry, state.capsuleMeshHandle, state.capsuleSpawnIndex, spawnPos);
-                ++state.capsuleSpawnIndex;
-                state.capsuleEntities.push_back(entity_capsule);
-
-                LOG_INFO("[Sys_ImGui] Spawned capsule entity id=" << entity_capsule
-                         << " (total=" << state.capsuleEntities.size() << ")");
             }
+
+            // 稳态生成策略：按索引做小网格偏移，降低同点重叠导致的爆冲
+            constexpr float GRID_STEP = 1.25f;
+            constexpr int GRID_COLS = 4;
+            const int idx = state.capsuleSpawnIndex;
+            const int gx = idx % GRID_COLS;
+            const int gz = idx / GRID_COLS;
+            spawnPos.x += (gx - (GRID_COLS / 2)) * GRID_STEP;
+            spawnPos.z += (gz % GRID_COLS) * GRID_STEP;
+
+            EntityID entity_capsule = PrefabFactory::CreatePhysicsCapsule(
+                registry, state.capsuleMeshHandle, state.capsuleSpawnIndex, spawnPos);
+            ++state.capsuleSpawnIndex;
+            state.capsuleEntities.push_back(entity_capsule);
+
+            LOG_INFO("[Sys_ImGui] Spawned capsule entity id=" << entity_capsule
+                     << " (total=" << state.capsuleEntities.size() << ")");
         }
+        if (!canSpawnCapsule) ImGui::EndDisabled();
+        if (!canSpawnCapsule) ImGui::TextDisabled("Capsule mesh unavailable");
 
         ImGui::SameLine();
         if (ImGui::Button("Delete Capsule", ImVec2(120, 30))) {
