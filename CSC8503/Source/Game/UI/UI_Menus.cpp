@@ -29,10 +29,12 @@ void NavigateBackFromSettings(Res_UIState& ui) {
 
 static const char* kMenuItems[] = {
     "START OPERATION",
+    "LOADOUT",
     "SETTINGS",
+    "TEAM",
     "EXIT",
 };
-static constexpr int kMenuItemCount = 3;
+static constexpr int kMenuItemCount = 5;
 
 static const char* kPauseItems[] = {
     "RESUME",
@@ -417,12 +419,24 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
                 ui.pendingSceneRequest = SceneRequest::StartGame;
                 LOG_INFO("[UI_Menus] MainMenu -> StartGame");
                 break;
-            case 1: // SETTINGS
+            case 1: // LOADOUT
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen = UIScreen::Loadout;
+                ui.loadoutSelectedIndex = 0;
+                LOG_INFO("[UI_Menus] MainMenu -> Loadout");
+                break;
+            case 2: // SETTINGS
                 ui.previousScreen = ui.activeScreen;
                 ui.activeScreen = UIScreen::Settings;
                 LOG_INFO("[UI_Menus] MainMenu -> Settings");
                 break;
-            case 2: // EXIT
+            case 3: // TEAM
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen = UIScreen::Team;
+                ui.teamStartTime = 0.0f;
+                LOG_INFO("[UI_Menus] MainMenu -> Team");
+                break;
+            case 4: // EXIT
                 ui.pendingSceneRequest = SceneRequest::QuitApp;
                 LOG_INFO("[UI_Menus] MainMenu -> QuitApp");
                 break;
