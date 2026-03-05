@@ -304,38 +304,12 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     // Scene transition overlay
     UI::RenderTransitionOverlay(registry, dt);
 
-    // FadeOut 结束后：根据暂存的场景请求切换屏幕，并启动 FadeIn
+    // FadeOut 结束后：将暂存的场景请求交还 pendingSceneRequest，
+    // 由 Main.cpp 消费并执行真正的场景切换；新场景 OnEnter 负责设置 activeScreen 和 FadeIn
     if (!ui.transitionActive && ui.transitionSceneRequest != SceneRequest::None) {
-        switch (ui.transitionSceneRequest) {
-            case SceneRequest::StartGame:
-                ui.previousScreen = ui.activeScreen;
-                ui.activeScreen   = UIScreen::HUD;
-                LOG_INFO("[Sys_UI] Transition -> HUD (StartGame)");
-                break;
-            case SceneRequest::ReturnToMenu:
-                ui.previousScreen = ui.activeScreen;
-                ui.activeScreen   = UIScreen::MainMenu;
-                ui.menuSelectedIndex = 0;
-                LOG_INFO("[Sys_UI] Transition -> MainMenu (ReturnToMenu)");
-                break;
-            case SceneRequest::RestartLevel:
-                ui.previousScreen = ui.activeScreen;
-                ui.activeScreen   = UIScreen::HUD;
-                LOG_INFO("[Sys_UI] Transition -> HUD (RestartLevel)");
-                break;
-            case SceneRequest::QuitApp:
-                LOG_INFO("[Sys_UI] QuitApp requested");
-                break;
-            default:
-                break;
-        }
+        ui.pendingSceneRequest    = ui.transitionSceneRequest;
         ui.transitionSceneRequest = SceneRequest::None;
-
-        // 启动 FadeIn（CRT 展开）
-        ui.transitionActive   = true;
-        ui.transitionTimer    = 0.0f;
-        ui.transitionDuration = 0.5f;
-        ui.transitionType     = 0;  // FadeIn (CRT expand)
+        LOG_INFO("[Sys_UI] Transition FadeOut done — handing back SceneRequest to Main.cpp");
     }
 
     // Toast 通知渲染（覆盖所有屏幕）

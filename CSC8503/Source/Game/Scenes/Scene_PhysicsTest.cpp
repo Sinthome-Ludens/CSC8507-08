@@ -20,6 +20,11 @@
 #include "Game/Systems/Sys_ImGuiEnemyAI.h"
 #include "Game/Systems/Sys_ImGuiPhysicsTest.h"
 #include "Game/Systems/Sys_ImGuiCapsuleGen.h"
+#include "Game/Systems/Sys_UI.h"
+#include "Game/Systems/Sys_Chat.h"
+#include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_GameState.h"
+#include "Game/UI/UI_Toast.h"
 #endif
 
 // ============================================================
@@ -84,10 +89,37 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGuiCapsuleGen>   (301);   // 胶囊生成/删除控制面板 (Master分支功能)
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 通用敌人状态监控表格（场景无关）
     systems.Register<ECS::Sys_ImGuiPhysicsTest>  (320);   // PhysicsTest 场景敌人生成/删除控制面板 (Feat分支功能)
+    systems.Register<ECS::Sys_Chat>              (450);   // 对话逻辑（在 UI 之前）
+    systems.Register<ECS::Sys_UI>                (500);   // UI 渲染 + 输入导航
 #endif
 
-    // ── 5. 启动所有系统 ──────────────────────────────────────────────────
+    // ── 5. 初始化游戏状态资源 ──────────────────────────────────────────────
+#ifdef USE_IMGUI
+    if (!registry.has_ctx<ECS::Res_GameState>()) {
+        registry.ctx_emplace<ECS::Res_GameState>();
+    }
+#endif
+
+    // ── 6. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
+
+    // ── 7. 设置 UI 为 HUD 模式并启动 FadeIn 过渡 ───────────────────────
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_UIState>()) {
+        auto& ui = registry.ctx<ECS::Res_UIState>();
+        ui.previousScreen       = ui.activeScreen;
+        ui.activeScreen         = ECS::UIScreen::HUD;
+        ui.pendingSceneRequest  = ECS::SceneRequest::None;
+
+        // 启动 FadeIn（CRT 展开）
+        ui.transitionActive     = true;
+        ui.transitionTimer      = 0.0f;
+        ui.transitionDuration   = 0.5f;
+        ui.transitionType       = 0;  // FadeIn
+    }
+
+    ECS::UI::PushToast(registry, "MISSION START", ECS::ToastType::Success, 2.5f);
+#endif
 
     LOG_INFO("[Scene_PhysicsTest] OnEnter complete. "
              << systems.Count() << " systems awake.");
