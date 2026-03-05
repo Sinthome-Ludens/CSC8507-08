@@ -38,7 +38,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 
     // 采用 feat 分支的逻辑加载真实的胶囊体 Mesh
     ECS::MeshHandle capsuleMesh = ECS::AssetManager::Instance().LoadMesh(
-        NCL::Assets::MESHDIR + "Capsule.msh");
+        NCL::Assets::MESHDIR + "Capsule.obj");
     LOG_INFO("[Scene_PhysicsTest] capsule mesh loaded, handle=" << capsuleMesh);
 
     // ── 2. 注册场景级全局资源到 Registry context ────────────────────────

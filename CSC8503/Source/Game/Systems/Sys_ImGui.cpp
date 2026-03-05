@@ -153,6 +153,10 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 
     if (registry.has_ctx<Res_TestState>()) {
         auto& state = registry.ctx<Res_TestState>();
+        state.cubeEntities.erase(
+            std::remove_if(state.cubeEntities.begin(), state.cubeEntities.end(),
+                [&](ECS::EntityID id) { return !registry.Valid(id); }),
+            state.cubeEntities.end());
         state.capsuleEntities.erase(
             std::remove_if(state.capsuleEntities.begin(), state.capsuleEntities.end(),
                 [&](ECS::EntityID id) { return !registry.Valid(id); }),
