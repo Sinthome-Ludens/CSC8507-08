@@ -2,7 +2,6 @@
 
 #include "Debug.h"
 #include "Game/Components/C_D_Camera.h"
-#include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Components/Res_UIFlags.h"
@@ -73,7 +72,6 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
         ImGui::Separator();
         ImGui::Text("Last Result: %s", m_LastResult.hit ? "HIT" : "MISS");
         ImGui::Text("Distance: %.2f", m_LastResult.distance);
-        ImGui::Text("BodyID: %u", m_LastResult.bodyID);
         ImGui::Text("EntityID: %u", m_LastResult.entityID);
         ImGui::End();
     }
@@ -106,8 +104,8 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
                     m_LastResult.originY = oy;
                     m_LastResult.originZ = oz;
                     m_LastResult.hit = hit.hit;
-                    m_LastResult.bodyID = hit.hit ? hit.bodyID : 0xFFFFFFFFu;
-                    m_LastResult.entityID = 0xFFFFFFFFu;
+                    m_LastResult.bodyID = 0xFFFFFFFFu;
+                    m_LastResult.entityID = hit.hit ? hit.entity : 0xFFFFFFFFu;
                     m_LastResult.distance = hit.hit ? (hit.fraction * maxDist) : maxDist;
 
                     if (hit.hit) {
@@ -117,12 +115,6 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
                         m_LastResult.endX = hit.pointX;
                         m_LastResult.endY = hit.pointY;
                         m_LastResult.endZ = hit.pointZ;
-
-                        registry.view<C_D_RigidBody>().each([&](EntityID id, C_D_RigidBody& rb) {
-                            if (rb.body_created && rb.jolt_body_id == hit.bodyID) {
-                                m_LastResult.entityID = id;
-                            }
-                        });
                     } else {
                         m_LastResult.endX = ox + dx * maxDist;
                         m_LastResult.endY = oy + dy * maxDist;
@@ -131,7 +123,6 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
 
                     LOG_INFO("[Sys_Raycast] CastOnce result=" << (m_LastResult.hit ? "HIT" : "MISS")
                              << " dist=" << m_LastResult.distance
-                             << " body=" << m_LastResult.bodyID
                              << " entity=" << m_LastResult.entityID);
                 }
             }

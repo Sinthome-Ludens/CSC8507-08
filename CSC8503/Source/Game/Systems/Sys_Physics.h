@@ -207,7 +207,7 @@ public:
         float    fraction  = 1.0f;
         float    pointX    = 0.0f, pointY = 0.0f, pointZ = 0.0f;
         float    normalX   = 0.0f, normalY = 0.0f, normalZ = 0.0f;
-        uint32_t bodyID    = 0xFFFFFFFF;
+        EntityID entity    = Entity::NULL_ENTITY;
     };
 
     /// 从 (ox,oy,oz) 沿 (dx,dy,dz) 方向射线检测，最大距离 maxDist

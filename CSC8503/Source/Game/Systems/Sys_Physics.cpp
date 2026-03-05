@@ -518,7 +518,11 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
     if (query.CastRay(ray, hit)) {
         result.hit      = true;
         result.fraction = hit.mFraction;
-        result.bodyID   = hit.mBodyID.GetIndexAndSequenceNumber();
+        const uint32_t rawBodyID = hit.mBodyID.GetIndexAndSequenceNumber();
+        const auto itEntity = m_BodyToEntity.find(rawBodyID);
+        if (itEntity != m_BodyToEntity.end()) {
+            result.entity = itEntity->second;
+        }
         // 计算命中点
         JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
         result.pointX = static_cast<float>(hitPoint.GetX());
