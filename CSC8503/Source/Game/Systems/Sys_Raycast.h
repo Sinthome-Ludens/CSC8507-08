@@ -29,7 +29,6 @@ private:
         float hitY = 0.0f;
         float hitZ = 0.0f;
 
-        uint32_t bodyID = 0xFFFFFFFFu;
         uint32_t entityID = 0xFFFFFFFFu;
     };
 
