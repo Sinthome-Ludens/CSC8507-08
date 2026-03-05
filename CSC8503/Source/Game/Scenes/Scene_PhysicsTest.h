@@ -13,7 +13,7 @@
  *   - Sys_TestScene(400) — 方块工厂 + 交互控制面板    [仅 USE_IMGUI]
  *
  * OnEnter：注册系统 → AwakeAll（包括创建相机实体、地板实体）
- * OnExit ：DestroyAll（逆序停机）→ registry.Clear()（TODO: 待实现）
+ * OnExit ：DestroyAll（逆序停机）→ ctx_erase（场景级资源）→ registry.Clear()
  */
 class Scene_PhysicsTest : public IScene {
 public:
