@@ -159,6 +159,63 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
     if (ImGui::Button("Delete Last", ImVec2(120, 30))) DeleteLastCube(registry);
 
     ImGui::Spacing();
+    ImGui::Text("== Capsule Factory ==");
+    ImGui::Separator();
+
+    if (registry.has_ctx<Res_TestState>()) {
+        auto& state = registry.ctx<Res_TestState>();
+
+        if (ImGui::Button("Spawn Capsule", ImVec2(120, 30))) {
+            if (state.capsuleMeshHandle == ECS::INVALID_HANDLE) {
+                LOG_WARN("[Sys_ImGui] SpawnCapsule: capsule mesh handle is INVALID, skipping.");
+            } else {
+                Vector3 spawnPos(0.0f, 8.0f, 0.0f);
+                if (registry.has_ctx<Res_CameraContext>()) {
+                    auto& camCtx = registry.ctx<Res_CameraContext>();
+                    if (registry.Valid(camCtx.active_camera)
+                        && registry.Has<C_D_Transform>(camCtx.active_camera)
+                        && registry.Has<C_D_Camera>(camCtx.active_camera))
+                    {
+                        auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
+                        auto& cam = registry.Get<C_D_Camera>(camCtx.active_camera);
+                        const float yawRad   = cam.yaw * (3.14159265f / 180.0f);
+                        const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
+                        const Vector3 forward(
+                            -sinf(yawRad) * cosf(pitchRad),
+                             sinf(pitchRad),
+                            -cosf(yawRad) * cosf(pitchRad)
+                        );
+                        spawnPos = tf.position + forward * 5.0f;
+                        constexpr float MIN_SPAWN_Y = -2.0f;
+                        spawnPos.y = std::max(spawnPos.y, MIN_SPAWN_Y);
+                    }
+                }
+
+                EntityID entity_capsule = PrefabFactory::CreatePhysicsCapsule(
+                    registry, state.capsuleMeshHandle, state.capsuleSpawnIndex, spawnPos);
+                ++state.capsuleSpawnIndex;
+                state.capsuleEntities.push_back(entity_capsule);
+
+                LOG_INFO("[Sys_ImGui] Spawned capsule entity id=" << entity_capsule
+                         << " (total=" << state.capsuleEntities.size() << ")");
+            }
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Delete Capsule", ImVec2(120, 30))) {
+            if (!state.capsuleEntities.empty()) {
+                EntityID last = state.capsuleEntities.back();
+                state.capsuleEntities.pop_back();
+
+                if (registry.Valid(last)) {
+                    registry.Destroy(last);
+                    LOG_INFO("[Sys_ImGui] Destroyed capsule entity id=" << last);
+                }
+            }
+        }
+    }
+
+    ImGui::Spacing();
     ImGui::Text("== Gravity ==");
     ImGui::Separator();
 
@@ -172,6 +229,7 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
     if (registry.has_ctx<Res_TestState>()) {
         auto& state = registry.ctx<Res_TestState>();
         ImGui::Text("Cubes alive: %d", (int)state.cubeEntities.size());
+        ImGui::Text("Capsules alive: %d", (int)state.capsuleEntities.size());
     }
 
     ImGui::End();
