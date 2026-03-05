@@ -79,7 +79,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_EnemyAI>  (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + Cube 控制面板
+    systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + Cube/Capsule 控制面板
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 通用敌人状态监控表格（场景无关）
     systems.Register<ECS::Sys_ImGuiPhysicsTest>  (320);   // PhysicsTest 场景敌人生成/删除控制面板 (Feat分支功能)
 #endif
