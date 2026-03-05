@@ -4,9 +4,13 @@
 #include <imgui.h>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_ToastState.h"
 #include "Game/UI/UITheme.h"
+#include "Game/UI/UI_Toast.h"
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
@@ -40,9 +44,21 @@ static constexpr int kWeaponCount = 4;
 
 static constexpr int kTotalEntries = kItemCount + kWeaponCount;
 
+// Local equipped state (persists while on Loadout screen, written to GameState on confirm)
+static int8_t sEquippedItems[2]   = { -1, -1 };   // indices into kItems
+static int8_t sEquippedWeapons[2] = { -1, -1 };   // indices into kWeapons
+static bool   sLoadoutInitialized = false;
+
 void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
+
+    // Reset equipped state when first entering loadout
+    if (!sLoadoutInitialized) {
+        sEquippedItems[0] = sEquippedItems[1] = -1;
+        sEquippedWeapons[0] = sEquippedWeapons[1] = -1;
+        sLoadoutInitialized = true;
+    }
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
@@ -95,26 +111,46 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
     ImFont* termFont  = UITheme::GetFont_Terminal();
     ImFont* smallFont = UITheme::GetFont_Small();
 
-    // Column header: ITEMS
+    // Column headers
     if (termFont) ImGui::PushFont(termFont);
-    draw->AddText(ImVec2(leftX, startY), IM_COL32(252, 111, 41, 220), "ITEMS");
-    // Column header: WEAPONS
-    draw->AddText(ImVec2(rightX, startY), IM_COL32(252, 111, 41, 220), "WEAPONS");
+    draw->AddText(ImVec2(leftX, startY), IM_COL32(252, 111, 41, 220), "ITEMS (MAX 2)");
+    draw->AddText(ImVec2(rightX, startY), IM_COL32(252, 111, 41, 220), "WEAPONS (MAX 2)");
     if (termFont) ImGui::PopFont();
 
     float entryStartY = startY + 30.0f;
     float entryH = 50.0f;
+
+    // Helper: check if index is equipped
+    auto isItemEquipped = [](int idx) -> bool {
+        return sEquippedItems[0] == idx || sEquippedItems[1] == idx;
+    };
+    auto isWeaponEquipped = [](int idx) -> bool {
+        return sEquippedWeapons[0] == idx || sEquippedWeapons[1] == idx;
+    };
+    auto countEquippedItems = []() -> int {
+        int c = 0;
+        if (sEquippedItems[0] >= 0) c++;
+        if (sEquippedItems[1] >= 0) c++;
+        return c;
+    };
+    auto countEquippedWeapons = []() -> int {
+        int c = 0;
+        if (sEquippedWeapons[0] >= 0) c++;
+        if (sEquippedWeapons[1] >= 0) c++;
+        return c;
+    };
 
     // Mouse hover + click
     const Mouse* mouse = Window::GetMouse();
     int8_t confirmedIndex = -1;
 
     auto drawColumn = [&](const LoadoutEntry* entries, int count, int indexOffset,
-                          float colX, float colWidth) {
+                          float colX, float colWidth, bool isWeaponCol) {
         for (int i = 0; i < count; ++i) {
             int globalIdx = indexOffset + i;
             float itemY = entryStartY + i * entryH;
             bool isSelected = (globalIdx == ui.loadoutSelectedIndex);
+            bool equipped = isWeaponCol ? isWeaponEquipped(i) : isItemEquipped(i);
 
             ImVec2 itemMin(colX - 5.0f, itemY - 4.0f);
             ImVec2 itemMax(colX + colWidth, itemY + entryH - 8.0f);
@@ -129,7 +165,13 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
                 }
             }
 
-            if (isSelected) {
+            // Background highlight
+            if (equipped) {
+                draw->AddRectFilled(itemMin, itemMax,
+                    IM_COL32(252, 111, 41, 40), 2.0f);
+                draw->AddRect(itemMin, itemMax,
+                    IM_COL32(252, 111, 41, 180), 2.0f, 0, 1.5f);
+            } else if (isSelected) {
                 draw->AddRectFilled(itemMin, itemMax,
                     IM_COL32(252, 111, 41, 25), 2.0f);
                 draw->AddRect(itemMin, itemMax,
@@ -139,11 +181,16 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
             // Name
             if (termFont) ImGui::PushFont(termFont);
             char nameBuf[64];
-            snprintf(nameBuf, sizeof(nameBuf), isSelected ? "> %s" : "  %s",
-                entries[i].name);
-            draw->AddText(ImVec2(colX + (isSelected ? 4.0f : 0.0f), itemY),
-                isSelected ? IM_COL32(16, 13, 10, 255) : IM_COL32(16, 13, 10, 220),
-                nameBuf);
+            if (equipped) {
+                snprintf(nameBuf, sizeof(nameBuf), "> %s [EQUIPPED]", entries[i].name);
+            } else {
+                snprintf(nameBuf, sizeof(nameBuf), isSelected ? "> %s" : "  %s", entries[i].name);
+            }
+            ImU32 nameColor = equipped ? IM_COL32(252, 111, 41, 255)
+                            : isSelected ? IM_COL32(16, 13, 10, 255)
+                            : IM_COL32(16, 13, 10, 220);
+            draw->AddText(ImVec2(colX + (isSelected || equipped ? 4.0f : 0.0f), itemY),
+                nameColor, nameBuf);
             if (termFont) ImGui::PopFont();
 
             // Description
@@ -154,14 +201,13 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
         }
     };
 
-    drawColumn(kItems, kItemCount, 0, leftX, colW);
-    drawColumn(kWeapons, kWeaponCount, kItemCount, rightX, colW);
+    drawColumn(kItems, kItemCount, 0, leftX, colW, false);
+    drawColumn(kWeapons, kWeaponCount, kItemCount, rightX, colW, true);
 
-    // Confirm with ENTER
+    // Confirm with ENTER/SPACE — toggle equip
     if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
         confirmedIndex = ui.loadoutSelectedIndex;
     }
-    // Mouse click confirm — only if cursor is over an item
     if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
         ImVec2 mp = ImGui::GetMousePos();
         auto hitTest = [&](int count, int indexOffset, float colX, float colWidth) -> bool {
@@ -181,8 +227,41 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
             hitTest(kWeaponCount, kItemCount, rightX, colW);
     }
 
+    // Process equip toggle
     if (confirmedIndex >= 0) {
-        LOG_INFO("[UI_Loadout] Selected loadout index: " << (int)confirmedIndex);
+        if (confirmedIndex < kItemCount) {
+            // Item toggle
+            int idx = confirmedIndex;
+            if (isItemEquipped(idx)) {
+                // Unequip
+                if (sEquippedItems[0] == idx) sEquippedItems[0] = -1;
+                else if (sEquippedItems[1] == idx) sEquippedItems[1] = -1;
+                LOG_INFO("[UI_Loadout] Unequipped item: " << kItems[idx].name);
+            } else if (countEquippedItems() < 2) {
+                // Equip
+                if (sEquippedItems[0] < 0) sEquippedItems[0] = (int8_t)idx;
+                else sEquippedItems[1] = (int8_t)idx;
+                LOG_INFO("[UI_Loadout] Equipped item: " << kItems[idx].name);
+            } else {
+                PushToast(registry, "MAX 2 ITEMS — UNEQUIP FIRST", ToastType::Warning);
+            }
+        } else {
+            // Weapon toggle
+            int idx = confirmedIndex - kItemCount;
+            if (isWeaponEquipped(idx)) {
+                // Unequip
+                if (sEquippedWeapons[0] == idx) sEquippedWeapons[0] = -1;
+                else if (sEquippedWeapons[1] == idx) sEquippedWeapons[1] = -1;
+                LOG_INFO("[UI_Loadout] Unequipped weapon: " << kWeapons[idx].name);
+            } else if (countEquippedWeapons() < 2) {
+                // Equip
+                if (sEquippedWeapons[0] < 0) sEquippedWeapons[0] = (int8_t)idx;
+                else sEquippedWeapons[1] = (int8_t)idx;
+                LOG_INFO("[UI_Loadout] Equipped weapon: " << kWeapons[idx].name);
+            } else {
+                PushToast(registry, "MAX 2 WEAPONS — UNEQUIP FIRST", ToastType::Warning);
+            }
+        }
     }
 
     // Divider between columns
@@ -192,12 +271,86 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
         ImVec2(divX, entryStartY + kItemCount * entryH),
         IM_COL32(200, 200, 200, 80), 1.0f);
 
+    // ── CONFIRM LOADOUT button ────────────────────────────
+    float btnW = 240.0f;
+    float btnH = 36.0f;
+    float btnX = vpPos.x + (vpSize.x - btnW) * 0.5f;
+    float btnY = vpPos.y + vpSize.y - 80.0f;
+    ImVec2 btnMin(btnX, btnY);
+    ImVec2 btnMax(btnX + btnW, btnY + btnH);
+
+    // Check hover
+    bool btnHovered = false;
+    if (mouse) {
+        ImVec2 mp = ImGui::GetMousePos();
+        btnHovered = (mp.x >= btnMin.x && mp.x <= btnMax.x &&
+                      mp.y >= btnMin.y && mp.y <= btnMax.y);
+    }
+
+    draw->AddRectFilled(btnMin, btnMax,
+        btnHovered ? IM_COL32(252, 111, 41, 200) : IM_COL32(252, 111, 41, 160), 3.0f);
+    draw->AddRect(btnMin, btnMax,
+        IM_COL32(252, 111, 41, 255), 3.0f);
+
+    if (termFont) ImGui::PushFont(termFont);
+    const char* btnText = "CONFIRM LOADOUT";
+    ImVec2 btnTextSize = ImGui::CalcTextSize(btnText);
+    draw->AddText(
+        ImVec2(btnX + (btnW - btnTextSize.x) * 0.5f, btnY + (btnH - btnTextSize.y) * 0.5f),
+        IM_COL32(245, 238, 232, 255), btnText);
+    if (termFont) ImGui::PopFont();
+
+    // Confirm button click (mouse or C key)
+    bool btnClicked = false;
+    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left) && btnHovered) {
+        btnClicked = true;
+    }
+    if (kb && kb->KeyPressed(KeyCodes::C)) {
+        btnClicked = true;
+    }
+
+    if (btnClicked && registry.has_ctx<Res_GameState>()) {
+        auto& gs = registry.ctx<Res_GameState>();
+
+        // Write items
+        for (int s = 0; s < 2; ++s) {
+            if (sEquippedItems[s] >= 0) {
+                strncpy(gs.itemSlots[s].name, kItems[sEquippedItems[s]].name, 15);
+                gs.itemSlots[s].name[15] = '\0';
+                gs.itemSlots[s].count = 1;
+            } else {
+                gs.itemSlots[s].name[0] = '\0';
+                gs.itemSlots[s].count = 0;
+            }
+            gs.itemSlots[s].cooldown = 0.0f;
+        }
+
+        // Write weapons
+        for (int s = 0; s < 2; ++s) {
+            if (sEquippedWeapons[s] >= 0) {
+                strncpy(gs.weaponSlots[s].name, kWeapons[sEquippedWeapons[s]].name, 15);
+                gs.weaponSlots[s].name[15] = '\0';
+                gs.weaponSlots[s].count = 1;
+            } else {
+                gs.weaponSlots[s].name[0] = '\0';
+                gs.weaponSlots[s].count = 0;
+            }
+            gs.weaponSlots[s].cooldown = 0.0f;
+        }
+
+        PushToast(registry, "LOADOUT CONFIRMED", ToastType::Success);
+        LOG_INFO("[UI_Loadout] Loadout confirmed and written to GameState");
+
+        // Reset for next visit
+        sLoadoutInitialized = false;
+    }
+
     // Bottom hint
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(
         ImVec2(vpPos.x + 40.0f, vpPos.y + vpSize.y - 30.0f),
         IM_COL32(16, 13, 10, 180),
-        "[W/S] NAVIGATE  [ENTER] SELECT  [ESC] BACK");
+        "[W/S] NAVIGATE  [ENTER] EQUIP/UNEQUIP  [C] CONFIRM  [ESC] BACK");
     if (smallFont) ImGui::PopFont();
 
     ImGui::End();
