@@ -357,6 +357,8 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
     rb.gravity_factor  = 1.0f;
     rb.linear_damping  = 0.05f;
     rb.angular_damping = 0.05f;
+    rb.lock_rotation_x = true;
+    rb.lock_rotation_z = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
     // Capsule.obj 总高度 2.0：2 * half_height(0.5) + 2 * radius(0.5) = 2.0
