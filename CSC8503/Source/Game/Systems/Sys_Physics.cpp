@@ -1,6 +1,7 @@
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
-#include "Game/Components/C_D_PlayerInput.h"
+#include "Game/Components/C_D_Input.h"
+#include "Game/Components/C_T_Player.h"
 #include <iostream>
 #include <cfloat>
 #include <cmath>
@@ -553,24 +554,26 @@ void ECS::Sys_Physics::ActivateBody(uint32_t joltBodyID) {
     if (!m_PhysicsSystem) return;
     m_PhysicsSystem->GetBodyInterface().ActivateBody(JPH::BodyID(joltBodyID));
 }
-// ApplyPlayerInputs
+// ApplyPlayerInputs — 从 C_D_Input 读取移动向量驱动玩家刚体
 // ============================================================
 void ECS::Sys_Physics::ApplyPlayerInputs(Registry& reg) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
-    const float speed = 10.0f;
+    const float speed = 5.0f;
 
-    reg.view<C_D_PlayerInput, C_D_RigidBody>().each(
-        [&](EntityID id, C_D_PlayerInput& input, C_D_RigidBody& rb) {
+    reg.view<C_T_Player, C_D_Input, C_D_RigidBody>().each(
+        [&](EntityID id, C_T_Player&, C_D_Input& input, C_D_RigidBody& rb) {
             if (!rb.body_created || rb.is_kinematic || rb.is_static) return;
 
-            float vx = 0.0f, vz = 0.0f;
-            if (input.buttonMask & PlayerInputFlags::Left)  vx -= speed;
-            if (input.buttonMask & PlayerInputFlags::Right) vx += speed;
-            if (input.buttonMask & PlayerInputFlags::Up)    vz -= speed;
-            if (input.buttonMask & PlayerInputFlags::Down)  vz += speed;
+            float vx = input.moveX * speed;
+            float vz = input.moveZ * speed;
+
+            if (input.shiftDown && input.hasInput) {
+                vx *= 1.5f;
+                vz *= 1.5f;
+            }
 
             JPH::BodyID jid(rb.jolt_body_id);
-            if (vx != 0.0f || vz != 0.0f) {
+            if (input.hasInput) {
                 bi.ActivateBody(jid);
             }
             JPH::Vec3 curVel = bi.GetLinearVelocity(jid);

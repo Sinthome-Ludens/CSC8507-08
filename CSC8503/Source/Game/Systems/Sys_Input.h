@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "Core/ECS/SystemManager.h" 
+#include "Core/ECS/SystemManager.h"
 
 namespace ECS {
 
