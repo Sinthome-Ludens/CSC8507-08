@@ -7,7 +7,6 @@
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_TestState.h"
 #include "Game/Components/Res_EnemyTestState.h"
-#include "Game/Components/Res_CapsuleState.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_EnemyAI.h"
@@ -20,7 +19,6 @@
 #include "Game/Systems/Sys_ImGui.h"
 #include "Game/Systems/Sys_ImGuiEnemyAI.h"
 #include "Game/Systems/Sys_ImGuiPhysicsTest.h"
-#include "Game/Systems/Sys_ImGuiCapsuleGen.h"
 #endif
 
 // ============================================================
@@ -68,13 +66,6 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_EnemyTestState>(std::move(enemyState));
     }
 
-    // 胶囊生成状态（由 Sys_ImGuiCapsuleGen 读写）
-    if (!registry.has_ctx<Res_CapsuleState>()) {
-        Res_CapsuleState capsuleState;
-        capsuleState.capsuleMeshHandle = capsuleMesh;
-        registry.ctx_emplace<Res_CapsuleState>(std::move(capsuleState));
-    }
-
     // ── 3. 初始实体生成：通过 PrefabFactory 创建静态地板 ─────────────────
     //    相机实体由 Sys_Camera::OnAwake 创建（符合系统职责）
     ECS::EntityID entity_floor_main = PrefabFactory::CreateFloor(registry, cubeMesh);
@@ -82,14 +73,13 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
     //    执行顺序：Camera(50) → Physics(100) → EnemyAI(120) → Render(200)
-    //            → ImGui(300) → CapsuleGen(301) → EnemyMonitor(310) → PhysicsTest(320) → Raycast(330)
+    //            → ImGui(300) → EnemyMonitor(310) → PhysicsTest(320) → Raycast(330)
     systems.Register<ECS::Sys_Camera>   ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>  (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyAI>  (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + Cube 控制面板
-    systems.Register<ECS::Sys_ImGuiCapsuleGen>   (301);   // 胶囊生成/删除控制面板 (Master分支功能)
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 通用敌人状态监控表格（场景无关）
     systems.Register<ECS::Sys_ImGuiPhysicsTest>  (320);   // PhysicsTest 场景敌人生成/删除控制面板 (Feat分支功能)
 #endif
@@ -109,7 +99,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
                                ECS::SystemManager& systems)
 {
-    // 逆序停机：PhysicsTest(320) → EnemyMonitor(310) → CapsuleGen(301) → ImGui(300) 
+    // 逆序停机：PhysicsTest(320) → EnemyMonitor(310) → ImGui(300)
     // → Render(200) → EnemyAI(120) → Physics(100) → Camera(50)
     systems.DestroyAll(registry);
 
