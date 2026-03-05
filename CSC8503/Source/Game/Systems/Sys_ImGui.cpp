@@ -211,7 +211,7 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
             const int idx = state.capsuleSpawnIndex;
             if (sCapsuleOverlapSpawn) {
                 // 近重叠模式：围绕同一点做微小扰动，便于观察胶囊间挤压/分离
-                constexpr float OVERLAP_RADIUS = 0.12f;
+                constexpr float OVERLAP_RADIUS = 0.05f;
                 constexpr float PI = 3.14159265f;
                 const float angle = (idx % 8) * (2.0f * PI / 8.0f);
                 spawnPos.x += cosf(angle) * OVERLAP_RADIUS;
