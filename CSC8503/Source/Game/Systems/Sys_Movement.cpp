@@ -24,7 +24,7 @@ void Sys_Movement::OnUpdate(Registry& registry, float /*dt*/) {
 
             Vector3 vel = physics->GetLinearVelocity(rb.jolt_body_id);
 
-            // 从 Sys_Gameplay 已计算好的 PlayerState 读取
+            // 从 Sys_StealthMetrics / Sys_PlayerStance 已计算好的 PlayerState 读取
             float stanceMul = (ps.stance == PlayerStance::Crouching) ? 0.5f : 1.0f;
 
             float maxSpeed = BASE_SPEED;
