@@ -32,6 +32,7 @@ static Quaternion FromJoltQuat(JPH::QuatArg q) {
 // ============================================================
 namespace {
     bool g_JoltInitialized = false;
+    std::unordered_map<uint32_t, float> g_LastGravityFactors;
 }
 
 void ECS::Sys_Physics::InitJolt() {
@@ -135,7 +136,21 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
         auto& bi = m_PhysicsSystem->GetBodyInterface();
         registry.view<C_D_RigidBody>().each([&](EntityID id, C_D_RigidBody& rb) {
             if (!rb.body_created || rb.is_static) return;
+
+            const uint32_t bodyID = rb.jolt_body_id;
+            const auto itPrev = g_LastGravityFactors.find(bodyID);
+            const float previous = (itPrev != g_LastGravityFactors.end())
+                ? itPrev->second
+                : rb.gravity_factor;
+
             bi.SetGravityFactor(JPH::BodyID(rb.jolt_body_id), rb.gravity_factor);
+
+            constexpr float EPS = 1e-4f;
+            if (previous <= EPS && rb.gravity_factor > EPS) {
+                bi.ActivateBody(JPH::BodyID(rb.jolt_body_id));
+            }
+
+            g_LastGravityFactors[bodyID] = rb.gravity_factor;
         });
     }
 
@@ -170,6 +185,7 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
         bi.DestroyBody(jid);
     }
     m_BodyToEntity.clear();
+    g_LastGravityFactors.clear();
 
     // 析构顺序：PhysicsSystem → JobSystem → TempAllocator
     m_PhysicsSystem.reset();
@@ -502,7 +518,11 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
     if (query.CastRay(ray, hit)) {
         result.hit      = true;
         result.fraction = hit.mFraction;
-        result.bodyID   = hit.mBodyID.GetIndexAndSequenceNumber();
+        const uint32_t rawBodyID = hit.mBodyID.GetIndexAndSequenceNumber();
+        const auto itEntity = m_BodyToEntity.find(rawBodyID);
+        if (itEntity != m_BodyToEntity.end()) {
+            result.entity = itEntity->second;
+        }
         // 计算命中点
         JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
         result.pointX = static_cast<float>(hitPoint.GetX());

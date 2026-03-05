@@ -12,6 +12,7 @@
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_Physics.h"
+#include "Game/Systems/Sys_Raycast.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Utils/Log.h"
 
@@ -75,8 +76,8 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_PhysicsTest] floor entity id=" << entity_floor_main);
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
-    //    执行顺序：Camera(50) → Physics(100) → EnemyAI(120) → Render(200) 
-    //            → ImGui(300) → CapsuleGen(301) → EnemyMonitor(310) → PhysicsTest(320)
+    //    执行顺序：Camera(50) → Physics(100) → EnemyAI(120) → Render(200)
+    //            → ImGui(300) → CapsuleGen(301) → EnemyMonitor(310) → PhysicsTest(320) → Raycast(330)
     systems.Register<ECS::Sys_Camera>   ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>  (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyAI>  (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
@@ -87,6 +88,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 通用敌人状态监控表格（场景无关）
     systems.Register<ECS::Sys_ImGuiPhysicsTest>  (320);   // PhysicsTest 场景敌人生成/删除控制面板 (Feat分支功能)
 #endif
+    systems.Register<ECS::Sys_Raycast>           (330);   // Raycast 独立测试窗口（按钮触发 + 可视化）
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
