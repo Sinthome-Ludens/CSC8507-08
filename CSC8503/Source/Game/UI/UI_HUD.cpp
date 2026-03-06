@@ -367,6 +367,177 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
 }
 
 // ============================================================
+// 8. RenderHUD_OpponentBar — 多人对战对手进度条
+// ============================================================
+static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, float gameW) {
+    ImFont* termFont  = UITheme::GetFont_Terminal();
+    ImFont* smallFont = UITheme::GetFont_Small();
+
+    float barW = 200.0f;
+    float barH = 10.0f;
+    float barX = gameW * 0.5f - barW * 0.5f;
+    float barY = 52.0f;
+
+    // "VS [opponent]" label
+    if (termFont) ImGui::PushFont(termFont);
+    char vsBuf[32];
+    snprintf(vsBuf, sizeof(vsBuf), "VS %s", gs.opponentName);
+    ImVec2 vsSize = ImGui::CalcTextSize(vsBuf);
+    draw->AddText(ImVec2(gameW * 0.5f - vsSize.x * 0.5f, barY - 20.0f),
+        IM_COL32(220, 60, 40, 220), vsBuf);
+    if (termFont) ImGui::PopFont();
+
+    if (smallFont) ImGui::PushFont(smallFont);
+
+    // Dual progress bars: local (left, orange) vs opponent (right, red)
+    // Local progress label
+    char localBuf[16];
+    snprintf(localBuf, sizeof(localBuf), "YOU %d%%", gs.localProgress);
+    draw->AddText(ImVec2(barX - 70.0f, barY - 2.0f),
+        IM_COL32(252, 111, 41, 220), localBuf);
+
+    // Opponent progress label
+    char oppBuf[16];
+    snprintf(oppBuf, sizeof(oppBuf), "%d%%", gs.opponentProgress);
+    draw->AddText(ImVec2(barX + barW + 8.0f, barY - 2.0f),
+        IM_COL32(220, 60, 40, 220), oppBuf);
+
+    // Bar background
+    draw->AddRectFilled(
+        ImVec2(barX, barY), ImVec2(barX + barW, barY + barH),
+        IM_COL32(16, 13, 10, 80), 2.0f);
+
+    // Local progress (from left, orange)
+    float localFill = barW * std::clamp((float)gs.localProgress / 100.0f, 0.0f, 1.0f);
+    draw->AddRectFilled(
+        ImVec2(barX, barY), ImVec2(barX + localFill, barY + barH * 0.45f),
+        IM_COL32(252, 111, 41, 200), 1.0f);
+
+    // Opponent progress (from left, red, bottom half)
+    float oppFill = barW * std::clamp((float)gs.opponentProgress / 100.0f, 0.0f, 1.0f);
+    draw->AddRectFilled(
+        ImVec2(barX, barY + barH * 0.55f), ImVec2(barX + oppFill, barY + barH),
+        IM_COL32(220, 60, 40, 200), 1.0f);
+
+    // Center divider
+    draw->AddLine(
+        ImVec2(barX, barY + barH * 0.5f), ImVec2(barX + barW, barY + barH * 0.5f),
+        IM_COL32(200, 200, 200, 60), 1.0f);
+
+    // Border
+    draw->AddRect(
+        ImVec2(barX, barY), ImVec2(barX + barW, barY + barH),
+        IM_COL32(200, 200, 200, 100), 2.0f);
+
+    if (smallFont) ImGui::PopFont();
+}
+
+// ============================================================
+// 9. RenderHUD_DisruptionEffect — 干扰效果全屏叠加
+// ============================================================
+static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs,
+                                        float displayW, float displayH, float globalTime) {
+    if (gs.disruptionType == 0 || gs.disruptionTimer <= 0.0f) return;
+
+    float progress = (gs.disruptionDuration > 0.001f)
+        ? std::clamp(gs.disruptionTimer / gs.disruptionDuration, 0.0f, 1.0f)
+        : 0.0f;
+
+    switch (gs.disruptionType) {
+        case 1: {
+            // 视觉干扰 — 边缘红色脉冲 + 闪烁
+            float pulse = (sinf(globalTime * 8.0f) + 1.0f) * 0.5f;
+            uint8_t alpha = (uint8_t)(40.0f + pulse * 60.0f * progress);
+
+            // Top edge
+            draw->AddRectFilledMultiColor(
+                ImVec2(0, 0), ImVec2(displayW, 40.0f),
+                IM_COL32(220, 40, 40, alpha), IM_COL32(220, 40, 40, alpha),
+                IM_COL32(220, 40, 40, 0), IM_COL32(220, 40, 40, 0));
+            // Bottom edge
+            draw->AddRectFilledMultiColor(
+                ImVec2(0, displayH - 40.0f), ImVec2(displayW, displayH),
+                IM_COL32(220, 40, 40, 0), IM_COL32(220, 40, 40, 0),
+                IM_COL32(220, 40, 40, alpha), IM_COL32(220, 40, 40, alpha));
+            break;
+        }
+        case 2: {
+            // 减速干扰 — 蓝色网格叠加
+            uint8_t alpha = (uint8_t)(20.0f * progress);
+            float spacing = 30.0f;
+            for (float x = 0; x < displayW; x += spacing) {
+                draw->AddLine(ImVec2(x, 0), ImVec2(x, displayH),
+                    IM_COL32(60, 100, 220, alpha), 1.0f);
+            }
+            for (float y = 0; y < displayH; y += spacing) {
+                draw->AddLine(ImVec2(0, y), ImVec2(displayW, y),
+                    IM_COL32(60, 100, 220, alpha), 1.0f);
+            }
+            break;
+        }
+        case 3: {
+            // 信号扰乱 — 随机色块闪烁
+            unsigned int seed = (unsigned int)(globalTime * 2000.0f);
+            int blockCount = (int)(15.0f * progress);
+            for (int i = 0; i < blockCount; ++i) {
+                seed = seed * 1103515245u + 12345u;
+                float bx = (float)(seed % (unsigned int)displayW);
+                seed = seed * 1103515245u + 12345u;
+                float by = (float)(seed % (unsigned int)displayH);
+                seed = seed * 1103515245u + 12345u;
+                float bw = 20.0f + (float)(seed % 80);
+                seed = seed * 1103515245u + 12345u;
+                float bh = 2.0f + (float)(seed % 8);
+                uint8_t a = (uint8_t)(30 + (seed % 40));
+                draw->AddRectFilled(ImVec2(bx, by), ImVec2(bx + bw, by + bh),
+                    IM_COL32(252, 111, 41, a));
+            }
+            break;
+        }
+        default: break;
+    }
+
+    // "DISRUPTED" indicator
+    ImFont* termFont = UITheme::GetFont_Terminal();
+    if (termFont) ImGui::PushFont(termFont);
+
+    const char* labels[] = { "", "VISION IMPAIRED", "SPEED REDUCED", "SIGNAL SCRAMBLED" };
+    const char* label = (gs.disruptionType < 4) ? labels[gs.disruptionType] : "";
+    ImVec2 labelSize = ImGui::CalcTextSize(label);
+    float labelX = displayW * 0.5f - labelSize.x * 0.5f;
+
+    float blink = (sinf(globalTime * 6.0f) + 1.0f) * 0.5f;
+    uint8_t lblAlpha = (uint8_t)(150 + blink * 105);
+    draw->AddText(ImVec2(labelX, 70.0f), IM_COL32(220, 40, 40, lblAlpha), label);
+
+    if (termFont) ImGui::PopFont();
+}
+
+// ============================================================
+// 10. RenderHUD_NetworkStatus — 右下角网络状态
+// ============================================================
+static void RenderHUD_NetworkStatus(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
+    ImFont* smallFont = UITheme::GetFont_Small();
+    if (smallFont) ImGui::PushFont(smallFont);
+
+    char pingBuf[24];
+    snprintf(pingBuf, sizeof(pingBuf), "PING: %ums", gs.networkPing);
+
+    // Color based on ping quality
+    ImU32 pingCol;
+    if (gs.networkPing < 50)       pingCol = IM_COL32(80, 200, 120, 180);   // green
+    else if (gs.networkPing < 100) pingCol = IM_COL32(220, 200, 0, 180);    // yellow
+    else                           pingCol = IM_COL32(220, 60, 40, 180);    // red
+
+    ImVec2 pingSize = ImGui::CalcTextSize(pingBuf);
+    draw->AddText(
+        ImVec2(gameW - pingSize.x - 20.0f, displayH - 78.0f),
+        pingCol, pingBuf);
+
+    if (smallFont) ImGui::PopFont();
+}
+
+// ============================================================
 // RenderHUD — Main entry point
 // ============================================================
 
@@ -383,7 +554,7 @@ void RenderHUD(Registry& registry, float dt) {
     float gameW = GetGameAreaWidth(displaySize.x);
     float displayH = displaySize.y;
 
-    // Render all 7 sub-panels
+    // Render all sub-panels (7 base + 3 multiplayer)
     RenderHUD_MissionPanel(draw, gs, gameW);
     RenderHUD_AlertGauge(draw, gs, gameW);
     RenderHUD_Countdown(draw, gs, gameW, ui.globalTime);
@@ -391,6 +562,13 @@ void RenderHUD(Registry& registry, float dt) {
     RenderHUD_NoiseIndicator(draw, gs, displayH, ui.globalTime);
     RenderHUD_ItemSlots(draw, gs, gameW, displayH);
     RenderHUD_Degradation(draw, gs, displaySize.x, displayH, ui.globalTime);
+
+    // Multiplayer-only panels
+    if (gs.isMultiplayer) {
+        RenderHUD_OpponentBar(draw, gs, gameW);
+        RenderHUD_DisruptionEffect(draw, gs, displaySize.x, displayH, ui.globalTime);
+        RenderHUD_NetworkStatus(draw, gs, gameW, displayH);
+    }
 
     // Control hints (bottom, inside game area)
     ImFont* smallFont = UITheme::GetFont_Small();

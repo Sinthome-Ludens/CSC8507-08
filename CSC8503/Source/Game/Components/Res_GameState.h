@@ -109,6 +109,16 @@ struct Res_GameState {
 
     // ─ 累计游玩时间 ──────────────────────────────────────
     float playTime = 0.0f;
+
+    // ─ 多人对战 (1v1) ──────────────────────────────────────
+    bool     isMultiplayer       = false;  ///< 当前是否为多人模式
+    uint8_t  localProgress       = 0;      ///< 本地玩家目标进度 (0-100%)
+    uint8_t  opponentProgress    = 0;      ///< 对手目标进度 (0-100%)
+    char     opponentName[16]    = "RIVAL";///< 对手显示名称
+    uint8_t  disruptionType      = 0;      ///< 受到的干扰类型: 0=无 1=视觉干扰 2=减速 3=信号扰乱
+    float    disruptionTimer     = 0.0f;   ///< 干扰剩余时长
+    float    disruptionDuration  = 0.0f;   ///< 干扰总时长
+    uint32_t networkPing         = 0;      ///< 网络延迟 RTT (ms)
 };
 
 } // namespace ECS
