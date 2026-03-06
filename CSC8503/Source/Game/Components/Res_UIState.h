@@ -46,7 +46,7 @@ struct Res_UIState {
     UIScreen  activeScreen       = UIScreen::TitleScreen;
     UIScreen  previousScreen     = UIScreen::None;
     UIScreen  prePauseScreen     = UIScreen::None;
-    bool      isUIBlockingInput  = true;
+    bool      isUIBlockingInput  = false;
 
     SceneRequest pendingSceneRequest = SceneRequest::None;
 
