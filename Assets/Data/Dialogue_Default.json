@@ -1,0 +1,101 @@
+{
+  "proactive": {
+    "delay": 8.0,
+    "nodes": [
+      {
+        "message": "All clear ahead. Ready to proceed?",
+        "replies": [
+          { "text": "Copy that, moving in.", "effect": 1 },
+          { "text": "Hold position.", "effect": 0 },
+          { "text": "What's the situation?", "effect": 0 },
+          { "text": "Let me scout first.", "effect": 1 }
+        ]
+      },
+      {
+        "message": "Intel suggests minimal resistance in the next sector.",
+        "replies": [
+          { "text": "Good, stay sharp.", "effect": 1 },
+          { "text": "Understood.", "effect": 0 },
+          { "text": "Any alternate routes?", "effect": 0 },
+          { "text": "I don't trust that intel.", "effect": -1 }
+        ]
+      },
+      {
+        "message": "Firewall node located. Begin extraction sequence?",
+        "replies": [
+          { "text": "Initiating extraction now.", "effect": 1 },
+          { "text": "Hold. Need more intel.", "effect": 0 },
+          { "text": "Is the perimeter secure?", "effect": 0 },
+          { "text": "Skip this node.", "effect": -1 }
+        ]
+      },
+      {
+        "message": "We're making good progress. Extraction ready on your signal.",
+        "replies": [
+          { "text": "Acknowledged. Continuing.", "effect": 1 },
+          { "text": "Keep the line open.", "effect": 0 },
+          { "text": "How's our timeline?", "effect": 0 },
+          { "text": "Almost done here.", "effect": 1 }
+        ]
+      }
+    ]
+  },
+
+  "mixed": {
+    "delay": 5.0,
+    "nodes": [
+      {
+        "message": "Movement detected nearby. What's your call?",
+        "timeLimit": 12.0,
+        "replies": [
+          { "text": "Go silent.", "effect": 1 },
+          { "text": "Push through.", "effect": -1 },
+          { "text": "Find cover.", "effect": 1 },
+          { "text": "Abort route.", "effect": 0 }
+        ]
+      },
+      {
+        "message": "Comms might be compromised. Keep it brief.",
+        "timeLimit": 10.0,
+        "replies": [
+          { "text": "Roger. Eyes open.", "effect": 1 },
+          { "text": "Switching frequency.", "effect": 0 },
+          { "text": "How compromised?", "effect": -1 }
+        ]
+      },
+      {
+        "message": "Patrol shift change in progress. Window is narrow.",
+        "timeLimit": 10.0,
+        "replies": [
+          { "text": "Moving now.", "effect": 1 },
+          { "text": "Wait for clear.", "effect": 0 },
+          { "text": "How narrow?", "effect": -1 }
+        ]
+      }
+    ]
+  },
+
+  "passive": {
+    "delay": 3.0,
+    "nodes": [
+      {
+        "message": "You've been spotted! Respond NOW!",
+        "timeLimit": 6.0,
+        "replies": [
+          { "text": "Engaging.", "effect": -1 },
+          { "text": "Evading!", "effect": 1 },
+          { "text": "Need backup!", "effect": 0 }
+        ]
+      },
+      {
+        "message": "Multiple contacts converging! What's your status?!",
+        "timeLimit": 5.0,
+        "replies": [
+          { "text": "Still mobile!", "effect": 1 },
+          { "text": "Pinned down!", "effect": 0 },
+          { "text": "Going dark.", "effect": 1 }
+        ]
+      }
+    ]
+  }
+}
