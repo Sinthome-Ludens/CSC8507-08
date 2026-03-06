@@ -163,7 +163,7 @@ void RenderLoadingScreen(Registry& registry, float dt) {
     float msgY = barY + barH + 30.0f;
     ImFont* smallFont = UITheme::GetFont_Small();
     if (smallFont) {
-        ImGui::PopFont();  // pop termFont
+        if (termFont) ImGui::PopFont();  // pop termFont only if it was pushed
         ImGui::PushFont(smallFont);
     }
 

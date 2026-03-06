@@ -4,6 +4,7 @@
 #include <imgui.h>
 #include <cmath>
 #include <cstring>
+#include <cstdio>
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_LobbyState.h"
@@ -219,8 +220,11 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
         ImGui::SetNextItemWidth(ipFieldW);
         ImGui::InputText("##IPInput", lobby.joinIP, sizeof(lobby.joinIP),
             ImGuiInputTextFlags_CharsNoBlank);
+        lobby.ipInputActive = ImGui::IsItemActive();
         ImGui::PopStyleColor(2);
         ImGui::PopStyleVar();
+    } else {
+        lobby.ipInputActive = false;
     }
 
     if (termFont) ImGui::PopFont();
