@@ -182,9 +182,18 @@ void	Win32Window::SetFullScreen(bool fullScreen) {
 		int windowW = desiredClient.right  - desiredClient.left;
 		int windowH = desiredClient.bottom - desiredClient.top;
 
+		// 居中放置窗口（避免使用旧位置导致偏移）
+		int screenW = GetSystemMetrics(SM_CXSCREEN);
+		int screenH = GetSystemMetrics(SM_CYSCREEN);
+		int posX = (screenW - windowW) / 2;
+		int posY = (screenH - windowH) / 2;
+
 		SetWindowPos(windowHandle, HWND_NOTOPMOST,
-		             (int)position.x, (int)position.y, windowW, windowH,
+		             posX, posY, windowW, windowH,
 		             SWP_FRAMECHANGED);
+
+		position.x = (float)posX;
+		position.y = (float)posY;
 	}
 
 	// 统一通知渲染器 + 更新鼠标边界
