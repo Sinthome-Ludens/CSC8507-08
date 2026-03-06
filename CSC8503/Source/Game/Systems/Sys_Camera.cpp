@@ -77,11 +77,13 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
     // UI 阻塞时（菜单/暂停等）跳过所有相机输入，防止 WarpCursorToCenter
     // 拉回光标、鼠标旋转干扰菜单操作、WASD 意外移动相机
     bool uiBlocking = false;
+    bool itemWheelOpen = false;
     float uiSensitivity = -1.0f;   // < 0 表示未配置，使用组件默认值
     if (registry.has_ctx<Res_UIState>()) {
         const auto& ui = registry.ctx<Res_UIState>();
         uiBlocking    = ui.isUIBlockingInput;
         uiSensitivity = ui.mouseSensitivity;
+        itemWheelOpen = ui.itemWheelOpen;
     }
 
     bool cursorFree = false;
@@ -104,7 +106,7 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
 
             // ── 鼠标旋转（cursor_free 或 UI 阻塞时禁用）─────────────────────
             auto* mouse = Window::GetMouse();
-            if (mouse && windowActive && !cam.cursor_free && !uiBlocking) {
+            if (mouse && windowActive && !cam.cursor_free && !uiBlocking && !itemWheelOpen) {
                 const Vector2 delta = mouse->GetRelativePosition();
                 cam.yaw   -= delta.x * cam.sensitivity;
                 cam.pitch -= delta.y * cam.sensitivity;

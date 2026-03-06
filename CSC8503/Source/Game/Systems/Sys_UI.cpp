@@ -316,7 +316,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     if (ui.isUIBlockingInput) {
         ui.cursorVisible = true;
         ui.cursorLocked  = false;
-    } else if (ui.gameCursorFree) {
+    } else if (ui.gameCursorFree || ui.itemWheelOpen) {
         ui.cursorVisible = true;
         ui.cursorLocked  = false;
     } else {
