@@ -7,6 +7,7 @@
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_Network.h"
 #include "Game/Components/C_D_NetworkIdentity.h"
 #include "Game/Components/C_D_InterpBuffer.h"
@@ -42,6 +43,12 @@ void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
 // ============================================================
 
 void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
+    // 开发者模式关闭时隐藏所有调试界面
+    if (registry.has_ctx<Res_UIState>()
+        && !registry.ctx<Res_UIState>().devMode) {
+        return;
+    }
+
     RenderMainMenuBar(registry);
 
     if (m_ShowDemoWindow)  ImGui::ShowDemoWindow(&m_ShowDemoWindow);
