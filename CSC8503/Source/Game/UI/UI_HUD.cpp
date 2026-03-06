@@ -376,7 +376,8 @@ static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, flo
     float barW = 200.0f;
     float barH = 10.0f;
     float barX = gameW * 0.5f - barW * 0.5f;
-    float barY = 52.0f;
+    // 若倒计时激活，下移避免与 Countdown 文字（32px @ y=14）重叠
+    float barY = gs.countdownActive ? 72.0f : 52.0f;
 
     // "VS [opponent]" label
     if (termFont) ImGui::PushFont(termFont);

@@ -3,6 +3,7 @@
 
 #include <imgui.h>
 #include <cmath>
+#include <cstdio>
 #include "Game/Components/Res_UIState.h"
 #include "Game/UI/UITheme.h"
 
@@ -141,18 +142,8 @@ void RenderLoadingScreen(Registry& registry, float dt) {
     // Percentage
     char pctText[8];
     int pct = (int)(progress * 100.0f);
-    // manual itoa for POD compliance
-    pctText[0] = (char)('0' + pct / 100);
-    pctText[1] = (char)('0' + (pct / 10) % 10);
-    pctText[2] = (char)('0' + pct % 10);
-    pctText[3] = '%';
-    pctText[4] = '\0';
-    // strip leading zeros
+    snprintf(pctText, sizeof(pctText), "%d%%", pct);
     const char* pctDisplay = pctText;
-    if (pctDisplay[0] == '0') {
-        pctDisplay++;
-        if (pctDisplay[0] == '0') pctDisplay++;
-    }
 
     ImVec2 pctSize = ImGui::CalcTextSize(pctDisplay);
     draw->AddText(
