@@ -148,6 +148,8 @@ void	Win32Window::UpdateTitle()	{
 }
 
 void	Win32Window::SetFullScreen(bool fullScreen) {
+	this->fullScreen = fullScreen;
+
 	if (fullScreen) {
 		DEVMODE dmScreenSettings;								// Device Mode
 		memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));	// Makes Sure Memory's Cleared
@@ -407,6 +409,7 @@ void	Win32Window::SetConsolePosition(int x, int y)	{
 
 void	Win32Window::SetWindowSize(int w, int h) {
 	if (fullScreen) return;  // ignore in fullscreen mode
+	if (w <= 0 || h <= 0) return;
 
 	RECT desiredClient = { 0, 0, (LONG)w, (LONG)h };
 	DWORD style   = (DWORD)GetWindowLongPtr(windowHandle, GWL_STYLE);
