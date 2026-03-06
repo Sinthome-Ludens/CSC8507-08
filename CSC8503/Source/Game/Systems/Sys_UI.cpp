@@ -6,6 +6,7 @@
 #include "Game/Components/Res_ToastState.h"
 #include "Game/Components/Res_InventoryState.h"
 #include "Game/Components/Res_ChatState.h"
+#include "Game/Components/Res_LobbyState.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/C_D_Interactable.h"
 #include "Game/UI/UITheme.h"
@@ -22,6 +23,7 @@
 #include "Game/UI/UI_ItemWheel.h"
 #include "Game/UI/UI_Interaction.h"
 #include "Game/UI/UI_Loading.h"
+#include "Game/UI/UI_Lobby.h"
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
@@ -53,6 +55,10 @@ void Sys_UI::OnAwake(Registry& registry) {
 
     if (!registry.has_ctx<Res_ChatState>()) {
         registry.ctx_emplace<Res_ChatState>();
+    }
+
+    if (!registry.has_ctx<Res_LobbyState>()) {
+        registry.ctx_emplace<Res_LobbyState>();
     }
 
     LOG_INFO("[Sys_UI] OnAwake — Fonts loaded, theme applied, all UI resources registered.");
@@ -191,6 +197,12 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                 ui.menuSelectedIndex = 0;
                 LOG_INFO("[Sys_UI] Team -> MainMenu (ESC)");
                 break;
+            case UIScreen::Lobby:
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen = UIScreen::MainMenu;
+                ui.menuSelectedIndex = 0;
+                LOG_INFO("[Sys_UI] Lobby -> MainMenu (ESC)");
+                break;
             case UIScreen::GameOver:
                 // GameOver has its own menu; ESC does nothing
                 break;
@@ -274,6 +286,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         case UIScreen::Loadout:     UI::RenderLoadoutScreen(registry, dt);   break;
         case UIScreen::Team:        UI::RenderTeamScreen(registry, dt);      break;
         case UIScreen::Loading:     UI::RenderLoadingScreen(registry, dt);   break;
+        case UIScreen::Lobby:       UI::RenderLobbyScreen(registry, dt);     break;
         case UIScreen::None:
         default:
             break;

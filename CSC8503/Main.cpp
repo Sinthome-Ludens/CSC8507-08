@@ -33,6 +33,7 @@
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_LobbyState.h"
 #include "Game/Scenes/SceneManager.h"
 #include "Game/Scenes/Scene_PhysicsTest.h"
 #include "Game/Scenes/Scene_MainMenu.h"
@@ -147,6 +148,19 @@ int main(int argc, char** argv) {
 						case ECS::SceneRequest::ReturnToMenu:
 							sceneManager.RequestSceneChange(new Scene_MainMenu());
 							break;
+						case ECS::SceneRequest::HostGame:
+							sceneManager.RequestSceneChange(
+								new Scene_NetworkGame(ECS::PeerType::SERVER));
+							break;
+						case ECS::SceneRequest::JoinGame: {
+							std::string ip = "127.0.0.1";
+							if (reg.has_ctx<ECS::Res_LobbyState>()) {
+								ip = reg.ctx<ECS::Res_LobbyState>().joinIP;
+							}
+							sceneManager.RequestSceneChange(
+								new Scene_NetworkGame(ECS::PeerType::CLIENT, ip));
+							break;
+						}
 						case ECS::SceneRequest::QuitApp:
 							running = false;
 							break;

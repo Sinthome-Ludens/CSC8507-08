@@ -17,6 +17,7 @@ enum class UIScreen : uint8_t {
     Loadout,
     Team,
     Loading,
+    Lobby,
 };
 
 enum class SceneRequest : uint8_t {
@@ -25,6 +26,8 @@ enum class SceneRequest : uint8_t {
     ReturnToMenu,
     RestartLevel,
     QuitApp,
+    HostGame,
+    JoinGame,
 };
 
 struct Res_UIState {
@@ -69,6 +72,9 @@ struct Res_UIState {
     bool         transitionActive        = false;
     int8_t       transitionType          = 0;   // 0=FadeIn, 1=FadeOut
     SceneRequest transitionSceneRequest  = SceneRequest::None;  // 过渡期间暂存的场景请求
+
+    // Lobby
+    int8_t    lobbySelectedIndex   = 0;     // 0=HOST, 1=JOIN, 2=BACK
 
     // Loading screen
     float     loadingTimer         = 0.0f;
