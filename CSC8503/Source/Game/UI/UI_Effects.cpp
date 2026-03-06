@@ -50,7 +50,9 @@ void RenderVignetteOverlay() {
     const ImVec2 ds = ImGui::GetIO().DisplaySize;
 
     // Four gradient strips at edges (top/bottom/left/right)
-    constexpr float edgeW = 120.0f;   // gradient width in pixels
+    // Proportional: ~11% of the shorter dimension
+    float edgeW = std::min(ds.x, ds.y) * 0.11f;
+    if (edgeW < 60.0f) edgeW = 60.0f;
     constexpr uint8_t maxAlpha = 60;  // subtle darkening
 
     // Top edge

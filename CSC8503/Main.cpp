@@ -173,9 +173,9 @@ int main(int argc, char** argv) {
 
 				// Resolution change
 				if (ui.resolutionChanged) {
-					static constexpr int kResWidths[]  = { 1280, 1920 };
-					static constexpr int kResHeights[] = { 720,  1080 };
-					int idx = std::clamp((int)ui.resolutionIndex, 0, 1);
+					static constexpr int kResWidths[]  = { 1280, 1600, 1920 };
+					static constexpr int kResHeights[] = { 720,  900,  1080 };
+					int idx = std::clamp((int)ui.resolutionIndex, 0, 2);
 					w->SetWindowSize(kResWidths[idx], kResHeights[idx]);
 					ui.resolutionChanged = false;
 				}

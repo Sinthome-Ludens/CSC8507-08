@@ -3,6 +3,7 @@
 
 #include <imgui.h>
 #include <cmath>
+#include <algorithm>
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/UI/UITheme.h"
@@ -496,9 +497,9 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
         IM_COL32(245, 238, 232, 255));
 
-    // Settings panel centered
-    float panelW = 500.0f;
-    float panelH = 460.0f;
+    // Settings panel centered (responsive to viewport)
+    float panelW = std::min(500.0f, vpSize.x * 0.45f);
+    float panelH = std::min(460.0f, vpSize.y * 0.70f);
     float panelX = vpPos.x + (vpSize.x - panelW) * 0.5f;
     float panelY = vpPos.y + (vpSize.y - panelH) * 0.5f;
 
@@ -543,11 +544,11 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
     ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "DISPLAY");
     ImGui::Spacing();
 
-    const char* resolutions[] = {"1280 x 720", "1920 x 1080"};
+    const char* resolutions[] = {"1280 x 720", "1600 x 900", "1920 x 1080"};
     int resIdx = static_cast<int>(ui.resolutionIndex);
     ImGui::Text("Resolution:");
     ImGui::SameLine(160.0f);
-    if (ImGui::Combo("##Resolution", &resIdx, resolutions, 2)) {
+    if (ImGui::Combo("##Resolution", &resIdx, resolutions, 3)) {
         ui.resolutionIndex = static_cast<int8_t>(resIdx);
         ui.resolutionChanged = true;
         LOG_INFO("[UI_Menus] Resolution changed: " << resolutions[resIdx]);
