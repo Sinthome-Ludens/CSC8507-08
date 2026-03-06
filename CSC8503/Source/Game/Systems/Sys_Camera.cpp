@@ -74,12 +74,18 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
     auto* win = Window::GetWindow();
     const bool windowActive = (win != nullptr) && win->IsActiveWindow();
 
+    // UI 阻塞时（菜单/暂停等）跳过所有相机输入，防止 WarpCursorToCenter
+    // 拉回光标、鼠标旋转干扰菜单操作、WASD 意外移动相机
+    const bool uiBlocking = registry.has_ctx<Res_UIState>()
+                          && registry.ctx<Res_UIState>().isUIBlockingInput;
+
     bool cursorFree = false;
 
     registry.view<C_T_MainCamera, C_D_Camera, C_D_Transform>().each(
         [&](EntityID /*id*/, C_T_MainCamera&, C_D_Camera& cam, C_D_Transform& tf)
         {
             // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）────
+            // UI 阻塞时仍跟踪，但不影响光标（Sys_UI 覆盖）
             auto* kb = Window::GetKeyboard();
             if (kb && windowActive) {
                 cam.cursor_free = kb->KeyDown(KeyCodes::MENU);
@@ -89,9 +95,9 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
             // 光标状态通过 Res_UIState 传递，不直接调用 Window API。
             // Sys_UI（优先级更高）在有 UI 阻塞时覆盖此处设置的值。
 
-            // ── 鼠标旋转（cursor_free 模式下禁用）──────────────────────────
+            // ── 鼠标旋转（cursor_free 或 UI 阻塞时禁用）─────────────────────
             auto* mouse = Window::GetMouse();
-            if (mouse && windowActive && !cam.cursor_free) {
+            if (mouse && windowActive && !cam.cursor_free && !uiBlocking) {
                 const Vector2 delta = mouse->GetRelativePosition();
                 cam.yaw   -= delta.x * cam.sensitivity;
                 cam.pitch -= delta.y * cam.sensitivity;
@@ -101,8 +107,8 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                 if (win) win->WarpCursorToCenter();
             }
 
-            // ── 键盘平移（WASD + Q/E，cursor_free 时仍可移动）──────────────
-            if (kb && windowActive) {
+            // ── 键盘平移（WASD + Q/E，UI 阻塞时禁用）────────────────────────
+            if (kb && windowActive && !uiBlocking) {
                 const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
                 const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
 
