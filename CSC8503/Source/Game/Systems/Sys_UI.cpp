@@ -321,9 +321,10 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         ui.cursorLocked  = true;
     }
 
-    // Scanline overlay (CRT effect, menus only — skipped during HUD/None)
+    // CRT effects (menus only — skipped during HUD/None)
     if (ui.activeScreen != UIScreen::HUD && ui.activeScreen != UIScreen::None) {
         UI::RenderScanlineOverlay(ui.globalTime);
+        UI::RenderVignetteOverlay();
     }
 
     // Trigger CRT FadeOut transition on pending scene requests

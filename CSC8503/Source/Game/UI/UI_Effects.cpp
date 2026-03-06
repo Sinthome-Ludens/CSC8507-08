@@ -42,6 +42,56 @@ void RenderScanlineOverlay(float globalTime) {
 }
 
 // ============================================================
+// RenderVignetteOverlay — CRT edge darkening
+// ============================================================
+
+void RenderVignetteOverlay() {
+    ImDrawList* draw = ImGui::GetForegroundDrawList();
+    const ImVec2 ds = ImGui::GetIO().DisplaySize;
+
+    // Four gradient strips at edges (top/bottom/left/right)
+    constexpr float edgeW = 120.0f;   // gradient width in pixels
+    constexpr uint8_t maxAlpha = 60;  // subtle darkening
+
+    // Top edge
+    for (int i = 0; i < (int)edgeW; i += 4) {
+        float t = 1.0f - (float)i / edgeW;
+        uint8_t a = (uint8_t)(t * t * maxAlpha);
+        draw->AddRectFilled(
+            ImVec2(0.0f, (float)i),
+            ImVec2(ds.x, (float)(i + 4)),
+            IM_COL32(0, 0, 0, a));
+    }
+    // Bottom edge
+    for (int i = 0; i < (int)edgeW; i += 4) {
+        float t = 1.0f - (float)i / edgeW;
+        uint8_t a = (uint8_t)(t * t * maxAlpha);
+        draw->AddRectFilled(
+            ImVec2(0.0f, ds.y - (float)(i + 4)),
+            ImVec2(ds.x, ds.y - (float)i),
+            IM_COL32(0, 0, 0, a));
+    }
+    // Left edge
+    for (int i = 0; i < (int)edgeW; i += 4) {
+        float t = 1.0f - (float)i / edgeW;
+        uint8_t a = (uint8_t)(t * t * maxAlpha);
+        draw->AddRectFilled(
+            ImVec2((float)i, 0.0f),
+            ImVec2((float)(i + 4), ds.y),
+            IM_COL32(0, 0, 0, a));
+    }
+    // Right edge
+    for (int i = 0; i < (int)edgeW; i += 4) {
+        float t = 1.0f - (float)i / edgeW;
+        uint8_t a = (uint8_t)(t * t * maxAlpha);
+        draw->AddRectFilled(
+            ImVec2(ds.x - (float)(i + 4), 0.0f),
+            ImVec2(ds.x - (float)i, ds.y),
+            IM_COL32(0, 0, 0, a));
+    }
+}
+
+// ============================================================
 // RenderTransitionOverlay — CRT shrink/expand transition
 // ============================================================
 

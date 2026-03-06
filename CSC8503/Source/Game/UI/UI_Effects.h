@@ -6,6 +6,7 @@
 namespace ECS::UI {
 
 void RenderScanlineOverlay(float globalTime);
+void RenderVignetteOverlay();
 void RenderTransitionOverlay(Registry& registry, float dt);
 
 } // namespace ECS::UI
