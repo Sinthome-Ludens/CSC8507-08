@@ -405,6 +405,40 @@ void	Win32Window::SetConsolePosition(int x, int y)	{
 	SetActiveWindow(windowHandle);
 }
 
+void	Win32Window::SetWindowSize(int w, int h) {
+	if (fullScreen) return;  // ignore in fullscreen mode
+
+	RECT desiredClient = { 0, 0, (LONG)w, (LONG)h };
+	DWORD style   = (DWORD)GetWindowLongPtr(windowHandle, GWL_STYLE);
+	DWORD exStyle = (DWORD)GetWindowLongPtr(windowHandle, GWL_EXSTYLE);
+	AdjustWindowRectEx(&desiredClient, style, FALSE, exStyle);
+
+	int windowW = desiredClient.right  - desiredClient.left;
+	int windowH = desiredClient.bottom - desiredClient.top;
+
+	// Center on screen
+	int screenW = GetSystemMetrics(SM_CXSCREEN);
+	int screenH = GetSystemMetrics(SM_CYSCREEN);
+	int posX = (screenW - windowW) / 2;
+	int posY = (screenH - windowH) / 2;
+
+	SetWindowPos(windowHandle, NULL, posX, posY, windowW, windowH,
+		SWP_NOZORDER | SWP_NOACTIVATE);
+
+	size.x = w;
+	size.y = h;
+	defaultSize = size;
+	position.x = posX;
+	position.y = posY;
+
+	winMouse->SetAbsolutePositionBounds(size);
+	LockMouseToWindow(lockMouse);
+
+	if (eventHandler) {
+		eventHandler(NCL::WindowEvent::Resize, size.x, size.y);
+	}
+}
+
 void	Win32Window::SetWindowPosition(int x, int y) {
 	SetWindowPos(windowHandle, 0, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 

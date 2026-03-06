@@ -47,6 +47,7 @@
 using namespace NCL;
 using namespace CSC8503;
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include <sstream>
@@ -168,6 +169,15 @@ int main(int argc, char** argv) {
 							break;
 					}
 					ui.pendingSceneRequest = ECS::SceneRequest::None;
+				}
+
+				// Resolution change
+				if (ui.resolutionChanged) {
+					static constexpr int kResWidths[]  = { 1280, 1920 };
+					static constexpr int kResHeights[] = { 720,  1080 };
+					int idx = std::clamp((int)ui.resolutionIndex, 0, 1);
+					w->SetWindowSize(kResWidths[idx], kResHeights[idx]);
+					ui.resolutionChanged = false;
 				}
 
 				// Fullscreen toggle

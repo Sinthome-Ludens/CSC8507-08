@@ -549,7 +549,8 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
     ImGui::SameLine(160.0f);
     if (ImGui::Combo("##Resolution", &resIdx, resolutions, 2)) {
         ui.resolutionIndex = static_cast<int8_t>(resIdx);
-        LOG_INFO("[UI_Menus] Resolution selection: " << resolutions[resIdx]);
+        ui.resolutionChanged = true;
+        LOG_INFO("[UI_Menus] Resolution changed: " << resolutions[resIdx]);
     }
 
     ImGui::Spacing();

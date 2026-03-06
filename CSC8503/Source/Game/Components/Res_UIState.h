@@ -46,7 +46,8 @@ struct Res_UIState {
     int8_t    settingsSelectedIndex  = 0;
     int8_t    pauseSelectedIndex     = 0;
     int8_t    gameOverSelectedIndex  = 0;
-    int8_t    resolutionIndex        = 0;
+    int8_t    resolutionIndex        = 1;   // default 1920x1080
+    bool      resolutionChanged      = false;
 
     bool      isFullscreen       = false;
     bool      fullscreenChanged  = false;
