@@ -151,50 +151,50 @@ void	Win32Window::SetFullScreen(bool fullScreen) {
 	this->fullScreen = fullScreen;
 
 	if (fullScreen) {
-		DEVMODE dmScreenSettings;								// Device Mode
-		memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));	// Makes Sure Memory's Cleared
+		// 保存当前窗口位置（用于退出全屏时恢复）
+		RECT windowRect;
+		GetWindowRect(windowHandle, &windowRect);
+		position.x = (float)windowRect.left;
+		position.y = (float)windowRect.top;
 
-		DEVMODEA settings;
-		EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &settings);
+		// 无边框全屏：移除标题栏和边框，覆盖整个屏幕
+		SetWindowLongPtr(windowHandle, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+		int screenW = GetSystemMetrics(SM_CXSCREEN);
+		int screenH = GetSystemMetrics(SM_CYSCREEN);
+		SetWindowPos(windowHandle, HWND_TOPMOST,
+		             0, 0, screenW, screenH,
+		             SWP_FRAMECHANGED);
 
-		size.x = (float)settings.dmPelsWidth;
-		size.y = (float)settings.dmPelsHeight;
-
-		dmScreenSettings.dmSize				= sizeof(dmScreenSettings);			// Size Of The Devmode Structure
-		dmScreenSettings.dmPelsWidth		= (DWORD)size.x;		// Selected Screen Width
-		dmScreenSettings.dmPelsHeight		= (DWORD)size.y;		// Selected Screen Height
-		dmScreenSettings.dmBitsPerPel		= 32;								// Selected Bits Per Pixel
-		dmScreenSettings.dmDisplayFrequency = (DWORD)settings.dmDisplayFrequency;
-		dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
-
-		if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
-			std::cout << __FUNCTION__ << " Failed to switch to fullscreen!\n";
-		}
-		else {
-			if (eventHandler) {
-				eventHandler(fullScreen ? NCL::WindowEvent::Fullscreen : NCL::WindowEvent::Windowed, size.x, size.y);
-			}
-		}
+		size.x = (float)screenW;
+		size.y = (float)screenH;
 	}
 	else {
-		DEVMODE dmScreenSettings;								// Device Mode
-		memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));	// Makes Sure Memory's Cleared
+		// 恢复窗口模式：还原样式和位置
+		DWORD style = WS_OVERLAPPEDWINDOW | WS_POPUP | WS_VISIBLE
+		            | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
+		SetWindowLongPtr(windowHandle, GWL_STYLE, style);
 
 		size = defaultSize;
 
-		dmScreenSettings.dmSize = sizeof(dmScreenSettings);	// Size Of The Devmode Structure
-		dmScreenSettings.dmPelsWidth  = (DWORD)size.x;		// Selected Screen Width
-		dmScreenSettings.dmPelsHeight = (DWORD)size.y;		// Selected Screen Height
-		dmScreenSettings.dmPosition.x = (DWORD)position.x;
-		dmScreenSettings.dmPosition.y = (DWORD)position.y;
-		dmScreenSettings.dmBitsPerPel = 32;					// Selected Bits Per Pixel
-		dmScreenSettings.dmDisplayFrequency = 60;
-		dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY | DM_POSITION;
+		// 计算含边框的窗口尺寸
+		RECT desiredClient = { 0, 0, (LONG)size.x, (LONG)size.y };
+		AdjustWindowRectEx(&desiredClient, style, FALSE, 0);
+		int windowW = desiredClient.right  - desiredClient.left;
+		int windowH = desiredClient.bottom - desiredClient.top;
 
-		if (ChangeDisplaySettings(&dmScreenSettings, 0) != DISP_CHANGE_SUCCESSFUL) {
-			std::cout << __FUNCTION__ << " Failed to switch out of fullscreen!\n";
-		}
+		SetWindowPos(windowHandle, HWND_NOTOPMOST,
+		             (int)position.x, (int)position.y, windowW, windowH,
+		             SWP_FRAMECHANGED);
 	}
+
+	// 统一通知渲染器 + 更新鼠标边界
+	if (eventHandler) {
+		eventHandler(fullScreen ? NCL::WindowEvent::Fullscreen
+		                        : NCL::WindowEvent::Windowed,
+		             size.x, size.y);
+	}
+	winMouse->SetAbsolutePositionBounds(size);
+	LockMouseToWindow(lockMouse);
 }
 
 void Win32Window::CheckMessages(MSG &msg)	{
