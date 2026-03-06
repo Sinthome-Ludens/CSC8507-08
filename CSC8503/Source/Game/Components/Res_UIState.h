@@ -16,6 +16,7 @@ enum class UIScreen : uint8_t {
     Inventory,
     Loadout,
     Team,
+    Loading,
 };
 
 enum class SceneRequest : uint8_t {
@@ -68,6 +69,12 @@ struct Res_UIState {
     bool         transitionActive        = false;
     int8_t       transitionType          = 0;   // 0=FadeIn, 1=FadeOut
     SceneRequest transitionSceneRequest  = SceneRequest::None;  // 过渡期间暂存的场景请求
+
+    // Loading screen
+    float     loadingTimer         = 0.0f;
+    float     loadingMinDuration   = 1.5f;  // 最少显示时长（秒）
+    uint8_t   loadingMsgIndex      = 0;     // 当前显示到的系统消息索引
+    float     loadingMsgTimer      = 0.0f;  // 消息轮播计时器
 
     // DevMode (Fix 3: toast cycle needs memory; others derive from current state)
     uint8_t   devToastCycle        = 0;

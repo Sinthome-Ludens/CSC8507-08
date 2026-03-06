@@ -21,6 +21,7 @@
 #include "Game/UI/UI_Chat.h"
 #include "Game/UI/UI_ItemWheel.h"
 #include "Game/UI/UI_Interaction.h"
+#include "Game/UI/UI_Loading.h"
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
@@ -272,6 +273,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         case UIScreen::Inventory:   UI::RenderInventoryScreen(registry, dt); break;
         case UIScreen::Loadout:     UI::RenderLoadoutScreen(registry, dt);   break;
         case UIScreen::Team:        UI::RenderTeamScreen(registry, dt);      break;
+        case UIScreen::Loading:     UI::RenderLoadingScreen(registry, dt);   break;
         case UIScreen::None:
         default:
             break;
@@ -314,12 +316,24 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     // Scene transition overlay
     UI::RenderTransitionOverlay(registry, dt);
 
-    // FadeOut 结束后：将暂存的场景请求交还 pendingSceneRequest，
-    // 由 Main.cpp 消费并执行真正的场景切换；新场景 OnEnter 负责设置 activeScreen 和 FadeIn
-    if (!ui.transitionActive && ui.transitionSceneRequest != SceneRequest::None) {
+    // FadeOut 结束后：进入 Loading 画面，等待最小时长后再交还场景请求
+    if (!ui.transitionActive && ui.transitionSceneRequest != SceneRequest::None
+        && ui.activeScreen != UIScreen::Loading) {
+        // FadeOut 刚完成 → 切换到 Loading 画面
+        ui.activeScreen    = UIScreen::Loading;
+        ui.loadingTimer    = 0.0f;
+        ui.loadingMsgIndex = 0;
+        ui.loadingMsgTimer = 0.0f;
+        LOG_INFO("[Sys_UI] FadeOut done — entering Loading screen");
+    }
+
+    // Loading 画面计时完成 → 交还场景请求给 Main.cpp
+    if (ui.activeScreen == UIScreen::Loading
+        && ui.loadingTimer >= ui.loadingMinDuration
+        && ui.transitionSceneRequest != SceneRequest::None) {
         ui.pendingSceneRequest    = ui.transitionSceneRequest;
         ui.transitionSceneRequest = SceneRequest::None;
-        LOG_INFO("[Sys_UI] Transition FadeOut done — handing back SceneRequest to Main.cpp");
+        LOG_INFO("[Sys_UI] Loading complete — handing SceneRequest to Main.cpp");
     }
 
     // Toast 通知渲染（覆盖所有屏幕）
