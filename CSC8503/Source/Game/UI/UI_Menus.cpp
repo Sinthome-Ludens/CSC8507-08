@@ -544,15 +544,18 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
     ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "DISPLAY");
     ImGui::Spacing();
 
-    const char* resolutions[] = {"1280 x 720", "1600 x 900", "1920 x 1080"};
+    // Build label array from centralized presets
+    const char* resLabels[kResolutionCount];
+    for (int i = 0; i < kResolutionCount; ++i) resLabels[i] = kResolutions[i].label;
+
     int resIdx = static_cast<int>(ui.resolutionIndex);
     ImGui::Text("Resolution:");
     ImGui::SameLine(160.0f);
     if (ui.isFullscreen) ImGui::BeginDisabled();
-    if (ImGui::Combo("##Resolution", &resIdx, resolutions, 3)) {
+    if (ImGui::Combo("##Resolution", &resIdx, resLabels, kResolutionCount)) {
         ui.resolutionIndex = static_cast<int8_t>(resIdx);
         ui.resolutionChanged = true;
-        LOG_INFO("[UI_Menus] Resolution changed: " << resolutions[resIdx]);
+        LOG_INFO("[UI_Menus] Resolution changed: " << resLabels[resIdx]);
     }
     if (ui.isFullscreen) ImGui::EndDisabled();
 

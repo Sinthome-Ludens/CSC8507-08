@@ -4,6 +4,18 @@
 
 namespace ECS {
 
+struct ResolutionPreset {
+    int width;
+    int height;
+    const char* label;
+};
+static constexpr ResolutionPreset kResolutions[] = {
+    { 1280, 720,  "1280 x 720"  },
+    { 1600, 900,  "1600 x 900"  },
+    { 1920, 1080, "1920 x 1080" },
+};
+static constexpr int kResolutionCount = 3;
+
 enum class UIScreen : uint8_t {
     None = 0,
     TitleScreen,
