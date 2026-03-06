@@ -498,8 +498,8 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
         IM_COL32(245, 238, 232, 255));
 
     // Settings panel centered (responsive to viewport)
-    float panelW = std::min(500.0f, vpSize.x * 0.45f);
-    float panelH = std::min(460.0f, vpSize.y * 0.70f);
+    float panelW = std::clamp(vpSize.x * 0.45f, 380.0f, 500.0f);
+    float panelH = std::clamp(vpSize.y * 0.70f, 340.0f, 460.0f);
     float panelX = vpPos.x + (vpSize.x - panelW) * 0.5f;
     float panelY = vpPos.y + (vpSize.y - panelH) * 0.5f;
 
