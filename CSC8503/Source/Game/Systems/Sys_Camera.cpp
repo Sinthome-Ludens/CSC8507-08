@@ -76,14 +76,21 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
 
     // UI 阻塞时（菜单/暂停等）跳过所有相机输入，防止 WarpCursorToCenter
     // 拉回光标、鼠标旋转干扰菜单操作、WASD 意外移动相机
-    const bool uiBlocking = registry.has_ctx<Res_UIState>()
-                          && registry.ctx<Res_UIState>().isUIBlockingInput;
+    bool uiBlocking = false;
+    float uiSensitivity = -1.0f;   // < 0 表示未配置，使用组件默认值
+    if (registry.has_ctx<Res_UIState>()) {
+        const auto& ui = registry.ctx<Res_UIState>();
+        uiBlocking    = ui.isUIBlockingInput;
+        uiSensitivity = ui.mouseSensitivity;
+    }
 
     bool cursorFree = false;
 
     registry.view<C_T_MainCamera, C_D_Camera, C_D_Transform>().each(
         [&](EntityID /*id*/, C_T_MainCamera&, C_D_Camera& cam, C_D_Transform& tf)
         {
+            // ── 同步 Settings 鼠标灵敏度到相机组件 ──────────────────────────
+            if (uiSensitivity >= 0.0f) cam.sensitivity = uiSensitivity;
             // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）────
             // UI 阻塞时仍跟踪，但不影响光标（Sys_UI 覆盖）
             auto* kb = Window::GetKeyboard();
