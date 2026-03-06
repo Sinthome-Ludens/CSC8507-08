@@ -54,9 +54,16 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         state.capsuleMeshHandle = capsuleMesh;
         registry.ctx_emplace<Res_TestState>(std::move(state));
     } else {
+        // Registry 复用场景重入：更新 mesh handle 并重置所有运行时列表与索引，
+        // 防止上一次场景遗留的失效 EntityID 污染本次的面板显示与删除逻辑。
         auto& state = registry.ctx<Res_TestState>();
-        state.cubeMeshHandle = cubeMesh;
+        state.cubeMeshHandle    = cubeMesh;
         state.capsuleMeshHandle = capsuleMesh;
+        state.cubeEntities.clear();
+        state.capsuleEntities.clear();
+        state.spawnIndex        = 0;
+        state.capsuleSpawnIndex = 0;
+        state.capsuleOverlapSpawn = false;
     }
 
     // 敌人实体池状态（由 Sys_ImGuiPhysicsTest 读写）

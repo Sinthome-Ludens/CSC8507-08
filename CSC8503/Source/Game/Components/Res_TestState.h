@@ -1,3 +1,7 @@
+/**
+ * @file Res_TestState.h
+ * @brief 物理测试场景的全局调试状态资源（Cube / Capsule 生成管理）
+ */
 #pragma once
 
 #include "Core/ECS/EntityID.h"

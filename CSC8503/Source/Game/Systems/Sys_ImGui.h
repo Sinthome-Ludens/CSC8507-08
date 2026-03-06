@@ -1,3 +1,7 @@
+/**
+ * @file Sys_ImGui.h
+ * @brief ImGui 渲染系统接口声明：主菜单栏、Debug 窗口、测试场景控制面板
+ */
 #pragma once
 #ifdef USE_IMGUI
 

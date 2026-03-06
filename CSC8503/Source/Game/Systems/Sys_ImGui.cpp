@@ -1,3 +1,7 @@
+/**
+ * @file Sys_ImGui.cpp
+ * @brief ImGui 渲染系统实现：主菜单栏、Debug 窗口、测试场景控制面板（Cube/Capsule/Gravity）
+ */
 #include "Sys_ImGui.h"
 #ifdef USE_IMGUI
 
@@ -18,6 +22,7 @@
 #include "Constraint.h"
 #include "PhysicsSystem.h"
 #include "GameTechRendererInterface.h"
+#include <algorithm>
 #include <iterator>
 #include <cmath>
 
@@ -525,7 +530,19 @@ void Sys_ImGui::CleanupTestEntities(Registry& registry, Res_TestState& state) {
 // ============================================================
 // SetGravityAll
 // ============================================================
-
+/**
+ * @brief 批量设置所有测试实体（cube + capsule）的 gravity_factor。
+ *
+ * @details
+ * - 操作前调用 CleanupTestEntities() 做防御性清理，移除已失效的 EntityID，
+ *   防止遍历过程中操作悬空实体。
+ * - 同时遍历 cubeEntities 和 capsuleEntities，对持有 C_D_RigidBody 的实体
+ *   写入新的 gravity_factor 值。
+ * - 仅在用户点击 Enable/Disable Gravity 按钮时触发，非每帧路径。
+ *
+ * @param registry  当前 ECS Registry
+ * @param factor    重力系数（1.0f = 正常重力，0.0f = 禁用）
+ */
 void Sys_ImGui::SetGravityAll(Registry& registry, float factor) {
     if (!registry.has_ctx<Res_TestState>()) return;
     auto& state = registry.ctx<Res_TestState>();
