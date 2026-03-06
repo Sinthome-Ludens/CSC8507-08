@@ -66,15 +66,45 @@ jobs:
         shell: pwsh
         run: |
           $buildDir = "${{ github.workspace }}/cmake-build-release-visual-studio"
-          $binDir = Join-Path $buildDir "Release"
           $stageDir = Join-Path "${{ github.workspace }}" "release-opengl"
 
           if (Test-Path $stageDir) { Remove-Item -Recurse -Force $stageDir }
           New-Item -ItemType Directory -Path $stageDir | Out-Null
 
-          Copy-Item (Join-Path $binDir "CSC8503.exe") $stageDir -Force
+          $candidateExePaths = @(
+            (Join-Path "${{ github.workspace }}" "x64/Release/CSC8503.exe"),
+            (Join-Path $buildDir "Release/CSC8503.exe"),
+            (Join-Path $buildDir "CSC8503/Release/CSC8503.exe")
+          )
 
-          Get-ChildItem -Path $buildDir -Recurse -Filter *.dll | ForEach-Object {
+          $exePath = $null
+          foreach ($candidate in $candidateExePaths) {
+            if (Test-Path $candidate) {
+              $exePath = $candidate
+              break
+            }
+          }
+
+          if (-not $exePath) {
+            $foundExe = Get-ChildItem -Path "${{ github.workspace }}" -Recurse -Filter CSC8503.exe -ErrorAction SilentlyContinue |
+              Sort-Object LastWriteTime -Descending |
+              Select-Object -First 1
+            if ($foundExe) {
+              $exePath = $foundExe.FullName
+            }
+          }
+
+          if (-not $exePath) {
+            Write-Host "CSC8503.exe not found. Checked candidates:"
+            $candidateExePaths | ForEach-Object { Write-Host "  $_" }
+            throw "Unable to locate CSC8503.exe for release packaging"
+          }
+
+          Write-Host "Using executable: $exePath"
+          Copy-Item $exePath $stageDir -Force
+
+          $exeDir = Split-Path $exePath -Parent
+          Get-ChildItem -Path $exeDir -Filter *.dll -ErrorAction SilentlyContinue | ForEach-Object {
             Copy-Item $_.FullName $stageDir -Force
           }
 

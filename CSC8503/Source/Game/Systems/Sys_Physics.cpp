@@ -1,6 +1,5 @@
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
-#include "Game/Components/C_D_PlayerInput.h"
 #include <iostream>
 #include <cfloat>
 #include <cmath>
@@ -91,11 +90,11 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
     m_PhysicsSystem->SetContactListener(&m_ContactListener);
 
     // 注册 EventBus 到 Registry Context（EventBus 不可复制，以裸指针注册）
-    // 无条件覆盖，防止场景切换后残留悬空指针
+    // 无条件覆盖：场景重进时 registry.Clear() 不清 ctx，旧指针可能悬空
     m_EventBus = std::make_unique<ECS::EventBus>();
     registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
 
-    // 注册 Sys_Physics* 到 ctx，供其他系统（如 Sys_Gameplay / Sys_Movement）访问物理接口
+    // 注册 Sys_Physics* 到 ctx，供其他系统（如 Sys_Movement / Sys_StealthMetrics）访问物理接口
     // 无条件覆盖，防止场景切换后残留悬空指针
     registry.ctx_emplace<Sys_Physics*>(this);
 
@@ -158,9 +157,6 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     m_Accumulator += dt;
     int steps = 0;
     while (m_Accumulator >= FIXED_DT && steps < 4) {  // 最多步进 4 次防止螺旋死亡
-        // 2.8 处理玩家输入驱动（严格在每次物理步进前应用，防止多步进时的摩擦力衰减导致插值抖动）
-        ApplyPlayerInputs(registry);
-
         m_PhysicsSystem->Update(FIXED_DT, 1, m_TempAllocator.get(), m_JobSystem.get());
         m_Accumulator -= FIXED_DT;
         ++steps;
@@ -192,12 +188,12 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     m_JobSystem.reset();
     m_TempAllocator.reset();
 
-// 清除 ctx 中的裸指针，防止场景切换后悬空引用 (保留自 feat 分支)
+    // 清除 ctx 中的裸指针，防止场景切换后悬空引用
     if (registry.has_ctx<Sys_Physics*>()) {
-        registry.ctx_erase<Sys_Physics*>(); // 优化为彻底擦除，而非赋值为 nullptr
+        registry.ctx_erase<Sys_Physics*>();
     }
 
-    // 如果此系统拥有并注册了 EventBus，将其从上下文中移除，防止留下悬空指针 (保留自 master 分支)
+    // 如果此系统拥有并注册了 EventBus，将其从上下文中移除，防止留下悬空指针
     if (registry.has_ctx<ECS::EventBus*>()) {
         ECS::EventBus* bus = registry.ctx<ECS::EventBus*>();
         if (m_EventBus && bus == m_EventBus.get()) {
@@ -575,27 +571,4 @@ void ECS::Sys_Physics::SetPosition(uint32_t joltBodyID, float px, float py, floa
 void ECS::Sys_Physics::ActivateBody(uint32_t joltBodyID) {
     if (!m_PhysicsSystem) return;
     m_PhysicsSystem->GetBodyInterface().ActivateBody(JPH::BodyID(joltBodyID));
-}
-// ============================================================
-// ApplyPlayerInputs (来自 master)
-// ============================================================
-void ECS::Sys_Physics::ApplyPlayerInputs(Registry& reg) {
-    auto& bi = m_PhysicsSystem->GetBodyInterface();
-    const float speed = 10.0f;
-    reg.view<C_D_PlayerInput, C_D_RigidBody>().each(
-        [&](EntityID id, C_D_PlayerInput& input, C_D_RigidBody& rb) {
-            if (!rb.body_created || rb.is_kinematic || rb.is_static) return;
-            float vx = 0.0f, vz = 0.0f;
-            if (input.buttonMask & PlayerInputFlags::Left)  vx -= speed;
-            if (input.buttonMask & PlayerInputFlags::Right) vx += speed;
-            if (input.buttonMask & PlayerInputFlags::Up)    vz -= speed;
-            if (input.buttonMask & PlayerInputFlags::Down)  vz += speed;
-            JPH::BodyID jid(rb.jolt_body_id);
-            if (vx != 0.0f || vz != 0.0f) {
-                bi.ActivateBody(jid);
-            }
-            JPH::Vec3 curVel = bi.GetLinearVelocity(jid);
-            SetLinearVelocity(rb.jolt_body_id, vx, curVel.GetY(), vz);
-        }
-    );
 }

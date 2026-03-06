@@ -1,14 +1,13 @@
 /**
  * @file Sys_Input.h
- * @brief 输入系统：每帧从 NCL 窗口同步输入状态到 ECS 全局资源 Res_Input
+ * @brief 输入系统：每帧从 NCL 窗口同步输入状态到 ECS 全局资源 Res_Input（优先级 10）
  *
  * @details
  * `Sys_Input` 是 ECS 管线的入口系统之一，负责在所有逻辑系统运行前，
  * 调用 `InputAdapter` 将物理设备的输入快照同步到 `Res_Input`。
+ * 保证所有后续系统读取到同一帧的输入快照。
  *
- * ## 职责
- * 1. 在 `OnAwake` 时确保 `Res_Input` 已注册。
- * 2. 在 `OnUpdate` 时调用 `InputAdapter::Update`。
+ * 写：Res_Input（Registry ctx）
  *
  * @see Res_Input
  * @see InputAdapter

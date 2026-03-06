@@ -57,12 +57,21 @@
 在项目根目录执行：
 
 ```bash
-mkdir External
-git clone --depth 1 https://github.com/assimp/assimp.git External/assimp
-git clone --depth 1 https://github.com/lsalzman/enet.git External/enet
-git clone --depth 1 https://github.com/jrouwe/JoltPhysics.git External/JoltPhysics
-git clone --depth 1 https://github.com/nlohmann/json.git External/nlohmann_json
-git clone -b docking --depth 1 https://github.com/ocornut/imgui.git External/imgui
+mkdir -p External
+
+
+ASSIMP_VERSION=v6.0.4
+ENET_VERSION=v1.3.18
+JOLT_VERSION=v5.5.0
+JSON_VERSION=v3.12.0
+IMGUI_VERSION=v1.92.6-docking
+
+git clone --depth 1 --branch $ASSIMP_VERSION https://github.com/assimp/assimp.git External/assimp
+git clone --depth 1 --branch $ENET_VERSION https://github.com/lsalzman/enet.git External/enet
+git clone --depth 1 --branch $JOLT_VERSION https://github.com/jrouwe/JoltPhysics.git External/JoltPhysics
+git clone --depth 1 --branch $JSON_VERSION https://github.com/nlohmann/json.git External/nlohmann_json
+git clone --depth 1 --branch $IMGUI_VERSION https://github.com/ocornut/imgui.git External/imgui
+
 ```
 
 ## 使用 CMake 编译本项目
