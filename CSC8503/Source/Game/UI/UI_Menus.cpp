@@ -563,10 +563,15 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
 
     ImGui::Text("Fullscreen:");
     ImGui::SameLine(160.0f);
+    ImGui::PushStyleColor(ImGuiCol_FrameBg,        ImVec4(0.063f, 0.051f, 0.039f, 0.8f));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,  ImVec4(0.15f, 0.12f, 0.10f, 0.8f));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,   ImVec4(0.20f, 0.16f, 0.13f, 0.8f));
+    ImGui::PushStyleColor(ImGuiCol_CheckMark,       ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
     if (ImGui::Checkbox("##Fullscreen", &ui.isFullscreen)) {
         ui.fullscreenChanged = true;
         LOG_INFO("[UI_Menus] Fullscreen request: " << (ui.isFullscreen ? "ON" : "OFF"));
     }
+    ImGui::PopStyleColor(4);
 
     ImGui::Spacing();
     ImGui::Spacing();
