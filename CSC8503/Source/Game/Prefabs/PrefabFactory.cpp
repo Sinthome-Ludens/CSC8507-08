@@ -1,3 +1,22 @@
+/**
+ * @file PrefabFactory.cpp
+ * @brief 实体预制体工厂实现：各 Prefab 的组件组装与物理/渲染对齐策略
+ *
+ * @details
+ * ## 胶囊体渲染缩放说明
+ *
+ * 项目所用的 Capsule.obj（来自 Assets/Meshes/）原始尺寸未归一化：
+ *   - 半径（XZ）≈ 1.1835 单位
+ *   - 总高度（Y）≈ 4.2514 单位
+ *
+ * 为使渲染网格与 Jolt 物理胶囊体对齐，各 Prefab 的 Transform::scale 按下列公式推导：
+ *   - scale_XZ = phys_radius   / mesh_radius   (= 0.5 / 1.1835)
+ *   - scale_Y  = phys_total_h  / mesh_total_h  (= (2*halfH + 2*r) / 4.2514)
+ *
+ * 正确做法是将 Capsule.obj 在 DCC 工具中归一化后重新导出，届时缩放可恢复为 (1,1,1)。
+ * 在归一化完成之前，每个使用 Capsule.obj 的 Prefab 必须按其各自的物理参数单独计算缩放，
+ * 不得在不同物理尺寸的 Prefab 之间共用同一套缩放值。
+ */
 #include "PrefabFactory.h"
 
 #include "Game/Components/C_D_Transform.h"
@@ -348,6 +367,23 @@ EntityID PrefabFactory::CreatePhysicsEnemy(
 // ============================================================
 // CreateNavEnemy  →  PREFAB_NAV_ENEMY (来自 feat/navtest-scene)
 // ============================================================
+/**
+ * @brief 创建带 NavAgent 的导航敌人实体（PREFAB_NAV_ENEMY）的实现。
+ *
+ * @details
+ * **渲染缩放对齐（Capsule.obj → 物理胶囊体）：**
+ *
+ * Capsule.obj 原始尺寸：半径 ≈ 1.1835，总高 ≈ 4.2514。
+ * 本 Prefab 的物理碰撞体参数：radius=0.5，halfHeight=1.0，
+ * 对应 Jolt 胶囊总高度 = 2×1.0 + 2×0.5 = 3.0。
+ *
+ * 推导：
+ *   scale_XZ = 0.5  / 1.1835 ≈ 0.4225
+ *   scale_Y  = 3.0  / 4.2514 ≈ 0.7058
+ *
+ * 注意：NavEnemy 与 CreatePhysicsCapsule 的物理尺寸不同（halfHeight 1.0 vs 0.5），
+ * 因此两者的 Y 缩放必须各自独立计算，不可共用。
+ */
 EntityID PrefabFactory::CreateNavEnemy(
     Registry&       reg,
     ECS::MeshHandle enemyMesh,
@@ -356,10 +392,13 @@ EntityID PrefabFactory::CreateNavEnemy(
 {
     EntityID entity = reg.Create();
 
+    // 缩放推导见文件头注释与函数 Doxygen
+    // scale_XZ = phys_radius(0.5) / mesh_radius(1.1835) ≈ 0.4225
+    // scale_Y  = phys_total_h(3.0) / mesh_total_h(4.2514) ≈ 0.7058
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(1.0f, 1.0f, 1.0f)
+        Vector3(0.4225f, 0.7058f, 0.4225f)
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
@@ -457,6 +496,23 @@ EntityID PrefabFactory::CreateNavTarget(
 // ============================================================
 // CreatePhysicsCapsule  →  PREFAB_PHYSICS_CAPSULE (来自 master)
 // ============================================================
+/**
+ * @brief 创建动态物理胶囊体实体（PREFAB_PHYSICS_CAPSULE）的实现。
+ *
+ * @details
+ * **渲染缩放对齐（Capsule.obj → 物理胶囊体）：**
+ *
+ * Capsule.obj 原始尺寸：半径 ≈ 1.1835，总高 ≈ 4.2514。
+ * 本 Prefab 的物理碰撞体参数：radius=0.5，halfHeight=0.5，
+ * 对应 Jolt 胶囊总高度 = 2×0.5 + 2×0.5 = 2.0。
+ *
+ * 推导：
+ *   scale_XZ = 0.5  / 1.1835 ≈ 0.4225
+ *   scale_Y  = 2.0  / 4.2514 ≈ 0.4704
+ *
+ * **锁轴说明：** lock_rotation_x/z 防止胶囊在碰撞中侧翻，保持竖直姿态。
+ * **阻尼说明：** linear/angular_damping=0.05 提供轻微稳定性，避免无限滑行。
+ */
 EntityID PrefabFactory::CreatePhysicsCapsule(
     Registry&       reg,
     ECS::MeshHandle capsuleMesh,
@@ -465,10 +521,13 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
 {
     EntityID entity = reg.Create();
 
+    // 缩放推导见文件头注释与函数 Doxygen
+    // scale_XZ = phys_radius(0.5) / mesh_radius(1.1835) ≈ 0.4225
+    // scale_Y  = phys_total_h(2.0) / mesh_total_h(4.2514) ≈ 0.4704
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(1.0f, 1.0f, 1.0f)
+        Vector3(0.4225f, 0.4704f, 0.4225f)
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
@@ -481,9 +540,11 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
     rb.gravity_factor  = 1.0f;
     rb.linear_damping  = 0.05f;
     rb.angular_damping = 0.05f;
+    rb.lock_rotation_x = true;
+    rb.lock_rotation_z = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    // Capsule.obj 总高度 2.0：2 * half_height(0.5) + 2 * radius(0.5) = 2.0
+    // 物理胶囊总高度 2.0：2 * half_height(0.5) + 2 * radius(0.5) = 2.0
     C_D_Collider col{};
     col.type        = ColliderType::Capsule;
     col.half_x      = 0.5f;   // radius
