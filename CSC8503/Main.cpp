@@ -175,6 +175,10 @@ int main(int argc, char** argv) {
 					w->SetFullScreen(ui.isFullscreen);
 					ui.fullscreenChanged = false;
 				}
+
+				// Cursor management (driven by Sys_UI flags)
+				w->ShowOSPointer(ui.cursorVisible);
+				w->LockMouseToWindow(ui.cursorLocked);
 			}
 		}
 

@@ -82,6 +82,10 @@ struct Res_UIState {
     uint8_t   loadingMsgIndex      = 0;     // 当前显示到的系统消息索引
     float     loadingMsgTimer      = 0.0f;  // 消息轮播计时器
 
+    // Cursor management (written by Sys_UI, read by Main.cpp)
+    bool      cursorVisible        = true;   ///< Main.cpp → ShowOSPointer()
+    bool      cursorLocked         = false;  ///< Main.cpp → LockMouseToWindow()
+
     // DevMode (Fix 3: toast cycle needs memory; others derive from current state)
     uint8_t   devToastCycle        = 0;
 
