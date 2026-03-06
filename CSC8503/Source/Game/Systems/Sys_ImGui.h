@@ -2,6 +2,7 @@
 #ifdef USE_IMGUI
 
 #include "Core/ECS/BaseSystem.h"
+#include "Game/Components/Res_TestState.h"
 
 namespace ECS {
 
@@ -37,9 +38,12 @@ private:
     void RenderCubeDebugWindow   (Registry& registry);  ///< 浮动 Debug 窗口：per-cube 状态
     void RenderNetworkDebugWindow(Registry& registry);  ///< 网络调试面板：状态/流量/NetID映射
 
-    void SpawnCube     (Registry& registry);             ///< 通过 PrefabFactory 生成动态方块
-    void DeleteLastCube(Registry& registry);             ///< 销毁最后生成的方块
-    void SetGravityAll (Registry& registry, float factor); ///< 批量修改 gravity_factor
+    void SpawnCube          (Registry& registry);                          ///< 通过 PrefabFactory 生成动态方块
+    void DeleteLastCube     (Registry& registry);                          ///< 销毁最后生成的方块
+    void SpawnCapsule       (Registry& registry);                          ///< 通过 PrefabFactory 生成动态胶囊
+    void DeleteLastCapsule  (Registry& registry);                          ///< 销毁最后生成的胶囊
+    void SetGravityAll      (Registry& registry, float factor);            ///< 批量修改 gravity_factor（cube + capsule）
+    void CleanupTestEntities(Registry& registry, Res_TestState& state);    ///< 清除实体列表中已失效的 EntityID
 
     // ── 窗口可见标志（系统配置，非游戏状态）────────────────────────────
     bool m_ShowDemoWindow  = false;

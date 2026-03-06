@@ -18,7 +18,8 @@ struct Res_TestState {
     std::vector<ECS::EntityID> cubeEntities;                         ///< 存活的动态 cube 实体列表
     int                        spawnIndex     = 0;                   ///< 下一个 cube 的生成偏移索引
 
-    ECS::MeshHandle            capsuleMeshHandle = ECS::INVALID_HANDLE; ///< 共享 capsule mesh 句柄
-    std::vector<ECS::EntityID> capsuleEntities;                         ///< 存活的动态 capsule 实体列表
-    int                        capsuleSpawnIndex = 0;                   ///< 下一个 capsule 的生成偏移索引
+    ECS::MeshHandle            capsuleMeshHandle   = ECS::INVALID_HANDLE; ///< 共享 capsule mesh 句柄
+    std::vector<ECS::EntityID> capsuleEntities;                           ///< 存活的动态 capsule 实体列表
+    int                        capsuleSpawnIndex   = 0;                   ///< 下一个 capsule 的生成偏移索引
+    bool                       capsuleOverlapSpawn = false;               ///< 近重叠生成模式开关（true=微扰动密集，false=网格分散）
 };

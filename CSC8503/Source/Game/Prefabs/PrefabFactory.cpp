@@ -236,7 +236,7 @@ EntityID PrefabFactory::CreateNavEnemy(
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(0.42f, 0.47f, 0.42f)
+        Vector3(1.0f, 1.0f, 1.0f)
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
