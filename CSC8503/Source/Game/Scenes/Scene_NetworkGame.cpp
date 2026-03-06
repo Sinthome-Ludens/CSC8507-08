@@ -17,6 +17,11 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_UI.h"
+#include "Game/Systems/Sys_Chat.h"
+#include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_GameState.h"
+#include "Game/UI/UI_Toast.h"
 #endif
 
 #include "Game/Components/C_D_NetworkIdentity.h"
@@ -87,10 +92,35 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Render>       (200);
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>        (300);
+    systems.Register<ECS::Sys_Chat>         (450);
+    systems.Register<ECS::Sys_UI>           (500);
 #endif
 
-    // 5. 启动
+    // 5. 初始化游戏状态（多人模式）
+#ifdef USE_IMGUI
+    {
+        auto& gs = registry.ctx_emplace<ECS::Res_GameState>();
+        gs.isMultiplayer = true;
+    }
+#endif
+
+    // 6. 启动
     systems.AwakeAll(registry);
+
+    // 7. 设置 UI 为 HUD 模式 + FadeIn
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_UIState>()) {
+        auto& ui = registry.ctx<ECS::Res_UIState>();
+        ui.previousScreen       = ui.activeScreen;
+        ui.activeScreen         = ECS::UIScreen::HUD;
+        ui.pendingSceneRequest  = ECS::SceneRequest::None;
+        ui.transitionActive     = true;
+        ui.transitionTimer      = 0.0f;
+        ui.transitionDuration   = 0.5f;
+        ui.transitionType       = 0;  // FadeIn
+    }
+    ECS::UI::PushToast(registry, "MULTIPLAYER CONNECTED", ECS::ToastType::Success, 2.5f);
+#endif
 
     LOG_INFO("[Scene_NetworkGame] OnEnter complete. Mode=" << (m_Mode == ECS::PeerType::SERVER ? "SERVER" : "CLIENT"));
 }
@@ -108,6 +138,11 @@ void Scene_NetworkGame::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<Res_UIFlags>()) {
         registry.ctx_erase<Res_UIFlags>();
     }
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_GameState>()) {
+        registry.ctx_erase<ECS::Res_GameState>();
+    }
+#endif
     registry.Clear();
     LOG_INFO("[Scene_NetworkGame] OnExit complete.");
 }
