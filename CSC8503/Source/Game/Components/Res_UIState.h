@@ -95,7 +95,10 @@ struct Res_UIState {
     uint8_t   loadingMsgIndex      = 0;     // 当前显示到的系统消息索引
     float     loadingMsgTimer      = 0.0f;  // 消息轮播计时器
 
-    // Cursor management (written by Sys_UI, read by Main.cpp)
+    // Cursor management
+    // gameCursorFree: Sys_Camera 写入（Alt 键状态），Sys_UI 读取用于 HUD 模式光标决策
+    // cursorVisible / cursorLocked: Sys_Camera 写 fallback，Sys_UI 写最终值，Main.cpp 读取并应用
+    bool      gameCursorFree       = false;  ///< true = Alt 按住，游戏内光标自由模式
     bool      cursorVisible        = true;   ///< Main.cpp → ShowOSPointer()
     bool      cursorLocked         = false;  ///< Main.cpp → LockMouseToWindow()
 

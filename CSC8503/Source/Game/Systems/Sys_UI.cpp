@@ -311,9 +311,12 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     ui.isUIBlockingInput = (ui.activeScreen != UIScreen::None
                          && ui.activeScreen != UIScreen::HUD);
 
-    // Sys_UI (priority 500) runs AFTER Sys_Camera (priority 50).
-    // Set cursor flags for Main.cpp to read — no direct Window API calls.
+    // Sys_UI (priority 500) runs AFTER Sys_Camera (priority 50/180).
+    // 最终仲裁光标状态：菜单模式显示光标，游戏模式依据 gameCursorFree（Alt 键）。
     if (ui.isUIBlockingInput) {
+        ui.cursorVisible = true;
+        ui.cursorLocked  = false;
+    } else if (ui.gameCursorFree) {
         ui.cursorVisible = true;
         ui.cursorLocked  = false;
     } else {

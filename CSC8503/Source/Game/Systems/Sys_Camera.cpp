@@ -10,6 +10,7 @@
 #include "Game/Components/C_T_MainCamera.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Components/Res_NCL_Pointers.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/Assert.h"
@@ -73,6 +74,8 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
     auto* win = Window::GetWindow();
     const bool windowActive = (win != nullptr) && win->IsActiveWindow();
 
+    bool cursorFree = false;
+
     registry.view<C_T_MainCamera, C_D_Camera, C_D_Transform>().each(
         [&](EntityID /*id*/, C_T_MainCamera&, C_D_Camera& cam, C_D_Transform& tf)
         {
@@ -81,12 +84,10 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
             if (kb && windowActive) {
                 cam.cursor_free = kb->KeyDown(KeyCodes::MENU);
             }
+            cursorFree = cam.cursor_free;
 
-            // 每帧设置光标状态（而非仅在状态变化时），确保进入 HUD 时正确初始化
-            if (win && windowActive) {
-                win->ShowOSPointer(cam.cursor_free);
-                win->LockMouseToWindow(!cam.cursor_free);
-            }
+            // 光标状态通过 Res_UIState 传递，不直接调用 Window API。
+            // Sys_UI（优先级更高）在有 UI 阻塞时覆盖此处设置的值。
 
             // ── 鼠标旋转（cursor_free 模式下禁用）──────────────────────────
             auto* mouse = Window::GetMouse();
@@ -130,6 +131,16 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                 .SetYaw(cam.yaw);
         }
     );
+
+    // ── 光标状态写入 Res_UIState（单通道，由 Main.cpp 统一应用）──────
+    // 此处为 fallback：没有 Sys_UI 的场景（如 NavTest）直接使用此值。
+    // 有 Sys_UI 的场景中，Sys_UI（优先级 500，后运行）会覆盖这些值。
+    if (registry.has_ctx<Res_UIState>()) {
+        auto& ui = registry.ctx<Res_UIState>();
+        ui.gameCursorFree = cursorFree;
+        ui.cursorVisible  = cursorFree;
+        ui.cursorLocked   = !cursorFree;
+    }
 }
 
 // ============================================================
