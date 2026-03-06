@@ -184,6 +184,9 @@ int main(int argc, char** argv) {
 				if (ui.fullscreenChanged) {
 					w->SetFullScreen(ui.isFullscreen);
 					ui.fullscreenChanged = false;
+					if (!ui.isFullscreen) {
+						ui.resolutionChanged = true;  // sync window to resolutionIndex on exit
+					}
 				}
 
 				// Cursor management (driven by Sys_UI flags)

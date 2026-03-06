@@ -548,11 +548,13 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
     int resIdx = static_cast<int>(ui.resolutionIndex);
     ImGui::Text("Resolution:");
     ImGui::SameLine(160.0f);
+    if (ui.isFullscreen) ImGui::BeginDisabled();
     if (ImGui::Combo("##Resolution", &resIdx, resolutions, 3)) {
         ui.resolutionIndex = static_cast<int8_t>(resIdx);
         ui.resolutionChanged = true;
         LOG_INFO("[UI_Menus] Resolution changed: " << resolutions[resIdx]);
     }
+    if (ui.isFullscreen) ImGui::EndDisabled();
 
     ImGui::Spacing();
 
