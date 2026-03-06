@@ -21,16 +21,15 @@ struct TeamMember {
 };
 
 static const TeamMember kTeamMembers[] = {
-    {"MEMBER 1",  "LEAD PROGRAMMER"},
-    {"MEMBER 2",  "GAMEPLAY PROGRAMMER"},
-    {"MEMBER 3",  "GRAPHICS PROGRAMMER"},
-    {"MEMBER 4",  "AI PROGRAMMER"},
-    {"MEMBER 5",  "NETWORK PROGRAMMER"},
-    {"MEMBER 6",  "PHYSICS PROGRAMMER"},
-    {"MEMBER 7",  "UI PROGRAMMER"},
-    {"MEMBER 8",  "AUDIO PROGRAMMER"},
+    {"PENGGAN ZHAO",   "UI + SCENE MANAGEMENT"},
+    {"JIANRAN YU",     "ECS BRIDGE + RENDERING"},
+    {"YIJUN DONG",     "VFX + CAMERA"},
+    {"WEIFENG CHEN",   "NETWORK"},
+    {"SHULIANG CHU",   "BEHAVIOUR + DEBUG"},
+    {"YIHAN LIN",      "ITEMS + EQUIPMENT"},
+    {"BEINING ZHANG",  "AI: BEHAVIOUR TREE + FSM"},
 };
-static constexpr int kTeamMemberCount = 8;
+static constexpr int kTeamMemberCount = 7;
 
 void RenderTeamScreen(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_UIState>()) return;
