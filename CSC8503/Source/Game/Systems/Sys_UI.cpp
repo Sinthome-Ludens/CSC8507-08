@@ -171,12 +171,20 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                 ui.splashTimer = 0.0f;
                 LOG_INFO("[Sys_UI] MainMenu -> Splash (ESC)");
                 break;
-            case UIScreen::HUD:
-                ui.prePauseScreen = ui.activeScreen;
-                ui.activeScreen = UIScreen::PauseMenu;
-                ui.pauseSelectedIndex = 0;
-                LOG_INFO("[Sys_UI] HUD -> PauseMenu (ESC)");
+            case UIScreen::HUD: {
+                bool isMP = registry.has_ctx<Res_GameState>()
+                         && registry.ctx<Res_GameState>().isMultiplayer;
+                if (isMP) {
+                    UI::PushToast(registry, "PAUSE UNAVAILABLE IN MULTIPLAYER", ToastType::Warning);
+                    LOG_INFO("[Sys_UI] HUD ESC blocked — multiplayer mode");
+                } else {
+                    ui.prePauseScreen = ui.activeScreen;
+                    ui.activeScreen = UIScreen::PauseMenu;
+                    ui.pauseSelectedIndex = 0;
+                    LOG_INFO("[Sys_UI] HUD -> PauseMenu (ESC)");
+                }
                 break;
+            }
             case UIScreen::PauseMenu:
                 ui.activeScreen = ui.prePauseScreen;
                 LOG_INFO("[Sys_UI] PauseMenu -> Resume (ESC)");
@@ -313,8 +321,10 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         ui.cursorLocked  = true;
     }
 
-    // Scanline overlay (subtle CRT effect, always on)
-    UI::RenderScanlineOverlay(ui.globalTime);
+    // Scanline overlay (CRT effect, menus only — skipped during HUD/None)
+    if (ui.activeScreen != UIScreen::HUD && ui.activeScreen != UIScreen::None) {
+        UI::RenderScanlineOverlay(ui.globalTime);
+    }
 
     // Trigger CRT FadeOut transition on pending scene requests
     if (ui.pendingSceneRequest != SceneRequest::None && !ui.transitionActive) {
