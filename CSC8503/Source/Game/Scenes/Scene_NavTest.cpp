@@ -91,5 +91,11 @@ void Scene_NavTest::OnExit(ECS::Registry&      registry,
     systems.DestroyAll(registry);
     m_Pathfinder.reset();
 
+    // 清除场景级 ctx 资源，防止跨场景状态泄漏（registry.Clear() 不清除 ctx）
+    if (registry.has_ctx<Res_UIFlags>())      registry.ctx_erase<Res_UIFlags>();
+    if (registry.has_ctx<Res_NavTestState>()) registry.ctx_erase<Res_NavTestState>();
+
+    registry.Clear();
+
     LOG_INFO("[Scene_NavTest] OnExit complete. All systems destroyed.");
 }

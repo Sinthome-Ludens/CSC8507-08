@@ -45,7 +45,7 @@ public:
      *
      * 应在此处：
      *   - 调用 systems.DestroyAll(registry)（逆序停机）
-     *   - TODO: 调用 registry.Clear() 回收所有实体（待 Registry 实现后启用）
+     *   - 调用 registry.Clear() 回收所有实体
      *   - 释放场景独占资源（导航网格、特定纹理等）
      *
      * @param registry ECS 注册表

@@ -47,19 +47,32 @@ struct C_D_InterpBuffer {
     int               head  = 0;           ///< 指向最新插入的一项索引（写指针）
     int               count = 0;           ///< 当前缓冲区内的有效元素个数
 
-    /**
-     * @brief 添加一个状态快照到环形缓冲区
-     */
-    void AddSnapshot(const NCL::Maths::Vector3& pos, const NCL::Maths::Quaternion& rot, float timestamp) {
-        snapshots[head].pos = pos;
-        snapshots[head].rot = rot;
-        snapshots[head].timestamp = timestamp;
-        
-        head = (head + 1) % CAPACITY;
-        if (count < CAPACITY) {
-            count++;
+};
+
+/**
+ * @brief 向插值缓冲区添加一个状态快照（自由函数，保持组件为纯数据）
+ *
+ * 丢弃时间戳 <= 最新快照的乱序包，保证环形缓冲区严格按时间递增排列，
+ * 避免 Sys_Interpolation 线性索引时因乱序导致插值崩溃或画面闪烁。
+ */
+inline void InterpBuffer_AddSnapshot(C_D_InterpBuffer& buf,
+    const NCL::Maths::Vector3& pos, const NCL::Maths::Quaternion& rot, float timestamp) {
+    // 丢弃乱序/重复包：新时间戳必须严格大于缓冲区中最新快照的时间戳
+    if (buf.count > 0) {
+        int latest = (buf.head - 1 + C_D_InterpBuffer::CAPACITY) % C_D_InterpBuffer::CAPACITY;
+        if (timestamp <= buf.snapshots[latest].timestamp) {
+            return; // 过时包，直接丢弃
         }
     }
-};
+
+    buf.snapshots[buf.head].pos = pos;
+    buf.snapshots[buf.head].rot = rot;
+    buf.snapshots[buf.head].timestamp = timestamp;
+
+    buf.head = (buf.head + 1) % C_D_InterpBuffer::CAPACITY;
+    if (buf.count < C_D_InterpBuffer::CAPACITY) {
+        buf.count++;
+    }
+}
 
 } // namespace ECS

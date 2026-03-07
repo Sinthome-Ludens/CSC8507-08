@@ -14,7 +14,7 @@ namespace ECS {
  * @brief ImGui 渲染系统
  *
  * 职责：
- *   - 渲染全局菜单栏（Windows / Test Scene 子菜单）
+ *   - 渲染全局菜单栏（Windows / DebugSceneSelector 子菜单）
  *   - 渲染性能 Debug 窗口（FPS / Frame Time / Entity Count）
  *   - 渲染 NCL Status 窗口（GameWorld 对象数 / Physics 状态）
  *   - 渲染测试场景控制面板（Spawn Cube/Capsule / Delete / Gravity 开关）

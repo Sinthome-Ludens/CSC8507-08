@@ -10,6 +10,7 @@
 #include "Game/Components/C_T_MainCamera.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Components/Res_NCL_Pointers.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/Assert.h"
@@ -77,47 +78,54 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
     auto* win = Window::GetWindow();
     const bool windowActive = (win != nullptr) && win->IsActiveWindow();
 
-    // ── F1 键切换 Debug 模式 ──────────────────────────────────────
+    // ── 读取 UI 状态（Linyn-UIdesign）────────────────────────────
+    bool uiBlocking     = false;
+    bool itemWheelOpen  = false;
+    float uiSensitivity = -1.0f;   // < 0 表示未配置，使用组件默认值
+    if (registry.has_ctx<Res_UIState>()) {
+        const auto& ui = registry.ctx<Res_UIState>();
+        uiBlocking     = ui.isUIBlockingInput;
+        uiSensitivity  = ui.mouseSensitivity;
+        itemWheelOpen  = ui.itemWheelOpen;
+    }
+
+    // ── F1 键切换 Debug 模式（master）────────────────────────────
     auto* kbGlobal = Window::GetKeyboard();
-    if (kbGlobal && windowActive) {
-        bool f1Down = kbGlobal->KeyPressed(KeyCodes::F1);
-        if (f1Down) {
+    if (kbGlobal && windowActive && !uiBlocking) {
+        if (kbGlobal->KeyPressed(KeyCodes::F1)) {
             m_DebugMode = !m_DebugMode;
             LOG_INFO("[Sys_Camera] Debug mode " << (m_DebugMode ? "ON" : "OFF"));
             // 关闭 debug 时重置鼠标状态，避免卡在 cursor_free
-            if (!m_DebugMode && win) {
-                win->ShowOSPointer(false);
-                win->LockMouseToWindow(true);
-            }
+            // 光标状态通过 Res_UIState 传递，不直接调用 Window API
         }
     }
+
+    bool cursorFree = false;
 
     registry.view<C_T_MainCamera, C_D_Camera, C_D_Transform>().each(
         [&](EntityID /*id*/, C_T_MainCamera&, C_D_Camera& cam, C_D_Transform& tf)
         {
+            // ── 同步 Settings 鼠标灵敏度到相机组件 ──────────────────────────
+            if (uiSensitivity >= 0.0f) cam.sensitivity = uiSensitivity;
+
             // 关闭 debug 时重置 cursor_free 状态
             if (!m_DebugMode) {
                 cam.cursor_free = false;
             }
 
-            // ── Debug 模式：WASD/鼠标自由飞行（默认关闭）────────────────
+            auto* kb = Window::GetKeyboard();
+
+            // ── Debug 模式：WASD/鼠标自由飞行（默认关闭）────────────────────
             if (m_DebugMode) {
-                // Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）
-                auto* kb = Window::GetKeyboard();
+                // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）──
+                // UI 阻塞时仍跟踪，但不影响输入
                 if (kb && windowActive) {
-                    const bool altHeld = kb->KeyDown(KeyCodes::MENU);
-                    if (altHeld != cam.cursor_free) {
-                        cam.cursor_free = altHeld;
-                        if (win) {
-                            win->ShowOSPointer(altHeld);
-                            win->LockMouseToWindow(!altHeld);
-                        }
-                    }
+                    cam.cursor_free = kb->KeyDown(KeyCodes::MENU);
                 }
 
-                // 鼠标旋转（cursor_free 模式下禁用）
+                // ── 鼠标旋转（cursor_free 或 UI 阻塞时禁用）─────────────────
                 auto* mouse = Window::GetMouse();
-                if (mouse && windowActive && !cam.cursor_free) {
+                if (mouse && windowActive && !cam.cursor_free && !uiBlocking && !itemWheelOpen) {
                     const Vector2 delta = mouse->GetRelativePosition();
                     cam.yaw   -= delta.x * cam.sensitivity;
                     cam.pitch -= delta.y * cam.sensitivity;
@@ -126,11 +134,12 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                     if (win) win->WarpCursorToCenter();
                 }
 
-                // 键盘平移（WASD + Q/E）
-                if (kb && windowActive) {
+                // ── 键盘平移（WASD + Q/E，UI 阻塞时禁用）────────────────────
+                if (kb && windowActive && !uiBlocking) {
                     const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
                     const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
 
+                    // 前方向量（包含 pitch，实现仰望/俯视时仍能前进）
                     const Vector3 forward(
                         -sinf(yawRad) * cosf(pitchRad),
                          sinf(pitchRad),
@@ -149,13 +158,25 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                 }
             }
 
-            // ── Bridge：始终同步到 NCL GameWorld 相机 ───────────────────
+            cursorFree = cam.cursor_free;
+
+            // ── Bridge：始终同步到 NCL GameWorld 相机 ───────────────────────
             m_GameWorld->GetMainCamera()
                 .SetPosition(tf.position)
                 .SetPitch(cam.pitch)
                 .SetYaw(cam.yaw);
         }
     );
+
+    // ── 光标状态写入 Res_UIState（单通道，由 Main.cpp 统一应用）──────
+    // 此处为 fallback：没有 Sys_UI 的场景（如 NavTest）直接使用此值。
+    // 有 Sys_UI 的场景中，Sys_UI（优先级 500，后运行）会覆盖这些值。
+    if (registry.has_ctx<Res_UIState>()) {
+        auto& ui = registry.ctx<Res_UIState>();
+        ui.gameCursorFree = cursorFree;
+        ui.cursorVisible  = cursorFree;
+        ui.cursorLocked   = !cursorFree;
+    }
 }
 
 // ============================================================

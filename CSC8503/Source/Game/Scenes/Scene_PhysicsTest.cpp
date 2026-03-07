@@ -29,6 +29,17 @@
 #include "Game/Systems/Sys_ImGui.h"
 #include "Game/Systems/Sys_ImGuiEnemyAI.h"
 #include "Game/Systems/Sys_ImGuiPhysicsTest.h"
+#include "Game/Systems/Sys_ImGuiCapsuleGen.h"
+#include "Game/Systems/Sys_UI.h"
+#include "Game/Systems/Sys_Chat.h"
+#include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_ToastState.h"
+#include "Game/Components/Res_ChatState.h"
+#include "Game/Components/Res_InventoryState.h"
+#include "Game/Components/Res_LobbyState.h"
+#include "Game/Components/Res_DialogueData.h"
+#include "Game/UI/UI_Toast.h"
 #endif
 
 // ============================================================
@@ -53,10 +64,9 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     // ── 2. 注册场景级全局资源到 Registry context ────────────────────────
     //    Res_NCL_Pointers 由 SceneManager 构造时已预注册，此处无需重复。
 
-    if (!registry.has_ctx<Res_UIFlags>()) {
-        registry.ctx_emplace<Res_UIFlags>();
-    }
+    registry.ctx_emplace<Res_UIFlags>();
 
+    // Res_TestState：首次进入时创建，场景重入时重置运行时状态、保留 mesh handle
     if (!registry.has_ctx<Res_TestState>()) {
         Res_TestState state;
         state.cubeMeshHandle    = cubeMesh;
@@ -76,14 +86,14 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     }
 
     // 敌人实体池状态（由 Sys_ImGuiPhysicsTest 读写）
-    if (!registry.has_ctx<Res_EnemyTestState>()) {
+    {
         Res_EnemyTestState enemyState;
         enemyState.enemyMeshHandle = capsuleMesh;
         registry.ctx_emplace<Res_EnemyTestState>(std::move(enemyState));
     }
 
     // 胶囊生成状态（由 Sys_ImGuiCapsuleGen 读写）
-    if (!registry.has_ctx<Res_CapsuleState>()) {
+    {
         Res_CapsuleState capsuleState;
         capsuleState.capsuleMeshHandle = capsuleMesh;
         registry.ctx_emplace<Res_CapsuleState>(std::move(capsuleState));
@@ -124,7 +134,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     //              → Disguise(59) → Stance(60) → StealthMetrics(62)
     //              → PlayerCQC(63) → Movement(65) → Physics(100) → EnemyAI(120)
     //              → PlayerCamera(150) → Camera(155, Bridge 同步 + debug 飞行)
-    //              → Render(200) → ImGui(300+) → Raycast(330)
+    //              → Render(200) → ImGui(300+) → Chat(450) → UI(500) → Raycast(330)
     systems.Register<ECS::Sys_Input>           ( 10);   // NCL → Res_Input（via InputAdapter）
     systems.Register<ECS::Sys_InputDispatch>   ( 55);   // Res_Input → per-entity C_D_Input
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);   // 伪装切换、C_T_Hidden 管理
@@ -141,11 +151,38 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + Cube/Capsule 控制面板
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 通用敌人状态监控表格（场景无关）
     systems.Register<ECS::Sys_ImGuiPhysicsTest>  (320);   // PhysicsTest 场景敌人生成/删除控制面板
+    systems.Register<ECS::Sys_Chat>              (450);   // 对话逻辑（在 UI 之前）
+    systems.Register<ECS::Sys_UI>                (500);   // UI 渲染 + 输入导航
 #endif
     systems.Register<ECS::Sys_Raycast>           (330);   // Raycast 独立测试窗口（按钮触发 + 可视化）
 
-    // ── 5. 启动所有系统 ──────────────────────────────────────────────────
+    // ── 5. 初始化游戏状态资源 ──────────────────────────────────────────────
+#ifdef USE_IMGUI
+    if (!registry.has_ctx<ECS::Res_GameState>()) {
+        registry.ctx_emplace<ECS::Res_GameState>();
+    }
+#endif
+
+    // ── 6. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
+
+    // ── 7. 设置 UI 为 HUD 模式并启动 FadeIn 过渡 ───────────────────────
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_UIState>()) {
+        auto& ui = registry.ctx<ECS::Res_UIState>();
+        ui.previousScreen       = ui.activeScreen;
+        ui.activeScreen         = ECS::UIScreen::HUD;
+        ui.pendingSceneRequest  = ECS::SceneRequest::None;
+
+        // 启动 FadeIn（CRT 展开）
+        ui.transitionActive     = true;
+        ui.transitionTimer      = 0.0f;
+        ui.transitionDuration   = 0.5f;
+        ui.transitionType       = 0;  // FadeIn
+    }
+
+    ECS::UI::PushToast(registry, "MISSION START", ECS::ToastType::Success, 2.5f);
+#endif
 
     LOG_INFO("[Scene_PhysicsTest] OnEnter complete. "
              << systems.Count() << " systems awake.");
@@ -161,10 +198,23 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
     // 逆序停机
     systems.DestroyAll(registry);
 
-    // 回收所有活动实体，防止上一关状态污染下一关
-    // 注意：Clear() 不清除 ctx，但各系统 OnAwake 使用 has_ctx 保护模式，
-    // 场景重进时自动跳过已存在的 ctx，无需手动清除。
+    // 清除场景级 ctx 资源，防止跨场景状态泄漏（registry.Clear() 不清除 ctx）
+    // Session 级资源（Res_UIState）不在此清除 — 跨场景保持用户设置
+    if (registry.has_ctx<Res_UIFlags>())        registry.ctx_erase<Res_UIFlags>();
+    if (registry.has_ctx<Res_TestState>())      registry.ctx_erase<Res_TestState>();
+    if (registry.has_ctx<Res_EnemyTestState>()) registry.ctx_erase<Res_EnemyTestState>();
+    if (registry.has_ctx<Res_CapsuleState>())   registry.ctx_erase<Res_CapsuleState>();
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_GameState>())      registry.ctx_erase<ECS::Res_GameState>();
+    if (registry.has_ctx<ECS::Res_ToastState>())     registry.ctx_erase<ECS::Res_ToastState>();
+    if (registry.has_ctx<ECS::Res_ChatState>())      registry.ctx_erase<ECS::Res_ChatState>();
+    if (registry.has_ctx<ECS::Res_InventoryState>()) registry.ctx_erase<ECS::Res_InventoryState>();
+    if (registry.has_ctx<ECS::Res_LobbyState>())     registry.ctx_erase<ECS::Res_LobbyState>();
+    if (registry.has_ctx<ECS::Res_DialogueData>())   registry.ctx_erase<ECS::Res_DialogueData>();
+#endif
+
+    // 回收所有活动实体
     registry.Clear();
 
-    LOG_INFO("[Scene_PhysicsTest] OnExit complete. All systems destroyed.");
+    LOG_INFO("[Scene_PhysicsTest] OnExit complete. All systems destroyed, entities cleared.");
 }

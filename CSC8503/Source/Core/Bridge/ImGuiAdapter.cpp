@@ -4,6 +4,7 @@
 #include "Window.h"
 #include "Win32Window.h"
 #include "OGLRenderer.h"
+#include "glad/gl.h"
 #include <iostream>
 
 using namespace NCL;
@@ -98,8 +99,18 @@ void ImGuiAdapter::NewFrame() {
 
 void ImGuiAdapter::Render() {
     if (!s_Initialized) return;
+
+    // 关闭 sRGB 帧缓冲转换：ImGui 颜色已是 sRGB 空间，
+    // 若不关闭会被 GL 再次 gamma 编码导致所有 UI 颜色偏亮偏白。
+    GLboolean srgbWasEnabled = glIsEnabled(GL_FRAMEBUFFER_SRGB);
+    if (srgbWasEnabled) glDisable(GL_FRAMEBUFFER_SRGB);
+
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    // 恢复 sRGB 状态（3D 渲染需要）
+    if (srgbWasEnabled) glEnable(GL_FRAMEBUFFER_SRGB);
+
     ImGuiIO& io = ImGui::GetIO();
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
         ImGui::UpdatePlatformWindows();

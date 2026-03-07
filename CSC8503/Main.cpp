@@ -31,11 +31,16 @@
 #endif
 
 #include "Game/Components/Res_NCL_Pointers.h"
+#include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_LobbyState.h"
 #include "Game/Scenes/SceneManager.h"
 #include "Game/Scenes/Scene_PhysicsTest.h"
-// 合并：保留 NavTest 用于测试，保留 NetworkGame 用于 master 功能
+#include "Game/Scenes/Scene_MainMenu.h"
 #include "Game/Scenes/Scene_NavTest.h"
 #include "Game/Scenes/Scene_NetworkGame.h"
+#include "Game/Utils/WindowHelper.h"
+#include "Game/Utils/Log.h"
 
 #ifdef USE_IMGUI
 #include "Core/Bridge/ImGuiAdapter.h"
@@ -44,6 +49,7 @@
 using namespace NCL;
 using namespace CSC8503;
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include <sstream>
@@ -63,34 +69,23 @@ void DisplayPathfinding() {
 }
 
 int main(int argc, char** argv) {
-    bool runAsServer = true;
-    if (argc > 1 && std::string(argv[1]) == "client") {
-        runAsServer = false;
-    }
-    float autoExitTime = 0.0f;
-    if (argc > 2) {
-        autoExitTime = std::stof(argv[2]);
-    }
-
-#if ENABLE_ECS_TEST
-	RunECSTests();
-	std::cout << "\nPress ENTER to continue to game...\n";
-	std::cin.get();
-#endif
-
 	WindowInitialisation initInfo;
-	initInfo.width		= 1280;
-	initInfo.height		= 720;
-	initInfo.windowTitle = "CSC8503 Game technology!";
+	initInfo.width		= 1920;
+	initInfo.height		= 1080;
+	initInfo.windowTitle = "NEUROMANCER";
 
-	Window*w = Window::CreateGameWindow(initInfo);
+	Window* w = Window::CreateGameWindow(initInfo);
 
 	if (!w->HasInitialised()) {
 		return -1;
 	}
 
-	w->ShowOSPointer(false);
-	w->LockMouseToWindow(true);
+	if (!WindowHelper::Init(w)) {
+		LOG_ERROR("[Main] WindowHelper init failed — fullscreen/resolution disabled");
+	}
+
+	w->ShowOSPointer(true);
+	w->LockMouseToWindow(false);
 
 	GameWorld* world = new GameWorld();
 	PhysicsSystem* physics = new PhysicsSystem(*world);
@@ -101,18 +96,14 @@ int main(int argc, char** argv) {
 	GameTechRenderer* renderer = new GameTechRenderer(*world);
 #endif
 
-#if ENABLE_PHYSICS_TEST_SCENE
-        // =========================================================
-        // ECS 物理测试场景（SceneManager + Scene_PhysicsTest）
-        // =========================================================
-
 #ifdef USE_IMGUI
-        ECS::ImGuiAdapter::Init(w, renderer);
+	ECS::ImGuiAdapter::Init(w, renderer);
 #endif
 
-	// SceneManager 持有 Registry + SystemManager，并预注册 Res_NCL_Pointers
 	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics, renderer});
+	sceneManager.PushScene(new Scene_MainMenu());
 
+	bool running = true;
 	sceneManager.PushScene(new Scene_PhysicsTest());
 
     w->GetTimer().GetTimeDeltaSeconds();
@@ -242,49 +233,134 @@ int main(int argc, char** argv) {
 #endif
 
 	w->GetTimer().GetTimeDeltaSeconds();
-	while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
+
+	while (w->UpdateWindow() && running) {
 		float dt = w->GetTimer().GetTimeDeltaSeconds();
 		if (dt > 0.1f) {
-			std::cout << "Skipping large time delta" << std::endl;
 			continue;
 		}
+
 		if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
 			w->ShowConsole(true);
 		}
 		if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
 			w->ShowConsole(false);
 		}
-		if (Window::GetKeyboard()->KeyPressed(KeyCodes::T)) {
-			w->SetWindowPosition(0, 0);
-		}
-
-		w->SetTitle("Gametech frame time:" + std::to_string(1000.0f * dt));
 
 #ifdef USE_IMGUI
 		ECS::ImGuiAdapter::NewFrame();
-		imguiSystems.UpdateAll(imguiRegistry, dt);
 #endif
 
-		g->UpdateGame(dt);
+		sceneManager.Update(dt);
 
+		// ── UI request processing ──
+		{
+			auto& reg = sceneManager.GetRegistry();
+
+			// Debug scene selector (优先：调试覆盖优先于 UI 场景请求)
+			if (reg.has_ctx<Res_UIFlags>()) {
+				auto& flags = reg.ctx<Res_UIFlags>();
+				if (flags.debugSceneIndex >= 0) {
+					switch (flags.debugSceneIndex) {
+						case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());     break;
+						case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest());  break;
+						case 2: sceneManager.RequestSceneChange(new Scene_NavTest());      break;
+						case 3: sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::SERVER)); break;
+					}
+					flags.debugSceneIndex = -1;
+
+					// 清除同帧的 UI 请求，避免分配后立即被覆盖删除
+					if (reg.has_ctx<ECS::Res_UIState>()) {
+						reg.ctx<ECS::Res_UIState>().pendingSceneRequest = ECS::SceneRequest::None;
+					}
+				}
+			}
+
+			if (reg.has_ctx<ECS::Res_UIState>()) {
+				auto& ui = reg.ctx<ECS::Res_UIState>();
+
+				// Scene change requests
+				if (ui.pendingSceneRequest != ECS::SceneRequest::None) {
+					switch (ui.pendingSceneRequest) {
+						case ECS::SceneRequest::StartGame:
+							sceneManager.RequestSceneChange(new Scene_PhysicsTest());
+							break;
+						case ECS::SceneRequest::RestartLevel:
+							sceneManager.RequestSceneChange(new Scene_PhysicsTest());
+							break;
+						case ECS::SceneRequest::ReturnToMenu:
+							sceneManager.RequestSceneChange(new Scene_MainMenu());
+							break;
+						case ECS::SceneRequest::HostGame:
+							sceneManager.RequestSceneChange(
+								new Scene_NetworkGame(ECS::PeerType::SERVER));
+							break;
+						case ECS::SceneRequest::JoinGame: {
+							std::string ip = "127.0.0.1";
+							if (reg.has_ctx<ECS::Res_LobbyState>()) {
+								ip = reg.ctx<ECS::Res_LobbyState>().joinIP;
+							}
+							sceneManager.RequestSceneChange(
+								new Scene_NetworkGame(ECS::PeerType::CLIENT, ip));
+							break;
+						}
+						case ECS::SceneRequest::QuitApp:
+							running = false;
+							break;
+						default:
+							break;
+					}
+					ui.pendingSceneRequest = ECS::SceneRequest::None;
+				}
+
+				// Resolution change
+				if (ui.resolutionChanged) {
+					int idx = std::clamp((int)ui.resolutionIndex, 0, ECS::kResolutionCount - 1);
+					WindowHelper::SetWindowSize(ECS::kResolutions[idx].width, ECS::kResolutions[idx].height);
+					ui.resolutionChanged = false;
+				}
+
+				// Fullscreen toggle
+				if (ui.fullscreenChanged) {
+					WindowHelper::SetFullScreen(ui.isFullscreen);
+					ui.fullscreenChanged = false;
+					if (!ui.isFullscreen) {
+						ui.resolutionChanged = true;  // sync window to resolutionIndex on exit
+					}
+				}
+
+				// Cursor management (driven by Sys_UI flags)
+				w->ShowOSPointer(ui.cursorVisible);
+				w->LockMouseToWindow(ui.cursorLocked);
+			}
+		}
+
+		// NCL rendering
 		world->UpdateWorld(dt);
 		physics->Update(dt);
 		renderer->Update(dt);
-		renderer->Render();
+		renderer->RenderScene();
 
 #ifdef USE_IMGUI
 		ECS::ImGuiAdapter::Render();
 #endif
 
+		renderer->PresentFrame();
+
+		sceneManager.EndFrame();
+
 		Debug::UpdateRenderables(dt);
 	}
 
+	sceneManager.Shutdown();
+
 #ifdef USE_IMGUI
-	imguiSystems.DestroyAll(imguiRegistry);
 	ECS::ImGuiAdapter::Shutdown();
 #endif
 
-#endif  // ENABLE_PHYSICS_TEST_SCENE
+	delete physics;
+	delete renderer;
+	delete world;
 
 	Window::DestroyGameWindow();
 }
