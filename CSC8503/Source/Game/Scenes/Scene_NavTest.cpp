@@ -9,6 +9,8 @@
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_EnemyAI.h"
+#include "Game/Systems/Sys_EnemyVision.h"
+#include "Game/Components/Res_VisionConfig.h"
 #include "Game/Systems/Sys_Navigation.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
@@ -43,6 +45,11 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_UIFlags>();
     }
 
+    // 视野检测配置资源（数据驱动）
+    if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
+        registry.ctx_emplace<ECS::Res_VisionConfig>(ECS::Res_VisionConfig{});
+    }
+
     // 无条件重置：场景重进时 DestroyAll 已销毁旧实体，ctx 中残留的实体 ID 列表
     // 若不清空会导致 "Delete Last" 操作访问已失效 ID
     {
@@ -65,6 +72,7 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     m_Pathfinder = std::make_unique<ECS::NavMeshPathfinderUtil>();
     navSys->SetPathfinder(m_Pathfinder.get());
 
+    systems.Register<ECS::Sys_EnemyVision>(110);  // 敌人视野判定（扇形视锥 + 遮挡射线）
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
     systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 isSpotted）
 

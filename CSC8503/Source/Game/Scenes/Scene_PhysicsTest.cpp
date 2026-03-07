@@ -9,6 +9,7 @@
 #include "Game/Components/Res_EnemyTestState.h"
 #include "Game/Components/Res_CapsuleState.h"
 #include "Game/Components/Res_CQCConfig.h"
+#include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Input.h"
@@ -18,6 +19,7 @@
 #include "Game/Systems/Sys_StealthMetrics.h"
 #include "Game/Systems/Sys_Movement.h"
 #include "Game/Systems/Sys_PlayerCQC.h"
+#include "Game/Systems/Sys_EnemyVision.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_PlayerCamera.h"
@@ -94,6 +96,11 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<ECS::Res_CQCConfig>(ECS::Res_CQCConfig{});
     }
 
+    // 视野检测配置资源（数据驱动）
+    if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
+        registry.ctx_emplace<ECS::Res_VisionConfig>(ECS::Res_VisionConfig{});
+    }
+
     // ── 3. 初始实体生成：通过 PrefabFactory 创建静态地板 + 玩家 ──────────
     //    相机实体由 Sys_Camera::OnAwake 创建（符合系统职责）
     ECS::EntityID entity_floor_main = PrefabFactory::CreateFloor(registry, cubeMesh);
@@ -133,6 +140,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_PlayerCQC>       ( 63);   // CQC 近身制服 + 拟态
     systems.Register<ECS::Sys_Movement>        ( 65);   // 物理移动
     systems.Register<ECS::Sys_Physics>         (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
+    systems.Register<ECS::Sys_EnemyVision>    (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
     systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
     systems.Register<ECS::Sys_PlayerCamera>    (150);   // 第三人称跟随相机
     systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
