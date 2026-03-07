@@ -24,6 +24,11 @@
 #include "Game/Systems/Sys_Chat.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_ToastState.h"
+#include "Game/Components/Res_ChatState.h"
+#include "Game/Components/Res_InventoryState.h"
+#include "Game/Components/Res_LobbyState.h"
+#include "Game/Components/Res_DialogueData.h"
 #include "Game/UI/UI_Toast.h"
 #endif
 
@@ -137,12 +142,18 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
     systems.DestroyAll(registry);
 
     // 清除场景级 ctx 资源，防止跨场景状态泄漏（registry.Clear() 不清除 ctx）
+    // Session 级资源 (Res_UIState) 不在此清除 — 跨场景保持用户设置
     if (registry.has_ctx<Res_UIFlags>())        registry.ctx_erase<Res_UIFlags>();
     if (registry.has_ctx<Res_TestState>())      registry.ctx_erase<Res_TestState>();
     if (registry.has_ctx<Res_EnemyTestState>()) registry.ctx_erase<Res_EnemyTestState>();
     if (registry.has_ctx<Res_CapsuleState>())   registry.ctx_erase<Res_CapsuleState>();
 #ifdef USE_IMGUI
-    if (registry.has_ctx<ECS::Res_GameState>()) registry.ctx_erase<ECS::Res_GameState>();
+    if (registry.has_ctx<ECS::Res_GameState>())     registry.ctx_erase<ECS::Res_GameState>();
+    if (registry.has_ctx<ECS::Res_ToastState>())    registry.ctx_erase<ECS::Res_ToastState>();
+    if (registry.has_ctx<ECS::Res_ChatState>())     registry.ctx_erase<ECS::Res_ChatState>();
+    if (registry.has_ctx<ECS::Res_InventoryState>()) registry.ctx_erase<ECS::Res_InventoryState>();
+    if (registry.has_ctx<ECS::Res_LobbyState>())     registry.ctx_erase<ECS::Res_LobbyState>();
+    if (registry.has_ctx<ECS::Res_DialogueData>())  registry.ctx_erase<ECS::Res_DialogueData>();
 #endif
 
     registry.Clear();

@@ -21,6 +21,11 @@
 #include "Game/Systems/Sys_Chat.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_ToastState.h"
+#include "Game/Components/Res_ChatState.h"
+#include "Game/Components/Res_InventoryState.h"
+#include "Game/Components/Res_LobbyState.h"
+#include "Game/Components/Res_DialogueData.h"
 #include "Game/UI/UI_Toast.h"
 #endif
 
@@ -139,9 +144,12 @@ void Scene_NetworkGame::OnExit(ECS::Registry&      registry,
         registry.ctx_erase<Res_UIFlags>();
     }
 #ifdef USE_IMGUI
-    if (registry.has_ctx<ECS::Res_GameState>()) {
-        registry.ctx_erase<ECS::Res_GameState>();
-    }
+    if (registry.has_ctx<ECS::Res_GameState>())      registry.ctx_erase<ECS::Res_GameState>();
+    if (registry.has_ctx<ECS::Res_ToastState>())     registry.ctx_erase<ECS::Res_ToastState>();
+    if (registry.has_ctx<ECS::Res_ChatState>())      registry.ctx_erase<ECS::Res_ChatState>();
+    if (registry.has_ctx<ECS::Res_InventoryState>()) registry.ctx_erase<ECS::Res_InventoryState>();
+    if (registry.has_ctx<ECS::Res_LobbyState>())      registry.ctx_erase<ECS::Res_LobbyState>();
+    if (registry.has_ctx<ECS::Res_DialogueData>())   registry.ctx_erase<ECS::Res_DialogueData>();
 #endif
     registry.Clear();
     LOG_INFO("[Scene_NetworkGame] OnExit complete.");
