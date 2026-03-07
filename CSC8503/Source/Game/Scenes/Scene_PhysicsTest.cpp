@@ -1,3 +1,7 @@
+/**
+ * @file Scene_PhysicsTest.cpp
+ * @brief 物理测试场景生命周期实现（资源加载、实体生成、系统注册）。
+ */
 #include "Scene_PhysicsTest.h"
 
 #include "Assets.h"
@@ -172,6 +176,11 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
 {
     // 逆序停机
     systems.DestroyAll(registry);
+
+    // 清除场景指针 ctx，防止 delete 后悬空指针
+    if (registry.has_ctx<IScene*>()) {
+        registry.ctx<IScene*>() = nullptr;
+    }
 
     // 回收所有活动实体，防止上一关状态污染下一关
     // 注意：Clear() 不清除 ctx，但各系统 OnAwake 使用 has_ctx 保护模式，

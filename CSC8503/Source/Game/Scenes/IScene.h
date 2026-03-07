@@ -63,7 +63,9 @@ public:
     virtual IScene* CreateRestartScene() { return nullptr; }
 
     /// 请求重启当前场景（延迟到帧末由 SceneManager 安全执行）
+    /// 内部 guard：若已有待切换场景则不重复创建，防止内存泄漏
     void Restart() {
+        if (m_NextScene != nullptr) return;
         if (IScene* s = CreateRestartScene()) RequestSceneChange(s);
     }
 

@@ -1,3 +1,15 @@
+/**
+ * @file Sys_DeathJudgment.cpp
+ * @brief 死亡判定系统实现。
+ *
+ * 算法概要：
+ * - OnAwake: 订阅 Evt_Phys_TriggerEnter，回调中检测 C_T_DeathZone 并将受害者 hp 设为 0
+ * - OnUpdate:
+ *   1. 更新无敌计时器（invTimer 递减）
+ *   2. Hunt 敌人抓捕检测（XZ 平方距离 < captureDistance²）
+ *   3. 死亡检查：玩家 hp<=0 触发场景重启，敌人 hp<=0 触发实体销毁
+ * - OnDestroy: 取消 EventBus 订阅
+ */
 #include "Sys_DeathJudgment.h"
 
 #include "Game/Components/C_D_Health.h"
@@ -13,8 +25,6 @@
 #include "Game/Events/Evt_Death.h"
 #include "Game/Scenes/IScene.h"
 #include "Game/Utils/Log.h"
-
-#include <cmath>
 
 namespace ECS {
 
@@ -42,11 +52,12 @@ void Sys_DeathJudgment::OnAwake(Registry& registry) {
                         return; // 不涉及死亡区域
                     }
 
-                    // 将受害者 HP 设为 0
+                    // 将受害者 HP 设为 0，标记死因为触发区即死
                     if (registry.Has<C_D_Health>(victim)) {
                         auto& health = registry.Get<C_D_Health>(victim);
                         if (health.hp > 0.0f) {
                             health.hp = 0.0f;
+                            health.deathCause = 2;  // 触发区即死
                             LOG_INFO("[DeathJudgment] Entity " << (int)victim
                                      << " entered death zone " << (int)deathZone);
                         }
@@ -93,6 +104,8 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
         }
     );
 
+    const float captureDistSq = config.captureDistance * config.captureDistance;
+
     if (playerCount > 0) {
         registry.view<C_T_Enemy, C_D_AIState, C_D_Transform>().each(
             [&](EntityID enemyId, C_T_Enemy&, C_D_AIState& state, C_D_Transform& enemyTf) {
@@ -108,14 +121,15 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                 for (int i = 0; i < playerCount; ++i) {
                     float dx = players[i].px - enemyTf.position.x;
                     float dz = players[i].pz - enemyTf.position.z;
-                    float distXZ = std::sqrt(dx * dx + dz * dz);
+                    float distSq = dx * dx + dz * dz;
 
-                    if (distXZ < config.captureDistance) {
-                        // 抓捕成功
+                    if (distSq < captureDistSq) {
+                        // 抓捕成功，标记死因为敌人抓捕
                         if (registry.Has<C_D_Health>(players[i].id)) {
                             auto& health = registry.Get<C_D_Health>(players[i].id);
                             if (health.hp > 0.0f) {
                                 health.hp = 0.0f;
+                                health.deathCause = 0;  // 被捕
                                 LOG_INFO("[DeathJudgment] Player " << (int)players[i].id
                                          << " captured by enemy " << (int)enemyId);
                             }
@@ -144,7 +158,7 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                         if (bus) {
                             Evt_Death evt;
                             evt.entity    = entity;
-                            evt.deathType = 0;
+                            evt.deathType = health.deathCause;
                             bus->publish_deferred(evt);
                         }
                     }
@@ -163,7 +177,7 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                     if (bus) {
                         Evt_Death evt;
                         evt.entity    = entity;
-                        evt.deathType = 3;
+                        evt.deathType = 3;  // 敌人HP归零
                         bus->publish_deferred(evt);
                     }
                 }

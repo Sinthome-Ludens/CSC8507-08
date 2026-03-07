@@ -1,3 +1,7 @@
+/**
+ * @file Scene_NavTest.cpp
+ * @brief 导航测试场景生命周期实现（资源加载、实体生成、系统注册）。
+ */
 #include "Scene_NavTest.h"
 
 #include "Assets.h"
@@ -67,18 +71,19 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_NavTest] floor entity id=" << entity_floor);
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
-    //    执行顺序：Camera(50) → Physics(100) → EnemyAI(120) → DeathJudgment(125)
-    //              → Navigation(130) → Render(200) → ImGui(300) → NavTest(310)
+    //    执行顺序：Camera(50) → Physics(100) → DeathJudgment(125)
+    //              → Navigation(130) → Render(200) → EnemyAI(250)
+    //              → ImGui(300) → NavTest(310)
     systems.Register<ECS::Sys_Camera>   ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>  (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
+    systems.Register<ECS::Sys_DeathJudgment>(125);  // 死亡判定（敌人抓捕 + HP归零 + 触发器即死）
 
     auto* navSys = systems.Register<ECS::Sys_Navigation>(130);
     m_Pathfinder = std::make_unique<ECS::NavMeshPathfinderUtil>();
     navSys->SetPathfinder(m_Pathfinder.get());
 
-    systems.Register<ECS::Sys_DeathJudgment>(125);  // 死亡判定（敌人抓捕 + HP归零 + 触发器即死）
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
-    systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 isSpotted）
+    systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 C_D_AIPerception::is_spotted）
 
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>        (300);   // 菜单栏 + 性能窗口
@@ -99,9 +104,14 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 void Scene_NavTest::OnExit(ECS::Registry&      registry,
                            ECS::SystemManager& systems)
 {
-    // 逆序停机：NavTest(310) → ImGui(300) → EnemyAI(250) → Render(200) → Navigation(130) → Physics(100) → Camera(50)
+    // 逆序停机
     systems.DestroyAll(registry);
     m_Pathfinder.reset();
+
+    // 清除场景指针 ctx，防止 delete 后悬空指针
+    if (registry.has_ctx<IScene*>()) {
+        registry.ctx<IScene*>() = nullptr;
+    }
 
     LOG_INFO("[Scene_NavTest] OnExit complete. All systems destroyed.");
 }
