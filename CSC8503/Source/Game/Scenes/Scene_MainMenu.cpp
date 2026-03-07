@@ -9,6 +9,10 @@
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_ToastState.h"
+#include "Game/Components/Res_ChatState.h"
+#include "Game/Components/Res_InventoryState.h"
+#include "Game/Components/Res_LobbyState.h"
 #include "Game/UI/UI_Toast.h"
 #endif
 
@@ -83,7 +87,11 @@ void Scene_MainMenu::OnExit(ECS::Registry&      registry,
 
 #ifdef USE_IMGUI
     // 清除场景级 ctx 资源，防止跨场景状态泄漏（registry.Clear() 不清除 ctx）
-    if (registry.has_ctx<Res_UIFlags>()) registry.ctx_erase<Res_UIFlags>();
+    if (registry.has_ctx<Res_UIFlags>())            registry.ctx_erase<Res_UIFlags>();
+    if (registry.has_ctx<ECS::Res_ToastState>())    registry.ctx_erase<ECS::Res_ToastState>();
+    if (registry.has_ctx<ECS::Res_ChatState>())     registry.ctx_erase<ECS::Res_ChatState>();
+    if (registry.has_ctx<ECS::Res_InventoryState>()) registry.ctx_erase<ECS::Res_InventoryState>();
+    if (registry.has_ctx<ECS::Res_LobbyState>())    registry.ctx_erase<ECS::Res_LobbyState>();
 #endif
 
     registry.Clear();
