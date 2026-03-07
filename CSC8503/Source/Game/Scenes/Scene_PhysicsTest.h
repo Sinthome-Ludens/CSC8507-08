@@ -26,4 +26,6 @@ public:
 
     void OnExit(ECS::Registry&      registry,
                 ECS::SystemManager& systems) override;
+
+    IScene* CreateRestartScene() override { return new Scene_PhysicsTest(); }
 };

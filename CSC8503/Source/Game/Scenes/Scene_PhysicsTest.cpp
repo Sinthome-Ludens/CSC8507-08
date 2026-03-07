@@ -9,6 +9,8 @@
 #include "Game/Components/Res_EnemyTestState.h"
 #include "Game/Components/Res_CapsuleState.h"
 #include "Game/Components/Res_CQCConfig.h"
+#include "Game/Components/Res_DeathConfig.h"
+#include "Game/Systems/Sys_DeathJudgment.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Input.h"
@@ -94,6 +96,14 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<ECS::Res_CQCConfig>(ECS::Res_CQCConfig{});
     }
 
+    // 死亡判定配置资源（数据驱动）
+    if (!registry.has_ctx<ECS::Res_DeathConfig>()) {
+        registry.ctx_emplace<ECS::Res_DeathConfig>(ECS::Res_DeathConfig{});
+    }
+
+    // 场景指针（供 Sys_DeathJudgment 调用 Restart）
+    registry.ctx_emplace<IScene*>(static_cast<IScene*>(this));
+
     // ── 3. 初始实体生成：通过 PrefabFactory 创建静态地板 + 玩家 ──────────
     //    相机实体由 Sys_Camera::OnAwake 创建（符合系统职责）
     ECS::EntityID entity_floor_main = PrefabFactory::CreateFloor(registry, cubeMesh);
@@ -123,6 +133,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     //    执行顺序：Input(10) → InputDispatch(55)
     //              → Disguise(59) → Stance(60) → StealthMetrics(62)
     //              → PlayerCQC(63) → Movement(65) → Physics(100) → EnemyAI(120)
+    //              → DeathJudgment(125)
     //              → PlayerCamera(150) → Camera(155, Bridge 同步 + debug 飞行)
     //              → Render(200) → ImGui(300+) → Raycast(330)
     systems.Register<ECS::Sys_Input>           ( 10);   // NCL → Res_Input（via InputAdapter）
@@ -134,6 +145,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Movement>        ( 65);   // 物理移动
     systems.Register<ECS::Sys_Physics>         (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
+    systems.Register<ECS::Sys_DeathJudgment>   (125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死 → 场景重启/敌人销毁）
     systems.Register<ECS::Sys_PlayerCamera>    (150);   // 第三人称跟随相机
     systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
     systems.Register<ECS::Sys_Render>          (200);   // ECS 实体 → NCL 代理对象桥接

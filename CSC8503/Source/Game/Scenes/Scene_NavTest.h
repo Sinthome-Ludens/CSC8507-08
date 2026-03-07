@@ -28,6 +28,8 @@ public:
     void OnExit(ECS::Registry&      registry,
                 ECS::SystemManager& systems) override;
 
+    IScene* CreateRestartScene() override { return new Scene_NavTest(); }
+
 private:
     /// 寻路器实例（生命周期必须覆盖 Sys_Navigation，存于此处确保 OnExit 后才释放）
     std::unique_ptr<ECS::NavMeshPathfinderUtil> m_Pathfinder;

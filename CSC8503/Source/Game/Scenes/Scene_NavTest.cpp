@@ -6,6 +6,8 @@
 #include "Core/ECS/SystemManager.h"
 #include "Game/Components/Res_NavTestState.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_DeathConfig.h"
+#include "Game/Systems/Sys_DeathJudgment.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_EnemyAI.h"
@@ -43,6 +45,14 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_UIFlags>();
     }
 
+    // 死亡判定配置资源（数据驱动）
+    if (!registry.has_ctx<ECS::Res_DeathConfig>()) {
+        registry.ctx_emplace<ECS::Res_DeathConfig>(ECS::Res_DeathConfig{});
+    }
+
+    // 场景指针（供 Sys_DeathJudgment 调用 Restart）
+    registry.ctx_emplace<IScene*>(static_cast<IScene*>(this));
+
     // 无条件重置：场景重进时 DestroyAll 已销毁旧实体，ctx 中残留的实体 ID 列表
     // 若不清空会导致 "Delete Last" 操作访问已失效 ID
     {
@@ -57,7 +67,8 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_NavTest] floor entity id=" << entity_floor);
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
-    //    执行顺序：Camera(50) → Physics(100) → Navigation(130) → Render(200) → EnemyAI(250) → ImGui(300) → NavTest(310)
+    //    执行顺序：Camera(50) → Physics(100) → EnemyAI(120) → DeathJudgment(125)
+    //              → Navigation(130) → Render(200) → ImGui(300) → NavTest(310)
     systems.Register<ECS::Sys_Camera>   ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>  (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
 
@@ -65,6 +76,7 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     m_Pathfinder = std::make_unique<ECS::NavMeshPathfinderUtil>();
     navSys->SetPathfinder(m_Pathfinder.get());
 
+    systems.Register<ECS::Sys_DeathJudgment>(125);  // 死亡判定（敌人抓捕 + HP归零 + 触发器即死）
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
     systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 isSpotted）
 
