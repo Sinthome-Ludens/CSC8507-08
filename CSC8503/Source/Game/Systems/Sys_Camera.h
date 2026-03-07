@@ -36,9 +36,14 @@ public:
     void SetDebugMode(bool on) { m_DebugMode = on; }
     bool IsDebugMode() const   { return m_DebugMode; }
 
+    /// 启用/禁用同步 WASD 到玩家（默认关闭）
+    void SetSyncToPlayer(bool sync) { m_SyncToPlayer = sync; }
+    bool IsSyncToPlayer() const     { return m_SyncToPlayer; }
+
 private:
     NCL::CSC8503::GameWorld* m_GameWorld = nullptr; ///< Bridge：NCL 世界引用（非游戏状态）
-    bool m_DebugMode = false; ///< Debug 模式：启用 WASD/鼠标自由飞行
+    bool m_DebugMode = false;     ///< Debug 模式：启用 WASD/鼠标自由飞行
+    bool m_SyncToPlayer = false;  ///< 同步 WASD 到玩家：在 Debug 模式下将相机输入注入到玩家控制
 };
 
 } // namespace ECS

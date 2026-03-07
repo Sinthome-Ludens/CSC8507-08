@@ -11,6 +11,7 @@
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_Input.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/Assert.h"
@@ -143,6 +144,42 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                     if (kb->KeyDown(KeyCodes::D)) tf.position += right   * speed;
                     if (kb->KeyDown(KeyCodes::Q)) tf.position -= up      * speed;
                     if (kb->KeyDown(KeyCodes::E)) tf.position += up      * speed;
+
+                    // ── 同步 WASD 到玩家 ──────────────────────────────────
+                    if (m_SyncToPlayer && registry.has_ctx<Res_Input>()) {
+                        auto& resInput = registry.ctx<Res_Input>();
+
+                        // 计算水平移动向量（忽略 pitch，只使用 yaw）
+                        // 玩家移动应该在水平面上，不受相机俯仰影响
+                        const float yawRadHorizontal = cam.yaw * (3.14159265f / 180.0f);
+                        const Vector3 forwardHorizontal(-sinf(yawRadHorizontal), 0.0f, -cosf(yawRadHorizontal));
+                        const Vector3 rightHorizontal(cosf(yawRadHorizontal), 0.0f, -sinf(yawRadHorizontal));
+
+                        // 计算输入向量
+                        float inputX = 0.0f;  // 左右（A/D）
+                        float inputZ = 0.0f;  // 前后（W/S）
+
+                        if (kb->KeyDown(KeyCodes::W)) inputZ += 1.0f;
+                        if (kb->KeyDown(KeyCodes::S)) inputZ -= 1.0f;
+                        if (kb->KeyDown(KeyCodes::A)) inputX -= 1.0f;
+                        if (kb->KeyDown(KeyCodes::D)) inputX += 1.0f;
+
+                        // 转换为世界空间向量
+                        Vector3 moveDir = forwardHorizontal * inputZ + rightHorizontal * inputX;
+
+                        // 归一化（如果有输入）
+                        float moveLen = std::sqrt(moveDir.x * moveDir.x + moveDir.z * moveDir.z);
+                        if (moveLen > 0.0f) {
+                            moveDir.x /= moveLen;
+                            moveDir.z /= moveLen;
+                        }
+
+                        // 注入到 Res_Input（覆盖硬件输入）
+                        // 注意：Res_Input 使用 axisX（左右）和 axisY（前后，但 Y 轴向上为正）
+                        // 玩家系统中 inputZ = -axisY（见 Sys_InputDispatch.cpp 第 19 行）
+                        resInput.axisX = moveDir.x;
+                        resInput.axisY = -moveDir.z;  // 取反，因为玩家系统会再次取反
+                    }
                 }
             }
 

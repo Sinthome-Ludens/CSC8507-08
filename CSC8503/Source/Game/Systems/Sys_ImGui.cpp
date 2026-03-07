@@ -153,9 +153,22 @@ void Sys_ImGui::RenderDebugWindow(Registry& registry, float dt) {
                 LOG_INFO("[ImGui] Camera Debug Mode: " << (debugMode ? "ON" : "OFF"));
             }
 
+            // 同步到玩家复选框（仅在 Debug 模式下可用）
+            if (debugMode) {
+                bool syncToPlayer = camSys->IsSyncToPlayer();
+                if (ImGui::Checkbox("Sync WASD to Player", &syncToPlayer)) {
+                    camSys->SetSyncToPlayer(syncToPlayer);
+                    LOG_INFO("[ImGui] Sync WASD to Player: " << (syncToPlayer ? "ON" : "OFF"));
+                }
+            }
+
             // 提示信息
             if (debugMode) {
-                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "WASD: Move | Q/E: Up/Down | Alt: Show Cursor");
+                if (camSys->IsSyncToPlayer()) {
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f), "Camera + Player move together");
+                } else {
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "WASD: Move | Q/E: Up/Down | Alt: Show Cursor");
+                }
             } else {
                 ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Enable to unlock camera");
             }
