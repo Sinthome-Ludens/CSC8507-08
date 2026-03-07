@@ -1,3 +1,7 @@
+/**
+ * @file Evt_UI_Navigation.h
+ * @brief UI 导航事件：菜单确认和画面切换
+ */
 #pragma once
 
 #include <cstdint>
