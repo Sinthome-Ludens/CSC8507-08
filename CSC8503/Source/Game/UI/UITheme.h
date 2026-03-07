@@ -1,3 +1,9 @@
+/**
+ * @file UITheme.h
+ * @brief 集中化 UI 配色常量和样式参数（暖奶油 + 橙色强调）
+ *
+ * @note Called by Sys_UI::OnAwake() (ApplyTheme / LoadFonts)
+ */
 #pragma once
 #ifdef USE_IMGUI
 

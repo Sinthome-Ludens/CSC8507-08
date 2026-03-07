@@ -1,3 +1,10 @@
+/**
+ * @file Res_ToastState.h
+ * @brief Toast 通知状态资源：最多 4 条浮动提示（Info/Success/Warning/Danger）
+ *
+ * @details
+ * Scene 级 ctx 资源，场景切换时在 OnExit 中清除。
+ */
 #pragma once
 
 #include <cstdint>

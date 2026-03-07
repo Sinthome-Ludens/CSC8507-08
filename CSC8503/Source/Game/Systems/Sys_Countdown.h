@@ -1,3 +1,7 @@
+/**
+ * @file Sys_Countdown.h
+ * @brief Countdown system — triggers game-over when alert level reaches maximum
+ */
 #pragma once
 
 #include "Core/ECS/BaseSystem.h"

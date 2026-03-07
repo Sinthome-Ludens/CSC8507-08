@@ -1,3 +1,9 @@
+/**
+ * @file UI_Menus.h
+ * @brief 核心菜单渲染：Splash、MainMenu、Settings、PauseMenu
+ *
+ * @note Called by Sys_UI::OnUpdate()
+ */
 #pragma once
 #ifdef USE_IMGUI
 

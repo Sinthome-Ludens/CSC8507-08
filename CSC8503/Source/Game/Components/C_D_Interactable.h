@@ -1,3 +1,7 @@
+/**
+ * @file C_D_Interactable.h
+ * @brief 可交互组件：标记实体为可交互对象并存储交互参数
+ */
 #pragma once
 
 #include <cstdint>

@@ -13,6 +13,7 @@
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_InventoryState.h"
 #include "Game/Components/Res_LobbyState.h"
+#include "Game/Components/Res_DialogueData.h"
 #include "Game/UI/UI_Toast.h"
 #endif
 
@@ -92,6 +93,7 @@ void Scene_MainMenu::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_ChatState>())     registry.ctx_erase<ECS::Res_ChatState>();
     if (registry.has_ctx<ECS::Res_InventoryState>()) registry.ctx_erase<ECS::Res_InventoryState>();
     if (registry.has_ctx<ECS::Res_LobbyState>())    registry.ctx_erase<ECS::Res_LobbyState>();
+    if (registry.has_ctx<ECS::Res_DialogueData>())  registry.ctx_erase<ECS::Res_DialogueData>();
 #endif
 
     registry.Clear();

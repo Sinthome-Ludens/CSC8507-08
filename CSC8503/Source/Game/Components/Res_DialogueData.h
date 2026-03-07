@@ -1,3 +1,7 @@
+/**
+ * @file Res_DialogueData.h
+ * @brief 对话数据资源：3 模式对话树节点集合（从 JSON 加载）
+ */
 #pragma once
 
 #include <cstdint>

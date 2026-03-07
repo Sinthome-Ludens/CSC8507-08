@@ -1,3 +1,9 @@
+/**
+ * @file UI_Toast.h
+ * @brief Toast 浮动通知渲染 + PushToast 工具函数
+ *
+ * @note Called by Sys_UI::OnUpdate()
+ */
 #pragma once
 #ifdef USE_IMGUI
 

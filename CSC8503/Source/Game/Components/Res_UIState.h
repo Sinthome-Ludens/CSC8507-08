@@ -1,3 +1,13 @@
+/**
+ * @file Res_UIState.h
+ * @brief UI 主状态资源：画面导航、分辨率/全屏设置、光标管理、场景过渡
+ *
+ * @details
+ * Session 级 ctx 资源，跨场景保持用户设置（分辨率/灵敏度/全屏等）。
+ * 永不在 Scene::OnExit 中清除。
+ *
+ * @see Sys_UI（读写此资源，驱动 UI 状态机）
+ */
 #pragma once
 
 #include <cstdint>
@@ -9,12 +19,12 @@ struct ResolutionPreset {
     int height;
     const char* label;
 };
-static constexpr ResolutionPreset kResolutions[] = {
+inline constexpr ResolutionPreset kResolutions[] = {
     { 1280, 720,  "1280 x 720"  },
     { 1600, 900,  "1600 x 900"  },
     { 1920, 1080, "1920 x 1080" },
 };
-static constexpr int kResolutionCount = 3;
+inline constexpr int kResolutionCount = 3;
 
 enum class UIScreen : uint8_t {
     None = 0,

@@ -1,3 +1,7 @@
+/**
+ * @file Sys_Chat.h
+ * @brief Chat system — dialogue tree logic, reply effects, and timeout penalties
+ */
 #pragma once
 
 #include "Core/ECS/BaseSystem.h"

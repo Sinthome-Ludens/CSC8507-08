@@ -1,3 +1,7 @@
+/**
+ * @file DialogueLoader.h
+ * @brief JSON 对话数据加载工具（纯函数，不依赖 Registry）
+ */
 #pragma once
 
 #include "Game/Components/Res_DialogueData.h"

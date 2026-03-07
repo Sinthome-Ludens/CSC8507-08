@@ -1,3 +1,10 @@
+/**
+ * @file Res_LobbyState.h
+ * @brief 多人大厅状态资源：目标 IP、端口、输入焦点
+ *
+ * @details
+ * Scene 级 ctx 资源，场景切换时在 OnExit 中清除。
+ */
 #pragma once
 
 #include <cstdint>

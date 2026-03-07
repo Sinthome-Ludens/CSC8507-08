@@ -1,3 +1,10 @@
+/**
+ * @file Res_InventoryState.h
+ * @brief 物品栏状态资源：3x4 格子、选中槽位、详情面板
+ *
+ * @details
+ * Scene 级 ctx 资源，场景切换时在 OnExit 中清除。
+ */
 #pragma once
 
 #include <cstdint>

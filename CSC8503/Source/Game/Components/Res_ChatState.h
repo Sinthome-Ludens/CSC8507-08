@@ -1,3 +1,10 @@
+/**
+ * @file Res_ChatState.h
+ * @brief 聊天/对话系统状态资源：消息队列、回复选项、对话阶段
+ *
+ * @details
+ * Scene 级 ctx 资源，场景切换时在 OnExit 中清除。
+ */
 #pragma once
 
 #include <cstdint>

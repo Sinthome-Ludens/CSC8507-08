@@ -1,6 +1,7 @@
 #include "WindowHelper.h"
 #include "Win32Window.h"
 #include "Game/Utils/Log.h"
+#include <cassert>
 
 using NCL::Win32Code::Win32Window;
 
@@ -14,6 +15,11 @@ static int          s_defaultH   = 1080;
 // ── Init ────────────────────────────────────────────────────
 
 bool WindowHelper::Init(NCL::Window* window) {
+    if (s_hwnd) {
+        LOG_ERROR("[WindowHelper] Init called more than once — this is a programming error");
+        assert(false && "WindowHelper::Init must only be called once");
+        return false;
+    }
     if (!window) {
         LOG_ERROR("[WindowHelper] Init failed: window is null");
         return false;
