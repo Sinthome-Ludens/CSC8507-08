@@ -1,3 +1,7 @@
+/**
+ * @file Scene_PhysicsTest.cpp
+ * @brief 物理测试场景生命周期实现（资源加载、实体生成、系统注册）。
+ */
 #include "Scene_PhysicsTest.h"
 
 #include "Assets.h"
@@ -129,7 +133,8 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
     //    执行顺序：Input(10) → InputDispatch(55)
     //              → Disguise(59) → Stance(60) → StealthMetrics(62)
-    //              → PlayerCQC(63) → Movement(65) → Physics(100) → EnemyAI(120)
+    //              → PlayerCQC(63) → Movement(65) → Physics(100)
+    //              → EnemyVision(110) → EnemyAI(120)
     //              → PlayerCamera(150) → Camera(155, Bridge 同步 + debug 飞行)
     //              → Render(200) → ImGui(300+) → Raycast(330)
     systems.Register<ECS::Sys_Input>           ( 10);   // NCL → Res_Input（via InputAdapter）

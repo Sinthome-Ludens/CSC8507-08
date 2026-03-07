@@ -1,3 +1,9 @@
+/**
+ * @file Res_VisionConfig.h
+ * @brief 敌人视野检测全局配置资源，注册到 Registry context 中供 Sys_EnemyVision 读取。
+ *
+ * 所有视野相关参数均在此处数据驱动配置，无硬编码常量。
+ */
 #pragma once
 
 namespace ECS {

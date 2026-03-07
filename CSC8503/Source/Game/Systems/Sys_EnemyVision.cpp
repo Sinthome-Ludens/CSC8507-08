@@ -1,3 +1,17 @@
+/**
+ * @file Sys_EnemyVision.cpp
+ * @brief 敌人视野判定系统实现。
+ *
+ * 算法概要：
+ * - 预收集玩家列表（缓存位置/可见度，跳过拟态玩家）
+ * - 对每个活跃敌人，依次执行：
+ *   1. XZ 距离筛选（超出 maxDistance 跳过）
+ *   2. visibilityFactor 门槛（低于 visibilityMin 视为完全隐形）
+ *   3. 近距离 360° 感知（closeRange 内无需视锥判定）
+ *   4. 扇形视锥检测（XZ 平面点积 vs cosHalfFov）
+ *   5. CastRay 遮挡检测（可选，偏移起/终点 Y 坐标，过滤自身/玩家）
+ * - 休眠敌人（isDormant）直接标记 is_spotted = false
+ */
 #include "Sys_EnemyVision.h"
 
 #include "Game/Components/C_D_Transform.h"
@@ -100,12 +114,13 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
 
                 if (distXZ > config.maxDistance) continue;
 
+                // B. 可见度门槛（在所有视野判定之前，含重叠位置）
+                if (player.visibilityFactor < config.visibilityMin) continue;
+
                 // 重叠位置直接判定为发现
                 if (distXZ < 0.001f) {
                     spotted = true;
                 } else {
-                    // B. 可见度门槛
-                    if (player.visibilityFactor < config.visibilityMin) continue;
 
                     // C. 近距离 360° 感知
                     if (distXZ <= config.closeRange) {
