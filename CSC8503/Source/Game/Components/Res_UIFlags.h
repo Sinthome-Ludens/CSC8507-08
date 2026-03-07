@@ -12,4 +12,5 @@ struct Res_UIFlags {
     bool showNetworkDebug = true;  ///< 是否显示 "Network Debug" 控制面板
 
     int8_t debugSceneIndex = -1;  ///< -1=无请求, 0=MainMenu, 1=PhysicsTest, 2=NavTest, 3=NetworkGame(Server)
+    bool showRaycast      = true;  ///< 是否显示 "Raycast" 控制面板
 };

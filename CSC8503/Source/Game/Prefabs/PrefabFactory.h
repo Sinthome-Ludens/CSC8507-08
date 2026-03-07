@@ -68,6 +68,52 @@ public:
     );
 
     // ============================================================
+    // 玩家
+    // ============================================================
+
+    /**
+     * @brief 创建玩家实体（PREFAB_PLAYER）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody, C_D_Collider,
+     *       C_T_Player, C_D_PlayerState, C_D_Input, C_D_DebugName
+     *
+     * @param reg       ECS Registry
+     * @param cubeMesh  临时网格句柄（后续替换为角色模型）
+     * @param spawnPos  生成位置（世界坐标）
+     * @return 玩家实体 ID
+     */
+    static ECS::EntityID CreatePlayer(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     cubeMesh,
+        NCL::Maths::Vector3 spawnPos
+    );
+
+    // ============================================================
+    // 隐形碰撞墙
+    // ============================================================
+
+    /**
+     * @brief 创建隐形碰撞墙实体（PREFAB_ENV_INVISIBLE_WALL）
+     *
+     * 挂载：C_D_Transform, C_D_RigidBody, C_D_Collider, C_T_InvisibleWall, C_D_DebugName
+     * 不挂载 C_D_MeshRenderer → 渲染不可见，但 Sys_Physics 仍创建 Jolt 碰撞体。
+     *
+     * @param reg         ECS Registry
+     * @param wallIndex   墙壁序号（用于 DebugName 编号）
+     * @param position    墙壁中心世界坐标
+     * @param halfExtents Box 碰撞体半尺寸
+     * @param rotation    初始旋转（默认无旋转）
+     * @return 隐形墙实体 ID
+     */
+    static ECS::EntityID CreateInvisibleWall(
+        ECS::Registry&         reg,
+        int                    wallIndex,
+        NCL::Maths::Vector3    position,
+        NCL::Maths::Vector3    halfExtents,
+        NCL::Maths::Quaternion rotation = NCL::Maths::Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+    );
+
+    // ============================================================
     // 动态物体
     // ============================================================
 

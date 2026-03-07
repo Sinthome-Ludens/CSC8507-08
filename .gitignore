@@ -110,6 +110,9 @@ Docs/
 # Keep root README trackable
 *.md
 !README.md
+!.github/copilot-instructions.md
+!.github/instructions/
+!.github/instructions/**/*.instructions.md
 
 ################################################################################
 # Git Submodule (if needed)
