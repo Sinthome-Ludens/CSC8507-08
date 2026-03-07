@@ -148,62 +148,51 @@ void	Win32Window::UpdateTitle()	{
 }
 
 void	Win32Window::SetFullScreen(bool fullScreen) {
-	this->fullScreen = fullScreen;
-
 	if (fullScreen) {
-		// 保存当前窗口位置（用于退出全屏时恢复）
-		RECT windowRect;
-		GetWindowRect(windowHandle, &windowRect);
-		position.x = (float)windowRect.left;
-		position.y = (float)windowRect.top;
+		DEVMODE dmScreenSettings;								// Device Mode
+		memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));	// Makes Sure Memory's Cleared
 
-		// 无边框全屏：移除标题栏和边框，覆盖整个屏幕
-		SetWindowLongPtr(windowHandle, GWL_STYLE, WS_POPUP | WS_VISIBLE);
-		int screenW = GetSystemMetrics(SM_CXSCREEN);
-		int screenH = GetSystemMetrics(SM_CYSCREEN);
-		SetWindowPos(windowHandle, HWND_TOPMOST,
-		             0, 0, screenW, screenH,
-		             SWP_FRAMECHANGED);
+		DEVMODEA settings;
+		EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &settings);
 
-		size.x = (float)screenW;
-		size.y = (float)screenH;
+		size.x = (float)settings.dmPelsWidth;
+		size.y = (float)settings.dmPelsHeight;
+
+		dmScreenSettings.dmSize				= sizeof(dmScreenSettings);			// Size Of The Devmode Structure
+		dmScreenSettings.dmPelsWidth		= (DWORD)size.x;		// Selected Screen Width
+		dmScreenSettings.dmPelsHeight		= (DWORD)size.y;		// Selected Screen Height
+		dmScreenSettings.dmBitsPerPel		= 32;								// Selected Bits Per Pixel
+		dmScreenSettings.dmDisplayFrequency = (DWORD)settings.dmDisplayFrequency;
+		dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+
+		if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL) {
+			std::cout << __FUNCTION__ << " Failed to switch to fullscreen!\n";
+		}
+		else {
+			if (eventHandler) {
+				eventHandler(fullScreen ? NCL::WindowEvent::Fullscreen : NCL::WindowEvent::Windowed, size.x, size.y);
+			}
+		}
 	}
 	else {
-		// 恢复窗口模式：还原样式和位置
-		DWORD style = WS_OVERLAPPEDWINDOW | WS_POPUP | WS_VISIBLE
-		            | WS_SYSMENU | WS_MAXIMIZEBOX | WS_MINIMIZEBOX;
-		SetWindowLongPtr(windowHandle, GWL_STYLE, style);
+		DEVMODE dmScreenSettings;								// Device Mode
+		memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));	// Makes Sure Memory's Cleared
 
 		size = defaultSize;
 
-		// 计算含边框的窗口尺寸
-		RECT desiredClient = { 0, 0, (LONG)size.x, (LONG)size.y };
-		AdjustWindowRectEx(&desiredClient, style, FALSE, 0);
-		int windowW = desiredClient.right  - desiredClient.left;
-		int windowH = desiredClient.bottom - desiredClient.top;
+		dmScreenSettings.dmSize = sizeof(dmScreenSettings);	// Size Of The Devmode Structure
+		dmScreenSettings.dmPelsWidth  = (DWORD)size.x;		// Selected Screen Width
+		dmScreenSettings.dmPelsHeight = (DWORD)size.y;		// Selected Screen Height
+		dmScreenSettings.dmPosition.x = (DWORD)position.x;
+		dmScreenSettings.dmPosition.y = (DWORD)position.y;
+		dmScreenSettings.dmBitsPerPel = 32;					// Selected Bits Per Pixel
+		dmScreenSettings.dmDisplayFrequency = 60;
+		dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY | DM_POSITION;
 
-		// 居中放置窗口（避免使用旧位置导致偏移）
-		int screenW = GetSystemMetrics(SM_CXSCREEN);
-		int screenH = GetSystemMetrics(SM_CYSCREEN);
-		int posX = (screenW - windowW) / 2;
-		int posY = (screenH - windowH) / 2;
-
-		SetWindowPos(windowHandle, HWND_NOTOPMOST,
-		             posX, posY, windowW, windowH,
-		             SWP_FRAMECHANGED);
-
-		position.x = (float)posX;
-		position.y = (float)posY;
+		if (ChangeDisplaySettings(&dmScreenSettings, 0) != DISP_CHANGE_SUCCESSFUL) {
+			std::cout << __FUNCTION__ << " Failed to switch out of fullscreen!\n";
+		}
 	}
-
-	// 统一通知渲染器 + 更新鼠标边界
-	if (eventHandler) {
-		eventHandler(fullScreen ? NCL::WindowEvent::Fullscreen
-		                        : NCL::WindowEvent::Windowed,
-		             size.x, size.y);
-	}
-	winMouse->SetAbsolutePositionBounds(size);
-	LockMouseToWindow(lockMouse);
 }
 
 void Win32Window::CheckMessages(MSG &msg)	{
@@ -414,41 +403,6 @@ void	Win32Window::SetConsolePosition(int x, int y)	{
 	SetWindowPos(consoleWindow, 0, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
 
 	SetActiveWindow(windowHandle);
-}
-
-void	Win32Window::SetWindowSize(int w, int h) {
-	if (fullScreen) return;  // ignore in fullscreen mode
-	if (w <= 0 || h <= 0) return;
-
-	RECT desiredClient = { 0, 0, (LONG)w, (LONG)h };
-	DWORD style   = (DWORD)GetWindowLongPtr(windowHandle, GWL_STYLE);
-	DWORD exStyle = (DWORD)GetWindowLongPtr(windowHandle, GWL_EXSTYLE);
-	AdjustWindowRectEx(&desiredClient, style, FALSE, exStyle);
-
-	int windowW = desiredClient.right  - desiredClient.left;
-	int windowH = desiredClient.bottom - desiredClient.top;
-
-	// Center on screen
-	int screenW = GetSystemMetrics(SM_CXSCREEN);
-	int screenH = GetSystemMetrics(SM_CYSCREEN);
-	int posX = (screenW - windowW) / 2;
-	int posY = (screenH - windowH) / 2;
-
-	SetWindowPos(windowHandle, NULL, posX, posY, windowW, windowH,
-		SWP_NOZORDER | SWP_NOACTIVATE);
-
-	size.x = w;
-	size.y = h;
-	defaultSize = size;
-	position.x = posX;
-	position.y = posY;
-
-	winMouse->SetAbsolutePositionBounds(size);
-	LockMouseToWindow(lockMouse);
-
-	if (eventHandler) {
-		eventHandler(NCL::WindowEvent::Resize, size.x, size.y);
-	}
 }
 
 void	Win32Window::SetWindowPosition(int x, int y) {

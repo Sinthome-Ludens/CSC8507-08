@@ -39,6 +39,8 @@
 #include "Game/Scenes/Scene_MainMenu.h"
 #include "Game/Scenes/Scene_NavTest.h"
 #include "Game/Scenes/Scene_NetworkGame.h"
+#include "Game/Utils/WindowHelper.h"
+#include "Game/Utils/Log.h"
 
 #ifdef USE_IMGUI
 #include "Core/Bridge/ImGuiAdapter.h"
@@ -68,6 +70,10 @@ int main(int argc, char** argv) {
 
 	if (!w->HasInitialised()) {
 		return -1;
+	}
+
+	if (!WindowHelper::Init(w)) {
+		LOG_ERROR("[Main] WindowHelper init failed — fullscreen/resolution disabled");
 	}
 
 	w->ShowOSPointer(true);
@@ -174,13 +180,13 @@ int main(int argc, char** argv) {
 				// Resolution change
 				if (ui.resolutionChanged) {
 					int idx = std::clamp((int)ui.resolutionIndex, 0, ECS::kResolutionCount - 1);
-					w->SetWindowSize(ECS::kResolutions[idx].width, ECS::kResolutions[idx].height);
+					WindowHelper::SetWindowSize(ECS::kResolutions[idx].width, ECS::kResolutions[idx].height);
 					ui.resolutionChanged = false;
 				}
 
 				// Fullscreen toggle
 				if (ui.fullscreenChanged) {
-					w->SetFullScreen(ui.isFullscreen);
+					WindowHelper::SetFullScreen(ui.isFullscreen);
 					ui.fullscreenChanged = false;
 					if (!ui.isFullscreen) {
 						ui.resolutionChanged = true;  // sync window to resolutionIndex on exit

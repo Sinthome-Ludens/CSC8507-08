@@ -8,7 +8,6 @@ https://research.ncl.ac.uk/game/
 */
 #pragma once
 #include <algorithm>
-#include <ostream>
 
 namespace NCL::Maths {
 

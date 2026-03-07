@@ -78,7 +78,6 @@ namespace NCL {
 
 		virtual void	SetWindowPosition(int x, int y) {};
 		virtual void	SetFullScreen(bool state) {};
-		virtual void	SetWindowSize(int w, int h) {};
 		virtual void	SetConsolePosition(int x, int y) {};
 		virtual void	ShowConsole(bool state) {};
 

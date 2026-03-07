@@ -46,7 +46,6 @@ namespace NCL::Win32Code {
 		void	SetConsolePosition(int x, int y)	override;
 		void	ShowConsole(bool state)				override;
 		void	SetFullScreen(bool state)			override;
-		void	SetWindowSize(int w, int h)			override;
 		void	SetWindowPosition(int x, int y)		override;
 
 		HWND		GetHandle()			const { return windowHandle; }
