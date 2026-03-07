@@ -6,6 +6,7 @@
 #include "Core/ECS/SystemManager.h"
 #include "Game/Components/Res_NavTestState.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_EnemyAI.h"
@@ -75,6 +76,14 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
+
+    // 初始化光标状态（NavTest 需要自由相机）
+    if (registry.has_ctx<ECS::Res_UIState>()) {
+        auto& ui = registry.ctx<ECS::Res_UIState>();
+        ui.gameCursorFree = true;   // 测试场景，自由相机
+        ui.cursorVisible  = true;   // 显示光标
+        ui.cursorLocked   = false;  // 不锁定光标
+    }
 
     LOG_INFO("[Scene_NavTest] OnEnter complete. "
              << systems.Count() << " systems awake.");

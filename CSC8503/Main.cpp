@@ -228,7 +228,7 @@ int main(int argc, char** argv) {
         w->GetTimer().GetTimeDeltaSeconds();
 
         // ── 统一主循环 ──
-        while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE) && running) {
+        while (w->UpdateWindow() && running) {
             float dt = w->GetTimer().GetTimeDeltaSeconds();
             if (dt > 0.1f) {
                 std::cout << "Skipping large time delta" << std::endl;

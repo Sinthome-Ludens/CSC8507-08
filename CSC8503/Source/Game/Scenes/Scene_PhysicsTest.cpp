@@ -179,6 +179,11 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         ui.transitionTimer      = 0.0f;
         ui.transitionDuration   = 0.5f;
         ui.transitionType       = 0;  // FadeIn
+
+        // 初始化光标状态（游戏场景默认锁定相机）
+        ui.gameCursorFree = false;  // 游戏模式，相机锁定
+        ui.cursorVisible  = false;  // 游戏中隐藏光标
+        ui.cursorLocked   = true;   // 锁定光标用于相机控制
     }
 
     ECS::UI::PushToast(registry, "MISSION START", ECS::ToastType::Success, 2.5f);

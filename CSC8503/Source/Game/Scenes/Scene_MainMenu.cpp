@@ -57,6 +57,11 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
         ui.transitionActive        = false;
         ui.transitionType          = 0;
         ui.transitionSceneRequest  = ECS::SceneRequest::None;
+
+        // 重置光标状态（菜单场景需要自由光标）
+        ui.gameCursorFree = false;  // 菜单不是游戏模式
+        ui.cursorVisible  = true;   // 菜单需要可见光标
+        ui.cursorLocked   = false;  // 菜单不锁定光标
     }
 
     if (!registry.has_ctx<Res_UIFlags>()) {

@@ -108,20 +108,16 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
             // ── 同步 Settings 鼠标灵敏度到相机组件 ──────────────────────────
             if (uiSensitivity >= 0.0f) cam.sensitivity = uiSensitivity;
 
-            // 关闭 debug 时重置 cursor_free 状态
-            if (!m_DebugMode) {
-                cam.cursor_free = false;
-            }
-
             auto* kb = Window::GetKeyboard();
+
+            // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）──
+            // 始终可用，不受 Debug 模式限制
+            if (kb && windowActive) {
+                cam.cursor_free = kb->KeyDown(KeyCodes::MENU);
+            }
 
             // ── Debug 模式：WASD/鼠标自由飞行（默认关闭）────────────────────
             if (m_DebugMode) {
-                // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）──
-                // UI 阻塞时仍跟踪，但不影响输入
-                if (kb && windowActive) {
-                    cam.cursor_free = kb->KeyDown(KeyCodes::MENU);
-                }
 
                 // ── 鼠标旋转（cursor_free 或 UI 阻塞时禁用）─────────────────
                 auto* mouse = Window::GetMouse();
