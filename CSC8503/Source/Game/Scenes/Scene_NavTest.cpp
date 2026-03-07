@@ -77,9 +77,16 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
 
-    // 初始化光标状态（NavTest 需要自由相机）
+    // 重置场景过渡状态和光标状态
     if (registry.has_ctx<ECS::Res_UIState>()) {
         auto& ui = registry.ctx<ECS::Res_UIState>();
+
+        // 重置场景过渡锁（防止卡在 Loading screen）
+        ui.sceneRequestDispatched = false;
+        ui.transitionActive       = false;
+        ui.transitionTimer        = 0.0f;
+
+        // 初始化光标状态（NavTest 需要自由相机）
         ui.gameCursorFree = true;   // 测试场景，自由相机
         ui.cursorVisible  = true;   // 显示光标
         ui.cursorLocked   = false;  // 不锁定光标

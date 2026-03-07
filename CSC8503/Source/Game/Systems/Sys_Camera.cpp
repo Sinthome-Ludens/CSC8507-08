@@ -89,16 +89,8 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
         itemWheelOpen  = ui.itemWheelOpen;
     }
 
-    // ── F1 键切换 Debug 模式（master）────────────────────────────
-    auto* kbGlobal = Window::GetKeyboard();
-    if (kbGlobal && windowActive && !uiBlocking) {
-        if (kbGlobal->KeyPressed(KeyCodes::F1)) {
-            m_DebugMode = !m_DebugMode;
-            LOG_INFO("[Sys_Camera] Debug mode " << (m_DebugMode ? "ON" : "OFF"));
-            // 关闭 debug 时重置鼠标状态，避免卡在 cursor_free
-            // 光标状态通过 Res_UIState 传递，不直接调用 Window API
-        }
-    }
+    // F1 键切换由 Sys_UI 统一处理（切换 devMode），相机 Debug 模式由 ImGui 面板控制
+    // 移除此处的 F1 键处理，避免与 Sys_UI 冲突
 
     bool cursorFree = false;
 

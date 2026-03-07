@@ -18,6 +18,7 @@
 #include "Game/Components/Res_TestState.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Prefabs/PrefabFactory.h"
+#include "Game/Systems/Sys_Camera.h"
 #include "Game/Utils/Log.h"
 #include "GameWorld.h"
 #include "Constraint.h"
@@ -139,6 +140,28 @@ void Sys_ImGui::RenderDebugWindow(Registry& registry, float dt) {
             }
         }
     }
+
+    // ── 相机控制面板 ──
+    ImGui::Separator();
+    ImGui::Text("Camera Controls");
+    if (registry.has_ctx<Sys_Camera*>()) {
+        auto* camSys = registry.ctx<Sys_Camera*>();
+        if (camSys) {
+            bool debugMode = camSys->IsDebugMode();
+            if (ImGui::Checkbox("Free Camera (WASD + Mouse)", &debugMode)) {
+                camSys->SetDebugMode(debugMode);
+                LOG_INFO("[ImGui] Camera Debug Mode: " << (debugMode ? "ON" : "OFF"));
+            }
+
+            // 提示信息
+            if (debugMode) {
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "WASD: Move | Q/E: Up/Down | Alt: Show Cursor");
+            } else {
+                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Enable to unlock camera");
+            }
+        }
+    }
+
     ImGui::End();
 }
 

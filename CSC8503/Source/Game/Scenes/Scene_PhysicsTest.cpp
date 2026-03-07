@@ -174,6 +174,9 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         ui.activeScreen         = ECS::UIScreen::HUD;
         ui.pendingSceneRequest  = ECS::SceneRequest::None;
 
+        // 重置场景过渡锁（防止卡在 Loading screen）
+        ui.sceneRequestDispatched = false;
+
         // 启动 FadeIn（CRT 展开）
         ui.transitionActive     = true;
         ui.transitionTimer      = 0.0f;
