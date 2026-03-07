@@ -24,6 +24,7 @@
 #include "Game/Components/C_T_MainCamera.h"
 #include "Game/Components/C_D_DebugName.h"
 #include "Game/Components/C_D_MeshRenderer.h"
+#include "Game/Components/C_D_Material.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
 #include "Game/Components/C_T_Player.h"
@@ -129,6 +130,9 @@ EntityID PrefabFactory::CreateFloor(Registry& reg, ECS::MeshHandle cubeMesh)
     col.half_y = 1.0f;
     col.half_z = 50.0f;
     reg.Emplace<C_D_Collider>(entity, col);
+
+    // C_D_Material（默认 BlinnPhong）
+    reg.Emplace<C_D_Material>(entity);
 
     // C_D_DebugName（规范必选）
     AttachDebugName(reg, entity, "ENTITY_Env_Floor_Main");
@@ -295,6 +299,9 @@ EntityID PrefabFactory::CreatePhysicsCube(
     col.friction    = 0.5f;
     col.restitution = 0.1f;
     reg.Emplace<C_D_Collider>(entity, col);
+
+    // C_D_Material（默认 BlinnPhong）
+    reg.Emplace<C_D_Material>(entity);
 
     // C_D_DebugName（含序号，匹配 ENTITY_Physics_Cube_XX 规范）
     char debugName[64];
