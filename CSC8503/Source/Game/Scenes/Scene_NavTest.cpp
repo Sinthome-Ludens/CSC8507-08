@@ -1,3 +1,7 @@
+/**
+ * @file Scene_NavTest.cpp
+ * @brief 导航测试场景生命周期实现（资源加载、实体生成、系统注册）。
+ */
 #include "Scene_NavTest.h"
 
 #include "Assets.h"
@@ -10,6 +14,8 @@
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_EnemyAI.h"
+#include "Game/Systems/Sys_EnemyVision.h"
+#include "Game/Components/Res_VisionConfig.h"
 #include "Game/Systems/Sys_Navigation.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
@@ -44,6 +50,11 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_UIFlags>();
     }
 
+    // 视野检测配置资源（数据驱动）
+    if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
+        registry.ctx_emplace<ECS::Res_VisionConfig>(ECS::Res_VisionConfig{});
+    }
+
     // 无条件重置：场景重进时 DestroyAll 已销毁旧实体，ctx 中残留的实体 ID 列表
     // 若不清空会导致 "Delete Last" 操作访问已失效 ID
     {
@@ -58,16 +69,19 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_NavTest] floor entity id=" << entity_floor);
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
-    //    执行顺序：Camera(50) → Physics(100) → Navigation(130) → Render(200) → EnemyAI(250) → ImGui(300) → NavTest(310)
+    //    执行顺序：Camera(50) → Physics(100) → EnemyVision(110)
+    //              → Navigation(130) → Render(200) → EnemyAI(250)
+    //              → ImGui(300) → NavTest(310)
     systems.Register<ECS::Sys_Camera>   ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>  (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
+    systems.Register<ECS::Sys_EnemyVision>(110);  // 敌人视野判定（扇形视锥 + 遮挡射线）
 
     auto* navSys = systems.Register<ECS::Sys_Navigation>(130);
     m_Pathfinder = std::make_unique<ECS::NavMeshPathfinderUtil>();
     navSys->SetPathfinder(m_Pathfinder.get());
 
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
-    systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 isSpotted）
+    systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 C_D_AIPerception::is_spotted）
 
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>        (300);   // 菜单栏 + 性能窗口
