@@ -1,3 +1,16 @@
+/**
+ * @file Sys_Physics.cpp
+ * @brief Jolt Physics ECS 物理系统实现。
+ *
+ * @details
+ * 实现 Sys_Physics 的完整生命周期：Jolt 全局初始化、Body 创建/销毁、
+ * Transform 双向同步、碰撞/触发事件发布，以及射线检测等工具函数。
+ *
+ * 固定步长驱动说明：
+ * - `OnFixedUpdate` 执行单次 Jolt 步进（fixedDt = 1/60s），
+ *   由 SceneManager 外部累加器保证每秒调用 60 次。
+ * - `OnUpdate` 仅负责 Body 的创建/清理/参数同步，不执行步进。
+ */
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
 #include <iostream>
@@ -104,7 +117,7 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
 }
 
 // ============================================================
-// OnUpdate（固定步长累加器）
+// OnUpdate（Body 管理 + 参数同步，不执行步进）
 // ============================================================
 void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     if (!m_PhysicsSystem) return;
@@ -150,20 +163,22 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
             g_LastGravityFactors[bodyID] = rb.gravity_factor;
         });
     }
+    // 步进、Transform 同步、碰撞事件发布均由 OnFixedUpdate 负责
+}
 
-    // 3. 固定步长累加器驱动物理更新
-    m_Accumulator += dt;
-    int steps = 0;
-    while (m_Accumulator >= FIXED_DT && steps < 4) {  // 最多步进 4 次防止螺旋死亡
-        m_PhysicsSystem->Update(FIXED_DT, 1, m_TempAllocator.get(), m_JobSystem.get());
-        m_Accumulator -= FIXED_DT;
-        ++steps;
-    }
+// ============================================================
+// OnFixedUpdate（单次 Jolt 步进 + Transform 同步 + 事件发布）
+// ============================================================
+void ECS::Sys_Physics::OnFixedUpdate(Registry& registry, float fixedDt) {
+    if (!m_PhysicsSystem) return;
 
-    // 4. 同步 Jolt 位置 → C_D_Transform
+    // 单次步进（频率由 SceneManager 外部累加器保证为 60 Hz）
+    m_PhysicsSystem->Update(fixedDt, 1, m_TempAllocator.get(), m_JobSystem.get());
+
+    // 同步 Jolt 结果 → C_D_Transform
     SyncTransformsFromJolt(registry);
 
-    // 5. 发布碰撞事件到 EventBus
+    // 发布碰撞/触发事件到 EventBus
     FlushCollisionEvents(registry);
 }
 

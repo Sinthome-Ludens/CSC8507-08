@@ -101,7 +101,6 @@ int main(int argc, char** argv) {
 #endif
 
 	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics, renderer});
-	sceneManager.PushScene(new Scene_MainMenu());
 
 	bool running = true;
 	sceneManager.PushScene(new Scene_PhysicsTest());

@@ -55,7 +55,19 @@ void SceneManager::Update(float dt) {
     time.frameCount++;
 
     m_Systems.UpdateAll(m_Registry, dt);
-    // 修复：刷新延迟事件队列
+
+    // 固定步长物理帧驱动（60 Hz，最多步进 4 次防止螺旋死亡）
+    // 与 Sys_Physics::FIXED_DT 对齐，所有实现 OnFixedUpdate 的系统均在此驱动
+    constexpr float FIXED_DT = 1.0f / 60.0f;
+    m_FixedAccumulator += dt;
+    int steps = 0;
+    while (m_FixedAccumulator >= FIXED_DT && steps < 4) {
+        m_Systems.FixedUpdateAll(m_Registry, FIXED_DT);
+        m_FixedAccumulator -= FIXED_DT;
+        ++steps;
+    }
+
+    // 刷新延迟事件队列（在所有更新完成后统一 flush）
     if (m_Registry.has_ctx<EventBus*>()) {
         auto* eventBus = m_Registry.ctx<EventBus*>();
         if (eventBus) {

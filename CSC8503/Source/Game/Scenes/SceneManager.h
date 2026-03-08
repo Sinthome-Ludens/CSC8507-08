@@ -23,10 +23,10 @@ namespace ECS {
  * // 主循环
  * while (running) {
  *     ImGuiAdapter::NewFrame();
- *     sm.Update(dt);            // ECS UpdateAll
+ *     sm.Update(dt);            // ECS UpdateAll + FixedUpdateAll（内含固定步长累加器）
  *
  *     world->UpdateWorld(dt);   // NCL
- *     physics->Update(dt);      // NCL
+ *     physics->Update(dt);      // NCL（运行空世界，ECS 实体由 Jolt 管理）
  *     renderer->Update(dt);     // NCL
  *     renderer->Render();       // NCL
  *
@@ -68,7 +68,9 @@ public:
     void PushScene(IScene* scene);
 
     /**
-     * @brief 每帧前半段：调用所有系统的 OnUpdate（含 ImGui UI 收集）。
+     * @brief 每帧前半段：调用所有系统的 OnUpdate，以及固定步长累加器驱动的 FixedUpdateAll。
+     * @details UpdateAll 以变步长 dt 调用；FixedUpdateAll 以固定步长 1/60s 调用，
+     *          每帧最多步进 4 次（螺旋死亡保护）。EventBus 在所有更新完成后统一 flush。
      * @param dt 本帧变步长时间（秒）
      */
     void Update(float dt);
@@ -119,6 +121,7 @@ private:
     Res_NCL_Pointers   m_NclPtrs;       ///< Engine 层全局资源（不随场景销毁）
     IScene*            m_PendingScene = nullptr; ///< 外部请求的待切换场景
     bool               m_Shutdown = false;       ///< 防止重复 Shutdown
+    float              m_FixedAccumulator = 0.0f; ///< 固定步长物理帧累加器（Update 内驱动 FixedUpdateAll）
 };
 
 } // namespace ECS
