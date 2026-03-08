@@ -159,12 +159,12 @@ public:
 
     virtual void OnContactRemoved(const JPH::SubShapeIDPair& pair) override {
         std::lock_guard lock(mutex);
-        // 只记录 body ID，is_exit=true 由 Sys_Physics 处理 TriggerExit
+        // 只记录 body ID，是否为 trigger 由 Sys_Physics::FlushCollisionEvents 查表验证
         pending.push_back({
             pair.GetBody1ID().GetIndexAndSequenceNumber(),
             pair.GetBody2ID().GetIndexAndSequenceNumber(),
             0,0,0, 0,0,0, 0.0f,
-            true,  // 假定 trigger（由 Sys_Physics 查表验证）
+            false, // 退出时无法直接判断，后续由 FlushCollisionEvents 验证
             true   // exit 事件
         });
     }

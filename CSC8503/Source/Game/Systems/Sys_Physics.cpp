@@ -364,28 +364,39 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
         EntityID entA = itA->second;
         EntityID entB = itB->second;
 
-        if (c.is_trigger) {
+        const bool hasColliderA = reg.Has<C_D_Collider>(entA);
+        const bool hasColliderB = reg.Has<C_D_Collider>(entB);
+        const bool isTriggerA = hasColliderA && reg.Get<C_D_Collider>(entA).is_trigger;
+        const bool isTriggerB = hasColliderB && reg.Get<C_D_Collider>(entB).is_trigger;
+
+        if (isTriggerA || isTriggerB) {
+            const EntityID entityTrigger = isTriggerA ? entA : entB;
+            const EntityID entityOther   = isTriggerA ? entB : entA;
+
             if (c.is_exit) {
                 Evt_Phys_TriggerExit evt;
-                evt.entity_trigger = entA;
-                evt.entity_other   = entB;
+                evt.entity_trigger = entityTrigger;
+                evt.entity_other   = entityOther;
                 bus.publish<Evt_Phys_TriggerExit>(evt);
             } else {
                 Evt_Phys_TriggerEnter evt;
-                evt.entity_trigger = entA;
-                evt.entity_other   = entB;
+                evt.entity_trigger = entityTrigger;
+                evt.entity_other   = entityOther;
                 bus.publish<Evt_Phys_TriggerEnter>(evt);
             }
-        } else {
-            // 普通碰撞
-            Evt_Phys_Collision evt;
-            evt.entity_a            = entA;
-            evt.entity_b            = entB;
-            evt.contact_point       = Vector3(c.contact_x, c.contact_y, c.contact_z);
-            evt.contact_normal      = Vector3(c.normal_x,  c.normal_y,  c.normal_z);
-            evt.separating_velocity = c.separating_velocity;
-            bus.publish<Evt_Phys_Collision>(evt);
+            continue;
         }
+
+        if (c.is_exit) continue;
+
+        // 普通碰撞
+        Evt_Phys_Collision evt;
+        evt.entity_a            = entA;
+        evt.entity_b            = entB;
+        evt.contact_point       = Vector3(c.contact_x, c.contact_y, c.contact_z);
+        evt.contact_normal      = Vector3(c.normal_x,  c.normal_y,  c.normal_z);
+        evt.separating_velocity = c.separating_velocity;
+        bus.publish<Evt_Phys_Collision>(evt);
     }
 }
 
