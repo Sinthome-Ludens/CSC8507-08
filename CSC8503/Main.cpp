@@ -71,9 +71,6 @@ static void HandleKeyboardShortcuts(Window* w) {
     if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
         w->ShowConsole(false);
     }
-    if (Window::GetKeyboard()->KeyPressed(KeyCodes::T)) {
-        w->SetWindowPosition(0, 0);
-    }
 }
 
 /// 更新窗口标题
@@ -278,6 +275,8 @@ int main(int argc, char** argv) {
     // =========================================================
     // 清理
     // =========================================================
+    WindowHelper::Shutdown();
+
 #ifdef USE_IMGUI
     ECS::ImGuiAdapter::Shutdown();
 #endif

@@ -5,6 +5,7 @@
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_T_Player.h"
+#include "Game/Systems/Sys_Camera.h"
 
 #include <cmath>
 
@@ -42,6 +43,22 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
     bool fDown = res.keyStates[NCL::KeyCodes::F];
     bool fPressed = fDown && !m_FWasPressed;
     m_FWasPressed = fDown;
+
+    // ── Debug 模式下阻断移动输入（Sync 关闭时玩家不动）──
+    bool blockMovement = false;
+    if (registry.has_ctx<Sys_Camera*>()) {
+        auto* camSys = registry.ctx<Sys_Camera*>();
+        if (camSys && camSys->IsDebugMode() && !camSys->IsSyncToPlayer()) {
+            blockMovement = true;
+        }
+    }
+
+    if (blockMovement) {
+        inputX = 0.0f;
+        inputZ = 0.0f;
+        hasInput = false;
+        shiftDown = false;
+    }
 
     // ── 写入所有玩家实体的 C_D_Input ──
     registry.view<C_T_Player, C_D_Input>().each(
