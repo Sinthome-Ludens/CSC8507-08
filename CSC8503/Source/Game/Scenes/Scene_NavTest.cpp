@@ -58,11 +58,7 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     }
 
     // 场景指针（供 Sys_DeathJudgment 调用 Restart）
-    if (registry.has_ctx<IScene*>()) {
-        registry.ctx<IScene*>() = static_cast<IScene*>(this);
-    } else {
-        registry.ctx_emplace<IScene*>(static_cast<IScene*>(this));
-    }
+    registry.ctx_emplace<IScene*>(static_cast<IScene*>(this));
 
     // 视野检测配置资源（数据驱动）
     if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
