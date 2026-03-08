@@ -10,12 +10,14 @@
 #include "Core/ECS/SystemManager.h"
 #include "Game/Components/Res_NavTestState.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_DeathConfig.h"
+#include "Game/Systems/Sys_DeathJudgment.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_EnemyVision.h"
-#include "Game/Components/Res_VisionConfig.h"
 #include "Game/Systems/Sys_Navigation.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
@@ -50,6 +52,14 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_UIFlags>();
     }
 
+    // 死亡判定配置资源（数据驱动）
+    if (!registry.has_ctx<ECS::Res_DeathConfig>()) {
+        registry.ctx_emplace<ECS::Res_DeathConfig>(ECS::Res_DeathConfig{});
+    }
+
+    // 场景指针（供 Sys_DeathJudgment 调用 Restart）
+    registry.ctx_emplace<IScene*>(static_cast<IScene*>(this));
+
     // 视野检测配置资源（数据驱动）
     if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
         registry.ctx_emplace<ECS::Res_VisionConfig>(ECS::Res_VisionConfig{});
@@ -70,11 +80,12 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
     //    执行顺序：Camera(50) → Physics(100) → EnemyVision(110)
-    //              → Navigation(130) → Render(200) → EnemyAI(250)
-    //              → ImGui(300) → NavTest(310)
-    systems.Register<ECS::Sys_Camera>   ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
-    systems.Register<ECS::Sys_Physics>  (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
-    systems.Register<ECS::Sys_EnemyVision>(110);  // 敌人视野判定（扇形视锥 + 遮挡射线）
+    //              → DeathJudgment(125) → Navigation(130) → Render(200)
+    //              → EnemyAI(250) → ImGui(300) → NavTest(310)
+    systems.Register<ECS::Sys_Camera>       ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
+    systems.Register<ECS::Sys_Physics>      (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
+    systems.Register<ECS::Sys_EnemyVision>  (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
+    systems.Register<ECS::Sys_DeathJudgment>(125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死）
 
     auto* navSys = systems.Register<ECS::Sys_Navigation>(130);
     m_Pathfinder = std::make_unique<ECS::NavMeshPathfinderUtil>();
@@ -117,9 +128,14 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 void Scene_NavTest::OnExit(ECS::Registry&      registry,
                            ECS::SystemManager& systems)
 {
-    // 逆序停机：NavTest(310) → ImGui(300) → EnemyAI(250) → Render(200) → Navigation(130) → Physics(100) → Camera(50)
+    // 逆序停机
     systems.DestroyAll(registry);
     m_Pathfinder.reset();
+
+    // 清除场景指针 ctx，防止 delete 后悬空指针
+    if (registry.has_ctx<IScene*>()) {
+        registry.ctx<IScene*>() = nullptr;
+    }
 
     // 清除场景级 ctx 资源，防止跨场景状态泄漏（registry.Clear() 不清除 ctx）
     if (registry.has_ctx<Res_UIFlags>())      registry.ctx_erase<Res_UIFlags>();

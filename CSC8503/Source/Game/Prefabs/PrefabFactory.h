@@ -197,6 +197,30 @@ public:
         NCL::Maths::Vector3 spawnPos
     );
 
+    // ============================================================
+    // 死亡区域
+    // ============================================================
+
+    /**
+     * @brief 创建即死触发区域实体（PREFAB_ENV_DEATH_ZONE）
+     *
+     * 挂载：C_D_Transform, C_D_RigidBody(Static), C_D_Collider(Box, is_trigger=true),
+     *       C_T_DeathZone, C_D_DebugName
+     * 不挂载 C_D_MeshRenderer → 渲染不可见。
+     *
+     * @param reg         ECS Registry
+     * @param zoneIndex   区域序号（用于 DebugName 编号）
+     * @param position    触发器中心世界坐标
+     * @param halfExtents Box 触发器半尺寸
+     * @return 死亡区域实体 ID
+     */
+    static ECS::EntityID CreateDeathZone(
+        ECS::Registry&      reg,
+        int                 zoneIndex,
+        NCL::Maths::Vector3 position,
+        NCL::Maths::Vector3 halfExtents
+    );
+
     /**
      * @brief 创建动态物理胶囊体实体（PREFAB_PHYSICS_CAPSULE，来自 master）
      *

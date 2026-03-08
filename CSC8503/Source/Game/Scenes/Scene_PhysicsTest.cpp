@@ -13,7 +13,9 @@
 #include "Game/Components/Res_EnemyTestState.h"
 #include "Game/Components/Res_CapsuleState.h"
 #include "Game/Components/Res_CQCConfig.h"
+#include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_VisionConfig.h"
+#include "Game/Systems/Sys_DeathJudgment.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Input.h"
@@ -110,6 +112,14 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<ECS::Res_CQCConfig>(ECS::Res_CQCConfig{});
     }
 
+    // 死亡判定配置资源（数据驱动）
+    if (!registry.has_ctx<ECS::Res_DeathConfig>()) {
+        registry.ctx_emplace<ECS::Res_DeathConfig>(ECS::Res_DeathConfig{});
+    }
+
+    // 场景指针（供 Sys_DeathJudgment 调用 Restart）
+    registry.ctx_emplace<IScene*>(static_cast<IScene*>(this));
+
     // 视野检测配置资源（数据驱动）
     if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
         registry.ctx_emplace<ECS::Res_VisionConfig>(ECS::Res_VisionConfig{});
@@ -144,9 +154,9 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     //    执行顺序：Input(10) → InputDispatch(55)
     //              → Disguise(59) → Stance(60) → StealthMetrics(62)
     //              → PlayerCQC(63) → Movement(65) → Physics(100)
-    //              → EnemyVision(110) → EnemyAI(120)
+    //              → EnemyVision(110) → EnemyAI(120) → DeathJudgment(125)
     //              → PlayerCamera(150) → Camera(155, Bridge 同步 + debug 飞行)
-    //              → Render(200) → ImGui(300+) → Chat(450) → UI(500) → Raycast(330)
+    //              → Render(200) → ImGui(300+) → Raycast(330) → Chat(450) → UI(500)
     systems.Register<ECS::Sys_Input>           ( 10);   // NCL → Res_Input（via InputAdapter）
     systems.Register<ECS::Sys_InputDispatch>   ( 55);   // Res_Input → per-entity C_D_Input
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);   // 伪装切换、C_T_Hidden 管理
@@ -157,6 +167,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Physics>         (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyVision>    (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
     systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
+    systems.Register<ECS::Sys_DeathJudgment>   (125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死 → 场景重启/敌人销毁）
     systems.Register<ECS::Sys_PlayerCamera>    (150);   // 第三人称跟随相机
     systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
     systems.Register<ECS::Sys_Render>          (200);   // ECS 实体 → NCL 代理对象桥接
@@ -218,6 +229,11 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
 {
     // 逆序停机
     systems.DestroyAll(registry);
+
+    // 清除场景指针 ctx，防止 delete 后悬空指针
+    if (registry.has_ctx<IScene*>()) {
+        registry.ctx<IScene*>() = nullptr;
+    }
 
     // 清除场景级 ctx 资源，防止跨场景状态泄漏（registry.Clear() 不清除 ctx）
     // Session 级资源（Res_UIState）不在此清除 — 跨场景保持用户设置
