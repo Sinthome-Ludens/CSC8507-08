@@ -1,3 +1,16 @@
+/**
+ * @file Main.cpp
+ * @brief 游戏应用程序入口：初始化 NCL 窗口/渲染器/物理，驱动 ECS SceneManager 主循环。
+ *
+ * @details
+ * 创建 NCL 核心对象（GameWorld、PhysicsSystem、GameTechRenderer），
+ * 构造 ECS::SceneManager 并推入首个场景（Scene_PhysicsTest）。
+ * 主循环按序执行：
+ *   1. SceneManager::Update(dt)  — ECS UpdateAll + FixedUpdateAll（累加器）
+ *   2. NCL world/physics/renderer Update — NCL 层帧更新
+ *   3. renderer Render/Present    — 渲染输出
+ *   4. SceneManager::EndFrame()  — ProcessPendingDestroy + 延迟场景切换
+ */
 #include "Window.h"
 
 #include "Debug.h"
@@ -68,6 +81,12 @@ void TestPathfinding() {
 void DisplayPathfinding() {
 }
 
+/**
+ * @brief 应用程序入口：初始化所有子系统，运行主游戏循环，退出时释放资源。
+ * @param argc 命令行参数个数
+ * @param argv 命令行参数数组
+ * @return 0 表示正常退出，-1 表示窗口初始化失败
+ */
 int main(int argc, char** argv) {
 	WindowInitialisation initInfo;
 	initInfo.width		= 1920;
@@ -95,6 +114,11 @@ int main(int argc, char** argv) {
 #elif USEOPENGL
 	GameTechRenderer* renderer = new GameTechRenderer(*world);
 #endif
+
+#if ENABLE_PHYSICS_TEST_SCENE
+    // =========================================================
+    // ECS 物理测试场景（SceneManager + Scene_PhysicsTest）
+    // =========================================================
 
 #ifdef USE_IMGUI
 	ECS::ImGuiAdapter::Init(w, renderer);
@@ -362,4 +386,6 @@ int main(int argc, char** argv) {
 	delete world;
 
 	Window::DestroyGameWindow();
+
+#endif // ENABLE_PHYSICS_TEST_SCENE / ENABLE_NETWORK_SCENE / else
 }

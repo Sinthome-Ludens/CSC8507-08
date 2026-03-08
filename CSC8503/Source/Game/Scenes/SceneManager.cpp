@@ -1,3 +1,15 @@
+/**
+ * @file SceneManager.cpp
+ * @brief ECS 场景管理器实现：帧循环驱动、场景生命周期与固定步长累加器。
+ *
+ * @details
+ * - `Update(dt)`：驱动变步长 UpdateAll 与固定步长 FixedUpdateAll（累加器模式）。
+ *   固定步长从 `Res_Time::fixedDeltaTime` 读取，保证单一数据来源。
+ *   累加器上限 clamp 为 4 × fixedDt，防止过载导致螺旋死亡。
+ * - `EnterScene()` / `ExitCurrentScene()`：切换场景时重置累加器，
+ *   防止残留积压时间在新场景首帧触发大量物理步进。
+ * - `EndFrame()`：帧末执行 ProcessPendingDestroy 与延迟场景切换。
+ */
 #include "SceneManager.h"
 #include "Game/Utils/Assert.h"
 #include "Game/Utils/Log.h"
@@ -56,14 +68,18 @@ void SceneManager::Update(float dt) {
 
     m_Systems.UpdateAll(m_Registry, dt);
 
-    // 固定步长物理帧驱动（60 Hz，最多步进 4 次防止螺旋死亡）
-    // 与 Sys_Physics::FIXED_DT 对齐，所有实现 OnFixedUpdate 的系统均在此驱动
-    constexpr float FIXED_DT = 1.0f / 60.0f;
+    // 固定步长物理帧驱动（由 Res_Time::fixedDeltaTime 决定，最多步进 4 次防止螺旋死亡）
+    // 使用 Res_Time 作为单一数据来源，与 Sys_Physics::FIXED_DT 保持一致
+    const float fixedDt = time.fixedDeltaTime;
     m_FixedAccumulator += dt;
+    // clamp：防止过载时累加器无界积压（上限 = 4 步）
+    if (m_FixedAccumulator > fixedDt * 4.0f) {
+        m_FixedAccumulator = fixedDt * 4.0f;
+    }
     int steps = 0;
-    while (m_FixedAccumulator >= FIXED_DT && steps < 4) {
-        m_Systems.FixedUpdateAll(m_Registry, FIXED_DT);
-        m_FixedAccumulator -= FIXED_DT;
+    while (m_FixedAccumulator >= fixedDt && steps < 4) {
+        m_Systems.FixedUpdateAll(m_Registry, fixedDt);
+        m_FixedAccumulator -= fixedDt;
         ++steps;
     }
 
@@ -147,6 +163,8 @@ void SceneManager::Shutdown() {
 // ============================================================
 
 void SceneManager::EnterScene(IScene* scene) {
+    // 重置累加器，防止上一场景残留的积压时间在新场景首帧触发大量物理步进
+    m_FixedAccumulator = 0.0f;
     m_CurrentScene = scene;
     m_CurrentScene->OnEnter(m_Registry, m_Systems, m_NclPtrs);
     LOG_INFO("[SceneManager] Scene entered. Active systems: " << m_Systems.Count());
@@ -160,6 +178,8 @@ void SceneManager::ExitCurrentScene() {
     if (!m_CurrentScene) return;
     m_CurrentScene->OnExit(m_Registry, m_Systems);
     m_CurrentScene = nullptr;
+    // 重置累加器，防止场景切换后残留积压时间干扰下一场景的物理步进
+    m_FixedAccumulator = 0.0f;
     LOG_INFO("[SceneManager] Scene exited.");
 }
 

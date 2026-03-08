@@ -1,3 +1,13 @@
+/**
+ * @file SceneManager.h
+ * @brief ECS 场景管理器声明：持有 Registry/SystemManager，驱动固定步长累加器。
+ *
+ * @details
+ * SceneManager 负责帧循环驱动、场景生命周期（Enter/Exit/Switch）以及
+ * 固定步长物理帧（FixedUpdateAll）的累加器管理。
+ * 场景切换（EnterScene / ExitCurrentScene）时累加器会被重置为 0，
+ * 以避免切换后物理帧积压。
+ */
 #pragma once
 
 #include "IScene.h"
@@ -103,13 +113,17 @@ public:
 private:
     /**
      * @brief 进入指定场景：设置 m_CurrentScene 并调用 scene->OnEnter()。
+     * @details 同时将固定步长累加器 m_FixedAccumulator 重置为 0，
+     *          避免上一场景残留的时间积压在新场景首帧触发大量物理步进。
      * @param scene 新场景（所有权已转移）
      */
     void EnterScene(IScene* scene);
 
     /**
      * @brief 退出当前场景：调用 m_CurrentScene->OnExit()（含 DestroyAll + Clear）。
-     * 调用后 m_CurrentScene 指针被置空，但 delete 由调用方负责。
+     * @details 同时将固定步长累加器 m_FixedAccumulator 重置为 0，
+     *          防止切换场景后残留的累加时间干扰下一场景的物理步进。
+     *          调用后 m_CurrentScene 指针被置空，但 delete 由调用方负责。
      */
     void ExitCurrentScene();
 

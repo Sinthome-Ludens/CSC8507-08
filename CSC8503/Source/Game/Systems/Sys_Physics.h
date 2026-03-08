@@ -291,7 +291,7 @@ private:
     void InitJolt();
     void CreateBodyForEntity(Registry& reg, EntityID id,
                              C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col);
-    void SyncTransformsFromJolt(Registry& reg);
+    void SyncTransformsFromJolt(Registry& reg, float fixedDt);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);
     // NCL ↔ Jolt 转换
