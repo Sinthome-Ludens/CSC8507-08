@@ -113,7 +113,8 @@ private:
     /**
      * @brief 进入指定场景：创建 EventBus 并注入 ctx，设置 m_CurrentScene，调用 scene->OnEnter()。
      * @details EventBus 在此处由 SceneManager 创建并以裸指针注入 registry ctx，
-     *          生命周期与场景对齐，与任何特定 System 解耦。
+     *          生命周期与场景对齐，与任何特定 System 解耦；并重置固定步长累加器，
+     *          避免跨场景继承上一场景的物理步进残量。
      * @param scene 新场景（所有权已转移）
      */
     void EnterScene(IScene* scene);
@@ -121,6 +122,7 @@ private:
     /**
      * @brief 退出当前场景：调用 m_CurrentScene->OnExit()（含 DestroyAll + Clear），
      *        随后清理 EventBus ctx 并销毁 EventBus。
+     * @details 退出时同步清零固定步长累加器，防止旧场景残余时间片影响新场景首帧。
      * 调用后 m_CurrentScene 指针被置空，但 delete 由调用方负责。
      */
     void ExitCurrentScene();

@@ -184,7 +184,8 @@ public:
     static constexpr int   MAX_CONTACTS= 1024;           ///< 最大接触约束数
 
     /**
-     * @brief 场景加载后初始化 Jolt，创建 PhysicsSystem，注册 EventBus 与自身指针到 ctx。
+     * @brief 场景加载后初始化 Jolt，创建 PhysicsSystem，并注册自身指针到 ctx。
+     * @details EventBus 由 SceneManager 在进入场景前注入，此处不再负责其生命周期。
      * @param registry 当前场景注册表
      */
     void OnAwake(Registry& registry) override;

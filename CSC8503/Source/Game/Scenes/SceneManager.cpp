@@ -152,6 +152,8 @@ void SceneManager::Shutdown() {
 // ============================================================
 
 void SceneManager::EnterScene(IScene* scene) {
+    m_FixedAccumulator = 0.0f;
+
     // 创建场景级 EventBus，生命周期与场景对齐
     // 在 OnEnter 之前注入 ctx，确保所有 System::OnAwake 均可直接访问
     m_EventBus = std::make_unique<ECS::EventBus>();
@@ -169,6 +171,9 @@ void SceneManager::EnterScene(IScene* scene) {
 
 void SceneManager::ExitCurrentScene() {
     if (!m_CurrentScene) return;
+
+    m_FixedAccumulator = 0.0f;
+
     // OnExit 内部调用 DestroyAll（各 System::OnDestroy 执行），随后 registry.Clear()
     m_CurrentScene->OnExit(m_Registry, m_Systems);
     m_CurrentScene = nullptr;
