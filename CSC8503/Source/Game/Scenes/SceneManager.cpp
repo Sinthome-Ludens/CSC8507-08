@@ -1,8 +1,14 @@
+/**
+ * @file SceneManager.cpp
+ * @brief 场景管理器实现。
+ *
+ * @details
+ * 负责场景进入/退出、固定步长调度、帧末清理，以及场景级 EventBus 的创建与销毁。
+ */
 #include "SceneManager.h"
 #include "Game/Utils/Assert.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Time.h"
-#include "Core/ECS/EventBus.h"
 
 namespace ECS {
 
@@ -101,8 +107,7 @@ void SceneManager::EndFrame() {
         m_CurrentScene->ClearNextScene();
 
         IScene* old = m_CurrentScene;
-        m_CurrentScene = nullptr;
-        old->OnExit(m_Registry, m_Systems);
+        ExitCurrentScene();
         LOG_INFO("[SceneManager] Scene exited (deferred switch).");
         delete old;
 
@@ -147,6 +152,12 @@ void SceneManager::Shutdown() {
 // ============================================================
 
 void SceneManager::EnterScene(IScene* scene) {
+    // 创建场景级 EventBus，生命周期与场景对齐
+    // 在 OnEnter 之前注入 ctx，确保所有 System::OnAwake 均可直接访问
+    m_EventBus = std::make_unique<ECS::EventBus>();
+    m_Registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
+    LOG_INFO("[SceneManager] EventBus created and registered to ctx.");
+
     m_CurrentScene = scene;
     m_CurrentScene->OnEnter(m_Registry, m_Systems, m_NclPtrs);
     LOG_INFO("[SceneManager] Scene entered. Active systems: " << m_Systems.Count());
@@ -158,9 +169,16 @@ void SceneManager::EnterScene(IScene* scene) {
 
 void SceneManager::ExitCurrentScene() {
     if (!m_CurrentScene) return;
+    // OnExit 内部调用 DestroyAll（各 System::OnDestroy 执行），随后 registry.Clear()
     m_CurrentScene->OnExit(m_Registry, m_Systems);
     m_CurrentScene = nullptr;
-    LOG_INFO("[SceneManager] Scene exited.");
+
+    // 清理场景级 EventBus（在所有 System 销毁后执行，防止 OnDestroy 中取消订阅时 bus 已被销毁）
+    if (m_Registry.has_ctx<ECS::EventBus*>()) {
+        m_Registry.ctx_erase<ECS::EventBus*>();
+    }
+    m_EventBus.reset();
+    LOG_INFO("[SceneManager] Scene exited. EventBus destroyed.");
 }
 
 } // namespace ECS

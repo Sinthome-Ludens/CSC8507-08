@@ -1,9 +1,18 @@
+/**
+ * @file SceneManager.h
+ * @brief 场景管理器声明。
+ *
+ * @details
+ * 管理场景切换、系统调度、固定步长更新，以及与场景同生命周期的 EventBus。
+ */
 #pragma once
 
 #include "IScene.h"
 #include "Core/ECS/Registry.h"
 #include "Core/ECS/SystemManager.h"
+#include "Core/ECS/EventBus.h"
 #include "Game/Components/Res_NCL_Pointers.h"
+#include <memory>
 
 namespace ECS {
 
@@ -102,13 +111,16 @@ public:
 
 private:
     /**
-     * @brief 进入指定场景：设置 m_CurrentScene 并调用 scene->OnEnter()。
+     * @brief 进入指定场景：创建 EventBus 并注入 ctx，设置 m_CurrentScene，调用 scene->OnEnter()。
+     * @details EventBus 在此处由 SceneManager 创建并以裸指针注入 registry ctx，
+     *          生命周期与场景对齐，与任何特定 System 解耦。
      * @param scene 新场景（所有权已转移）
      */
     void EnterScene(IScene* scene);
 
     /**
-     * @brief 退出当前场景：调用 m_CurrentScene->OnExit()（含 DestroyAll + Clear）。
+     * @brief 退出当前场景：调用 m_CurrentScene->OnExit()（含 DestroyAll + Clear），
+     *        随后清理 EventBus ctx 并销毁 EventBus。
      * 调用后 m_CurrentScene 指针被置空，但 delete 由调用方负责。
      */
     void ExitCurrentScene();
@@ -122,6 +134,7 @@ private:
     IScene*            m_PendingScene = nullptr; ///< 外部请求的待切换场景
     bool               m_Shutdown = false;       ///< 防止重复 Shutdown
     float              m_FixedAccumulator = 0.0f; ///< 固定步长物理帧累加器（Update 内驱动 FixedUpdateAll）
+    std::unique_ptr<ECS::EventBus> m_EventBus;   ///< 场景级事件总线（EnterScene 创建，ExitCurrentScene 销毁）
 };
 
 } // namespace ECS

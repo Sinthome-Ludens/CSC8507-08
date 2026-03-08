@@ -102,16 +102,10 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
     // 注册 ContactListener
     m_PhysicsSystem->SetContactListener(&m_ContactListener);
 
-    // 注册 EventBus 到 Registry Context（EventBus 不可复制，以裸指针注册）
-    // 无条件覆盖：场景重进时 registry.Clear() 不清 ctx，旧指针可能悬空
-    m_EventBus = std::make_unique<ECS::EventBus>();
-    registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
-
     // 注册 Sys_Physics* 到 ctx，供其他系统（如 Sys_Movement / Sys_StealthMetrics）访问物理接口
     // 无条件覆盖，防止场景切换后残留悬空指针
+    // 注意：EventBus 由 SceneManager::EnterScene() 在 OnAwake 之前创建并注入 ctx，此处无需处理
     registry.ctx_emplace<Sys_Physics*>(this);
-
-    // 注：Sys_Physics* 和 ECS::Sys_Physics* 是同一类型，line 99 已注册
 
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
 }
@@ -205,15 +199,6 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     if (registry.has_ctx<Sys_Physics*>()) {
         registry.ctx_erase<Sys_Physics*>();
     }
-
-    // 如果此系统拥有并注册了 EventBus，将其从上下文中移除，防止留下悬空指针
-    if (registry.has_ctx<ECS::EventBus*>()) {
-        ECS::EventBus* bus = registry.ctx<ECS::EventBus*>();
-        if (m_EventBus && bus == m_EventBus.get()) {
-            registry.ctx_erase<ECS::EventBus*>();
-        }
-    }
-    m_EventBus.reset();
 
     // Jolt 全局资源（Factory 等）保持存活，避免多系统场景问题
     m_BroadPhaseOptimized = false;
@@ -381,13 +366,11 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
 
         if (c.is_trigger) {
             if (c.is_exit) {
-                // TriggerExit
                 Evt_Phys_TriggerExit evt;
                 evt.entity_trigger = entA;
                 evt.entity_other   = entB;
                 bus.publish<Evt_Phys_TriggerExit>(evt);
             } else {
-                // TriggerEnter
                 Evt_Phys_TriggerEnter evt;
                 evt.entity_trigger = entA;
                 evt.entity_other   = entB;

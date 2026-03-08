@@ -6,11 +6,11 @@
  * 定义碰撞层过滤器、ContactListener 以及核心系统类 `ECS::Sys_Physics`。
  *
  * 系统生命周期：
- * - `OnAwake`       : 初始化 Jolt，创建 PhysicsSystem，注册 EventBus/Sys_Physics* 到 ctx
+ * - `OnAwake`       : 初始化 Jolt，创建 PhysicsSystem，注册 Sys_Physics* 到 ctx
  * - `OnUpdate`      : 检测并创建新实体 Body、清理孤立 Body、同步 gravity_factor
  * - `OnFixedUpdate` : 单次 Jolt 步进（由 SceneManager 外部累加器驱动），
  *                     同步结果至 C_D_Transform，发布碰撞/触发事件
- * - `OnDestroy`     : 销毁所有 Jolt Body，释放 EventBus/Sys_Physics* ctx
+ * - `OnDestroy`     : 销毁所有 Jolt Body，释放 Sys_Physics* ctx
  */
 #pragma once
 
@@ -279,10 +279,6 @@ private:
     // --- 映射表 ---
     // jolt_body_id (uint32) → EntityID，用于碰撞事件的实体查找
     std::unordered_map<uint32_t, EntityID> m_BodyToEntity;
-
-    // EventBus 由 Sys_Physics 持有（EventBus 不可复制，无法直接存入 std::any）
-    // 通过 registry.ctx_emplace<ECS::EventBus*>(ptr) 以裸指针注册到 Context
-    std::unique_ptr<ECS::EventBus> m_EventBus;
 
     // BroadPhase 优化标志（场景加载完毕后调用一次 OptimizeBroadPhase）
     bool m_BroadPhaseOptimized = false;

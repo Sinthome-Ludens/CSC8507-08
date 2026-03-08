@@ -1,3 +1,10 @@
+/**
+ * @file Sys_Network.cpp
+ * @brief ENet 网络系统实现。
+ *
+ * @details
+ * 负责网络初始化、收发包、事件桥接，以及客户端与服务端的同步流程。
+ */
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -66,13 +73,7 @@ void Sys_Network::InitializeEvents(Registry& reg) {
     // 缓存 Registry 指针供 EventBus 回调使用
     m_Registry = &reg;
     
-    // 确保 EventBus 存在并注册事件监听
-    if (!reg.has_ctx<EventBus*>()) {
-        m_EventBus = std::make_unique<EventBus>();
-        reg.ctx_emplace<EventBus*>(m_EventBus.get());
-    }
-    
-    // 捕获 this 指针并绑定成员函数
+    // EventBus 由 SceneManager 在场景进入前注入，此处只负责注册监听
     m_ActionSubID = reg.ctx<EventBus*>()->subscribe<Evt_Net_GameAction>(
         [this](const Evt_Net_GameAction& evt) { this->OnLocalGameAction(evt); }
     );
@@ -412,12 +413,7 @@ void Sys_Network::OnDestroy(Registry& reg) {
         if (bus) {
             bus->unsubscribe<Evt_Net_GameAction>(m_ActionSubID);
         }
-        // 如果此系统拥有并注册了 EventBus，将其从上下文中移除（置空）
-        if (m_EventBus && bus == m_EventBus.get()) {
-            reg.ctx_erase<EventBus*>();
-        }
     }
-    m_EventBus.reset();
     m_Registry = nullptr;
 
     auto& resNet = reg.ctx<Res_Network>();
