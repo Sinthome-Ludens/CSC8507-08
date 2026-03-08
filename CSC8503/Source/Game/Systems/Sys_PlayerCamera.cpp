@@ -12,10 +12,14 @@ using namespace NCL::Maths;
 namespace ECS {
 
 void Sys_PlayerCamera::OnUpdate(Registry& registry, float dt) {
-    // Debug 模式下跳过跟随，让 Sys_Camera 自由飞行
+    // Debug 模式检查：纯自由飞行时跳过，Sync 模式时跟随但不锁定旋转
+    bool syncMode = false;
     if (registry.has_ctx<Sys_Camera*>()) {
         auto* cam = registry.ctx<Sys_Camera*>();
-        if (cam && cam->IsDebugMode()) return;
+        if (cam && cam->IsDebugMode()) {
+            if (!cam->IsSyncToPlayer()) return;  // 纯自由飞行：跳过
+            syncMode = true;  // Sync 模式：跟随位置，不锁定旋转
+        }
     }
 
     // 1. 找到玩家位置
@@ -41,9 +45,11 @@ void Sys_PlayerCamera::OnUpdate(Registry& registry, float dt) {
             float t = std::min(1.0f, SMOOTH_SPEED * dt);
             camTf.position = camTf.position + (targetPos - camTf.position) * t;
 
-            // 固定视角
-            cam.pitch = FIXED_PITCH;
-            cam.yaw   = FIXED_YAW;
+            // Sync 模式：不设置 pitch/yaw，由 Sys_Camera (155) 通过鼠标控制
+            if (!syncMode) {
+                cam.pitch = FIXED_PITCH;
+                cam.yaw   = FIXED_YAW;
+            }
         }
     );
 }

@@ -81,6 +81,13 @@ public:
     void EndFrame();
 
     /**
+     * @brief 从外部请求场景切换（由 Main.cpp 根据 UI 请求调用）。
+     * 在 EndFrame() 帧末执行实际切换。
+     * @param next 新场景的所有权指针
+     */
+    void RequestSceneChange(IScene* next);
+
+    /**
      * @brief 关机：安全退出当前场景并释放所有资源。
      * 析构函数自动调用，也可手动提前调用。
      */
@@ -110,6 +117,7 @@ private:
     ECS::SystemManager m_Systems;       ///< 当前帧系统调度器（DestroyAll 后清空）
     IScene*            m_CurrentScene = nullptr; ///< 当前场景（SceneManager 拥有所有权）
     Res_NCL_Pointers   m_NclPtrs;       ///< Engine 层全局资源（不随场景销毁）
+    IScene*            m_PendingScene = nullptr; ///< 外部请求的待切换场景
     bool               m_Shutdown = false;       ///< 防止重复 Shutdown
 };
 

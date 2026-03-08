@@ -31,11 +31,16 @@
 #endif
 
 #include "Game/Components/Res_NCL_Pointers.h"
+#include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_LobbyState.h"
 #include "Game/Scenes/SceneManager.h"
 #include "Game/Scenes/Scene_PhysicsTest.h"
-// 合并：保留 NavTest 用于测试，保留 NetworkGame 用于 master 功能
+#include "Game/Scenes/Scene_MainMenu.h"
 #include "Game/Scenes/Scene_NavTest.h"
 #include "Game/Scenes/Scene_NetworkGame.h"
+#include "Game/Utils/WindowHelper.h"
+#include "Game/Utils/Log.h"
 
 #ifdef USE_IMGUI
 #include "Core/Bridge/ImGuiAdapter.h"
@@ -44,247 +49,243 @@
 using namespace NCL;
 using namespace CSC8503;
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 #include <sstream>
 
-// ECS Phase 1 验证测试（控制台单元测试）
-void RunECSTests();
+#define ENABLE_TUTORIAL_GAME 0  // 1 = 启用遗留 TutorialGame（用于向后兼容测试）
 
-#define ENABLE_ECS_TEST          0  // 1 = 启用 ECS 单元测试（控制台）
-#define ENABLE_PHYSICS_TEST_SCENE 1  // 1 = 启用 ECS 物理测试场景（替换 TutorialGame）
-#define ENABLE_NETWORK_SCENE      0  // 1 = 启用 ECS 网络联机场景
-#define NETWORK_AS_SERVER         1  // 1 = 以服务器模式启动，0 = 以客户端模式启动
+void TestPathfinding() {}
+void DisplayPathfinding() {}
 
-void TestPathfinding() {
+// ============================================================
+// 辅助函数
+// ============================================================
+
+/// 处理键盘快捷键
+static void HandleKeyboardShortcuts(Window* w) {
+    if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
+        w->ShowConsole(true);
+    }
+    if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
+        w->ShowConsole(false);
+    }
 }
 
-void DisplayPathfinding() {
+/// 更新窗口标题
+static void UpdateWindowTitle(Window* w, float dt) {
+    w->SetTitle("NEUROMANCER - " + std::to_string(1000.0f * dt) + " ms");
 }
+
+/// 处理所有 UI 请求（场景切换、分辨率、全屏、光标）
+static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& running) {
+    auto& reg = sceneManager.GetRegistry();
+
+    // 1. Debug 场景切换（优先级最高）
+    if (reg.has_ctx<Res_UIFlags>()) {
+        auto& flags = reg.ctx<Res_UIFlags>();
+        if (flags.debugSceneIndex >= 0) {
+            switch (flags.debugSceneIndex) {
+                case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());    break;
+                case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest()); break;
+                case 2: sceneManager.RequestSceneChange(new Scene_NavTest());     break;
+                case 3: sceneManager.RequestSceneChange(
+                            new Scene_NetworkGame(ECS::PeerType::SERVER));        break;
+                default: break;
+            }
+            flags.debugSceneIndex = -1;
+
+            // 清除同帧的 UI 请求
+            if (reg.has_ctx<ECS::Res_UIState>()) {
+                reg.ctx<ECS::Res_UIState>().pendingSceneRequest = ECS::SceneRequest::None;
+            }
+        }
+    }
+
+    // 2. UI 场景请求
+    if (reg.has_ctx<ECS::Res_UIState>()) {
+        auto& ui = reg.ctx<ECS::Res_UIState>();
+
+        if (ui.pendingSceneRequest != ECS::SceneRequest::None) {
+            switch (ui.pendingSceneRequest) {
+                case ECS::SceneRequest::StartGame:
+                case ECS::SceneRequest::RestartLevel:
+                    sceneManager.RequestSceneChange(new Scene_PhysicsTest());
+                    break;
+                case ECS::SceneRequest::ReturnToMenu:
+                    sceneManager.RequestSceneChange(new Scene_MainMenu());
+                    break;
+                case ECS::SceneRequest::HostGame:
+                    sceneManager.RequestSceneChange(
+                        new Scene_NetworkGame(ECS::PeerType::SERVER));
+                    break;
+                case ECS::SceneRequest::JoinGame: {
+                    std::string ip = "127.0.0.1";
+                    if (reg.has_ctx<ECS::Res_LobbyState>()) {
+                        ip = reg.ctx<ECS::Res_LobbyState>().joinIP;
+                    }
+                    sceneManager.RequestSceneChange(
+                        new Scene_NetworkGame(ECS::PeerType::CLIENT, ip));
+                    break;
+                }
+                case ECS::SceneRequest::QuitApp:
+                    running = false;
+                    break;
+                default:
+                    break;
+            }
+            ui.pendingSceneRequest = ECS::SceneRequest::None;
+        }
+
+        // 3. 分辨率切换
+        if (ui.resolutionChanged) {
+            int idx = std::clamp((int)ui.resolutionIndex, 0, ECS::kResolutionCount - 1);
+            WindowHelper::SetWindowSize(
+                ECS::kResolutions[idx].width,
+                ECS::kResolutions[idx].height);
+            ui.resolutionChanged = false;
+        }
+
+        // 4. 全屏切换
+        if (ui.fullscreenChanged) {
+            WindowHelper::SetFullScreen(ui.isFullscreen);
+            ui.fullscreenChanged = false;
+            if (!ui.isFullscreen) {
+                ui.resolutionChanged = true;
+            }
+        }
+
+        // 5. 光标管理
+        w->ShowOSPointer(ui.cursorVisible);
+        w->LockMouseToWindow(ui.cursorLocked);
+    }
+}
+
+// ============================================================
+// main 函数
+// ============================================================
 
 int main(int argc, char** argv) {
-    bool runAsServer = true;
-    if (argc > 1 && std::string(argv[1]) == "client") {
-        runAsServer = false;
+
+    // =========================================================
+    // 窗口初始化
+    // =========================================================
+    WindowInitialisation initInfo;
+    initInfo.width       = 1920;
+    initInfo.height      = 1080;
+    initInfo.windowTitle = "NEUROMANCER";
+
+    Window* w = Window::CreateGameWindow(initInfo);
+
+    if (!w->HasInitialised()) {
+        return -1;
     }
-    float autoExitTime = 0.0f;
-    if (argc > 2) {
-        autoExitTime = std::stof(argv[2]);
+
+    if (!WindowHelper::Init(w)) {
+        LOG_ERROR("[Main] WindowHelper init failed — fullscreen/resolution disabled");
     }
 
-#if ENABLE_ECS_TEST
-	RunECSTests();
-	std::cout << "\nPress ENTER to continue to game...\n";
-	std::cin.get();
-#endif
+    w->ShowOSPointer(true);
+    w->LockMouseToWindow(false);
 
-	WindowInitialisation initInfo;
-	initInfo.width		= 1280;
-	initInfo.height		= 720;
-	initInfo.windowTitle = "CSC8503 Game technology!";
-
-	Window*w = Window::CreateGameWindow(initInfo);
-
-	if (!w->HasInitialised()) {
-		return -1;
-	}
-
-	w->ShowOSPointer(false);
-	w->LockMouseToWindow(true);
-
-	GameWorld* world = new GameWorld();
-	PhysicsSystem* physics = new PhysicsSystem(*world);
+    // =========================================================
+    // 核心系统初始化
+    // =========================================================
+    GameWorld*     world   = new GameWorld();
+    PhysicsSystem* physics = new PhysicsSystem(*world);
 
 #ifdef USEVULKAN
-	GameTechVulkanRenderer* renderer = new GameTechVulkanRenderer(*world);
-#elif USEOPENGL
-	GameTechRenderer* renderer = new GameTechRenderer(*world);
+    GameTechVulkanRenderer* renderer = new GameTechVulkanRenderer(*world);
+#elif defined(USEOPENGL)
+    GameTechRenderer* renderer = new GameTechRenderer(*world);
 #endif
 
-#if ENABLE_PHYSICS_TEST_SCENE
-        // =========================================================
-        // ECS 物理测试场景（SceneManager + Scene_PhysicsTest）
-        // =========================================================
-
+    // =========================================================
+    // ImGui 初始化
+    // =========================================================
 #ifdef USE_IMGUI
-        ECS::ImGuiAdapter::Init(w, renderer);
+    ECS::ImGuiAdapter::Init(w, renderer);
 #endif
 
-	// SceneManager 持有 Registry + SystemManager，并预注册 Res_NCL_Pointers
-	ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics, renderer});
+    // =========================================================
+    // SceneManager + 统一主循环
+    // =========================================================
+    {
+        ECS::SceneManager sceneManager(Res_NCL_Pointers{ world, physics, renderer });
 
-	sceneManager.PushScene(new Scene_PhysicsTest());
+        // 默认启动场景（MainMenu 提供场景选择入口）
+        sceneManager.PushScene(new Scene_MainMenu());
 
-    w->GetTimer().GetTimeDeltaSeconds();
-    while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
+#if ENABLE_TUTORIAL_GAME
+        TutorialGame* g = new TutorialGame(*world, *renderer, *physics);
+#endif
+
+        bool running = true;
+        w->GetTimer().GetTimeDeltaSeconds();
+
+        // ── 统一主循环 ──
+        while (w->UpdateWindow() && running) {
             float dt = w->GetTimer().GetTimeDeltaSeconds();
             if (dt > 0.1f) {
-                    std::cout << "Skipping large time delta" << std::endl;
-                    continue;
-            }
-            if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
-                    w->ShowConsole(true);
-            }
-            if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
-                    w->ShowConsole(false);
-            }
-            if (Window::GetKeyboard()->KeyPressed(KeyCodes::T)) {
-                    w->SetWindowPosition(0, 0);
+                std::cout << "Skipping large time delta" << std::endl;
+                continue;
             }
 
-            w->SetTitle("ECS PhysicsTest - frame time: " + std::to_string(1000.0f * dt) + " ms");    
+            // 键盘快捷键
+            HandleKeyboardShortcuts(w);
+
+            // 窗口标题更新
+            UpdateWindowTitle(w, dt);
 
 #ifdef USE_IMGUI
             ECS::ImGuiAdapter::NewFrame();
 #endif
 
-            // 帧前半段：ECS UpdateAll（Camera→Physics→Render→ImGui）
+            // ECS 更新
             sceneManager.Update(dt);
 
-            // NCL 渲染（GameTechRenderer 自动渲染 GameWorld 中的所有代理对象）
-            // 合并：保留 master 分支的渲染逻辑
+            // UI 请求处理（场景切换、分辨率、全屏、光标）
+            ProcessUIRequests(sceneManager, w, running);
+
+            // NCL 渲染
             world->UpdateWorld(dt);
-            physics->Update(dt);   // NCL 物理运行空世界（ECS 实体由 Jolt 管理）
+            physics->Update(dt);
             renderer->Update(dt);
-            renderer->RenderScene();   // BeginFrame + RenderFrame + EndFrame（不交换缓冲区）
+            renderer->RenderScene();
 
 #ifdef USE_IMGUI
-            ECS::ImGuiAdapter::Render(); // ImGui 叠加在 3D 场景之上，swap 之前渲染
+            ECS::ImGuiAdapter::Render();
 #endif
 
-            renderer->PresentFrame();  // 呈现完整帧（3D + ImGui）
+            renderer->PresentFrame();
 
-            // 帧后半段：ProcessPendingDestroy + 延迟场景切换检测
             sceneManager.EndFrame();
 
             Debug::UpdateRenderables(dt);
+        }
+
+        sceneManager.Shutdown();
+
+#if ENABLE_TUTORIAL_GAME
+        delete g;
+#endif
     }
 
-    // 安全退出当前场景（OnExit → DestroyAll → delete）
-    sceneManager.Shutdown();
+    // =========================================================
+    // 清理
+    // =========================================================
+    WindowHelper::Shutdown();
 
 #ifdef USE_IMGUI
     ECS::ImGuiAdapter::Shutdown();
 #endif
 
-#elif ENABLE_NETWORK_SCENE
-        // =========================================================
-        // ECS 网络联机场景（SceneManager + Scene_NetworkGame）
-        // =========================================================
+    delete physics;
+    delete renderer;
+    delete world;
 
-#ifdef USE_IMGUI
-        ECS::ImGuiAdapter::Init(w, renderer);
-#endif
+    Window::DestroyGameWindow();
 
-        ECS::SceneManager sceneManager(Res_NCL_Pointers{world, physics});
-
-        if (runAsServer) {
-            sceneManager.PushScene(new Scene_NetworkGame(ECS::PeerType::SERVER));
-        } else {
-            sceneManager.PushScene(new Scene_NetworkGame(ECS::PeerType::CLIENT, "127.0.0.1"));
-        }
-
-        w->GetTimer().GetTimeDeltaSeconds();
-        float autoExitTimer = 0.0f;
-        while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
-                float dt = w->GetTimer().GetTimeDeltaSeconds();
-                if (dt > 0.1f) continue;
-                
-                if (autoExitTime > 0.0f) {
-                    autoExitTimer += dt;
-                    if (autoExitTimer > autoExitTime) break;
-                }
-
-                w->SetTitle(std::string("ECS Network Test - ") + (runAsServer ? "SERVER" : "CLIENT") + " - " + std::to_string(1.0f/dt) + " FPS");
-
-#ifdef USE_IMGUI
-                ECS::ImGuiAdapter::NewFrame();
-#endif
-
-                sceneManager.Update(dt);
-
-                world->UpdateWorld(dt);
-                physics->Update(dt);
-                renderer->Update(dt);
-                renderer->RenderScene();
-
-#ifdef USE_IMGUI
-                ECS::ImGuiAdapter::Render();
-#endif
-                renderer->PresentFrame();
-                sceneManager.EndFrame();
-                Debug::UpdateRenderables(dt);
-        }
-
-        sceneManager.Shutdown();
-
-#ifdef USE_IMGUI
-        ECS::ImGuiAdapter::Shutdown();
-#endif
-
-#else	// =========================================================
-	// 原 TutorialGame 逻辑（ENABLE_PHYSICS_TEST_SCENE == 0 时）
-	// =========================================================
-	TutorialGame* g = new TutorialGame(*world, *renderer, *physics);
-
-#ifdef USE_IMGUI
-	ECS::ImGuiAdapter::Init(w, renderer);
-	ECS::Registry      imguiRegistry;
-	ECS::SystemManager imguiSystems;
-	imguiSystems.Register<ECS::Sys_ImGui>(1000);
-	imguiSystems.AwakeAll(imguiRegistry);
-
-	Res_NCL_Pointers nclPtrs;
-	nclPtrs.world    = world;
-	nclPtrs.physics  = physics;
-	nclPtrs.renderer = renderer;
-	imguiRegistry.ctx_emplace<Res_NCL_Pointers>(nclPtrs);
-#endif
-
-	w->GetTimer().GetTimeDeltaSeconds();
-	while (w->UpdateWindow() && !Window::GetKeyboard()->KeyDown(KeyCodes::ESCAPE)) {
-		float dt = w->GetTimer().GetTimeDeltaSeconds();
-		if (dt > 0.1f) {
-			std::cout << "Skipping large time delta" << std::endl;
-			continue;
-		}
-		if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
-			w->ShowConsole(true);
-		}
-		if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
-			w->ShowConsole(false);
-		}
-		if (Window::GetKeyboard()->KeyPressed(KeyCodes::T)) {
-			w->SetWindowPosition(0, 0);
-		}
-
-		w->SetTitle("Gametech frame time:" + std::to_string(1000.0f * dt));
-
-#ifdef USE_IMGUI
-		ECS::ImGuiAdapter::NewFrame();
-		imguiSystems.UpdateAll(imguiRegistry, dt);
-#endif
-
-		g->UpdateGame(dt);
-
-		world->UpdateWorld(dt);
-		physics->Update(dt);
-		renderer->Update(dt);
-		renderer->Render();
-
-#ifdef USE_IMGUI
-		ECS::ImGuiAdapter::Render();
-#endif
-
-		Debug::UpdateRenderables(dt);
-	}
-
-#ifdef USE_IMGUI
-	imguiSystems.DestroyAll(imguiRegistry);
-	ECS::ImGuiAdapter::Shutdown();
-#endif
-
-#endif  // ENABLE_PHYSICS_TEST_SCENE
-
-	Window::DestroyGameWindow();
+    return 0;
 }

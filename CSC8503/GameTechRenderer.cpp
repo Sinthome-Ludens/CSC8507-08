@@ -46,7 +46,7 @@ GameTechRenderer::GameTechRenderer(GameWorld& world) : OGLRenderer(*Window::GetW
 	glDrawBuffer(GL_NONE);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	glClearColor(1, 1, 1, 1);
+	glClearColor(0.961f, 0.933f, 0.910f, 1.0f); // #F5EEE8
 
 	////Set up the light properties
 	//lightColour = Vector4(0.8f, 0.8f, 0.5f, 1.0f);
@@ -143,14 +143,15 @@ Texture* GameTechRenderer::LoadTexture(const std::string& name) {
 
 void GameTechRenderer::RenderFrame() {
 	glEnable(GL_CULL_FACE);
-	glClearColor(1, 1, 1, 1);
+	glClearColor(0.961f, 0.933f, 0.910f, 1.0f); // #F5EEE8
 	BuildObjectLists();
 	
 	{
 		OGLDebugScope scope("Shadow map pass");
 		RenderShadowMapPass(opaqueObjects);
 	}
-	{
+	// 仅在有 3D 物体时渲染天空盒；菜单场景无物体，直接使用 #F5EEE8 清屏色
+	if (!opaqueObjects.empty() || !transparentObjects.empty()) {
 		OGLDebugScope scope("Skybox pass");
 		RenderSkyboxPass();
 	}

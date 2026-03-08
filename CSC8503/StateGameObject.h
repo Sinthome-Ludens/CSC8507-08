@@ -16,8 +16,8 @@ namespace NCL {
             void MoveLeft(float dt);
             void MoveRight(float dt);
 
-            StateMachine* stateMachine;
-            float counter;
+            StateMachine* stateMachine = nullptr;
+            float counter = 0.0f;
         };
     }
 }

@@ -11,12 +11,14 @@
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_Network.h"
 #include "Game/Components/C_D_NetworkIdentity.h"
 #include "Game/Components/C_D_InterpBuffer.h"
 #include "Game/Components/Res_TestState.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Prefabs/PrefabFactory.h"
+#include "Game/Systems/Sys_Camera.h"
 #include "Game/Utils/Log.h"
 #include "GameWorld.h"
 #include "Constraint.h"
@@ -47,18 +49,25 @@ void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
 // ============================================================
 
 void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
+    // 开发者模式关闭时隐藏所有调试界面
+    if (registry.has_ctx<Res_UIState>()
+        && !registry.ctx<Res_UIState>().devMode) {
+        return;
+    }
+
     RenderMainMenuBar(registry);
 
     if (m_ShowDemoWindow)  ImGui::ShowDemoWindow(&m_ShowDemoWindow);
     if (m_ShowDebugWindow) RenderDebugWindow(registry, dt);
     if (m_ShowNCLStatus)   RenderNCLStatus(registry);
 
-    // Test Scene 窗口：由 Res_UIFlags context 控制显隐
+    // 调试窗口：由 Res_UIFlags context 控制显隐
     if (registry.has_ctx<Res_UIFlags>()) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (flags.showTestControls) RenderTestControlsWindow(registry);
         if (flags.showCubeDebug)    RenderCubeDebugWindow(registry);
-        if (flags.showNetworkDebug && registry.has_ctx<Res_Network>()) RenderNetworkDebugWindow(registry);
+        if (flags.showNetworkDebug && registry.has_ctx<Res_Network>())
+            RenderNetworkDebugWindow(registry);
     }
 }
 
@@ -69,17 +78,22 @@ void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
 void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
     if (!ImGui::BeginMainMenuBar()) return;
 
+    // ── Windows 菜单 ──────────────────────────────────────────────
     if (ImGui::BeginMenu("Windows")) {
         ImGui::MenuItem("Demo Window",  nullptr, &m_ShowDemoWindow);
         ImGui::MenuItem("Debug Window", nullptr, &m_ShowDebugWindow);
         ImGui::MenuItem("NCL Status",   nullptr, &m_ShowNCLStatus);
         if (registry.has_ctx<Res_UIFlags>()) {
-            ImGui::MenuItem("Network Debug", nullptr, &registry.ctx<Res_UIFlags>().showNetworkDebug);
+            auto& flags = registry.ctx<Res_UIFlags>();
+            ImGui::MenuItem("Test Controls", nullptr, &flags.showTestControls);
+            ImGui::MenuItem("Cube Debug",    nullptr, &flags.showCubeDebug);
+            ImGui::MenuItem("Network Debug", nullptr, &flags.showNetworkDebug);
         }
         ImGui::EndMenu();
     }
 
-    // Test Scene 子菜单：通过 Res_UIFlags context 控制各浮窗可见性
+    // ── Test Scene 子菜单（master）───────────────────────────────
+    // 集中管理所有测试浮窗的开关，包含 Raycast 开关
     if (registry.has_ctx<Res_UIFlags>()) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (ImGui::BeginMenu("Test Scene")) {
@@ -89,6 +103,19 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
             ImGui::MenuItem("Raycast",       nullptr, &flags.showRaycast);
             ImGui::EndMenu();
         }
+    }
+
+    // ── DebugSceneSelector 菜单（Linyn-UIdesign）─────────────────
+    // 列出所有可用场景，点击即可通过 flags.debugSceneIndex 切换
+    if (ImGui::BeginMenu("DebugSceneSelector")) {
+        if (registry.has_ctx<Res_UIFlags>()) {
+            auto& flags = registry.ctx<Res_UIFlags>();
+            if (ImGui::MenuItem("Scene_MainMenu"))    flags.debugSceneIndex = 0;
+            if (ImGui::MenuItem("Scene_PhysicsTest")) flags.debugSceneIndex = 1;
+            if (ImGui::MenuItem("Scene_NavTest"))     flags.debugSceneIndex = 2;
+            if (ImGui::MenuItem("Scene_NetworkGame")) flags.debugSceneIndex = 3;
+        }
+        ImGui::EndMenu();
     }
 
     ImGui::EndMainMenuBar();
@@ -113,6 +140,38 @@ void Sys_ImGui::RenderDebugWindow(Registry& registry, float dt) {
             }
         }
     }
+
+    // ── 相机控制面板 ──
+    ImGui::Separator();
+    ImGui::Text("Camera Controls");
+    if (registry.has_ctx<Sys_Camera*>()) {
+        auto* camSys = registry.ctx<Sys_Camera*>();
+        if (camSys) {
+            bool debugMode = camSys->IsDebugMode();
+            if (ImGui::Checkbox("Free Camera (WASD + Mouse)", &debugMode)) {
+                camSys->SetDebugMode(debugMode);
+                LOG_INFO("[ImGui] Camera Debug Mode: " << (debugMode ? "ON" : "OFF"));
+            }
+
+            // Sync WASD to Player 复选框（仅在 Free Camera 开启时显示）
+            if (debugMode) {
+                bool syncToPlayer = camSys->IsSyncToPlayer();
+                if (ImGui::Checkbox("Sync WASD to Player", &syncToPlayer)) {
+                    camSys->SetSyncToPlayer(syncToPlayer);
+                }
+                if (syncToPlayer) {
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f),
+                        "WASD: Move Player | Mouse: Free Look | Alt: Cursor");
+                } else {
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f),
+                        "WASD: Move Camera | Q/E: Up/Down | Alt: Cursor");
+                }
+            } else {
+                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Enable to unlock camera");
+            }
+        }
+    }
+
     ImGui::End();
 }
 
@@ -175,7 +234,8 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 
     if (ImGui::Button("Spawn Cube",  ImVec2(120, 30))) SpawnCube(registry);
     ImGui::SameLine();
-    const bool canDeleteCube = registry.has_ctx<Res_TestState>() && !registry.ctx<Res_TestState>().cubeEntities.empty();
+    const bool canDeleteCube = registry.has_ctx<Res_TestState>()
+                            && !registry.ctx<Res_TestState>().cubeEntities.empty();
     if (!canDeleteCube) ImGui::BeginDisabled();
     if (ImGui::Button("Delete Cube", ImVec2(120, 30))) DeleteLastCube(registry);
     if (!canDeleteCube) ImGui::EndDisabled();
@@ -214,7 +274,7 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 
     if (registry.has_ctx<Res_TestState>()) {
         auto& state = registry.ctx<Res_TestState>();
-        ImGui::Text("Cubes alive: %d", (int)state.cubeEntities.size());
+        ImGui::Text("Cubes alive: %d",   (int)state.cubeEntities.size());
         ImGui::Text("Capsules alive: %d", (int)state.capsuleEntities.size());
     }
 
@@ -255,7 +315,7 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
             pos = registry.Get<C_D_Transform>(id).position;
         }
         if (registry.Has<C_D_RigidBody>(id)) {
-            auto& rb  = registry.Get<C_D_RigidBody>(id);
+            auto& rb   = registry.Get<C_D_RigidBody>(id);
             grav       = rb.gravity_factor;
             bodyStatus = rb.body_created ? "created" : "pending";
         }
@@ -278,30 +338,37 @@ void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
 void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
     if (!registry.has_ctx<Res_Network>()) return;
     auto& resNet = registry.ctx<Res_Network>();
-    auto& flags = registry.ctx<Res_UIFlags>();
+    auto& flags  = registry.ctx<Res_UIFlags>();
 
     ImGui::Begin("Network Debug", &flags.showNetworkDebug);
 
     // 1. 连接状态
     ImGui::Text("Mode: ");
     ImGui::SameLine();
-    if (resNet.mode == PeerType::SERVER)      ImGui::TextColored(ImVec4(0, 1, 0, 1), "SERVER");
-    else if (resNet.mode == PeerType::CLIENT) ImGui::TextColored(ImVec4(0, 1, 1, 1), "CLIENT");
-    else                                      ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "OFFLINE");
+    if (resNet.mode == PeerType::SERVER)
+        ImGui::TextColored(ImVec4(0, 1, 0, 1), "SERVER");
+    else if (resNet.mode == PeerType::CLIENT)
+        ImGui::TextColored(ImVec4(0, 1, 1, 1), "CLIENT");
+    else
+        ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1), "OFFLINE");
 
-    ImGui::Text("Status: %s", resNet.connected ? "CONNECTED" : "DISCONNECTED");
+    ImGui::Text("Status: %s",        resNet.connected ? "CONNECTED" : "DISCONNECTED");
     ImGui::Text("Local Client ID: %u", resNet.localClientID);
-    ImGui::Text("RTT: %u ms", resNet.rtt);
+    ImGui::Text("RTT: %u ms",         resNet.rtt);
 
     ImGui::Separator();
 
     // 2. 流量统计
     if (ImGui::CollapsingHeader("Traffic Stats", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Columns(2, "traffic");
-        ImGui::Text("Packets Sent:");     ImGui::NextColumn(); ImGui::Text("%llu", resNet.packetsSent);     ImGui::NextColumn();
-        ImGui::Text("Packets Recv:");     ImGui::NextColumn(); ImGui::Text("%llu", resNet.packetsReceived); ImGui::NextColumn();
-        ImGui::Text("Bytes Sent:");       ImGui::NextColumn(); ImGui::Text("%.2f KB", resNet.bytesSent / 1024.0f);   ImGui::NextColumn();
-        ImGui::Text("Bytes Recv:");       ImGui::NextColumn(); ImGui::Text("%.2f KB", resNet.bytesReceived / 1024.0f); ImGui::NextColumn();
+        ImGui::Text("Packets Sent:");  ImGui::NextColumn();
+        ImGui::Text("%llu", resNet.packetsSent);     ImGui::NextColumn();
+        ImGui::Text("Packets Recv:");  ImGui::NextColumn();
+        ImGui::Text("%llu", resNet.packetsReceived); ImGui::NextColumn();
+        ImGui::Text("Bytes Sent:");    ImGui::NextColumn();
+        ImGui::Text("%.2f KB", resNet.bytesSent     / 1024.0f); ImGui::NextColumn();
+        ImGui::Text("Bytes Recv:");    ImGui::NextColumn();
+        ImGui::Text("%.2f KB", resNet.bytesReceived / 1024.0f); ImGui::NextColumn();
         ImGui::Columns(1);
     }
 
@@ -309,7 +376,8 @@ void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
 
     // 3. NetID 映射表
     if (ImGui::CollapsingHeader("NetID Map", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::BeginTable("netid_table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        if (ImGui::BeginTable("netid_table", 3,
+                              ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             ImGui::TableSetupColumn("NetID");
             ImGui::TableSetupColumn("EntityID");
             ImGui::TableSetupColumn("Owner");
@@ -319,9 +387,10 @@ void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0); ImGui::Text("%u", netID);
                 ImGui::TableSetColumnIndex(1); ImGui::Text("%u", entityID);
-                
+
                 uint32_t owner = 0;
-                if (registry.Valid(entityID) && registry.Has<C_D_NetworkIdentity>(entityID)) {
+                if (registry.Valid(entityID)
+                    && registry.Has<C_D_NetworkIdentity>(entityID)) {
                     owner = registry.Get<C_D_NetworkIdentity>(entityID).ownerClientID;
                 }
                 ImGui::TableSetColumnIndex(2); ImGui::Text("%u", owner);
@@ -334,9 +403,11 @@ void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
 
     // 4. 插值状态
     if (ImGui::CollapsingHeader("Interpolation Buffers")) {
-        registry.view<C_D_NetworkIdentity, C_D_InterpBuffer>().each([&](EntityID id, auto& net, auto& buffer) {
-            ImGui::Text("Entity %u (NetID %u): %d snapshots", id, net.netID, buffer.count);
-        });
+        registry.view<C_D_NetworkIdentity, C_D_InterpBuffer>().each(
+            [&](EntityID id, auto& net, auto& buffer) {
+                ImGui::Text("Entity %u (NetID %u): %d snapshots",
+                            id, net.netID, buffer.count);
+            });
     }
 
     ImGui::End();
@@ -373,7 +444,7 @@ void Sys_ImGui::SpawnCube(Registry& registry) {
             const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
 
             // 在相机前方 5 单位处、相机高度上方 2 单位生成
-            spawnPos = tf.position + forward * 5.0f;
+            spawnPos   = tf.position + forward * 5.0f;
             spawnPos.y = tf.position.y + 2.0f;
 
             // 确保 cube 生成在地板上方（floor 上表面 y ≈ -5.5，保底 -2.0）
