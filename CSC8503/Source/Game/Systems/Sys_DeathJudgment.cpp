@@ -141,6 +141,9 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
     }
 
     // ── 3. 死亡检查 ──
+    // Registry::Destroy 是延迟销毁（加入 m_PendingDestroy），
+    // 帧末 ProcessPendingDestroy 才真正移除实体，不会在 view.each()
+    // 迭代期间使迭代器失效，因此可安全在循环内直接调用。
     bool playerDied = false;
 
     registry.view<C_D_Health>().each(
@@ -169,7 +172,7 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                     }
                 }
             } else if (registry.Has<C_T_Enemy>(entity)) {
-                // 敌人死亡 → 销毁实体
+                // 敌人死亡 → 延迟销毁
                 LOG_INFO("[DeathJudgment] Enemy " << (int)entity << " died, destroying");
 
                 if (registry.has_ctx<EventBus*>()) {

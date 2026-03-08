@@ -134,12 +134,14 @@ void Scene_NavTest::OnExit(ECS::Registry&      registry,
 
     // 清除场景指针 ctx，防止 delete 后悬空指针
     if (registry.has_ctx<IScene*>()) {
-        registry.ctx<IScene*>() = nullptr;
+        registry.ctx_erase<IScene*>();
     }
 
     // 清除场景级 ctx 资源，防止跨场景状态泄漏（registry.Clear() 不清除 ctx）
-    if (registry.has_ctx<Res_UIFlags>())      registry.ctx_erase<Res_UIFlags>();
-    if (registry.has_ctx<Res_NavTestState>()) registry.ctx_erase<Res_NavTestState>();
+    if (registry.has_ctx<Res_UIFlags>())              registry.ctx_erase<Res_UIFlags>();
+    if (registry.has_ctx<Res_NavTestState>())          registry.ctx_erase<Res_NavTestState>();
+    if (registry.has_ctx<ECS::Res_DeathConfig>())     registry.ctx_erase<ECS::Res_DeathConfig>();
+    if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
 
     registry.Clear();
 
