@@ -57,7 +57,7 @@ void Sys_DeathJudgment::OnAwake(Registry& registry) {
                         auto& health = registry.Get<C_D_Health>(victim);
                         if (health.hp > 0.0f) {
                             health.hp = 0.0f;
-                            health.deathCause = 2;  // 触发区即死
+                            health.deathCause = DeathType::PlayerTriggerDie;
                             LOG_INFO("[DeathJudgment] Entity " << (int)victim
                                      << " entered death zone " << (int)deathZone);
                         }
@@ -127,9 +127,9 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                         // 抓捕成功，标记死因为敌人抓捕
                         if (registry.Has<C_D_Health>(players[i].id)) {
                             auto& health = registry.Get<C_D_Health>(players[i].id);
-                            if (health.hp > 0.0f) {
+                            if (health.hp > 0.0f && health.invTimer <= 0.0f) {
                                 health.hp = 0.0f;
-                                health.deathCause = 0;  // 被捕
+                                health.deathCause = DeathType::PlayerCaptured;
                                 LOG_INFO("[DeathJudgment] Player " << (int)players[i].id
                                          << " captured by enemy " << (int)enemyId);
                             }
@@ -177,7 +177,7 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                     if (bus) {
                         Evt_Death evt;
                         evt.entity    = entity;
-                        evt.deathType = 3;  // 敌人HP归零
+                        evt.deathType = DeathType::EnemyHpZero;
                         bus->publish_deferred(evt);
                     }
                 }
