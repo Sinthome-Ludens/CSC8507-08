@@ -118,7 +118,11 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     }
 
     // 场景指针（供 Sys_DeathJudgment 调用 Restart）
-    registry.ctx_emplace<IScene*>(static_cast<IScene*>(this));
+    if (registry.has_ctx<IScene*>()) {
+        registry.ctx<IScene*>() = static_cast<IScene*>(this);
+    } else {
+        registry.ctx_emplace<IScene*>(static_cast<IScene*>(this));
+    }
 
     // 视野检测配置资源（数据驱动）
     if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
@@ -232,12 +236,15 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
 
     // 清除场景指针 ctx，防止 delete 后悬空指针
     if (registry.has_ctx<IScene*>()) {
-        registry.ctx<IScene*>() = nullptr;
+        registry.ctx_erase<IScene*>();
     }
 
     // 清除场景级 ctx 资源，防止跨场景状态泄漏（registry.Clear() 不清除 ctx）
     // Session 级资源（Res_UIState）不在此清除 — 跨场景保持用户设置
-    if (registry.has_ctx<Res_UIFlags>())        registry.ctx_erase<Res_UIFlags>();
+    if (registry.has_ctx<Res_UIFlags>())              registry.ctx_erase<Res_UIFlags>();
+    if (registry.has_ctx<ECS::Res_DeathConfig>())     registry.ctx_erase<ECS::Res_DeathConfig>();
+    if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
+    if (registry.has_ctx<ECS::Res_CQCConfig>())       registry.ctx_erase<ECS::Res_CQCConfig>();
     if (registry.has_ctx<Res_TestState>())      registry.ctx_erase<Res_TestState>();
     if (registry.has_ctx<Res_EnemyTestState>()) registry.ctx_erase<Res_EnemyTestState>();
     if (registry.has_ctx<Res_CapsuleState>())   registry.ctx_erase<Res_CapsuleState>();

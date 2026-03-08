@@ -141,7 +141,12 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
     }
 
     // ── 3. 死亡检查 ──
+    // 注意：不能在 view.each() 内部调用 registry.Destroy()，
+    // 这在 entt 中是未定义行为，会导致迭代器失效和潜在崩溃。
+    // 采用 collect-then-destroy 模式：先收集待销毁实体，循环结束后再销毁。
     bool playerDied = false;
+    EntityID deadEnemies[64];
+    int deadEnemyCount = 0;
 
     registry.view<C_D_Health>().each(
         [&](EntityID entity, C_D_Health& health) {
@@ -169,8 +174,8 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                     }
                 }
             } else if (registry.Has<C_T_Enemy>(entity)) {
-                // 敌人死亡 → 销毁实体
-                LOG_INFO("[DeathJudgment] Enemy " << (int)entity << " died, destroying");
+                // 敌人死亡 → 记录待销毁
+                LOG_INFO("[DeathJudgment] Enemy " << (int)entity << " died, queuing destroy");
 
                 if (registry.has_ctx<EventBus*>()) {
                     auto* bus = registry.ctx<EventBus*>();
@@ -182,10 +187,17 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                     }
                 }
 
-                registry.Destroy(entity);
+                if (deadEnemyCount < 64) {
+                    deadEnemies[deadEnemyCount++] = entity;
+                }
             }
         }
     );
+
+    // 循环结束后安全销毁死亡敌人
+    for (int i = 0; i < deadEnemyCount; ++i) {
+        registry.Destroy(deadEnemies[i]);
+    }
 }
 
 void Sys_DeathJudgment::OnDestroy(Registry& registry) {
