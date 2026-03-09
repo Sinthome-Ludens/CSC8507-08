@@ -1,3 +1,17 @@
+/**
+ * @file Main.cpp
+ * @brief 游戏应用程序入口：初始化 NCL 窗口/渲染器/物理，驱动 ECS SceneManager 统一主循环。
+ *
+ * @details
+ * 创建 NCL 核心对象（GameWorld、PhysicsSystem、GameTechRenderer），
+ * 构造 ECS::SceneManager 并推入首个场景（Scene_MainMenu）。
+ * 主循环按序执行：
+ *   1. SceneManager::Update(dt)  — ECS UpdateAll + FixedUpdateAll（累加器）
+ *   2. ProcessUIRequests()        — 场景切换、分辨率、全屏、光标
+ *   3. NCL world / physics / renderer Update — NCL 层帧更新
+ *   4. renderer Render / Present  — 渲染输出
+ *   5. SceneManager::EndFrame()  — ProcessPendingDestroy + 延迟场景切换
+ */
 #include "Window.h"
 
 #include "Debug.h"

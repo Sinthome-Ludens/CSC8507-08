@@ -1,3 +1,16 @@
+/**
+ * @file Sys_Physics.cpp
+ * @brief Jolt Physics ECS 物理系统实现。
+ *
+ * @details
+ * 实现 Sys_Physics 的完整生命周期：Jolt 全局初始化、Body 创建/销毁、
+ * Transform 双向同步、碰撞/触发事件发布，以及射线检测等工具函数。
+ *
+ * 固定步长驱动说明：
+ * - `OnFixedUpdate` 执行单次 Jolt 步进（fixedDt = 1/60s），
+ *   由 SceneManager 外部累加器保证每秒调用 60 次。
+ * - `OnUpdate` 仅负责 Body 的创建/清理/参数同步，不执行步进。
+ */
 #include "Sys_Physics.h"
 #include "Game/Utils/Log.h"
 #include <iostream>
@@ -104,8 +117,16 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
 }
 
 // ============================================================
-// OnUpdate（固定步长累加器）
+// OnUpdate（Body 管理 + 参数同步，不执行步进）
 // ============================================================
+/**
+ * @brief 每渲染帧调用：创建新 Body、清理孤立 Body、同步 gravity_factor。
+ * @details
+ * 不执行 Jolt 步进；物理积分由 OnFixedUpdate 在固定步长帧中负责。
+ * 所有新增/移除实体的 Body 管理在此帧完成，确保物理步进时 Body 集合已就绪。
+ * @param registry 当前场景注册表
+ * @param dt       本帧变步长时间（秒，仅用于 gravity_factor 判断，不传入 Jolt）
+ */
 void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     if (!m_PhysicsSystem) return;
 
@@ -150,20 +171,31 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
             g_LastGravityFactors[bodyID] = rb.gravity_factor;
         });
     }
+    // 步进、Transform 同步、碰撞事件发布均由 OnFixedUpdate 负责
+}
 
-    // 3. 固定步长累加器驱动物理更新
-    m_Accumulator += dt;
-    int steps = 0;
-    while (m_Accumulator >= FIXED_DT && steps < 4) {  // 最多步进 4 次防止螺旋死亡
-        m_PhysicsSystem->Update(FIXED_DT, 1, m_TempAllocator.get(), m_JobSystem.get());
-        m_Accumulator -= FIXED_DT;
-        ++steps;
-    }
+// ============================================================
+// OnFixedUpdate（单次 Jolt 步进 + Transform 同步 + 事件发布）
+// ============================================================
+/**
+ * @brief 每物理帧调用（固定步长），由 SceneManager 外部累加器驱动。
+ * @details
+ * 执行单次 Jolt 步进，步长 = fixedDt（由 SceneManager 从 Res_Time::fixedDeltaTime 传入）。
+ * 步进完成后同步 Jolt 结果至 C_D_Transform，并将碰撞/触发事件发布到 EventBus。
+ * 运动学体的 MoveKinematic 也使用相同的 fixedDt，保证速度计算一致。
+ * @param registry 当前场景注册表
+ * @param fixedDt  固定物理帧步长（秒），应等于 Res_Time::fixedDeltaTime
+ */
+void ECS::Sys_Physics::OnFixedUpdate(Registry& registry, float fixedDt) {
+    if (!m_PhysicsSystem) return;
 
-    // 4. 同步 Jolt 位置 → C_D_Transform
-    SyncTransformsFromJolt(registry);
+    // 单次步进（频率由 SceneManager 外部累加器保证为 60 Hz）
+    m_PhysicsSystem->Update(fixedDt, 1, m_TempAllocator.get(), m_JobSystem.get());
 
-    // 5. 发布碰撞事件到 EventBus
+    // 同步 Jolt 结果 → C_D_Transform（传入 fixedDt 供运动学体 MoveKinematic 使用）
+    SyncTransformsFromJolt(registry, fixedDt);
+
+    // 发布碰撞/触发事件到 EventBus
     FlushCollisionEvents(registry);
 }
 
@@ -309,7 +341,7 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 // ============================================================
 // SyncTransformsFromJolt（动态体 Jolt→ECS / 运动学体 ECS→Jolt）
 // ============================================================
-void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg) {
+void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
     reg.view<C_D_Transform, C_D_RigidBody>().each(
@@ -325,7 +357,7 @@ void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg) {
                     jid,
                     JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
                     JPH::Quat(tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w),
-                    FIXED_DT);
+                    fixedDt);
                 return;
             }
 

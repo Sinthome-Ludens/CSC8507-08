@@ -1,3 +1,17 @@
+/**
+ * @file Sys_Physics.h
+ * @brief Jolt Physics ECS 物理系统声明。
+ *
+ * @details
+ * 定义碰撞层过滤器、ContactListener 以及核心系统类 `ECS::Sys_Physics`。
+ *
+ * 系统生命周期：
+ * - `OnAwake`       : 初始化 Jolt，创建 PhysicsSystem，注册 EventBus/Sys_Physics* 到 ctx
+ * - `OnUpdate`      : 检测并创建新实体 Body、清理孤立 Body、同步 gravity_factor
+ * - `OnFixedUpdate` : 单次 Jolt 步进（由 SceneManager 外部累加器驱动），
+ *                     同步结果至 C_D_Transform，发布碰撞/触发事件
+ * - `OnDestroy`     : 销毁所有 Jolt Body，释放 EventBus/Sys_Physics* ctx
+ */
 #pragma once
 
 #include "Core/ECS/BaseSystem.h"
@@ -169,8 +183,32 @@ public:
     static constexpr int   MAX_PAIRS   = 1024;           ///< 最大碰撞对数
     static constexpr int   MAX_CONTACTS= 1024;           ///< 最大接触约束数
 
-    void OnAwake  (Registry& registry) override;
-    void OnUpdate (Registry& registry, float dt) override;
+    /**
+     * @brief 场景加载后初始化 Jolt，创建 PhysicsSystem，注册 EventBus 与自身指针到 ctx。
+     * @param registry 当前场景注册表
+     */
+    void OnAwake(Registry& registry) override;
+
+    /**
+     * @brief 每渲染帧调用：检测并创建新实体 Body、清理孤立 Body、同步 gravity_factor。
+     * @details 不执行 Jolt 步进，步进由 OnFixedUpdate 负责。
+     * @param registry 当前场景注册表
+     * @param dt       本帧变步长时间（秒）
+     */
+    void OnUpdate(Registry& registry, float dt) override;
+
+    /**
+     * @brief 每物理帧调用（固定步长 1/60s），由 SceneManager 外部累加器驱动。
+     * @details 执行单次 Jolt 步进，随后将结果同步回 C_D_Transform，并发布碰撞/触发事件。
+     * @param registry 当前场景注册表
+     * @param fixedDt  固定物理帧步长（秒），应等于 FIXED_DT
+     */
+    void OnFixedUpdate(Registry& registry, float fixedDt) override;
+
+    /**
+     * @brief 场景卸载时销毁所有 Jolt Body，释放 Jolt 资源，清除 ctx 中的裸指针。
+     * @param registry 当前场景注册表
+     */
     void OnDestroy(Registry& registry) override;
 
     // --- 工具函数（供 Prefab 工厂等外部代码调用）---
@@ -246,9 +284,6 @@ private:
     // 通过 registry.ctx_emplace<ECS::EventBus*>(ptr) 以裸指针注册到 Context
     std::unique_ptr<ECS::EventBus> m_EventBus;
 
-    // --- 固定步长累加器 ---
-    float m_Accumulator = 0.0f;
-
     // BroadPhase 优化标志（场景加载完毕后调用一次 OptimizeBroadPhase）
     bool m_BroadPhaseOptimized = false;
 
@@ -256,7 +291,7 @@ private:
     void InitJolt();
     void CreateBodyForEntity(Registry& reg, EntityID id,
                              C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col);
-    void SyncTransformsFromJolt(Registry& reg);
+    void SyncTransformsFromJolt(Registry& reg, float fixedDt);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);
     // NCL ↔ Jolt 转换
