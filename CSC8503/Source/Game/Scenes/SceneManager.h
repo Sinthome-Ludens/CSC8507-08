@@ -26,7 +26,7 @@ namespace ECS {
  *
  * @code
  * // 初始化
- * ECS::SceneManager sm(Res_NCL_Pointers{world, physics});
+ * ECS::SceneManager sm(Res_NCL_Pointers{world, physics, renderer});
  * sm.PushScene(new Scene_PhysicsTest());
  *
  * // 主循环

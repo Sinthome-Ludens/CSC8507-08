@@ -75,6 +75,12 @@ void TestPathfinding() {
 void DisplayPathfinding() {
 }
 
+/**
+ * @brief 应用程序入口：初始化所有子系统，运行主游戏循环，退出时释放资源。
+ * @param argc 命令行参数个数
+ * @param argv 命令行参数数组
+ * @return 0 表示正常退出，-1 表示窗口初始化失败
+ */
 int main(int argc, char** argv) {
 	WindowInitialisation initInfo;
 	initInfo.width		= 1920;
