@@ -1,3 +1,10 @@
+/**
+ * @file PrefabFactory.h
+ * @brief 实体预制体工厂声明。
+ *
+ * @details
+ * 提供统一的实体构造入口，集中约束各类 Prefab 的组件组合与默认参数。
+ */
 #pragma once
 
 #include "Core/ECS/Registry.h"
@@ -111,6 +118,24 @@ public:
         NCL::Maths::Vector3    position,
         NCL::Maths::Vector3    halfExtents,
         NCL::Maths::Quaternion rotation = NCL::Maths::Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+    );
+
+    /**
+     * @brief 创建静态 Trigger 区域实体（PREFAB_TRIGGER_ZONE）。
+     *
+     * @details
+     * 挂载：C_D_Transform, C_D_RigidBody, C_D_Collider, C_T_TriggerZone, C_D_DebugName。
+     * 不挂载 MeshRenderer，仅用于触发检测，不参与可视化渲染。
+     *
+     * @param reg         ECS Registry
+     * @param position    Trigger 中心世界坐标
+     * @param halfExtents Box Trigger 半尺寸
+     * @return Trigger 区域实体 ID
+     */
+    static ECS::EntityID CreateTriggerZone(
+        ECS::Registry&      reg,
+        NCL::Maths::Vector3 position,
+        NCL::Maths::Vector3 halfExtents
     );
 
     // ============================================================

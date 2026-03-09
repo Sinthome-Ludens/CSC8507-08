@@ -6,11 +6,11 @@
  * 定义碰撞层过滤器、ContactListener 以及核心系统类 `ECS::Sys_Physics`。
  *
  * 系统生命周期：
- * - `OnAwake`       : 初始化 Jolt，创建 PhysicsSystem，注册 EventBus/Sys_Physics* 到 ctx
+ * - `OnAwake`       : 初始化 Jolt，创建 PhysicsSystem，注册 Sys_Physics* 到 ctx
  * - `OnUpdate`      : 检测并创建新实体 Body、清理孤立 Body、同步 gravity_factor
  * - `OnFixedUpdate` : 单次 Jolt 步进（由 SceneManager 外部累加器驱动），
  *                     同步结果至 C_D_Transform，发布碰撞/触发事件
- * - `OnDestroy`     : 销毁所有 Jolt Body，释放 EventBus/Sys_Physics* ctx
+ * - `OnDestroy`     : 销毁所有 Jolt Body，释放 Sys_Physics* ctx
  */
 #pragma once
 
@@ -118,6 +118,9 @@ public:
         float    contact_x, contact_y, contact_z;
         float    normal_x,  normal_y,  normal_z;
         float    separating_velocity;
+        /// Enter 事件：由 OnContactAdded 根据 IsSensor() 填充；
+        /// Exit 事件（is_exit=true）：固定为 false，触发判断由
+        /// FlushCollisionEvents 通过 C_D_Collider::is_trigger 重新验证。
         bool     is_trigger;
         bool     is_exit;  ///< true = TriggerExit
     };
@@ -159,12 +162,12 @@ public:
 
     virtual void OnContactRemoved(const JPH::SubShapeIDPair& pair) override {
         std::lock_guard lock(mutex);
-        // 只记录 body ID，is_exit=true 由 Sys_Physics 处理 TriggerExit
+        // 只记录 body ID，是否为 trigger 由 Sys_Physics::FlushCollisionEvents 查表验证
         pending.push_back({
             pair.GetBody1ID().GetIndexAndSequenceNumber(),
             pair.GetBody2ID().GetIndexAndSequenceNumber(),
             0,0,0, 0,0,0, 0.0f,
-            true,  // 假定 trigger（由 Sys_Physics 查表验证）
+            false, // 退出时无法直接判断，后续由 FlushCollisionEvents 验证
             true   // exit 事件
         });
     }
@@ -184,7 +187,8 @@ public:
     static constexpr int   MAX_CONTACTS= 1024;           ///< 最大接触约束数
 
     /**
-     * @brief 场景加载后初始化 Jolt，创建 PhysicsSystem，注册 EventBus 与自身指针到 ctx。
+     * @brief 场景加载后初始化 Jolt，创建 PhysicsSystem，并注册自身指针到 ctx。
+     * @details EventBus 由 SceneManager 在进入场景前注入，此处不再负责其生命周期。
      * @param registry 当前场景注册表
      */
     void OnAwake(Registry& registry) override;
@@ -279,10 +283,6 @@ private:
     // --- 映射表 ---
     // jolt_body_id (uint32) → EntityID，用于碰撞事件的实体查找
     std::unordered_map<uint32_t, EntityID> m_BodyToEntity;
-
-    // EventBus 由 Sys_Physics 持有（EventBus 不可复制，无法直接存入 std::any）
-    // 通过 registry.ctx_emplace<ECS::EventBus*>(ptr) 以裸指针注册到 Context
-    std::unique_ptr<ECS::EventBus> m_EventBus;
 
     // BroadPhase 优化标志（场景加载完毕后调用一次 OptimizeBroadPhase）
     bool m_BroadPhaseOptimized = false;
