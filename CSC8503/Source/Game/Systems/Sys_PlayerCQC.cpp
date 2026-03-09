@@ -16,6 +16,7 @@
 #include "Game/Events/Evt_CQC_Takedown.h"
 #include "Game/Events/Evt_CQC_Mimicry.h"
 #include "Game/Systems/Sys_Physics.h"
+#include "Game/Components/Res_GameState.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
 
@@ -74,6 +75,13 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                         registry.Emplace<C_D_Dying>(target);
                         registry.Emplace<C_D_DeathVisual>(target);
                         LOG_INFO("[Sys_PlayerCQC] CQC kill: entity " << (int)target);
+
+                        // 击杀通知
+                        if (registry.has_ctx<Res_GameState>()) {
+                            auto& gs = registry.ctx<Res_GameState>();
+                            gs.killNotifyActive = true;
+                            gs.killNotifyTimer  = 0.0f;
+                        }
 
                         // 发布 CQC 完成事件
                         if (bus) {

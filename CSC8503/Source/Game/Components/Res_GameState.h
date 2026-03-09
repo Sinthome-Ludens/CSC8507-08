@@ -12,7 +12,9 @@
  * - **Sys_Alert**：修改 `alertLevel`
  * - **Sys_Countdown**：修改 `countdownTimer`、`countdownActive`、`gameOverReason`
  * - **Sys_Chat**：读写 `alertLevel`（回复效果）
- * - **Sys_UI**：读取所有字段显示 HUD
+ * - **Sys_PlayerCQC**：写入 `killNotifyActive/Timer`（CQC 击杀触发）
+ * - **Sys_DeathJudgment**：写入 `killNotifyActive/Timer`（HP 归零触发）
+ * - **Sys_UI**：读取所有字段显示 HUD；推进 `killNotifyTimer`，到期清除 `killNotifyActive`
  *
  * @note 多个 System 可能同时写入此资源，需注意逻辑顺序。
  */
@@ -79,8 +81,8 @@ struct Res_GameState {
     bool isGameOver = false;
 
     // ─ 倒计时 ─────────────────────────────────────────────
-    float countdownTimer   = 30.0f;
-    float countdownMax     = 30.0f;
+    float countdownTimer   = 32.0f;
+    float countdownMax     = 32.0f;
     bool  countdownActive  = false;
 
     // ─ 玩家状态 ───────────────────────────────────────────
@@ -116,6 +118,11 @@ struct Res_GameState {
     float    disruptionTimer     = 0.0f;   ///< 干扰剩余时长
     float    disruptionDuration  = 0.0f;   ///< 干扰总时长
     uint32_t networkPing         = 0;      ///< 网络延迟 RTT (ms)
+
+    // ─ 击杀通知 ─────────────────────────────────────────
+    bool  killNotifyActive   = false;   ///< 是否正在显示击杀通知
+    float killNotifyTimer    = 0.0f;    ///< 已经过时间（秒）
+    float killNotifyDuration = 2.0f;    ///< 总显示时长（秒）
 };
 
 } // namespace ECS

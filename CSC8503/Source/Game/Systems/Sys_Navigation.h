@@ -10,7 +10,7 @@ namespace ECS {
  * 处理所有同时挂载 C_T_Pathfinder + C_D_NavAgent 的实体。
  * 根据 C_D_AIState 当前状态分支执行不同移动策略：
  *   Safe    — 完全静止
- *   Caution — 停止移动，朝向最后已知目标旋转
+ *   Search — 停止移动，朝向最后已知目标旋转
  *   Alert   — 移动到进入 Alert 时的目标位置快照
  *   Hunt    — 实时追踪目标，定期重新规划路径
  *

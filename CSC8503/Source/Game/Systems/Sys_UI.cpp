@@ -278,7 +278,16 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     // HUD 状态下累加 playTime（写操作在 System 层，UI 只读）
     if (ui.activeScreen == UIScreen::HUD && registry.has_ctx<Res_GameState>()) {
-        registry.ctx<Res_GameState>().playTime += dt;
+        auto& gs = registry.ctx<Res_GameState>();
+        gs.playTime += dt;
+
+        // 击杀通知计时器推进
+        if (gs.killNotifyActive) {
+            gs.killNotifyTimer += dt;
+            if (gs.killNotifyTimer >= gs.killNotifyDuration) {
+                gs.killNotifyActive = false;
+            }
+        }
     }
 
     // Dispatch to render functions

@@ -19,7 +19,10 @@
 #include "Game/Components/C_T_Player.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/C_T_DeathZone.h"
+#include "Game/Components/C_D_Dying.h"
+#include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/Res_DeathConfig.h"
+#include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #include "Game/Events/Evt_Phys_Trigger.h"
 #include "Game/Events/Evt_Death.h"
@@ -172,8 +175,9 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                     }
                 }
             } else if (registry.Has<C_T_Enemy>(entity)) {
-                // 敌人死亡 → 延迟销毁
-                LOG_INFO("[DeathJudgment] Enemy " << (int)entity << " died, destroying");
+                // 敌人死亡 → 挂载死亡特效组件（由 Sys_DeathEffect 播放动画后销毁）
+                if (registry.Has<C_D_Dying>(entity)) return; // 已在播放死亡动画
+                LOG_INFO("[DeathJudgment] Enemy " << (int)entity << " died, starting death effect");
 
                 if (registry.has_ctx<EventBus*>()) {
                     auto* bus = registry.ctx<EventBus*>();
@@ -185,7 +189,15 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                     }
                 }
 
-                registry.Destroy(entity);
+                registry.Emplace<C_D_Dying>(entity);
+                registry.Emplace<C_D_DeathVisual>(entity);
+
+                // 击杀通知
+                if (registry.has_ctx<Res_GameState>()) {
+                    auto& gs = registry.ctx<Res_GameState>();
+                    gs.killNotifyActive = true;
+                    gs.killNotifyTimer  = 0.0f;
+                }
             }
         }
     );

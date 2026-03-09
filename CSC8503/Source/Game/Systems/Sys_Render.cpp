@@ -1,4 +1,5 @@
 #include "Sys_Render.h"
+#include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Utils/Log.h"
 #include "Matrix.h"
 #include "OGLMesh.h"
@@ -132,6 +133,18 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
         auto* ro = proxy->GetRenderObject();
         if (ro) {
             SyncMaterial(ro->GetMaterial(), reg.Get<C_D_Material>(id));
+        }
+    }
+
+    // 死亡视觉覆盖：colour + 透明材质
+    if (reg.Has<C_D_DeathVisual>(id)) {
+        const auto& dv = reg.Get<C_D_DeathVisual>(id);
+        auto* ro = proxy->GetRenderObject();
+        if (ro) {
+            ro->SetColour(dv.colourOverride);
+            if (dv.useTransparent) {
+                ro->GetMaterial().type = MaterialType::Transparent;
+            }
         }
     }
 }

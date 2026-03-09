@@ -36,7 +36,7 @@ struct C_D_NavAgent {
     bool is_active                = true;
 
     // ── 状态感知导航字段 ────────────────────────────────────────────────
-    NCL::Maths::Vector3 last_known_target_pos{0.0f, 0.0f, 0.0f}; ///< 最后已知目标位置（Caution 旋转用）
+    NCL::Maths::Vector3 last_known_target_pos{0.0f, 0.0f, 0.0f}; ///< 最后已知目标位置（Search 旋转用）
     NCL::Maths::Vector3 alert_snapshot_pos   {0.0f, 0.0f, 0.0f}; ///< 进入 Alert 时的位置快照
     EnemyState          prev_state = EnemyState::Safe;             ///< 上一帧 AI 状态（检测首次进入 Alert）
     bool                has_last_known_pos = false;                ///< 是否已记录过有效目标位置

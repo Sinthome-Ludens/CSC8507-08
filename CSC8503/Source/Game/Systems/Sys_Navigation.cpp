@@ -16,7 +16,7 @@
 namespace ECS {
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 辅助：将实体平滑旋转朝向 targetPos（Caution 与路径跟随共用）
+// 辅助：将实体平滑旋转朝向 targetPos（Search 与路径跟随共用）
 // ─────────────────────────────────────────────────────────────────────────────
 static void ApplyRotationToward(C_D_NavAgent& agent, C_D_Transform& tf,
                                 C_D_RigidBody& rb, Sys_Physics* physics,
@@ -178,8 +178,8 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
             break;
         }
 
-        // ── Caution：停止移动，朝向最后已知目标位置旋转 ──────────────────
-        case EnemyState::Caution: {
+        // ── Search：停止移动，朝向最后已知目标位置旋转 ──────────────────
+        case EnemyState::Search: {
             if (agent.is_active) {
                 agent.path_length              = 0;
                 agent.current_waypoint_index   = 0;

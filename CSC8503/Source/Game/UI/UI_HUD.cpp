@@ -53,6 +53,9 @@ static void RenderHUD_MissionPanel(ImDrawList* draw, const Res_GameState& gs, fl
 // 2. RenderHUD_AlertGauge — 右上角 5 级分段彩色条
 // ============================================================
 static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, float gameW) {
+    // 倒计时激活时隐藏警戒条
+    if (gs.countdownActive) return;
+
     ImFont* termFont  = UITheme::GetFont_Terminal();
 
     float gaugeW = 220.0f;
@@ -62,15 +65,22 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     float alertMax = (gs.alertMax > 0.001f) ? gs.alertMax : 1.0f;
 
     AlertStatus status = GetAlertStatus(gs.alertLevel);
-    const char* statusText = GetAlertStatusText(status);
 
-    // Status label + value
+    // 彩色数字 "XX/100"，颜色随 AlertStatus 变化
+    ImU32 numCol;
+    switch (status) {
+        case AlertStatus::Safe:   numCol = IM_COL32(80, 200, 120, 220);  break; // green
+        case AlertStatus::Search: numCol = IM_COL32(220, 200, 0, 220);   break; // yellow
+        case AlertStatus::Alert:  numCol = IM_COL32(252, 111, 41, 220);  break; // orange
+        case AlertStatus::Hunt:   numCol = IM_COL32(220, 60, 40, 220);   break; // red
+        default:                  numCol = IM_COL32(16, 13, 10, 220);    break;
+    }
+
     if (termFont) ImGui::PushFont(termFont);
-    char alertBuf[48];
-    snprintf(alertBuf, sizeof(alertBuf), "%s %.0f / %.0f", statusText, gs.alertLevel, alertMax);
+    char alertBuf[16];
+    snprintf(alertBuf, sizeof(alertBuf), "%.0f/%.0f", gs.alertLevel, alertMax);
     ImVec2 alertTextSize = ImGui::CalcTextSize(alertBuf);
-    draw->AddText(ImVec2(gaugeX + gaugeW - alertTextSize.x, gaugeY),
-        IM_COL32(16, 13, 10, 220), alertBuf);
+    draw->AddText(ImVec2(gaugeX + gaugeW - alertTextSize.x, gaugeY), numCol, alertBuf);
     if (termFont) ImGui::PopFont();
 
     float barY = gaugeY + 22.0f;
@@ -81,14 +91,13 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
         ImVec2(gaugeX + gaugeW, barY + gaugeH),
         IM_COL32(16, 13, 10, 60), 2.0f);
 
-    // 5-segment thresholds and colors
+    // 4-segment thresholds and colors (no Raid)
     struct Segment { float threshold; ImU32 color; };
     Segment segments[] = {
         { 15.0f,  IM_COL32(80, 200, 120, 220) },   // Safe: green
         { 30.0f,  IM_COL32(220, 200, 0, 220) },     // Search: yellow
         { 50.0f,  IM_COL32(252, 111, 41, 220) },    // Alert: orange
         { 100.0f, IM_COL32(220, 60, 40, 220) },     // Hunt: red
-        { 150.0f, IM_COL32(255, 30, 30, 220) },     // Raid: bright red
     };
 
     float prevThresh = 0.0f;
@@ -111,13 +120,6 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
         ImVec2(gaugeX + gaugeW, barY + gaugeH),
         IM_COL32(200, 200, 200, 100), 2.0f);
 
-    // Segment dividers
-    float dividers[] = { 15.0f, 30.0f, 50.0f, 100.0f };
-    for (float d : dividers) {
-        float dx = gaugeX + (d / alertMax) * gaugeW;
-        draw->AddLine(ImVec2(dx, barY), ImVec2(dx, barY + gaugeH),
-            IM_COL32(16, 13, 10, 80), 1.0f);
-    }
 }
 
 // ============================================================
@@ -129,27 +131,30 @@ static void RenderHUD_Countdown(ImDrawList* draw, const Res_GameState& gs, float
     ImFont* titleFont = UITheme::GetFont_TerminalLarge();
 
     int totalSec = (int)std::max(0.0f, gs.countdownTimer);
-    int mm = totalSec / 60;
-    int ss = totalSec % 60;
+    if (totalSec > 30) return;  // 前2秒隐藏，玩家从30开始看到
 
-    char timeBuf[16];
-    snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d", mm, ss);
+    char timeBuf[8];
+    snprintf(timeBuf, sizeof(timeBuf), "!%d!", totalSec);
 
     if (titleFont) ImGui::PushFont(titleFont);
     ImVec2 textSize = ImGui::CalcTextSize(timeBuf);
     float cx = gameW * 0.5f - textSize.x * 0.5f;
-    float cy = 14.0f;
+    float cy = 14.0f + textSize.y * 2.0f;  // 下移两个文字高度
 
-    // Red glow when < 30s
-    ImU32 textCol;
-    if (gs.countdownTimer < 30.0f) {
-        float pulse = (sinf(globalTime * 6.0f) + 1.0f) * 0.5f;
-        uint8_t r = (uint8_t)(200 + pulse * 55);
-        textCol = IM_COL32(r, 30, 30, 255);
-    } else {
-        textCol = IM_COL32(16, 13, 10, 240);
+    // 红色脉冲（加亮：基础 230, 绿/蓝 60）
+    float pulse = (sinf(globalTime * 6.0f) + 1.0f) * 0.5f;
+    uint8_t r = (uint8_t)(230 + pulse * 25);
+    ImU32 textCol  = IM_COL32(r, 60, 60, 255);
+    ImU32 shadowCol = IM_COL32(80, 0, 0, 180);
+
+    // 描边模拟加粗（8方向偏移1px）
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            if (dx == 0 && dy == 0) continue;
+            draw->AddText(ImVec2(cx + dx, cy + dy), shadowCol, timeBuf);
+        }
     }
-
+    // 主文本
     draw->AddText(ImVec2(cx, cy), textCol, timeBuf);
     if (titleFont) ImGui::PopFont();
 }
@@ -315,12 +320,12 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
     float alertMax = (gs.alertMax > 0.001f) ? gs.alertMax : 1.0f;
     float alertRatio = std::clamp(gs.alertLevel / alertMax, 0.0f, 1.0f);
 
-    // Phase 0: 0~0.2 — nothing
-    if (alertRatio < 0.2f) return;
+    // Phase 0: 0~0.3 — 无效果
+    if (alertRatio < 0.3f) return;
 
-    // Phase 1: 0.2~0.4 — random noise dots
-    if (alertRatio >= 0.2f) {
-        float intensity = std::clamp((alertRatio - 0.2f) / 0.2f, 0.0f, 1.0f);
+    // Phase 1: 0.3~0.6 — 噪点
+    if (alertRatio >= 0.3f) {
+        float intensity = std::clamp((alertRatio - 0.3f) / 0.3f, 0.0f, 1.0f);
         int dotCount = (int)(intensity * 60);
         unsigned int seed = (unsigned int)(globalTime * 1000.0f);
         for (int i = 0; i < dotCount; ++i) {
@@ -335,9 +340,11 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
         }
     }
 
-    // Phase 2: 0.4~0.66 — horizontal glitch lines
-    if (alertRatio >= 0.4f) {
-        float intensity = std::clamp((alertRatio - 0.4f) / 0.26f, 0.0f, 1.0f);
+    // Phase 2: 0.6~1.0 — 水平干扰线 + 扫描线
+    if (alertRatio >= 0.6f) {
+        float intensity = std::clamp((alertRatio - 0.6f) / 0.4f, 0.0f, 1.0f);
+
+        // 水平干扰线
         int lineCount = (int)(intensity * 8);
         unsigned int seed = (unsigned int)(globalTime * 500.0f);
         for (int i = 0; i < lineCount; ++i) {
@@ -351,11 +358,8 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
             draw->AddRectFilled(ImVec2(lx, ly), ImVec2(lx + lw, ly + 2.0f),
                 IM_COL32(252, 111, 41, a));
         }
-    }
 
-    // Phase 3: 0.66~1.0 — heavy scanlines
-    if (alertRatio >= 0.66f) {
-        float intensity = std::clamp((alertRatio - 0.66f) / 0.34f, 0.0f, 1.0f);
+        // 扫描线
         float spacing = 4.0f - intensity * 2.0f;
         uint8_t alpha = (uint8_t)(10 + intensity * 20);
         if (spacing < 2.0f) spacing = 2.0f;
@@ -539,6 +543,53 @@ static void RenderHUD_NetworkStatus(ImDrawList* draw, const Res_GameState& gs, f
 }
 
 // ============================================================
+// 11. RenderHUD_KillNotification — 屏幕中心击杀通知
+// ============================================================
+static void RenderHUD_KillNotification(ImDrawList* draw, const Res_GameState& gs,
+                                        float gameW, float displayH) {
+    if (!gs.killNotifyActive) return;
+
+    constexpr float kFadeIn  = 0.25f;
+    constexpr float kHold    = 1.20f;
+    constexpr float kFadeOut = 0.55f;
+
+    float t = gs.killNotifyTimer;
+    float alpha = 1.0f;
+
+    if (t < kFadeIn) {
+        alpha = t / kFadeIn;                              // 淡入
+    } else if (t < kFadeIn + kHold) {
+        alpha = 1.0f;                                     // 停留
+    } else {
+        float fadeT = (t - kFadeIn - kHold) / kFadeOut;
+        alpha = 1.0f - std::min(fadeT, 1.0f);             // 淡出
+    }
+
+    const char* text = "TARGET ELIMINATED";
+    ImFont* bigFont = UITheme::GetFont_TerminalLarge();
+    if (bigFont) ImGui::PushFont(bigFont);
+    ImVec2 textSize = ImGui::CalcTextSize(text);
+
+    float cx = gameW * 0.5f - textSize.x * 0.5f;
+    float cy = displayH * 0.40f - textSize.y * 0.5f;
+    if (t < kFadeIn) cy += (1.0f - alpha) * 8.0f;        // 淡入时上滑 8px
+
+    uint8_t a = (uint8_t)(255 * alpha);
+
+    // 8 方向描边阴影
+    ImU32 shadowCol = IM_COL32(16, 13, 10, (uint8_t)(120 * alpha));
+    for (int dx = -1; dx <= 1; dx++)
+        for (int dy = -1; dy <= 1; dy++) {
+            if (dx == 0 && dy == 0) continue;
+            draw->AddText(ImVec2(cx + dx, cy + dy), shadowCol, text);
+        }
+    // 主文本 — 橙色强调色
+    draw->AddText(ImVec2(cx, cy), IM_COL32(252, 111, 41, a), text);
+
+    if (bigFont) ImGui::PopFont();
+}
+
+// ============================================================
 // RenderHUD — Main entry point
 // ============================================================
 
@@ -570,6 +621,9 @@ void RenderHUD(Registry& registry, float dt) {
         RenderHUD_DisruptionEffect(draw, gs, displaySize.x, displayH, ui.globalTime);
         RenderHUD_NetworkStatus(draw, gs, gameW, displayH);
     }
+
+    // Kill notification
+    RenderHUD_KillNotification(draw, gs, gameW, displayH);
 
     // Control hints (bottom, inside game area)
     ImFont* smallFont = UITheme::GetFont_Small();

@@ -4,6 +4,7 @@
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_D_EnemyDormant.h"
 #include "Game/Components/C_T_Enemy.h"
+#include "Game/Components/Res_GameState.h"
 #include "Game/Utils/Log.h"
 
 namespace ECS {
@@ -47,14 +48,19 @@ namespace ECS {
 
             if (v >= detect.hunt_threshold) {
                 if (state.current_state != EnemyState::Hunt) {
-                    detect.hunt_lock_timer = 5.0f; // 进入 Hunt 时启动 5 秒锁定
-                    LOG_INFO("SYS_ENEMY_AI: Entity " << (int)entity << " -> HUNT (lock 5s)");
+                    detect.hunt_lock_timer = 3.0f; // 进入 Hunt 时启动 3 秒锁定
+                    // 全局警戒度：每次有敌人进入 Hunt，+15
+                    if (registry.has_ctx<Res_GameState>()) {
+                        auto& gs = registry.ctx<Res_GameState>();
+                        gs.alertLevel = std::min(gs.alertLevel + 15.0f, gs.alertMax);
+                    }
+                    LOG_INFO("SYS_ENEMY_AI: Entity " << (int)entity << " -> HUNT (lock 3s)");
                 }
                 nextState = EnemyState::Hunt;
             } else if (v >= detect.alert_threshold) {
                 nextState = EnemyState::Alert;
-            } else if (v >= detect.caution_threshold) {
-                nextState = EnemyState::Caution;
+            } else if (v >= detect.search_threshold) {
+                nextState = EnemyState::Search;
             } else {
                 nextState = EnemyState::Safe;
             }

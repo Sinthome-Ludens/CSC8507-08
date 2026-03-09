@@ -12,6 +12,7 @@
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Systems/Sys_DeathJudgment.h"
+#include "Game/Systems/Sys_DeathEffect.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
@@ -80,12 +81,13 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
     //    执行顺序：Camera(50) → Physics(100) → EnemyVision(110)
-    //              → DeathJudgment(125) → Navigation(130) → Render(200)
-    //              → EnemyAI(250) → ImGui(300) → NavTest(310)
+    //              → DeathJudgment(125) → DeathEffect(126) → Navigation(130)
+    //              → Render(200) → EnemyAI(250) → ImGui(300) → NavTest(310)
     systems.Register<ECS::Sys_Camera>       ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>      (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyVision>  (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
     systems.Register<ECS::Sys_DeathJudgment>(125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死）
+    systems.Register<ECS::Sys_DeathEffect> (126);   // 死亡视觉特效（闪白 + 发光淡出 + 缩放消失）
 
     auto* navSys = systems.Register<ECS::Sys_Navigation>(130);
     m_Pathfinder = std::make_unique<ECS::NavMeshPathfinderUtil>();

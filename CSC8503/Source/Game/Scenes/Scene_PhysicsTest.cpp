@@ -15,7 +15,9 @@
 #include "Game/Components/Res_CQCConfig.h"
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_VisionConfig.h"
+#include "Game/Systems/Sys_Countdown.h"
 #include "Game/Systems/Sys_DeathJudgment.h"
+#include "Game/Systems/Sys_DeathEffect.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Input.h"
@@ -154,7 +156,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     //    执行顺序：Input(10) → InputDispatch(55)
     //              → Disguise(59) → Stance(60) → StealthMetrics(62)
     //              → PlayerCQC(63) → Movement(65) → Physics(100)
-    //              → EnemyVision(110) → EnemyAI(120) → DeathJudgment(125)
+    //              → EnemyVision(110) → EnemyAI(120) → DeathJudgment(125) → DeathEffect(126)
     //              → PlayerCamera(150) → Camera(155, Bridge 同步 + debug 飞行)
     //              → Render(200) → ImGui(300+) → Raycast(330) → Chat(450) → UI(500)
     systems.Register<ECS::Sys_Input>           ( 10);   // NCL → Res_Input（via InputAdapter）
@@ -166,8 +168,9 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Movement>        ( 65);   // 物理移动
     systems.Register<ECS::Sys_Physics>         (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyVision>    (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
-    systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
+    systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Search/Alert/Hunt）
     systems.Register<ECS::Sys_DeathJudgment>   (125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死 → 场景重启/敌人销毁）
+    systems.Register<ECS::Sys_DeathEffect>     (126);   // 死亡视觉特效（赛博朋克四阶段：冲击→故障→溶解→崩塌）
     systems.Register<ECS::Sys_PlayerCamera>    (150);   // 第三人称跟随相机
     systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
     systems.Register<ECS::Sys_Render>          (200);   // ECS 实体 → NCL 代理对象桥接
@@ -179,6 +182,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_UI>                (500);   // UI 渲染 + 输入导航
 #endif
     systems.Register<ECS::Sys_Raycast>           (330);   // Raycast 独立测试窗口（按钮触发 + 可视化）
+    systems.Register<ECS::Sys_Countdown>          (350);   // alertLevel≥100 → 30s 倒计时 → GameOver
 
     // ── 5. 初始化游戏状态资源 ──────────────────────────────────────────────
 #ifdef USE_IMGUI

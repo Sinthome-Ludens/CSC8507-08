@@ -6,13 +6,15 @@
  * 由 Sys_DeathEffect 读取并推进计时器，动画结束后销毁实体。
  */
 #pragma once
+#include <cstdint>
 
 namespace ECS {
 
 struct C_D_Dying {
-    float elapsed     = 0.0f;   ///< 已过时间（秒）
-    float duration    = 0.8f;   ///< 总动画时长（秒）
-    bool  initialized = false;  ///< 首帧初始化标记
+    float    elapsed     = 0.0f;   ///< 已过时间（秒）
+    float    duration    = 1.2f;   ///< 总动画时长（秒）
+    bool     initialized = false;  ///< 首帧初始化标记
+    uint32_t seed        = 0;      ///< 每实体随机种子，产生差异化 glitch
 };
 
 } // namespace ECS
