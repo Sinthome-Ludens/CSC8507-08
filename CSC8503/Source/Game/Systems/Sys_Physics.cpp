@@ -12,6 +12,7 @@
  * - `OnUpdate` 仅负责 Body 的创建/清理/参数同步，不执行步进。
  */
 #include "Sys_Physics.h"
+#include "Game/Utils/Assert.h"
 #include "Game/Utils/Log.h"
 #include <iostream>
 #include <cfloat>
@@ -163,14 +164,32 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
 // ============================================================
 // OnFixedUpdate（单次 Jolt 步进 + Transform 同步 + 事件发布）
 // ============================================================
+
+/**
+ * @brief 固定步长物理更新入口：执行一次 Jolt 步进并回写 ECS 状态。
+ * @details
+ * 假设与前置条件：
+ * - Sys_Physics 已完成 OnAwake 初始化（PhysicsSystem、TempAllocator、JobSystem 有效）。
+ * - EventBus* 已由 SceneManager 在 EnterScene 时注入 registry ctx；
+ *   FlushCollisionEvents 内部含 GAME_ASSERT 保护。
+ * - @p fixedDt 由 SceneManager 的累加器提供（来源：Res_Time::fixedDeltaTime），
+ *   本函数只执行一次步进，不在内部做时间累加或追帧逻辑。
+ *
+ * 副作用：
+ * - 调用 Jolt::PhysicsSystem::Update 执行一次模拟步进。
+ * - 将模拟后位姿同步回所有带 C_D_RigidBody 实体的 C_D_Transform。
+ * - 通过 FlushCollisionEvents 将碰撞/触发信息发布到 EventBus。
+ * @param registry 当前场景注册表
+ * @param fixedDt  固定物理帧步长（秒），应等于 Res_Time::fixedDeltaTime
+ */
 void ECS::Sys_Physics::OnFixedUpdate(Registry& registry, float fixedDt) {
     if (!m_PhysicsSystem) return;
 
     // 单次步进（频率由 SceneManager 外部累加器保证为 60 Hz）
     m_PhysicsSystem->Update(fixedDt, 1, m_TempAllocator.get(), m_JobSystem.get());
 
-    // 同步 Jolt 结果 → C_D_Transform
-    SyncTransformsFromJolt(registry);
+    // 同步 Jolt 结果 → C_D_Transform（传入 fixedDt 供运动学体 MoveKinematic 使用）
+    SyncTransformsFromJolt(registry, fixedDt);
 
     // 发布碰撞/触发事件到 EventBus
     FlushCollisionEvents(registry);
@@ -309,7 +328,7 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 // ============================================================
 // SyncTransformsFromJolt（动态体 Jolt→ECS / 运动学体 ECS→Jolt）
 // ============================================================
-void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg) {
+void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
     reg.view<C_D_Transform, C_D_RigidBody>().each(
@@ -325,7 +344,7 @@ void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg) {
                     jid,
                     JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
                     JPH::Quat(tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w),
-                    FIXED_DT);
+                    fixedDt);
                 return;
             }
 
@@ -353,6 +372,9 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
     }
     if (contacts.empty()) return;
 
+    GAME_ASSERT(reg.has_ctx<ECS::EventBus*>() && reg.ctx<ECS::EventBus*>() != nullptr,
+                "[Sys_Physics] FlushCollisionEvents: EventBus* not found in registry ctx. "
+                "SceneManager must inject EventBus before OnFixedUpdate is called.");
     auto& bus = *reg.ctx<ECS::EventBus*>();
 
     for (auto& c : contacts) {

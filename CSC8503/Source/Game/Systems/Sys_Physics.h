@@ -118,6 +118,9 @@ public:
         float    contact_x, contact_y, contact_z;
         float    normal_x,  normal_y,  normal_z;
         float    separating_velocity;
+        /// Enter 事件：由 OnContactAdded 根据 IsSensor() 填充；
+        /// Exit 事件（is_exit=true）：固定为 false，触发判断由
+        /// FlushCollisionEvents 通过 C_D_Collider::is_trigger 重新验证。
         bool     is_trigger;
         bool     is_exit;  ///< true = TriggerExit
     };
@@ -288,7 +291,7 @@ private:
     void InitJolt();
     void CreateBodyForEntity(Registry& reg, EntityID id,
                              C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col);
-    void SyncTransformsFromJolt(Registry& reg);
+    void SyncTransformsFromJolt(Registry& reg, float fixedDt);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);
     // NCL ↔ Jolt 转换
