@@ -88,9 +88,9 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     if (ui.devMode && kb && registry.has_ctx<Res_GameState>()) {
         auto& gs = registry.ctx<Res_GameState>();
 
-        // F2: Cycle alertLevel (0/30/60/100/150) — derive next from current value
+        // F2: Cycle alertLevel (0/25/50/75/100) — derive next from current value
         if (kb->KeyPressed(KeyCodes::F2)) {
-            static const float kAlertCycle[] = { 0.0f, 30.0f, 60.0f, 100.0f, 150.0f };
+            static const float kAlertCycle[] = { 0.0f, 25.0f, 50.0f, 75.0f, 100.0f };
             float next = kAlertCycle[0];
             for (int i = 0; i < 5; ++i) {
                 if (kAlertCycle[i] > gs.alertLevel + 0.01f) { next = kAlertCycle[i]; break; }

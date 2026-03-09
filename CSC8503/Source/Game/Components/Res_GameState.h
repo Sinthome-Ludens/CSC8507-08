@@ -29,15 +29,13 @@ enum class AlertStatus : uint8_t {
     Search = 1,   // 16 ~ 30
     Alert  = 2,   // 31 ~ 50
     Hunt   = 3,   // 51 ~ 100
-    Raid   = 4,   // 101+
 };
 
 inline AlertStatus GetAlertStatus(float alertLevel) {
     if (alertLevel <= 15.0f)  return AlertStatus::Safe;
     if (alertLevel <= 30.0f)  return AlertStatus::Search;
     if (alertLevel <= 50.0f)  return AlertStatus::Alert;
-    if (alertLevel <= 100.0f) return AlertStatus::Hunt;
-    return AlertStatus::Raid;
+    return AlertStatus::Hunt;
 }
 
 inline const char* GetAlertStatusText(AlertStatus s) {
@@ -46,7 +44,6 @@ inline const char* GetAlertStatusText(AlertStatus s) {
         case AlertStatus::Search: return "SEARCH";
         case AlertStatus::Alert:  return "ALERT";
         case AlertStatus::Hunt:   return "HUNT";
-        case AlertStatus::Raid:   return "RAID";
         default:                  return "UNKNOWN";
     }
 }
@@ -75,15 +72,15 @@ struct Res_GameState {
     uint32_t playerLives  = 3;
 
     uint32_t enemyCount   = 0;
-    float    alertLevel   = 0.0f;   ///< 全局警戒等级（0.0 ~ 150.0）
-    float    alertMax     = 150.0f; ///< 警戒等级上限
+    float    alertLevel   = 0.0f;   ///< 全局警戒等级（0.0 ~ 100.0）
+    float    alertMax     = 100.0f; ///< 警戒等级上限
 
     bool isPaused   = false;
     bool isGameOver = false;
 
     // ─ 倒计时 ─────────────────────────────────────────────
-    float countdownTimer   = 120.0f;
-    float countdownMax     = 120.0f;
+    float countdownTimer   = 30.0f;
+    float countdownMax     = 30.0f;
     bool  countdownActive  = false;
 
     // ─ 玩家状态 ───────────────────────────────────────────
