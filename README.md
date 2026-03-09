@@ -119,6 +119,19 @@ cmake --build build/ninja-vulkan --config Debug
 - `USE_VULKAN=ON/OFF`：启用 Vulkan 渲染后端
 - `USE_IMGUI=ON/OFF`：启用 ImGui 调试 UI
 
+## Unity工具与地图
+Unity工具包位置：Asset\Meshes\UnityPackage
+- 使用方法：配置Unity编辑器版本2023.2.12f1或更高，双击文件自动导入到当前激活的Unity项目资产根目录中
+### 包含内容
+- 场景文件包含数个关卡，内容会随时间更新；
+- 一份C#导出脚本，自动整合所有子模型并打包为单个OBJ文件并导出，包含OBJ MTL和navmesh
+### 脚本使用方法
+- 将你需要导出的关卡组成对象全部挂载到一个父对象上
+- 在父对象上使用NavMesh Surface烘焙地图
+- 将脚本挂在到父对象上，选择脚本组件右上角【更多】中找到Export Map选项
+- 选择导出位置
+- 导出
+
 ## 常见问题
 
 ### Q1: 配置时提示找不到 `External/*`？
