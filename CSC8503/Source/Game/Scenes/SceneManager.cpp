@@ -54,6 +54,16 @@ void SceneManager::PushScene(IScene* scene) {
 // Update（帧前半段：ECS UpdateAll）
 // ============================================================
 
+/**
+ * @brief 每帧前半段：驱动变步长 UpdateAll 与固定步长 FixedUpdateAll。
+ * @details
+ * 1. 更新 Res_Time（deltaTime / totalTime / frameCount）。
+ * 2. 调用 UpdateAll(dt)（所有系统 OnUpdate，变步长）。
+ * 3. 从 Res_Time::fixedDeltaTime 读取固定步长，累加器积分；
+ *    每帧最多步进 4 次（螺旋死亡保护），并 clamp 累加器上限。
+ * 4. 刷新 EventBus（所有更新完成后统一 flush）。
+ * @param dt 本帧变步长时间（秒）
+ */
 void SceneManager::Update(float dt) {
     if (!m_CurrentScene || m_Shutdown) return;
 
@@ -162,6 +172,12 @@ void SceneManager::Shutdown() {
 // Private: EnterScene
 // ============================================================
 
+/**
+ * @brief 进入指定场景：重置累加器，设置 m_CurrentScene 并调用 OnEnter。
+ * @details
+ * 累加器在 OnEnter 之前置零，防止上一场景残留的积压时间在新场景首帧触发大量物理步进。
+ * @param scene 新场景（所有权已转移至 SceneManager）
+ */
 void SceneManager::EnterScene(IScene* scene) {
     // 重置累加器，防止上一场景残留的积压时间在新场景首帧触发大量物理步进
     m_FixedAccumulator = 0.0f;
@@ -174,6 +190,12 @@ void SceneManager::EnterScene(IScene* scene) {
 // Private: ExitCurrentScene
 // ============================================================
 
+/**
+ * @brief 退出当前场景：调用 OnExit，置空 m_CurrentScene，重置累加器。
+ * @details
+ * 累加器在 OnExit 之后置零，防止场景切换后残留积压时间干扰下一场景的物理步进。
+ * delete 由调用方（PushScene / EndFrame / Shutdown）负责。
+ */
 void SceneManager::ExitCurrentScene() {
     if (!m_CurrentScene) return;
     m_CurrentScene->OnExit(m_Registry, m_Systems);
