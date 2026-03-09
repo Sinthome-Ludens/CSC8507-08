@@ -431,8 +431,8 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
     std::vector<uint32_t> toRemove;
 
     for (auto& [bodyID, entityID] : m_BodyToEntity) {
-        // 如果实体不再有效（已销毁）
-        if (!reg.Valid(entityID)) {
+        // 实体已销毁 或 C_D_RigidBody 已被移除（死亡动画期间）
+        if (!reg.Valid(entityID) || !reg.Has<C_D_RigidBody>(entityID)) {
             toRemove.push_back(bodyID);
         }
     }

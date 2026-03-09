@@ -8,6 +8,8 @@
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_AIState.h"
+#include "Game/Components/C_D_Dying.h"
+#include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/C_T_Player.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/Res_CQCConfig.h"
@@ -66,30 +68,20 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                     return;
                 }
                 case CQCPhase::Complete: {
-                    // 将目标敌人设为休眠
-                    if (cqc.targetEnemy != 0 && registry.Has<C_D_EnemyDormant>(cqc.targetEnemy)) {
-                        auto& dormant = registry.Get<C_D_EnemyDormant>(cqc.targetEnemy);
-                        dormant.isDormant = true;
-                        LOG_INFO("[CQC] Enemy " << (int)cqc.targetEnemy << " is now dormant");
+                    EntityID target = cqc.targetEnemy;
+                    if (target != 0 && !registry.Has<C_D_Dying>(target)) {
+                        // 直接触发死亡动画（无需 C_D_Health）
+                        registry.Emplace<C_D_Dying>(target);
+                        registry.Emplace<C_D_DeathVisual>(target);
+                        LOG_INFO("[Sys_PlayerCQC] CQC kill: entity " << (int)target);
 
                         // 发布 CQC 完成事件
                         if (bus) {
                             Evt_CQC_Takedown evt{};
                             evt.player = playerId;
-                            evt.target = cqc.targetEnemy;
+                            evt.target = target;
                             evt.position = playerTf.position;
                             bus->publish_deferred(evt);
-                        }
-
-                        // 冻结休眠敌人速度
-                        if (registry.has_ctx<Sys_Physics*>()) {
-                            auto* physics = registry.ctx<Sys_Physics*>();
-                            if (physics && registry.Has<C_D_RigidBody>(cqc.targetEnemy)) {
-                                auto& erb = registry.Get<C_D_RigidBody>(cqc.targetEnemy);
-                                if (erb.body_created) {
-                                    physics->SetLinearVelocity(erb.jolt_body_id, 0.0f, 0.0f, 0.0f);
-                                }
-                            }
                         }
                     }
 
