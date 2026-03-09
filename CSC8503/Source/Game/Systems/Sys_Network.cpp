@@ -17,6 +17,7 @@
 #endif
 
 #include "Sys_Network.h"
+#include "Game/Utils/Assert.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_NetworkIdentity.h"
 #include "Game/Components/C_D_InterpBuffer.h"
@@ -74,6 +75,9 @@ void Sys_Network::InitializeEvents(Registry& reg) {
     m_Registry = &reg;
     
     // EventBus 由 SceneManager 在场景进入前注入，此处只负责注册监听
+    GAME_ASSERT(reg.has_ctx<EventBus*>() && reg.ctx<EventBus*>() != nullptr,
+                "[Sys_Network] InitializeEvents: EventBus* not found in registry ctx. "
+                "SceneManager must inject EventBus before Sys_Network::OnAwake is called.");
     m_ActionSubID = reg.ctx<EventBus*>()->subscribe<Evt_Net_GameAction>(
         [this](const Evt_Net_GameAction& evt) { this->OnLocalGameAction(evt); }
     );
