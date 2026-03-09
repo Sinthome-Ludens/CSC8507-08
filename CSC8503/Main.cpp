@@ -222,6 +222,13 @@ int main(int argc, char** argv) {
     ECS::ImGuiAdapter::Init(w, renderer);
 #endif
 
+    // 注册窗口 resize 回调，使最大化/拖拽调整大小时 glViewport 跟随更新
+    w->SetWindowEventHandler([renderer](NCL::WindowEvent e, uint32_t width, uint32_t height) {
+        if (e == NCL::WindowEvent::Resize) {
+            renderer->OnWindowResize(width, height);
+        }
+    });
+
     // =========================================================
     // SceneManager + 统一主循环
     // =========================================================
