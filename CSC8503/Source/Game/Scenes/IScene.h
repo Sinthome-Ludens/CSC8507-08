@@ -58,6 +58,17 @@ public:
     IScene* GetNextScene() const { return m_NextScene; }
     void    ClearNextScene()    { m_NextScene = nullptr; }
 
+    // ── 场景重启 ─────────────────────────────────────────────────
+    /// 子类 override，返回同类型新场景实例（用于重启）
+    virtual IScene* CreateRestartScene() { return nullptr; }
+
+    /// 请求重启当前场景（延迟到帧末由 SceneManager 安全执行）
+    /// 内部 guard：若已有待切换场景则不重复创建，防止内存泄漏
+    void Restart() {
+        if (m_NextScene != nullptr) return;
+        if (IScene* s = CreateRestartScene()) RequestSceneChange(s);
+    }
+
 protected:
     /**
      * @brief 请求在下一帧末切换到指定场景（延迟切换机制）

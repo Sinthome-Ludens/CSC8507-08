@@ -24,6 +24,7 @@
 #include "Game/Components/C_T_MainCamera.h"
 #include "Game/Components/C_D_DebugName.h"
 #include "Game/Components/C_D_MeshRenderer.h"
+#include "Game/Components/C_D_Material.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
 #include "Game/Components/C_T_Player.h"
@@ -32,6 +33,8 @@
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_CQCState.h"
 #include "Game/Components/C_D_EnemyDormant.h"
+#include "Game/Components/C_D_Health.h"
+#include "Game/Components/C_T_DeathZone.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_D_AIPerception.h"
@@ -130,6 +133,9 @@ EntityID PrefabFactory::CreateFloor(Registry& reg, ECS::MeshHandle cubeMesh)
     col.half_z = 50.0f;
     reg.Emplace<C_D_Collider>(entity, col);
 
+    // C_D_Material（默认 BlinnPhong）
+    reg.Emplace<C_D_Material>(entity);
+
     // C_D_DebugName（规范必选）
     AttachDebugName(reg, entity, "ENTITY_Env_Floor_Main");
 
@@ -192,6 +198,9 @@ EntityID PrefabFactory::CreatePlayer(
 
     // C_D_CQCState（CQC 近身制服状态）
     reg.Emplace<ECS::C_D_CQCState>(entity, ECS::C_D_CQCState{});
+
+    // C_D_Health（生命值）
+    reg.Emplace<ECS::C_D_Health>(entity, ECS::C_D_Health{});
 
     // C_D_DebugName
     AttachDebugName(reg, entity, "ENTITY_Player_Main");
@@ -295,6 +304,9 @@ EntityID PrefabFactory::CreatePhysicsCube(
     col.friction    = 0.5f;
     col.restitution = 0.1f;
     reg.Emplace<C_D_Collider>(entity, col);
+
+    // C_D_Material（默认 BlinnPhong）
+    reg.Emplace<C_D_Material>(entity);
 
     // C_D_DebugName（含序号，匹配 ENTITY_Physics_Cube_XX 规范）
     char debugName[64];
@@ -489,6 +501,58 @@ EntityID PrefabFactory::CreateNavTarget(
     LOG_INFO("[PrefabFactory] CreateNavTarget id=" << entity
              << " index=" << spawnIndex
              << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateDeathZone  →  PREFAB_ENV_DEATH_ZONE
+// ============================================================
+EntityID PrefabFactory::CreateDeathZone(
+    Registry&   reg,
+    int         zoneIndex,
+    Vector3     position,
+    Vector3     halfExtents)
+{
+    EntityID entity = reg.Create();
+
+    // C_D_Transform（位置由参数指定，scale 固定 1）
+    reg.Emplace<C_D_Transform>(entity,
+        position,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    // C_D_RigidBody（静态体）
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    // C_D_Collider（Box 触发器，不产生物理响应）
+    C_D_Collider col{};
+    col.type        = ColliderType::Box;
+    col.half_x      = halfExtents.x;
+    col.half_y      = halfExtents.y;
+    col.half_z      = halfExtents.z;
+    col.friction    = 0.0f;
+    col.restitution = 0.0f;
+    col.is_trigger  = true;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // C_T_DeathZone 标签
+    reg.Emplace<C_T_DeathZone>(entity);
+
+    // 不挂载 C_D_MeshRenderer → 渲染不可见
+
+    // C_D_DebugName
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_Env_DeathZone_%02d", zoneIndex);
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreateDeathZone id=" << entity
+             << " index=" << zoneIndex
+             << " pos=(" << position.x << "," << position.y << "," << position.z
+             << ") half=(" << halfExtents.x << "," << halfExtents.y << "," << halfExtents.z << ")");
 
     return entity;
 }

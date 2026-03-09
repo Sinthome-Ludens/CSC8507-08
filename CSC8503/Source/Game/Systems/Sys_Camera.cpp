@@ -89,16 +89,8 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
         itemWheelOpen  = ui.itemWheelOpen;
     }
 
-    // ── F1 键切换 Debug 模式（master）────────────────────────────
-    auto* kbGlobal = Window::GetKeyboard();
-    if (kbGlobal && windowActive && !uiBlocking) {
-        if (kbGlobal->KeyPressed(KeyCodes::F1)) {
-            m_DebugMode = !m_DebugMode;
-            LOG_INFO("[Sys_Camera] Debug mode " << (m_DebugMode ? "ON" : "OFF"));
-            // 关闭 debug 时重置鼠标状态，避免卡在 cursor_free
-            // 光标状态通过 Res_UIState 传递，不直接调用 Window API
-        }
-    }
+    // F1 键切换由 Sys_UI 统一处理（切换 devMode），相机 Debug 模式由 ImGui 面板控制
+    // 移除此处的 F1 键处理，避免与 Sys_UI 冲突
 
     bool cursorFree = false;
 
@@ -108,20 +100,16 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
             // ── 同步 Settings 鼠标灵敏度到相机组件 ──────────────────────────
             if (uiSensitivity >= 0.0f) cam.sensitivity = uiSensitivity;
 
-            // 关闭 debug 时重置 cursor_free 状态
-            if (!m_DebugMode) {
-                cam.cursor_free = false;
-            }
-
             auto* kb = Window::GetKeyboard();
+
+            // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）──
+            // 始终可用，不受 Debug 模式限制
+            if (kb && windowActive) {
+                cam.cursor_free = kb->KeyDown(KeyCodes::MENU);
+            }
 
             // ── Debug 模式：WASD/鼠标自由飞行（默认关闭）────────────────────
             if (m_DebugMode) {
-                // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）──
-                // UI 阻塞时仍跟踪，但不影响输入
-                if (kb && windowActive) {
-                    cam.cursor_free = kb->KeyDown(KeyCodes::MENU);
-                }
 
                 // ── 鼠标旋转（cursor_free 或 UI 阻塞时禁用）─────────────────
                 auto* mouse = Window::GetMouse();
@@ -135,7 +123,7 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                 }
 
                 // ── 键盘平移（WASD + Q/E，UI 阻塞时禁用）────────────────────
-                if (kb && windowActive && !uiBlocking) {
+                if (!m_SyncToPlayer && kb && windowActive && !uiBlocking) {
                     const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
                     const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
 

@@ -74,6 +74,7 @@ struct Res_UIState {
     bool      isFullscreen       = false;
     bool      fullscreenChanged  = false;
     bool      devMode            = false;
+    bool      sceneRequestDispatched = false;
 
     float     masterVolume       = 0.8f;
     float     sfxVolume          = 0.8f;

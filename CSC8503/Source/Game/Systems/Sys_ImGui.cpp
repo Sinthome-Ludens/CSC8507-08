@@ -18,6 +18,7 @@
 #include "Game/Components/Res_TestState.h"
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Prefabs/PrefabFactory.h"
+#include "Game/Systems/Sys_Camera.h"
 #include "Game/Utils/Log.h"
 #include "GameWorld.h"
 #include "Constraint.h"
@@ -139,6 +140,38 @@ void Sys_ImGui::RenderDebugWindow(Registry& registry, float dt) {
             }
         }
     }
+
+    // ── 相机控制面板 ──
+    ImGui::Separator();
+    ImGui::Text("Camera Controls");
+    if (registry.has_ctx<Sys_Camera*>()) {
+        auto* camSys = registry.ctx<Sys_Camera*>();
+        if (camSys) {
+            bool debugMode = camSys->IsDebugMode();
+            if (ImGui::Checkbox("Free Camera (WASD + Mouse)", &debugMode)) {
+                camSys->SetDebugMode(debugMode);
+                LOG_INFO("[ImGui] Camera Debug Mode: " << (debugMode ? "ON" : "OFF"));
+            }
+
+            // Sync WASD to Player 复选框（仅在 Free Camera 开启时显示）
+            if (debugMode) {
+                bool syncToPlayer = camSys->IsSyncToPlayer();
+                if (ImGui::Checkbox("Sync WASD to Player", &syncToPlayer)) {
+                    camSys->SetSyncToPlayer(syncToPlayer);
+                }
+                if (syncToPlayer) {
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 1.0f, 1.0f),
+                        "WASD: Move Player | Mouse: Free Look | Alt: Cursor");
+                } else {
+                    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f),
+                        "WASD: Move Camera | Q/E: Up/Down | Alt: Cursor");
+                }
+            } else {
+                ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Enable to unlock camera");
+            }
+        }
+    }
+
     ImGui::End();
 }
 

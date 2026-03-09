@@ -351,16 +351,27 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         ui.loadingTimer    = 0.0f;
         ui.loadingMsgIndex = 0;
         ui.loadingMsgTimer = 0.0f;
-        LOG_INFO("[Sys_UI] FadeOut done — entering Loading screen");
+        LOG_INFO("[Sys_UI] FadeOut done -- entering Loading screen");
     }
 
     // Loading 画面计时完成 → 交还场景请求给 Main.cpp
     if (ui.activeScreen == UIScreen::Loading
-        && ui.loadingTimer >= ui.loadingMinDuration
-        && ui.transitionSceneRequest != SceneRequest::None) {
+    && ui.loadingTimer >= ui.loadingMinDuration
+    && ui.transitionSceneRequest != SceneRequest::None
+    && !ui.sceneRequestDispatched) {
+/*
+        LOG_INFO("[Sys_UI] DEBUG activeScreen="
+            + std::to_string((int)ui.activeScreen)
+            + " loadingTimer=" + std::to_string(ui.loadingTimer)
+            + " transitionReq=" + std::to_string((int)ui.transitionSceneRequest));
+*/
+
         ui.pendingSceneRequest    = ui.transitionSceneRequest;
         ui.transitionSceneRequest = SceneRequest::None;
-        LOG_INFO("[Sys_UI] Loading complete — handing SceneRequest to Main.cpp");
+        ui.activeScreen           = UIScreen::None;
+        ui.loadingTimer           = 0.0f;
+        ui.sceneRequestDispatched = true;  // ← 锁住，防止重入
+        LOG_INFO("[Sys_UI] Loading complete -- handing SceneRequest to Main.cpp");
     }
 
     // Toast 通知渲染（覆盖所有屏幕）

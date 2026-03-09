@@ -33,4 +33,10 @@ public:
 
     /// Resize windowed mode (no-op when fullscreen). Centers window on screen.
     static void SetWindowSize(int w, int h);
+
+    /// True while the window is being dragged/resized (between WM_ENTERSIZEMOVE and WM_EXITSIZEMOVE).
+    static bool IsInSizeMove();
+
+    /// Call once before exit. Removes the window subclass.
+    static void Shutdown();
 };

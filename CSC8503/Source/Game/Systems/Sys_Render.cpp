@@ -1,7 +1,7 @@
 #include "Sys_Render.h"
 #include "Game/Utils/Log.h"
 #include "Matrix.h"
-#include "OGLMesh.h"   // 需要完整定义才能做 OGLMesh* → Mesh* 的隐式转换
+#include "OGLMesh.h"
 
 using namespace NCL;
 using namespace NCL::Maths;
@@ -31,19 +31,17 @@ void Sys_Render::OnAwake(Registry& registry) {
 void Sys_Render::OnUpdate(Registry& registry, float dt) {
     if (!m_GameWorld) return;
 
-    // --- 1. 遍历所有可渲染实体：创建代理或同步 Transform ---
     registry.view<C_D_Transform, C_D_MeshRenderer>().each(
         [&](EntityID id, C_D_Transform& tf, C_D_MeshRenderer& mr) {
             auto it = m_ProxyObjects.find(id);
             if (it == m_ProxyObjects.end()) {
                 CreateProxy(registry, id, tf, mr);
             } else {
-                SyncProxy(it->second, tf);
+                SyncProxy(registry, id, it->second, tf);
             }
         }
     );
 
-    // --- 2. 清理已销毁实体的代理 ---
     CleanupOrphans(registry);
 }
 
@@ -62,19 +60,32 @@ void Sys_Render::OnDestroy(Registry& registry) {
 }
 
 // ============================================================
+// 辅助：将 ECS C_D_Material 同步到 NCL GameTechMaterial
+// ============================================================
+static void SyncMaterial(GameTechMaterial& nclMat, const C_D_Material& ecsMat) {
+    nclMat.shadingModel     = static_cast<NCL::CSC8503::ShadingModel>((int)ecsMat.shadingModel);
+    nclMat.metallic         = ecsMat.metallic;
+    nclMat.roughness        = ecsMat.roughness;
+    nclMat.ao               = ecsMat.ao;
+    nclMat.emissiveColor    = ecsMat.emissiveColor;
+    nclMat.emissiveStrength = ecsMat.emissiveStrength;
+    nclMat.rimPower         = ecsMat.rimPower;
+    nclMat.rimStrength      = ecsMat.rimStrength;
+    nclMat.flatShading      = ecsMat.flatShading;
+}
+
+// ============================================================
 // CreateProxy
 // ============================================================
 void Sys_Render::CreateProxy(Registry& reg, EntityID id,
                               const C_D_Transform& tf, const C_D_MeshRenderer& mr)
 {
-    // 解析 Mesh Handle → OGLMesh*（is-a Mesh*，可直接传给 RenderObject）
     auto* mesh = AssetManager::Instance().GetMesh(mr.meshHandle);
     if (!mesh) {
         LOG_ERROR("[Sys_Render] Cannot create proxy for entity " << id << ": mesh is null");
         return;
     }
 
-    // 创建代理 GameObject（不含 PhysicsObject，只用于渲染）
     auto* proxy = new NCL::CSC8503::GameObject("ECS_" + std::to_string(id));
 
     proxy->GetTransform()
@@ -82,11 +93,15 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
         .SetScale(tf.scale)
         .SetOrientation(tf.rotation);
 
-    // 默认不透明材质（无贴图；GameTechRenderer 使用 defaultShader）
     GameTechMaterial mat{};
     mat.type       = MaterialType::Opaque;
     mat.diffuseTex = nullptr;
     mat.bumpTex    = nullptr;
+
+    // 同步 ECS 材质参数（如果有 C_D_Material 组件）
+    if (reg.Has<C_D_Material>(id)) {
+        SyncMaterial(mat, reg.Get<C_D_Material>(id));
+    }
 
     proxy->SetRenderObject(
         new NCL::CSC8503::RenderObject(proxy->GetTransform(), mesh, mat));
@@ -94,7 +109,6 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
     m_GameWorld->AddGameObject(proxy);
     m_ProxyObjects[id] = proxy;
 
-    // 发布代理创建事件（如果 EventBus 可用）
     if (reg.has_ctx<ECS::EventBus*>()) {
         reg.ctx<ECS::EventBus*>()->publish(Evt_Render_ProxyCreated{id});
     }
@@ -105,11 +119,21 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
 // ============================================================
 // SyncProxy
 // ============================================================
-void Sys_Render::SyncProxy(NCL::CSC8503::GameObject* proxy, const C_D_Transform& tf) {
+void Sys_Render::SyncProxy(Registry& reg, EntityID id,
+                            NCL::CSC8503::GameObject* proxy, const C_D_Transform& tf)
+{
     proxy->GetTransform()
         .SetPosition(tf.position)
         .SetScale(tf.scale)
         .SetOrientation(tf.rotation);
+
+    // 每帧同步材质参数（支持 ImGui 实时调参）
+    if (reg.Has<C_D_Material>(id)) {
+        auto* ro = proxy->GetRenderObject();
+        if (ro) {
+            SyncMaterial(ro->GetMaterial(), reg.Get<C_D_Material>(id));
+        }
+    }
 }
 
 // ============================================================
