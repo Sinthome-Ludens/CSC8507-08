@@ -1,9 +1,12 @@
 /**
  * @file SceneManager.h
- * @brief 场景管理器声明。
+ * @brief ECS 场景管理器声明：持有 Registry/SystemManager，驱动固定步长累加器。
  *
  * @details
- * 管理场景切换、系统调度、固定步长更新，以及与场景同生命周期的 EventBus。
+ * SceneManager 负责帧循环驱动、场景生命周期（Enter/Exit/Switch）、
+ * 固定步长物理帧（FixedUpdateAll）的累加器管理，以及与场景同生命周期的 EventBus。
+ * 场景切换（EnterScene / ExitCurrentScene）时累加器会被重置为 0，
+ * 以避免切换后物理帧积压。
  */
 #pragma once
 
@@ -12,6 +15,7 @@
 #include "Core/ECS/SystemManager.h"
 #include "Core/ECS/EventBus.h"
 #include "Game/Components/Res_NCL_Pointers.h"
+
 #include <memory>
 
 namespace ECS {
@@ -26,7 +30,7 @@ namespace ECS {
  *
  * @code
  * // 初始化
- * ECS::SceneManager sm(Res_NCL_Pointers{world, physics, renderer});
+ * ECS::SceneManager sm(Res_NCL_Pointers{world, physics});
  * sm.PushScene(new Scene_PhysicsTest());
  *
  * // 主循环
@@ -111,19 +115,21 @@ public:
 
 private:
     /**
-     * @brief 进入指定场景：创建 EventBus 并注入 ctx，设置 m_CurrentScene，调用 scene->OnEnter()。
-     * @details EventBus 在此处由 SceneManager 创建并以裸指针注入 registry ctx，
-     *          生命周期与场景对齐，与任何特定 System 解耦；并重置固定步长累加器，
-     *          避免跨场景继承上一场景的物理步进残量。
+     * @brief 进入指定场景：创建 EventBus 并注入 ctx，设置 m_CurrentScene 并调用 scene->OnEnter()。
+     * @details 同时将固定步长累加器 m_FixedAccumulator 重置为 0，
+     *          避免上一场景残留的时间积压在新场景首帧触发大量物理步进。
+     *          EventBus 在此处由 SceneManager 创建并以裸指针注入 registry ctx，
+     *          确保所有 System::OnAwake 都可直接访问。
      * @param scene 新场景（所有权已转移）
      */
     void EnterScene(IScene* scene);
 
     /**
-     * @brief 退出当前场景：调用 m_CurrentScene->OnExit()（含 DestroyAll + Clear），
-     *        随后清理 EventBus ctx 并销毁 EventBus。
-     * @details 退出时同步清零固定步长累加器，防止旧场景残余时间片影响新场景首帧。
-     * 调用后 m_CurrentScene 指针被置空，但 delete 由调用方负责。
+     * @brief 退出当前场景：调用 m_CurrentScene->OnExit()（含 DestroyAll + Clear）。
+     * @details 同时将固定步长累加器 m_FixedAccumulator 重置为 0，
+     *          防止切换场景后残留的累加时间干扰下一场景的物理步进。
+     *          在所有 System 销毁后清理 EventBus ctx 并销毁 EventBus。
+     *          调用后 m_CurrentScene 指针被置空，但 delete 由调用方负责。
      */
     void ExitCurrentScene();
 

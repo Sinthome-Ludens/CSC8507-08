@@ -1,9 +1,15 @@
 /**
  * @file SceneManager.cpp
- * @brief 场景管理器实现。
+ * @brief ECS 场景管理器实现：帧循环驱动、场景生命周期与固定步长累加器。
  *
  * @details
- * 负责场景进入/退出、固定步长调度、帧末清理，以及场景级 EventBus 的创建与销毁。
+ * - `Update(dt)`：驱动变步长 UpdateAll 与固定步长 FixedUpdateAll（累加器模式）。
+ *   固定步长从 `Res_Time::fixedDeltaTime` 读取，保证单一数据来源。
+ *   累加器上限 clamp 为 4 × fixedDt，防止过载导致螺旋死亡。
+ * - `EnterScene()` / `ExitCurrentScene()`：切换场景时重置累加器，
+ *   防止残留积压时间在新场景首帧触发大量物理步进。
+ * - `EndFrame()`：帧末执行 ProcessPendingDestroy 与延迟场景切换。
+ * - EventBus 生命周期与场景对齐，由 SceneManager 统一创建、注入与销毁。
  */
 #include "SceneManager.h"
 #include "Game/Utils/Assert.h"
@@ -48,16 +54,6 @@ void SceneManager::PushScene(IScene* scene) {
 // Update（帧前半段：ECS UpdateAll）
 // ============================================================
 
-/**
- * @brief 每帧前半段：驱动变步长 UpdateAll 与固定步长 FixedUpdateAll。
- * @details
- * 1. 更新 Res_Time（deltaTime / totalTime / frameCount）。
- * 2. 调用 UpdateAll(dt)（所有系统 OnUpdate，变步长）。
- * 3. 从 Res_Time::fixedDeltaTime 读取固定步长，累加器积分；
- *    每帧最多步进 4 次（螺旋死亡保护），clamp 上限防止积压无界增长。
- * 4. 刷新 EventBus（所有更新完成后统一 flush）。
- * @param dt 本帧变步长时间（秒）
- */
 void SceneManager::Update(float dt) {
     if (!m_CurrentScene || m_Shutdown) return;
 
@@ -72,7 +68,8 @@ void SceneManager::Update(float dt) {
 
     m_Systems.UpdateAll(m_Registry, dt);
 
-    // 固定步长物理帧驱动（使用 Res_Time::fixedDeltaTime 作为单一来源，最多步进 4 次防止螺旋死亡）
+    // 固定步长物理帧驱动（由 Res_Time::fixedDeltaTime 决定，最多步进 4 次防止螺旋死亡）
+    // 使用 Res_Time 作为单一数据来源，与 Sys_Physics::FIXED_DT 保持一致
     const float fixedDt = time.fixedDeltaTime;
     m_FixedAccumulator += dt;
     // clamp：防止过载时累加器无界积压（上限 = 4 步）
@@ -121,7 +118,6 @@ void SceneManager::EndFrame() {
 
         IScene* old = m_CurrentScene;
         ExitCurrentScene();
-        LOG_INFO("[SceneManager] Scene exited (deferred switch).");
         delete old;
 
         EnterScene(next);
@@ -164,16 +160,8 @@ void SceneManager::Shutdown() {
 // Private: EnterScene
 // ============================================================
 
-/**
- * @brief 进入指定场景：创建 EventBus 并注入 ctx，重置累加器，调用 OnEnter。
- * @details
- * 执行顺序：
- * 1. 将 m_FixedAccumulator 置零，防止上一场景积压时间在新场景首帧触发大量物理步进。
- * 2. 创建场景级 EventBus 并注入 registry ctx，确保 System::OnAwake 可直接访问。
- * 3. 设置 m_CurrentScene 并调用 scene->OnEnter()。
- * @param scene 新场景（所有权已转移至 SceneManager）
- */
 void SceneManager::EnterScene(IScene* scene) {
+    // 重置累加器，防止上一场景残留的积压时间在新场景首帧触发大量物理步进
     m_FixedAccumulator = 0.0f;
 
     // 创建场景级 EventBus，生命周期与场景对齐
@@ -191,21 +179,13 @@ void SceneManager::EnterScene(IScene* scene) {
 // Private: ExitCurrentScene
 // ============================================================
 
-/**
- * @brief 退出当前场景：重置累加器，调用 OnExit，清理 EventBus。
- * @details
- * 执行顺序：
- * 1. 将 m_FixedAccumulator 置零，防止残留积压时间干扰下一场景。
- * 2. 调用 m_CurrentScene->OnExit()（内含 DestroyAll + Clear）。
- * 3. 从 registry ctx 移除 EventBus* 指针并销毁 EventBus（在所有 System::OnDestroy 之后）。
- * delete 当前场景指针由调用方（EndFrame / Shutdown）负责。
- */
 void SceneManager::ExitCurrentScene() {
     if (!m_CurrentScene) return;
 
+    // 重置累加器，防止场景切换后残留积压时间干扰下一场景的物理步进
     m_FixedAccumulator = 0.0f;
 
-    // OnExit 内部调用 DestroyAll（各 System::OnDestroy 执行），随后 registry.Clear()
+    // OnExit 内部会 DestroyAll + registry.Clear()
     m_CurrentScene->OnExit(m_Registry, m_Systems);
     m_CurrentScene = nullptr;
 
@@ -214,6 +194,7 @@ void SceneManager::ExitCurrentScene() {
         m_Registry.ctx_erase<ECS::EventBus*>();
     }
     m_EventBus.reset();
+
     LOG_INFO("[SceneManager] Scene exited. EventBus destroyed.");
 }
 

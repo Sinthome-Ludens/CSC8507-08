@@ -5,6 +5,7 @@
 #include "Win32Window.h"
 #include "OGLRenderer.h"
 #include "glad/gl.h"
+#include "Game/Utils/WindowHelper.h"
 #include <iostream>
 
 using namespace NCL;
@@ -19,7 +20,7 @@ HWND  ImGuiAdapter::s_TargetHWND  = nullptr;
 LRESULT CALLBACK ImGuiAdapter::MessageHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode >= 0 && s_Initialized) {
         MSG* pMsg = reinterpret_cast<MSG*>(lParam);
-        if (pMsg->hwnd == s_TargetHWND) {
+        if (pMsg->hwnd == s_TargetHWND && !WindowHelper::IsInSizeMove()) {
             extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
             ImGui_ImplWin32_WndProcHandler(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam);
         }
