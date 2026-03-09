@@ -48,10 +48,16 @@ namespace {
     std::unordered_map<uint32_t, float> g_LastGravityFactors;
 }
 
+/**
+ * @brief 全局 Jolt 初始化（进程级单例，只执行一次）。
+ * @details
+ * 设置 Jolt 内部 Trace 和 AssertFailed 回调（必须在任何 Jolt API 调用之前完成），
+ * 然后调用 RegisterDefaultAllocator / Factory::sInstance / RegisterTypes。
+ * 由 g_JoltInitialized 标志保护，重复调用无副作用。
+ */
 void ECS::Sys_Physics::InitJolt() {
     if (g_JoltInitialized) return;
 
-    // Jolt 内部 trace/assert 处理器（必须在任何 Jolt 调用之前设置）
     JPH::Trace = [](const char* inFmt, ...) {
         char buf[1024];
         va_list args;
@@ -67,7 +73,7 @@ void ECS::Sys_Physics::InitJolt() {
         LOG_ERROR("[Jolt Assert] " << inFile << ":" << inLine
                   << " (" << inExpression << ") "
                   << (inMessage ? inMessage : ""));
-        return true; // true = break into debugger
+        return true;
     };
 #endif
 
@@ -81,18 +87,30 @@ void ECS::Sys_Physics::InitJolt() {
 // ============================================================
 // OnAwake
 // ============================================================
+
+/**
+ * @brief 场景加载后初始化 Jolt，创建 PhysicsSystem，注册自身指针到 ctx。
+ * @details
+ * 执行顺序：
+ * 1. 调用 InitJolt()（全局单例，幂等）。
+ * 2. 创建 10 MB TempAllocatorImpl 供物理步进使用。
+ * 3. 创建 JobSystemThreadPool（hardware_concurrency - 1 工作线程）。
+ * 4. 创建并初始化 PhysicsSystem（MAX_BODIES / MAX_PAIRS / MAX_CONTACTS）。
+ * 5. 注册 ContactListener 到 PhysicsSystem。
+ * 6. 将 Sys_Physics* 以无条件覆盖方式注入 registry ctx，
+ *    防止场景切换后残留悬空指针。
+ *    注意：EventBus 由 SceneManager::EnterScene() 在 OnAwake 之前注入 ctx，此处无需处理。
+ * @param registry 当前场景注册表
+ */
 void ECS::Sys_Physics::OnAwake(Registry& registry) {
     InitJolt();
 
-    // 10 MB 临时分配器（物理步进用）
     m_TempAllocator = std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024);
 
-    // 线程池作业系统（使用 hardware_concurrency - 1 个工作线程）
     int numThreads = std::max(1, (int)std::thread::hardware_concurrency() - 1);
     m_JobSystem = std::make_unique<JPH::JobSystemThreadPool>(
         JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, numThreads);
 
-    // 创建 PhysicsSystem
     m_PhysicsSystem = std::make_unique<JPH::PhysicsSystem>();
     m_PhysicsSystem->Init(
         MAX_BODIES, 0, MAX_PAIRS, MAX_CONTACTS,
@@ -100,12 +118,8 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
         m_ObjectVsBPFilter,
         m_ObjectLayerPairFilter);
 
-    // 注册 ContactListener
     m_PhysicsSystem->SetContactListener(&m_ContactListener);
 
-    // 注册 Sys_Physics* 到 ctx，供其他系统（如 Sys_Movement / Sys_StealthMetrics）访问物理接口
-    // 无条件覆盖，防止场景切换后残留悬空指针
-    // 注意：EventBus 由 SceneManager::EnterScene() 在 OnAwake 之前创建并注入 ctx，此处无需处理
     registry.ctx_emplace<Sys_Physics*>(this);
 
     LOG_INFO("[Sys_Physics] OnAwake - Jolt PhysicsSystem initialized");
@@ -114,10 +128,24 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
 // ============================================================
 // OnUpdate（Body 管理 + 参数同步，不执行步进）
 // ============================================================
+
+/**
+ * @brief 每渲染帧调用：创建新 Body、清理孤立 Body、同步 gravity_factor。
+ * @details
+ * 执行顺序：
+ * 1. 遍历所有拥有 C_D_Transform + C_D_RigidBody + C_D_Collider 的实体，
+ *    对尚未创建 Jolt Body 的实体调用 CreateBodyForEntity()。
+ * 2. 首帧所有静态体添加完毕后，调用一次 OptimizeBroadPhase() 提升碰撞查询性能。
+ * 3. 调用 DestroyOrphanBodies() 清理已销毁实体的孤立 Body。
+ * 4. 同步所有动态体的 gravity_factor 到 Jolt（支持运行时修改）；
+ *    若重力从零恢复，主动唤醒对应 Body 防止 sleep 状态下力无效。
+ * 步进、Transform 同步、碰撞事件发布均由 OnFixedUpdate 负责。
+ * @param registry 当前场景注册表
+ * @param dt       本帧变步长时间（秒，仅用于守卫逻辑，不传入 Jolt）
+ */
 void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     if (!m_PhysicsSystem) return;
 
-    // 1. 检测并创建新实体的 Jolt Body
     registry.view<C_D_Transform, C_D_RigidBody, C_D_Collider>().each(
         [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col) {
             if (!rb.body_created) {
@@ -126,17 +154,14 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
         }
     );
 
-    // 1.5 首帧所有静态体添加完毕后，优化 BroadPhase（提升碰撞查询性能）
     if (!m_BroadPhaseOptimized) {
         m_PhysicsSystem->OptimizeBroadPhase();
         m_BroadPhaseOptimized = true;
         LOG_INFO("[Sys_Physics] OptimizeBroadPhase called");
     }
 
-    // 2. 清理已销毁实体的孤立 Body
     DestroyOrphanBodies(registry);
 
-    // 2.5 同步 gravity_factor（支持运行时修改，如 ImGui 按钮开关重力）
     {
         auto& bi = m_PhysicsSystem->GetBodyInterface();
         registry.view<C_D_RigidBody>().each([&](EntityID id, C_D_RigidBody& rb) {
@@ -158,7 +183,6 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
             g_LastGravityFactors[bodyID] = rb.gravity_factor;
         });
     }
-    // 步进、Transform 同步、碰撞事件发布均由 OnFixedUpdate 负责
 }
 
 // ============================================================
@@ -185,21 +209,29 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
 void ECS::Sys_Physics::OnFixedUpdate(Registry& registry, float fixedDt) {
     if (!m_PhysicsSystem) return;
 
-    // 单次步进（频率由 SceneManager 外部累加器保证为 60 Hz）
     m_PhysicsSystem->Update(fixedDt, 1, m_TempAllocator.get(), m_JobSystem.get());
 
-    // 同步 Jolt 结果 → C_D_Transform（传入 fixedDt 供运动学体 MoveKinematic 使用）
     SyncTransformsFromJolt(registry, fixedDt);
 
-    // 发布碰撞/触发事件到 EventBus
     FlushCollisionEvents(registry);
 }
 
 // ============================================================
 // OnDestroy
 // ============================================================
+
+/**
+ * @brief 场景卸载时销毁所有 Jolt Body，释放 Jolt 资源，清除 ctx 中的裸指针。
+ * @details
+ * 执行顺序：
+ * 1. 遍历 m_BodyToEntity，逐一调用 RemoveBody / DestroyBody，清空映射表。
+ * 2. 按顺序析构：PhysicsSystem → JobSystem → TempAllocator（顺序不可颠倒）。
+ * 3. 从 registry ctx 移除 Sys_Physics* 防止场景切换后悬空引用。
+ *    注意：EventBus 由 SceneManager::ExitCurrentScene() 在 OnDestroy 之后清理。
+ * 4. Jolt 全局资源（Factory 等）保持存活，避免多系统场景问题。
+ * @param registry 当前场景注册表
+ */
 void ECS::Sys_Physics::OnDestroy(Registry& registry) {
-    // 移除所有 Jolt Body
     auto& bi = m_PhysicsSystem->GetBodyInterface();
     for (auto& [bodyID, entityID] : m_BodyToEntity) {
         JPH::BodyID jid(bodyID);
@@ -209,17 +241,14 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     m_BodyToEntity.clear();
     g_LastGravityFactors.clear();
 
-    // 析构顺序：PhysicsSystem → JobSystem → TempAllocator
     m_PhysicsSystem.reset();
     m_JobSystem.reset();
     m_TempAllocator.reset();
 
-    // 清除 ctx 中的裸指针，防止场景切换后悬空引用
     if (registry.has_ctx<Sys_Physics*>()) {
         registry.ctx_erase<Sys_Physics*>();
     }
 
-    // Jolt 全局资源（Factory 等）保持存活，避免多系统场景问题
     m_BroadPhaseOptimized = false;
     LOG_INFO("[Sys_Physics] OnDestroy - Jolt PhysicsSystem destroyed");
 }
@@ -227,13 +256,32 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
 // ============================================================
 // CreateBodyForEntity
 // ============================================================
+
+/**
+ * @brief 为指定 ECS 实体创建对应的 Jolt Body 并加入物理世界。
+ * @details
+ * 执行顺序：
+ * 1. 根据 C_D_Collider::type（Box / Sphere / Capsule）构建 Jolt ShapeSettings。
+ * 2. 根据 is_static / is_kinematic / is_trigger 确定 EMotionType 和 ObjectLayer：
+ *    - static 或 trigger → Static / NON_MOVING
+ *    - kinematic → Kinematic / MOVING
+ *    - 其余 → Dynamic / MOVING
+ * 3. 填充 BodyCreationSettings（质量/阻尼/摩擦/弹性/旋转锁定/Sensor 模式）。
+ * 4. 将 EntityID 写入 Body::UserData 供碰撞回调反查。
+ * 5. CreateBody + AddBody；Static Body 使用 DontActivate，其余使用 Activate。
+ * 6. 将 jolt_body_id 回写至 rb，并在 m_BodyToEntity 中记录映射。
+ * @param reg 当前场景注册表
+ * @param id  目标实体 ID
+ * @param tf  实体的 Transform 组件（提供初始位置/旋转）
+ * @param rb  实体的 RigidBody 组件（接收 jolt_body_id 回写）
+ * @param col 实体的 Collider 组件（提供形状/摩擦/触发器参数）
+ */
 void ECS::Sys_Physics::CreateBodyForEntity(
     Registry& reg, EntityID id,
     C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col)
 {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
-    // --- 构建 Shape ---
     JPH::ShapeSettings::ShapeResult shapeResult;
     switch (col.type) {
         case ColliderType::Box: {
@@ -255,7 +303,6 @@ void ECS::Sys_Physics::CreateBodyForEntity(
         return;
     }
 
-    // --- 运动类型 ---
     JPH::EMotionType motionType;
     JPH::ObjectLayer layer;
     if (rb.is_static || col.is_trigger) {
@@ -269,7 +316,6 @@ void ECS::Sys_Physics::CreateBodyForEntity(
         layer      = PhysicsLayers::MOVING;
     }
 
-    // --- BodyCreationSettings ---
     JPH::BodyCreationSettings bcs(
         shapeResult.Get(),
         JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
@@ -278,7 +324,6 @@ void ECS::Sys_Physics::CreateBodyForEntity(
         layer
     );
 
-    // 质量与阻尼
     if (motionType == JPH::EMotionType::Dynamic) {
         bcs.mMassPropertiesOverride.mMass = rb.mass;
         bcs.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;
@@ -287,14 +332,10 @@ void ECS::Sys_Physics::CreateBodyForEntity(
         bcs.mGravityFactor  = rb.gravity_factor;
     }
 
-    // 摩擦与弹性（所有运动类型都可设置）
     bcs.mFriction    = col.friction;
     bcs.mRestitution = col.restitution;
+    bcs.mIsSensor    = col.is_trigger;
 
-    // Trigger 模式
-    bcs.mIsSensor = col.is_trigger;
-
-    // 旋转锁定（2.5D 游戏常用：锁定 X/Z 轴旋转）
     if (rb.lock_rotation_x || rb.lock_rotation_y || rb.lock_rotation_z) {
         JPH::EAllowedDOFs dofs = JPH::EAllowedDOFs::All;
         if (rb.lock_rotation_x) dofs = dofs & ~JPH::EAllowedDOFs::RotationX;
@@ -303,10 +344,8 @@ void ECS::Sys_Physics::CreateBodyForEntity(
         bcs.mAllowedDOFs = dofs;
     }
 
-    // 存储 EntityID 到 Body UserData（用于碰撞回调反查实体）
     bcs.mUserData = (uint64_t)id;
 
-    // --- 创建并激活 Body ---
     JPH::Body* body = bi.CreateBody(bcs);
     if (!body) {
         LOG_ERROR("[Sys_Physics] Failed to create Jolt Body for entity " << id);
@@ -318,7 +357,6 @@ void ECS::Sys_Physics::CreateBodyForEntity(
                    ? JPH::EActivation::DontActivate
                    : JPH::EActivation::Activate);
 
-    // 记录映射
     uint32_t rawID = body->GetID().GetIndexAndSequenceNumber();
     rb.jolt_body_id  = rawID;
     rb.body_created  = true;
@@ -328,6 +366,19 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 // ============================================================
 // SyncTransformsFromJolt（动态体 Jolt→ECS / 运动学体 ECS→Jolt）
 // ============================================================
+
+/**
+ * @brief 在每次 Jolt 步进后双向同步 Transform。
+ * @details
+ * - 运动学体（is_kinematic）：将 ECS C_D_Transform（由输入/插值驱动）写回 Jolt，
+ *   使其在物理世界中实际移动，从而能与动态体产生碰撞反应。
+ *   MoveKinematic 使用传入的 fixedDt 保证速度计算与模拟步长一致。
+ * - 动态体：从 Jolt 读取积分后的位置/旋转，写回 C_D_Transform，驱动渲染。
+ *   处于 sleep 或未加入世界的 Body 跳过。
+ * - 静态体（is_static）不参与同步。
+ * @param reg     当前场景注册表
+ * @param fixedDt 固定物理帧步长（秒），用于运动学体 MoveKinematic 的速度计算
+ */
 void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
@@ -338,8 +389,6 @@ void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
             JPH::BodyID jid(rb.jolt_body_id);
 
             if (rb.is_kinematic) {
-                // 运动学体：将 ECS Transform（由插值/输入驱动）写回 Jolt，
-                // 使其在物理世界中实际移动，从而能与动态体产生碰撞。
                 bi.MoveKinematic(
                     jid,
                     JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
@@ -348,7 +397,6 @@ void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
                 return;
             }
 
-            // 动态体：Jolt → ECS
             if (!bi.IsActive(jid) && !bi.IsAdded(jid)) return;
 
             JPH::RVec3 pos = bi.GetPosition(jid);
@@ -363,8 +411,20 @@ void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
 // ============================================================
 // FlushCollisionEvents
 // ============================================================
+
+/**
+ * @brief 将本物理步产生的碰撞/触发事件发布到 EventBus。
+ * @details
+ * 从 ECSContactListener 的 pending 队列（线程安全 swap）取出本步所有接触事件。
+ * 触发判断以 C_D_Collider::is_trigger 为准（非 PendingContact::is_trigger），
+ * 确保 Exit 事件与 Enter 事件使用相同的验证路径：
+ * - 若 entA 或 entB 的 Collider 标记为 trigger，发布 Evt_Phys_TriggerEnter/Exit，
+ *   entity_trigger 为拥有 is_trigger=true 的一方。
+ * - 否则发布普通 Evt_Phys_Collision（Exit 事件不发布碰撞事件）。
+ * 前置条件：EventBus* 必须已注入 registry ctx（GAME_ASSERT 保护）。
+ * @param reg 当前场景注册表
+ */
 void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
-    // 从 ContactListener 取出 pending 事件（加锁后 swap）
     std::vector<ECSContactListener::PendingContact> contacts;
     {
         std::lock_guard lock(m_ContactListener.mutex);
@@ -378,7 +438,6 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
     auto& bus = *reg.ctx<ECS::EventBus*>();
 
     for (auto& c : contacts) {
-        // 查找对应的 ECS 实体
         auto itA = m_BodyToEntity.find(c.body_id_a);
         auto itB = m_BodyToEntity.find(c.body_id_b);
         if (itA == m_BodyToEntity.end() || itB == m_BodyToEntity.end()) continue;
@@ -411,7 +470,6 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
 
         if (c.is_exit) continue;
 
-        // 普通碰撞
         Evt_Phys_Collision evt;
         evt.entity_a            = entA;
         evt.entity_b            = entB;
@@ -425,12 +483,21 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
 // ============================================================
 // DestroyOrphanBodies（清理已销毁实体的 Jolt Body）
 // ============================================================
+
+/**
+ * @brief 清理已销毁 ECS 实体的孤立 Jolt Body。
+ * @details
+ * 遍历 m_BodyToEntity，找出对应实体已无效（registry.Valid() == false）的 Body。
+ * 移除每个孤立 Body 前，先在其包围盒扩展范围内激活所有睡眠的动态体：
+ * Jolt 的 RemoveBody 不会自动唤醒邻近体，否则叠放在上方的物体因 sleep
+ * 状态永远不更新位置，视觉上会悬浮在空中。包围盒向上扩展 2m 以覆盖紧贴上方的实体。
+ * @param reg 当前场景注册表
+ */
 void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
     std::vector<uint32_t> toRemove;
 
     for (auto& [bodyID, entityID] : m_BodyToEntity) {
-        // 如果实体不再有效（已销毁）
         if (!reg.Valid(entityID)) {
             toRemove.push_back(bodyID);
         }
@@ -439,12 +506,8 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
     for (uint32_t rawID : toRemove) {
         JPH::BodyID jid(rawID);
 
-        // 移除 body 前，唤醒该区域内所有睡眠的动态体。
-        // Jolt 的 RemoveBody 不会自动激活邻近体，导致叠放在上方的 cube
-        // 因 sleep 状态永远不更新位置，视觉上悬浮在空中。
         if (bi.IsAdded(jid)) {
             JPH::AABox bounds = bi.GetTransformedShape(jid).GetWorldSpaceBounds();
-            // 向上扩展，确保紧贴上方的 cube 也被覆盖到
             bounds.mMax += JPH::Vec3(0.1f, 2.0f, 0.1f);
 
             struct AllBPFilter : public JPH::BroadPhaseLayerFilter {
@@ -518,9 +581,24 @@ void ECS::Sys_Physics::SetRotation(uint32_t joltBodyID,
         ToJoltQuat(rotation.x, rotation.y, rotation.z, rotation.w),
         JPH::EActivation::Activate);
 }
+
 // ============================================================
 // CastRay — 射线检测（POD 接口 - 来自 master）
 // ============================================================
+
+/**
+ * @brief 从指定原点沿方向发射射线，返回第一个命中结果。
+ * @details
+ * 方向向量（dx,dy,dz）内部归一化，调用方无需提前归一化。
+ * 零方向向量（长度 < 1e-6）直接返回未命中。
+ * 构造 Jolt RRayCast 时将方向乘以 maxDist，使 fraction=1.0 对应最大距离处。
+ * 命中时通过 BodyLockRead 获取命中面的世界空间法线。
+ * 对外只返回 ECS EntityID，不暴露 Jolt BodyID。
+ * @param ox,oy,oz 射线原点
+ * @param dx,dy,dz 射线方向（无需归一化）
+ * @param maxDist  最大检测距离
+ * @return RaycastHit 命中信息（hit=false 表示未命中）
+ */
 ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
     float ox, float oy, float oz,
     float dx, float dy, float dz,
@@ -528,17 +606,15 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
 {
     RaycastHit result{};
     if (!m_PhysicsSystem) return result;
-    // 归一化方向向量，防止调用方传入非单位向量
     float len = std::sqrt(dx * dx + dy * dy + dz * dz);
-    if (len < 1e-6f) return result;   // 零方向，直接返回未命中
+    if (len < 1e-6f) return result;
     dx /= len;
     dy /= len;
     dz /= len;
-    // 构造 Jolt 射线（方向向量长度 = maxDist，fraction 1.0 = 最大距离处）
     JPH::RRayCast ray(JPH::RVec3(ox, oy, oz),
                       JPH::Vec3(dx * maxDist, dy * maxDist, dz * maxDist));
     JPH::RayCastResult hit;
-    hit.mFraction = 1.0f + FLT_EPSILON; // 初始化为未命中
+    hit.mFraction = 1.0f + FLT_EPSILON;
     const auto& query = m_PhysicsSystem->GetNarrowPhaseQuery();
     if (query.CastRay(ray, hit)) {
         result.hit      = true;
@@ -548,12 +624,10 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
         if (itEntity != m_BodyToEntity.end()) {
             result.entity = itEntity->second;
         }
-        // 计算命中点
         JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
         result.pointX = static_cast<float>(hitPoint.GetX());
         result.pointY = static_cast<float>(hitPoint.GetY());
         result.pointZ = static_cast<float>(hitPoint.GetZ());
-        // 获取命中面的法线（需要 BodyLock 访问 Body 对象）
         JPH::BodyLockRead lock(m_PhysicsSystem->GetBodyLockInterface(), hit.mBodyID);
         if (lock.Succeeded()) {
             const JPH::Body& body = lock.GetBody();
@@ -566,24 +640,35 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
     }
     return result;
 }
+
 // ============================================================
 // ReplaceShapeCapsule — 运行时替换碰撞体为 Capsule (来自 master)
 // ============================================================
+
+/**
+ * @brief 运行时将指定 Body 的碰撞体形状替换为 Capsule（姿态切换用）。
+ * @details
+ * 创建新的 CapsuleShapeSettings 并通过 BodyInterface::SetShape 替换。
+ * 传入 false（不用新形状默认密度重算质量），保留原有质量属性。
+ * 替换后 Body 被激活（EActivation::Activate）。
+ * @param joltBodyID 目标 Jolt Body 的原始 ID
+ * @param halfHeight Capsule 半高（不含球帽）
+ * @param radius     Capsule 半径
+ */
 void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight, float radius) {
     if (!m_PhysicsSystem) return;
     auto& bi = m_PhysicsSystem->GetBodyInterface();
     JPH::BodyID jid(joltBodyID);
-    // 创建新的 Capsule 形状
     JPH::CapsuleShapeSettings capsuleSettings(halfHeight, radius);
     auto shapeResult = capsuleSettings.Create();
     if (shapeResult.HasError()) {
         LOG_ERROR("[Sys_Physics] ReplaceShapeCapsule failed: " << shapeResult.GetError().c_str());
         return;
     }
-    // 替换形状，保留原有质量属性（false = 不用新形状默认密度重算质量）
     bi.SetShape(jid, shapeResult.Get(), false,
                 JPH::EActivation::Activate);
 }
+
 // ============================================================
 // SetPosition — 直接设置动态体世界位置 (来自 master)
 // ============================================================
@@ -594,6 +679,7 @@ void ECS::Sys_Physics::SetPosition(uint32_t joltBodyID, float px, float py, floa
                    JPH::RVec3(px, py, pz),
                    JPH::EActivation::Activate);
 }
+
 // ============================================================
 // ActivateBody — 强制唤醒 Body (来自 master)
 // ============================================================
