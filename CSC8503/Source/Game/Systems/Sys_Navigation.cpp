@@ -18,7 +18,7 @@ namespace ECS {
 // ─────────────────────────────────────────────────────────────────────────────
 // 辅助：将实体平滑旋转朝向 targetPos（Caution 与路径跟随共用）
 // ─────────────────────────────────────────────────────────────────────────────
-static void ApplyRotationToward(C_D_NavAgent& agent, C_D_Transform& tf,
+static void ApplyRotationToward(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
                                 C_D_RigidBody& rb, Sys_Physics* physics,
                                 const NCL::Maths::Vector3& targetPos, float dt)
 {
@@ -38,14 +38,14 @@ static void ApplyRotationToward(C_D_NavAgent& agent, C_D_Transform& tf,
         tf.rotation, targetRot, std::min(agent.rotation_speed * dt, 1.0f));
 
     if (physics && rb.body_created) {
-        physics->SetRotation(rb.jolt_body_id, tf.rotation);
+        physics->SetRotation(entity, tf.rotation);
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 辅助：按 path_waypoints 推进路点并施加速度（Alert / Hunt 共用）
 // ─────────────────────────────────────────────────────────────────────────────
-static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
+static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
                        C_D_RigidBody& rb, Sys_Physics* physics, float dt)
 {
     if (!agent.is_active || agent.path_length == 0) return;
@@ -62,7 +62,7 @@ static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
             // 到达终点
             agent.is_active = false;
             if (physics && rb.body_created) {
-                physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+                physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
             }
         }
         return;
@@ -79,12 +79,12 @@ static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
         tf.rotation = NCL::Maths::Quaternion::Slerp(
             tf.rotation, targetRot, std::min(agent.rotation_speed * dt, 1.0f));
         if (physics && rb.body_created) {
-            physics->SetRotation(rb.jolt_body_id, tf.rotation);
+            physics->SetRotation(entity, tf.rotation);
         }
     }
 
     if (physics && rb.body_created) {
-        physics->SetLinearVelocity(rb.jolt_body_id,
+        physics->SetLinearVelocity(entity,
             dir.x * agent.speed, 0.0f, dir.z * agent.speed);
     }
 }
@@ -172,7 +172,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                 agent.is_active                = false;
                 agent.timer                    = agent.update_frequency;
                 if (physics && rb.body_created) {
-                    physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+                    physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
                 }
             }
             break;
@@ -186,11 +186,11 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                 agent.is_active                = false;
                 agent.timer                    = agent.update_frequency;
                 if (physics && rb.body_created) {
-                    physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+                    physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
                 }
             }
             if (agent.smooth_rotation && agent.has_last_known_pos) {
-                ApplyRotationToward(agent, tf, rb, physics,
+                ApplyRotationToward(entity, agent, tf, rb, physics,
                                     agent.last_known_target_pos, dt);
             }
             break;
@@ -208,7 +208,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                 }
                 agent.timer = 0.0f;
             }
-            FollowPath(agent, tf, rb, physics, dt);
+            FollowPath(entity, agent, tf, rb, physics, dt);
             break;
         }
 
@@ -235,7 +235,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                     agent.timer = 0.0f;
                 }
             }
-            FollowPath(agent, tf, rb, physics, dt);
+            FollowPath(entity, agent, tf, rb, physics, dt);
             break;
         }
         }

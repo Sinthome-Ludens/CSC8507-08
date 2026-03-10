@@ -87,7 +87,7 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                             if (physics && registry.Has<C_D_RigidBody>(cqc.targetEnemy)) {
                                 auto& erb = registry.Get<C_D_RigidBody>(cqc.targetEnemy);
                                 if (erb.body_created) {
-                                    physics->SetLinearVelocity(erb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+                                    physics->SetLinearVelocity(cqc.targetEnemy, 0.0f, 0.0f, 0.0f);
                                 }
                             }
                         }

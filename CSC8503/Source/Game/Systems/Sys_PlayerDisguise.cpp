@@ -30,7 +30,7 @@ void Sys_PlayerDisguise::OnUpdate(Registry& registry, float /*dt*/) {
                 LOG_INFO("[Sys_PlayerDisguise] Disguise OFF");
             } else {
                 // ── 进入伪装条件检查 ──
-                NCL::Maths::Vector3 vel = physics->GetLinearVelocity(rb.jolt_body_id);
+                NCL::Maths::Vector3 vel = physics->GetLinearVelocity(id);
                 float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);
 
                 if (horizSpeed >= HIDE_SPEED_THRESHOLD) {

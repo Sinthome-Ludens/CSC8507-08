@@ -149,17 +149,19 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
         registry.view<C_D_RigidBody>().each([&](EntityID id, C_D_RigidBody& rb) {
             if (!rb.body_created || rb.is_static) return;
 
-            const uint32_t bodyID = rb.jolt_body_id;
+            const auto itBody = m_EntityToBody.find(id);
+            if (itBody == m_EntityToBody.end()) return;
+            const uint32_t bodyID = itBody->second;
             const auto itPrev = g_LastGravityFactors.find(bodyID);
             const float previous = (itPrev != g_LastGravityFactors.end())
                 ? itPrev->second
                 : rb.gravity_factor;
 
-            bi.SetGravityFactor(JPH::BodyID(rb.jolt_body_id), rb.gravity_factor);
+            bi.SetGravityFactor(JPH::BodyID(bodyID), rb.gravity_factor);
 
             constexpr float EPS = 1e-4f;
             if (previous <= EPS && rb.gravity_factor > EPS) {
-                bi.ActivateBody(JPH::BodyID(rb.jolt_body_id));
+                bi.ActivateBody(JPH::BodyID(bodyID));
             }
 
             g_LastGravityFactors[bodyID] = rb.gravity_factor;
@@ -205,6 +207,7 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
         bi.DestroyBody(jid);
     }
     m_BodyToEntity.clear();
+    m_EntityToBody.clear();
     g_LastGravityFactors.clear();
 
     // 析构顺序：PhysicsSystem → JobSystem → TempAllocator
@@ -318,9 +321,9 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 
     // 记录映射
     uint32_t rawID = body->GetID().GetIndexAndSequenceNumber();
-    rb.jolt_body_id  = rawID;
     rb.body_created  = true;
     m_BodyToEntity[rawID] = id;
+    m_EntityToBody[id] = rawID;
 }
 
 // ============================================================
@@ -333,7 +336,8 @@ void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
         [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb) {
             if (!rb.body_created || rb.is_static) return;
 
-            JPH::BodyID jid(rb.jolt_body_id);
+            JPH::BodyID jid;
+            if (!TryGetBodyID(id, jid)) return;
 
             if (rb.is_kinematic) {
                 // 运动学体：将 ECS Transform（由插值/输入驱动）写回 Jolt，
@@ -356,6 +360,13 @@ void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
             tf.rotation = Quaternion(rot.GetX(), rot.GetY(), rot.GetZ(), rot.GetW());
         }
     );
+}
+
+bool ECS::Sys_Physics::TryGetBodyID(EntityID entity, JPH::BodyID& outBodyID) const {
+    const auto it = m_EntityToBody.find(entity);
+    if (it == m_EntityToBody.end()) return false;
+    outBodyID = JPH::BodyID(it->second);
+    return true;
 }
 
 // ============================================================
@@ -462,40 +473,50 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
 // ============================================================
 // 工具函数
 // ============================================================
-void ECS::Sys_Physics::SetLinearVelocity(uint32_t joltBodyID, float vx, float vy, float vz) {
+void ECS::Sys_Physics::SetLinearVelocity(EntityID entity, float vx, float vy, float vz) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().SetLinearVelocity(
-        JPH::BodyID(joltBodyID), ToJolt(vx, vy, vz));
+        bodyID, ToJolt(vx, vy, vz));
 }
 
-void ECS::Sys_Physics::ApplyImpulse(uint32_t joltBodyID, float ix, float iy, float iz) {
+void ECS::Sys_Physics::ApplyImpulse(EntityID entity, float ix, float iy, float iz) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().AddImpulse(
-        JPH::BodyID(joltBodyID), ToJolt(ix, iy, iz));
+        bodyID, ToJolt(ix, iy, iz));
 }
 
-void ECS::Sys_Physics::AddForce(uint32_t joltBodyID, float fx, float fy, float fz) {
+void ECS::Sys_Physics::AddForce(EntityID entity, float fx, float fy, float fz) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().AddForce(
-        JPH::BodyID(joltBodyID), ToJolt(fx, fy, fz));
+        bodyID, ToJolt(fx, fy, fz));
 }
 
-Vector3 ECS::Sys_Physics::GetLinearVelocity(uint32_t joltBodyID) {
+Vector3 ECS::Sys_Physics::GetLinearVelocity(EntityID entity) {
     if (!m_PhysicsSystem) return Vector3(0, 0, 0);
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return Vector3(0, 0, 0);
     JPH::Vec3 v = m_PhysicsSystem->GetBodyInterface().GetLinearVelocity(
-        JPH::BodyID(joltBodyID));
+        bodyID);
     return Vector3(v.GetX(), v.GetY(), v.GetZ());
 }
 
 void ECS::Sys_Physics::MoveKinematic(
-    uint32_t joltBodyID,
+    EntityID entity,
     float px, float py, float pz,
     float qx, float qy, float qz, float qw,
     float dt)
 {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().MoveKinematic(
-        JPH::BodyID(joltBodyID),
+        bodyID,
         JPH::RVec3(px, py, pz),
         JPH::Quat(qx, qy, qz, qw),
         dt);
@@ -504,12 +525,14 @@ void ECS::Sys_Physics::MoveKinematic(
 // ============================================================
 // SetRotation（供 Sys_Navigation 调用 - 来自 feat/navmesh-system）
 // ============================================================
-void ECS::Sys_Physics::SetRotation(uint32_t joltBodyID,
+void ECS::Sys_Physics::SetRotation(EntityID entity,
                                    const NCL::Maths::Quaternion& rotation)
 {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().SetRotation(
-        JPH::BodyID(joltBodyID),
+        bodyID,
         ToJoltQuat(rotation.x, rotation.y, rotation.z, rotation.w),
         JPH::EActivation::Activate);
 }
@@ -564,10 +587,11 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
 // ============================================================
 // ReplaceShapeCapsule — 运行时替换碰撞体为 Capsule (来自 master)
 // ============================================================
-void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight, float radius) {
+void ECS::Sys_Physics::ReplaceShapeCapsule(EntityID entity, float halfHeight, float radius) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID jid;
+    if (!TryGetBodyID(entity, jid)) return;
     auto& bi = m_PhysicsSystem->GetBodyInterface();
-    JPH::BodyID jid(joltBodyID);
     // 创建新的 Capsule 形状
     JPH::CapsuleShapeSettings capsuleSettings(halfHeight, radius);
     auto shapeResult = capsuleSettings.Create();
@@ -582,17 +606,21 @@ void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight
 // ============================================================
 // SetPosition — 直接设置动态体世界位置 (来自 master)
 // ============================================================
-void ECS::Sys_Physics::SetPosition(uint32_t joltBodyID, float px, float py, float pz) {
+void ECS::Sys_Physics::SetPosition(EntityID entity, float px, float py, float pz) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     auto& bi = m_PhysicsSystem->GetBodyInterface();
-    bi.SetPosition(JPH::BodyID(joltBodyID),
+    bi.SetPosition(bodyID,
                    JPH::RVec3(px, py, pz),
                    JPH::EActivation::Activate);
 }
 // ============================================================
 // ActivateBody — 强制唤醒 Body (来自 master)
 // ============================================================
-void ECS::Sys_Physics::ActivateBody(uint32_t joltBodyID) {
+void ECS::Sys_Physics::ActivateBody(EntityID entity) {
     if (!m_PhysicsSystem) return;
-    m_PhysicsSystem->GetBodyInterface().ActivateBody(JPH::BodyID(joltBodyID));
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
+    m_PhysicsSystem->GetBodyInterface().ActivateBody(bodyID);
 }
