@@ -9,6 +9,7 @@
 
 #include "Core/ECS/Registry.h"
 #include "Core/Bridge/AssetManager.h"
+#include "Game/Components/C_D_Item.h"
 #include "Vector.h"
 #include "Quaternion.h"
 
@@ -265,5 +266,32 @@ public:
         ECS::MeshHandle     capsuleMesh,
         int                 spawnIndex,
         NCL::Maths::Vector3 spawnPos
+    );
+
+    // ============================================================
+    // 道具拾取实体
+    // ============================================================
+
+    /**
+     * @brief 创建地图可拾取道具实体（PREFAB_ITEM_PICKUP）
+     *
+     * @details
+     * 挂载：C_D_Transform, C_D_MeshRenderer（占位立方体）, C_T_ItemPickup, C_D_DebugName。
+     * 不挂载 C_D_RigidBody / C_D_Collider（通过 Sys_Item 每帧 XZ 距离检测实现拾取，
+     * 无需物理 Trigger，减少物理开销）。
+     *
+     * @param reg         ECS Registry
+     * @param cubeMesh    占位网格句柄（后续替换为道具专属模型）
+     * @param itemId      道具 ID（决定拾取后给予的道具类型）
+     * @param spawnPos    生成位置（世界坐标）
+     * @param spawnIndex  生成序号（用于 DebugName 编号）
+     * @return 道具拾取实体 ID
+     */
+    static ECS::EntityID CreateItemPickup(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     cubeMesh,
+        ECS::ItemID         itemId,
+        NCL::Maths::Vector3 spawnPos,
+        int                 spawnIndex = 0
     );
 };

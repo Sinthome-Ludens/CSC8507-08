@@ -36,6 +36,7 @@
 #include "Game/Components/C_D_Health.h"
 #include "Game/Components/C_T_DeathZone.h"
 #include "Game/Components/C_T_Enemy.h"
+#include "Game/Components/C_T_ItemPickup.h"
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/C_D_NavAgent.h"
@@ -668,6 +669,51 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
     AttachDebugName(reg, entity, debugName);
 
     LOG_INFO("[PrefabFactory] CreatePhysicsCapsule id=" << entity
+             << " index=" << spawnIndex
+             << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateItemPickup  →  PREFAB_ITEM_PICKUP
+// ============================================================
+ECS::EntityID PrefabFactory::CreateItemPickup(
+    Registry&   reg,
+    MeshHandle  cubeMesh,
+    ItemID      itemId,
+    Vector3     spawnPos,
+    int         spawnIndex)
+{
+    EntityID entity = reg.Create();
+
+    // C_D_Transform（小立方体，视觉占位）
+    reg.Emplace<C_D_Transform>(entity,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(0.4f, 0.4f, 0.4f)
+    );
+
+    // C_D_MeshRenderer（占位渲染，后续替换为道具专属模型）
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        cubeMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // C_T_ItemPickup（标记为可拾取道具，记录道具 ID）
+    C_T_ItemPickup pickup{};
+    pickup.itemId   = itemId;
+    pickup.quantity = 1;
+    reg.Emplace<C_T_ItemPickup>(entity, pickup);
+
+    // C_D_DebugName（规范必选）
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName),
+                  "ENTITY_ItemPickup_%02d_item%d", spawnIndex, static_cast<int>(itemId));
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreateItemPickup id=" << entity
+             << " itemId=" << static_cast<int>(itemId)
              << " index=" << spawnIndex
              << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
 
