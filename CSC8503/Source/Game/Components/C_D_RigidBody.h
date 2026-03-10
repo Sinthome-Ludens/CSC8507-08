@@ -1,20 +1,23 @@
+/**
+ * @file C_D_RigidBody.h
+ * @brief 刚体物理数据组件定义。
+ *
+ * @details
+ * 该组件保存 ECS 层可配置的刚体参数和运行态标记，不暴露底层物理引擎 ID。
+ */
 #pragma once
 #include <cstdint>
 
 /**
  * @brief 刚体物理组件（数据组件）
  *
- * 存储 Jolt Physics Body 的 ID 和物理参数。
+ * 存储刚体物理参数。
  * 与 C_D_Collider 配合使用，由 Sys_Physics 在 OnAwake/OnUpdate 中
  * 自动创建对应的 Jolt Body。
  *
  * @note POD 结构体，不含任何 Jolt 类型（解耦依赖）。
- *       Jolt BodyID 以 uint32_t 存储（与 JPH::BodyID::GetIndexAndSequenceNumber() 对应）。
  */
 struct C_D_RigidBody {
-    // --- Jolt 内部 ID（由 Sys_Physics 写入，外部只读）---
-    uint32_t jolt_body_id   = 0xFFFFFFFF; ///< Jolt BodyID 原始值，0xFFFFFFFF 表示尚未创建
-
     // --- 物理参数（创建前可配置）---
     float    mass           = 1.0f;       ///< 质量（kg），0 表示静态体（isStatic=true 时忽略）
     float    linear_damping = 0.05f;      ///< 线性阻尼（0=无阻力，1=立即停止）
