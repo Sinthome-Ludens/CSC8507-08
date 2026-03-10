@@ -145,6 +145,53 @@ EntityID PrefabFactory::CreateFloor(Registry& reg, ECS::MeshHandle cubeMesh)
 }
 
 // ============================================================
+// CreateStaticMap  →  PREFAB_ENV_TUTORIAL_MAP
+// ============================================================
+EntityID PrefabFactory::CreateStaticMap(Registry& reg, ECS::MeshHandle mapMesh)
+{
+    EntityID entity = reg.Create();
+
+    // C_D_Transform（TutorialMap.obj 使用其自身坐标系，scale (1,1,1)）
+    // navmesh 顶点范围：X [0, 19]，Y ≈ 0.583，Z [-19, 16]
+    // 将碰撞体中心置于 AABB 中心 (9.5, 0, -1.5)
+    reg.Emplace<C_D_Transform>(entity,
+        Vector3(9.5f, 0.0f, -1.5f),
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    // C_D_MeshRenderer（使用 TutorialMap.obj，.mtl 由 Assimp 自动加载）
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        mapMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // C_D_RigidBody（静态体）
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    // C_D_Collider（Box 近似地面层；暂无 TriMesh 支持）
+    // 覆盖 navmesh 水平范围：X ±11，Y ±0.6（地面层），Z ±18
+    C_D_Collider col{};
+    col.type   = ColliderType::Box;
+    col.half_x = 11.0f;
+    col.half_y = 0.6f;
+    col.half_z = 18.0f;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // C_D_Material（默认 BlinnPhong）
+    reg.Emplace<C_D_Material>(entity);
+
+    // C_D_DebugName（规范必选）
+    AttachDebugName(reg, entity, "ENTITY_Env_TutorialMap");
+
+    LOG_INFO("[PrefabFactory] CreateStaticMap id=" << entity);
+
+    return entity;
+}
+
+// ============================================================
 // CreatePlayer  →  PREFAB_PLAYER
 // ============================================================
 EntityID PrefabFactory::CreatePlayer(

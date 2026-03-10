@@ -33,6 +33,7 @@
 #include "BehaviourSequence.h"
 #include "BehaviourAction.h"
 
+#include "Game/Scenes/Scene_TutorialLevel.h"
 #include "PhysicsSystem.h"
 
 #ifdef USEOPENGL
@@ -104,7 +105,8 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                 case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());    break;
                 case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest()); break;
                 case 2: sceneManager.RequestSceneChange(new Scene_NavTest());     break;
-                case 3: sceneManager.RequestSceneChange(
+                case 3: sceneManager.RequestSceneChange(new Scene_TutorialLevel());     break;
+                case 4: sceneManager.RequestSceneChange(
                             new Scene_NetworkGame(ECS::PeerType::SERVER));        break;
                 default: break;
             }

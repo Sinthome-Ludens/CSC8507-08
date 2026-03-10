@@ -67,6 +67,24 @@ public:
         ECS::MeshHandle cubeMesh
     );
 
+    /**
+     * @brief 创建 TutorialMap 静态地图实体（PREFAB_ENV_TUTORIAL_MAP）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody, C_D_Collider,
+     *       C_D_Material, C_D_DebugName
+     *
+     * 使用 TutorialMap.obj 的真实尺寸（scale 1,1,1），
+     * 碰撞体为 Box 近似（暂无 TriMesh 支持）。
+     *
+     * @param reg     ECS Registry
+     * @param mapMesh TutorialMap 网格句柄
+     * @return 地图实体 ID
+     */
+    static ECS::EntityID CreateStaticMap(
+        ECS::Registry&  reg,
+        ECS::MeshHandle mapMesh
+    );
+
     // ============================================================
     // 玩家
     // ============================================================

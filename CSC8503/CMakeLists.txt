@@ -56,6 +56,8 @@ if(USE_VULKAN)
         ${Header_Files}
         ${Source_Files}
         ${SHADER_FILES}
+            Source/Game/Scenes/Scene_TutorialLevel.cpp
+            Source/Game/Scenes/Scene_TutorialLevel.h
     )
 
 foreach (file ${SHADER_FILES})
