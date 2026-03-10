@@ -72,7 +72,7 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     // 若不清空会导致 "Delete Last" 操作访问已失效 ID
     {
         Res_NavTestState navState;
-        navState.enemyMeshHandle  = capsuleMesh;
+        navState.enemyMeshHandle  = cubeMesh;    // Cube：Capsule.msh 未实现，改用已正常加载的 cube.obj
         navState.targetMeshHandle = cubeMesh;
         registry.ctx_emplace<Res_NavTestState>(std::move(navState));
     }

@@ -151,11 +151,11 @@ EntityID PrefabFactory::CreateStaticMap(Registry& reg, ECS::MeshHandle mapMesh)
 {
     EntityID entity = reg.Create();
 
-    // C_D_Transform（TutorialMap.obj 使用其自身坐标系，scale (1,1,1)）
-    // navmesh 顶点范围：X [0, 19]，Y ≈ 0.583，Z [-19, 16]
-    // 将碰撞体中心置于 AABB 中心 (9.5, 0, -1.5)
+    // C_D_Transform（Y=-6 与 NavTest 坐标系对齐）
+    // 敌人生成 Y=-4.0，Box 顶 Y=-5.4，敌人位于 Box 上方，重力使其正常落地
+    // TutorialMap.obj 顶点 Y=0.583 → 世界 Y = 0.583 + (-6) = -5.417（紧贴 Box 顶，视觉一致）
     reg.Emplace<C_D_Transform>(entity,
-        Vector3(9.5f, 0.0f, -1.5f),
+        Vector3(0.0f, -6.0f, 0.0f),
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
         Vector3(1.0f, 1.0f, 1.0f)
     );
@@ -171,13 +171,14 @@ EntityID PrefabFactory::CreateStaticMap(Registry& reg, ECS::MeshHandle mapMesh)
     rb.is_static = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    // C_D_Collider（Box 近似地面层；暂无 TriMesh 支持）
-    // 覆盖 navmesh 水平范围：X ±11，Y ±0.6（地面层），Z ±18
+    // C_D_Collider（Box，覆盖地图全局足迹）
+    // 实体位于 (0,-6,0)，Box 以实体为中心扩展至 X=[-25,25]，Z=[-25,25]
+    // 涵盖 navmesh 范围 X=[0,19]，Z=[-19,16]
     C_D_Collider col{};
     col.type   = ColliderType::Box;
-    col.half_x = 11.0f;
+    col.half_x = 25.0f;
     col.half_y = 0.6f;
-    col.half_z = 18.0f;
+    col.half_z = 25.0f;
     reg.Emplace<C_D_Collider>(entity, col);
 
     // C_D_Material（默认 BlinnPhong）
@@ -451,13 +452,11 @@ EntityID PrefabFactory::CreateNavEnemy(
 {
     EntityID entity = reg.Create();
 
-    // 缩放推导见文件头注释与函数 Doxygen
-    // scale_XZ = phys_radius(0.5) / mesh_radius(1.1835) ≈ 0.4225
-    // scale_Y  = phys_total_h(3.0) / mesh_total_h(4.2514) ≈ 0.7058
+    // cube.obj 顶点 ±1.0，scale (1,1,1) → 世界尺寸 2×2×2，与 Box 碰撞体 half(1,1,1) 匹配
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(0.4225f, 0.7058f, 0.4225f)
+        Vector3(1.0f, 1.0f, 1.0f)
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
@@ -473,9 +472,10 @@ EntityID PrefabFactory::CreateNavEnemy(
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
     C_D_Collider col{};
-    col.type   = ColliderType::Capsule;
-    col.half_x = 0.5f;
+    col.type   = ColliderType::Box;
+    col.half_x = 1.0f;
     col.half_y = 1.0f;
+    col.half_z = 1.0f;
     reg.Emplace<C_D_Collider>(entity, col);
 
     // EnemyAI 核心组件（状态机）
