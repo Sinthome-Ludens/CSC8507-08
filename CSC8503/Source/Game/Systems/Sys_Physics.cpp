@@ -149,17 +149,19 @@ void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
         registry.view<C_D_RigidBody>().each([&](EntityID id, C_D_RigidBody& rb) {
             if (!rb.body_created || rb.is_static) return;
 
-            const uint32_t bodyID = rb.jolt_body_id;
+            const auto itBody = m_EntityToBody.find(id);
+            if (itBody == m_EntityToBody.end()) return;
+            const uint32_t bodyID = itBody->second;
             const auto itPrev = g_LastGravityFactors.find(bodyID);
             const float previous = (itPrev != g_LastGravityFactors.end())
                 ? itPrev->second
                 : rb.gravity_factor;
 
-            bi.SetGravityFactor(JPH::BodyID(rb.jolt_body_id), rb.gravity_factor);
+            bi.SetGravityFactor(JPH::BodyID(bodyID), rb.gravity_factor);
 
             constexpr float EPS = 1e-4f;
             if (previous <= EPS && rb.gravity_factor > EPS) {
-                bi.ActivateBody(JPH::BodyID(rb.jolt_body_id));
+                bi.ActivateBody(JPH::BodyID(bodyID));
             }
 
             g_LastGravityFactors[bodyID] = rb.gravity_factor;
@@ -196,6 +198,11 @@ void ECS::Sys_Physics::OnFixedUpdate(Registry& registry, float fixedDt) {
 // ============================================================
 // OnDestroy
 // ============================================================
+/**
+ * @brief 销毁物理系统并释放当前场景创建的全部 Jolt 资源。
+ * @details 逐个移除并销毁已注册 Body，清空实体与 Body 的双向映射及运行时缓存，然后撤销 registry context 中的物理系统裸指针。
+ * @param registry 当前场景注册表
+ */
 void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     // 移除所有 Jolt Body
     auto& bi = m_PhysicsSystem->GetBodyInterface();
@@ -205,6 +212,7 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
         bi.DestroyBody(jid);
     }
     m_BodyToEntity.clear();
+    m_EntityToBody.clear();
     g_LastGravityFactors.clear();
 
     // 析构顺序：PhysicsSystem → JobSystem → TempAllocator
@@ -225,6 +233,15 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
 // ============================================================
 // CreateBodyForEntity
 // ============================================================
+/**
+ * @brief 为指定实体创建 Jolt 刚体。
+ * @details 根据变换、刚体和碰撞体组件构建 Shape 与 BodyCreationSettings，创建成功后把 EntityID 与底层 BodyID 建立双向映射。
+ * @param reg 当前场景注册表
+ * @param id 目标实体 ID
+ * @param tf 目标实体变换组件
+ * @param rb 目标实体刚体组件
+ * @param col 目标实体碰撞体组件
+ */
 void ECS::Sys_Physics::CreateBodyForEntity(
     Registry& reg, EntityID id,
     C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col)
@@ -318,14 +335,20 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 
     // 记录映射
     uint32_t rawID = body->GetID().GetIndexAndSequenceNumber();
-    rb.jolt_body_id  = rawID;
     rb.body_created  = true;
     m_BodyToEntity[rawID] = id;
+    m_EntityToBody[id] = rawID;
 }
 
 // ============================================================
 // SyncTransformsFromJolt（动态体 Jolt→ECS / 运动学体 ECS→Jolt）
 // ============================================================
+/**
+ * @brief 在 ECS Transform 与 Jolt 模拟结果之间同步位姿。
+ * @details 对运动学体执行 ECS 到 Jolt 的 MoveKinematic，对动态体则把 Jolt 的位置和旋转回写到 ECS Transform。
+ * @param reg 当前场景注册表
+ * @param fixedDt 固定物理步长
+ */
 void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
@@ -333,7 +356,8 @@ void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
         [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb) {
             if (!rb.body_created || rb.is_static) return;
 
-            JPH::BodyID jid(rb.jolt_body_id);
+            JPH::BodyID jid;
+            if (!TryGetBodyID(id, jid)) return;
 
             if (rb.is_kinematic) {
                 // 运动学体：将 ECS Transform（由插值/输入驱动）写回 Jolt，
@@ -358,9 +382,28 @@ void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
     );
 }
 
+/**
+ * @brief 尝试从实体 ID 解析对应的 Jolt BodyID。
+ * @details 仅查询 Sys_Physics 内部维护的反向映射，不触发 Body 创建；若实体不存在映射项，则返回 false 并保持调用方可安全跳过本次物理操作。
+ * @param entity 输入的 ECS 实体 ID
+ * @param outBodyID 成功时输出对应的 Jolt BodyID
+ * @return 找到有效映射返回 true，否则返回 false
+ */
+bool ECS::Sys_Physics::TryGetBodyID(EntityID entity, JPH::BodyID& outBodyID) const {
+    const auto it = m_EntityToBody.find(entity);
+    if (it == m_EntityToBody.end()) return false;
+    outBodyID = JPH::BodyID(it->second);
+    return true;
+}
+
 // ============================================================
 // FlushCollisionEvents
 // ============================================================
+/**
+ * @brief 将挂起的接触事件转换为 ECS 事件并发布。
+ * @details 从 ContactListener 提取缓存的碰撞与触发器事件，解析涉及实体后发布对应的 TriggerEnter、TriggerExit 或普通碰撞事件。
+ * @param reg 当前场景注册表
+ */
 void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
     // 从 ContactListener 取出 pending 事件（加锁后 swap）
     std::vector<ECSContactListener::PendingContact> contacts;
@@ -420,6 +463,11 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
 // ============================================================
 // DestroyOrphanBodies（清理已销毁实体的 Jolt Body）
 // ============================================================
+/**
+ * @brief 清理无效实体遗留的孤立 Jolt Body。
+ * @details 扫描 Body 到 Entity 的映射，销毁所有已经失效实体对应的 Body，并同步清理反向映射与运行时缓存，避免 stale 映射被后续复用命中。
+ * @param reg 当前场景注册表
+ */
 void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
     std::vector<uint32_t> toRemove;
@@ -433,6 +481,10 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
 
     for (uint32_t rawID : toRemove) {
         JPH::BodyID jid(rawID);
+        const auto itEntity = m_BodyToEntity.find(rawID);
+        const EntityID entity = (itEntity != m_BodyToEntity.end())
+            ? itEntity->second
+            : Entity::NULL_ENTITY;
 
         // 移除 body 前，唤醒该区域内所有睡眠的动态体。
         // Jolt 的 RemoveBody 不会自动激活邻近体，导致叠放在上方的 cube
@@ -455,47 +507,104 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
 
         bi.RemoveBody(jid);
         bi.DestroyBody(jid);
+        if (Entity::IsValid(entity)) {
+            m_EntityToBody.erase(entity);
+        }
         m_BodyToEntity.erase(rawID);
+        g_LastGravityFactors.erase(rawID);
     }
 }
 
 // ============================================================
 // 工具函数
 // ============================================================
-void ECS::Sys_Physics::SetLinearVelocity(uint32_t joltBodyID, float vx, float vy, float vz) {
+/**
+ * @brief 按实体 ID 设置线速度。
+ * @details 若实体未绑定有效刚体或物理系统尚未初始化，则直接返回，不产生副作用。
+ * @param entity 目标实体 ID
+ * @param vx X 方向速度
+ * @param vy Y 方向速度
+ * @param vz Z 方向速度
+ */
+void ECS::Sys_Physics::SetLinearVelocity(EntityID entity, float vx, float vy, float vz) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().SetLinearVelocity(
-        JPH::BodyID(joltBodyID), ToJolt(vx, vy, vz));
+        bodyID, ToJolt(vx, vy, vz));
 }
 
-void ECS::Sys_Physics::ApplyImpulse(uint32_t joltBodyID, float ix, float iy, float iz) {
+/**
+ * @brief 按实体 ID 施加冲量。
+ * @details 若实体没有有效 Body 映射，则忽略本次调用。
+ * @param entity 目标实体 ID
+ * @param ix X 方向冲量
+ * @param iy Y 方向冲量
+ * @param iz Z 方向冲量
+ */
+void ECS::Sys_Physics::ApplyImpulse(EntityID entity, float ix, float iy, float iz) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().AddImpulse(
-        JPH::BodyID(joltBodyID), ToJolt(ix, iy, iz));
+        bodyID, ToJolt(ix, iy, iz));
 }
 
-void ECS::Sys_Physics::AddForce(uint32_t joltBodyID, float fx, float fy, float fz) {
+/**
+ * @brief 按实体 ID 施加持续力。
+ * @details 该接口通常被逐帧调用，以便让动态体持续受到外力驱动。
+ * @param entity 目标实体 ID
+ * @param fx X 方向力
+ * @param fy Y 方向力
+ * @param fz Z 方向力
+ */
+void ECS::Sys_Physics::AddForce(EntityID entity, float fx, float fy, float fz) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().AddForce(
-        JPH::BodyID(joltBodyID), ToJolt(fx, fy, fz));
+        bodyID, ToJolt(fx, fy, fz));
 }
 
-Vector3 ECS::Sys_Physics::GetLinearVelocity(uint32_t joltBodyID) {
+/**
+ * @brief 按实体 ID 读取线速度。
+ * @details 若目标实体没有有效刚体映射，则返回零向量。
+ * @param entity 目标实体 ID
+ * @return 当前线速度
+ */
+Vector3 ECS::Sys_Physics::GetLinearVelocity(EntityID entity) {
     if (!m_PhysicsSystem) return Vector3(0, 0, 0);
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return Vector3(0, 0, 0);
     JPH::Vec3 v = m_PhysicsSystem->GetBodyInterface().GetLinearVelocity(
-        JPH::BodyID(joltBodyID));
+        bodyID);
     return Vector3(v.GetX(), v.GetY(), v.GetZ());
 }
 
+/**
+ * @brief 按实体 ID 驱动运动学刚体移动。
+ * @details 根据传入目标位姿与固定步长，把 EntityID 解析为底层 Body 后调用 Jolt 的 MoveKinematic。
+ * @param entity 目标实体 ID
+ * @param px 目标位置 X
+ * @param py 目标位置 Y
+ * @param pz 目标位置 Z
+ * @param qx 目标旋转 X
+ * @param qy 目标旋转 Y
+ * @param qz 目标旋转 Z
+ * @param qw 目标旋转 W
+ * @param dt 本次运动学更新步长
+ */
 void ECS::Sys_Physics::MoveKinematic(
-    uint32_t joltBodyID,
+    EntityID entity,
     float px, float py, float pz,
     float qx, float qy, float qz, float qw,
     float dt)
 {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().MoveKinematic(
-        JPH::BodyID(joltBodyID),
+        bodyID,
         JPH::RVec3(px, py, pz),
         JPH::Quat(qx, qy, qz, qw),
         dt);
@@ -504,12 +613,20 @@ void ECS::Sys_Physics::MoveKinematic(
 // ============================================================
 // SetRotation（供 Sys_Navigation 调用 - 来自 feat/navmesh-system）
 // ============================================================
-void ECS::Sys_Physics::SetRotation(uint32_t joltBodyID,
-                                   const NCL::Maths::Quaternion& rotation)
+/**
+ * @brief 按实体 ID 设置刚体旋转。
+ * @details 主要用于导航等系统同步刚体朝向，并在设置后立即激活目标 Body。
+ * @param entity 目标实体 ID
+ * @param rotation 目标旋转
+ */
+void ECS::Sys_Physics::SetRotation(EntityID entity,
+                                    const NCL::Maths::Quaternion& rotation)
 {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().SetRotation(
-        JPH::BodyID(joltBodyID),
+        bodyID,
         ToJoltQuat(rotation.x, rotation.y, rotation.z, rotation.w),
         JPH::EActivation::Activate);
 }
@@ -564,10 +681,18 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
 // ============================================================
 // ReplaceShapeCapsule — 运行时替换碰撞体为 Capsule (来自 master)
 // ============================================================
-void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight, float radius) {
+/**
+ * @brief 按实体 ID 替换为 Capsule 碰撞体。
+ * @details 用于玩家姿态切换等运行时形状调整场景，保留现有质量属性并激活目标 Body。
+ * @param entity 目标实体 ID
+ * @param halfHeight Capsule 半高
+ * @param radius Capsule 半径
+ */
+void ECS::Sys_Physics::ReplaceShapeCapsule(EntityID entity, float halfHeight, float radius) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID jid;
+    if (!TryGetBodyID(entity, jid)) return;
     auto& bi = m_PhysicsSystem->GetBodyInterface();
-    JPH::BodyID jid(joltBodyID);
     // 创建新的 Capsule 形状
     JPH::CapsuleShapeSettings capsuleSettings(halfHeight, radius);
     auto shapeResult = capsuleSettings.Create();
@@ -582,17 +707,34 @@ void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight
 // ============================================================
 // SetPosition — 直接设置动态体世界位置 (来自 master)
 // ============================================================
-void ECS::Sys_Physics::SetPosition(uint32_t joltBodyID, float px, float py, float pz) {
+/**
+ * @brief 按实体 ID 设置刚体世界位置。
+ * @details 设置位置后会立即激活目标 Body，确保位移在后续模拟中马上生效。
+ * @param entity 目标实体 ID
+ * @param px X 坐标
+ * @param py Y 坐标
+ * @param pz Z 坐标
+ */
+void ECS::Sys_Physics::SetPosition(EntityID entity, float px, float py, float pz) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     auto& bi = m_PhysicsSystem->GetBodyInterface();
-    bi.SetPosition(JPH::BodyID(joltBodyID),
+    bi.SetPosition(bodyID,
                    JPH::RVec3(px, py, pz),
                    JPH::EActivation::Activate);
 }
 // ============================================================
 // ActivateBody — 强制唤醒 Body (来自 master)
 // ============================================================
-void ECS::Sys_Physics::ActivateBody(uint32_t joltBodyID) {
+/**
+ * @brief 按实体 ID 强制唤醒刚体。
+ * @details 用于确保睡眠中的刚体能立即响应后续的力、速度或位置更新。
+ * @param entity 目标实体 ID
+ */
+void ECS::Sys_Physics::ActivateBody(EntityID entity) {
     if (!m_PhysicsSystem) return;
-    m_PhysicsSystem->GetBodyInterface().ActivateBody(JPH::BodyID(joltBodyID));
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
+    m_PhysicsSystem->GetBodyInterface().ActivateBody(bodyID);
 }

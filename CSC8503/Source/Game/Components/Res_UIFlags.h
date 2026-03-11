@@ -1,4 +1,10 @@
+/**
+ * @file Res_UIFlags.h
+ * @brief 全局 UI 窗口显隐标志资源定义。
+ */
 #pragma once
+
+#include <cstdint>
 
 /**
  * @brief 全局 UI 显示标志（Registry Context 资源）
@@ -8,7 +14,7 @@
  */
 struct Res_UIFlags {
     bool showTestControls = true;  ///< 是否显示 "ECS Test Controls" 控制面板
-    bool showCubeDebug    = true;  ///< 是否显示 "Cube Debug Info" 浮动 debug 窗口
+    bool showEntityDebug  = true;  ///< 是否显示 "Entity Debug Info" 全量实体调试窗口
     bool showNetworkDebug = true;  ///< 是否显示 "Network Debug" 控制面板
 
     int8_t debugSceneIndex = -1;  ///< -1=无请求, 0=MainMenu, 1=PhysicsTest, 2=NavTest, 3=NetworkGame(Server)

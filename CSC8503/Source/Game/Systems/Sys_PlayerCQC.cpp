@@ -1,3 +1,10 @@
+/**
+ * @file Sys_PlayerCQC.cpp
+ * @brief 玩家近身战系统实现。
+ *
+ * @details
+ * 负责 CQC 状态机推进、目标检测、拟态逻辑，以及通过 EntityID 语义的物理接口冻结目标速度。
+ */
 #include "Sys_PlayerCQC.h"
 
 #include "Game/Components/C_D_Input.h"
@@ -24,6 +31,12 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
+/**
+ * @brief 更新玩家 CQC 状态机并处理近战/拟态输入。
+ * @details 推进接近、执行、完成阶段，处理休眠敌人拟态和背后处决目标选择，并在完成处决时通过 Sys_Physics 的 EntityID 接口清零目标速度。
+ * @param registry 当前场景注册表
+ * @param dt 本帧时间步长（秒）
+ */
 void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_CQCConfig>()) return;
     const auto& config = registry.ctx<Res_CQCConfig>();
@@ -87,7 +100,7 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                             if (physics && registry.Has<C_D_RigidBody>(cqc.targetEnemy)) {
                                 auto& erb = registry.Get<C_D_RigidBody>(cqc.targetEnemy);
                                 if (erb.body_created) {
-                                    physics->SetLinearVelocity(erb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+                                    physics->SetLinearVelocity(cqc.targetEnemy, 0.0f, 0.0f, 0.0f);
                                 }
                             }
                         }

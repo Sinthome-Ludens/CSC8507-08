@@ -25,6 +25,7 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_ImGuiNavTest.h"
 #endif
 
@@ -32,9 +33,16 @@
 // OnEnter（场景加载阶段）
 // ============================================================
 
+/**
+ * @brief 进入导航测试场景并初始化导航测试所需资源与系统。
+ * @details 加载导航测试资源、重置场景级 context、创建基础测试实体，并注册导航、感知、渲染与调试系统。
+ * @param registry 当前场景注册表
+ * @param systems 当前场景系统管理器
+ * @param nclPtrs NCL 桥接资源（当前函数未直接使用）
+ */
 void Scene_NavTest::OnEnter(ECS::Registry&          registry,
-                            ECS::SystemManager&     systems,
-                            const Res_NCL_Pointers& /*nclPtrs*/)
+                             ECS::SystemManager&     systems,
+                             const Res_NCL_Pointers& /*nclPtrs*/)
 {
     // ── 1. 资源预热：初始化 AssetManager，加载本场景所需 mesh ──────────
     ECS::AssetManager::Instance().Init();
@@ -95,8 +103,9 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 C_D_AIPerception::is_spotted）
 
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>        (300);   // 菜单栏 + 性能窗口
-    systems.Register<ECS::Sys_ImGuiNavTest> (310);   // NavTest 敌人/目标生成控制面板
+    systems.Register<ECS::Sys_ImGui>           (300);   // 菜单栏 + 性能窗口
+    systems.Register<ECS::Sys_ImGuiEntityDebug>(305);   // 全量实体列表 + 详情面板
+    systems.Register<ECS::Sys_ImGuiNavTest>    (310);   // NavTest 敌人/目标生成控制面板
 #endif
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
@@ -125,8 +134,14 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 // OnExit（场景卸载阶段）
 // ============================================================
 
+/**
+ * @brief 退出导航测试场景并清理导航相关上下文与路径工具。
+ * @details 逆序销毁当前场景系统，释放路径查询工具和场景级 context，随后清空 Registry 中的全部实体与组件。
+ * @param registry 当前场景注册表
+ * @param systems 当前场景系统管理器
+ */
 void Scene_NavTest::OnExit(ECS::Registry&      registry,
-                           ECS::SystemManager& systems)
+                            ECS::SystemManager& systems)
 {
     // 逆序停机
     systems.DestroyAll(registry);

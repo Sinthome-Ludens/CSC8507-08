@@ -217,26 +217,64 @@ public:
 
     // --- 工具函数（供 Prefab 工厂等外部代码调用）---
 
-    /// 在 ECS 实体上设置 Jolt 线速度（动态体）
-    void SetLinearVelocity(uint32_t joltBodyID, float vx, float vy, float vz);
+    /**
+     * @brief 按实体 ID 设置动态体线速度。
+     * @details 内部通过实体到 Jolt Body 的映射查找目标刚体；若实体无有效 Body 则忽略。
+     * @param entity 目标实体 ID
+     * @param vx X 方向速度
+     * @param vy Y 方向速度
+     * @param vz Z 方向速度
+     */
+    void SetLinearVelocity(EntityID entity, float vx, float vy, float vz);
 
-    /// 直接设置 Jolt 刚体的旋转（供 Sys_Navigation 调用）
-    void SetRotation(uint32_t joltBodyID, const NCL::Maths::Quaternion& rotation);
+    /**
+     * @brief 按实体 ID 设置刚体旋转。
+     * @details 主要用于导航/朝向系统驱动运动学或动态体朝向更新。
+     * @param entity 目标实体 ID
+     * @param rotation 目标旋转
+     */
+    void SetRotation(EntityID entity, const NCL::Maths::Quaternion& rotation);
 
-    /// 给 Jolt 刚体施加冲量（动态体）
-    void ApplyImpulse(uint32_t joltBodyID, float ix, float iy, float iz);
+    /**
+     * @brief 按实体 ID 施加一次性冲量。
+     * @details 若实体对应 Body 不存在或物理系统未初始化则直接返回。
+     * @param entity 目标实体 ID
+     * @param ix X 方向冲量
+     * @param iy Y 方向冲量
+     * @param iz Z 方向冲量
+     */
+    void ApplyImpulse(EntityID entity, float ix, float iy, float iz);
 
-    /// 直接设置 Kinematic 体的目标位置
-    void MoveKinematic(uint32_t joltBodyID,
+    /**
+     * @brief 按实体 ID 驱动运动学体到目标位姿。
+     * @details 使用 dt 计算运动学速度，需与固定步长保持一致。
+     * @param entity 目标实体 ID
+     * @param px,py,pz 目标位置
+     * @param qx,qy,qz,qw 目标旋转
+     * @param dt 本次运动学更新步长
+     */
+    void MoveKinematic(EntityID entity,
                        float px, float py, float pz,
                        float qx, float qy, float qz, float qw,
                        float dt);
 
-    /// 给 Jolt 刚体施加持续力（动态体，需每帧调用）
-    void AddForce(uint32_t joltBodyID, float fx, float fy, float fz);
+    /**
+     * @brief 按实体 ID 施加持续力。
+     * @details 该接口通常在每帧调用以形成持续推进效果。
+     * @param entity 目标实体 ID
+     * @param fx X 方向力
+     * @param fy Y 方向力
+     * @param fz Z 方向力
+     */
+    void AddForce(EntityID entity, float fx, float fy, float fz);
 
-    /// 获取 Jolt 刚体当前线速度（动态体）
-    NCL::Maths::Vector3 GetLinearVelocity(uint32_t joltBodyID);
+    /**
+     * @brief 按实体 ID 获取当前线速度。
+     * @details 若实体没有有效 Body，返回零向量。
+     * @param entity 目标实体 ID
+     * @return 线速度向量
+     */
+    NCL::Maths::Vector3 GetLinearVelocity(EntityID entity);
 
     /// 获取 Jolt PhysicsSystem 指针（供调试/ImGui 使用）
     JPH::PhysicsSystem* GetJoltPhysicsSystem() const { return m_PhysicsSystem.get(); }
@@ -259,14 +297,31 @@ public:
                        float dx, float dy, float dz,
                        float maxDist);
 
-    /// 运行时替换指定 Body 的碰撞体形状为 Capsule（姿态切换用）
-    void ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight, float radius);
+    /**
+     * @brief 按实体 ID 将碰撞体替换为 Capsule。
+     * @details 用于站立/蹲伏姿态切换时的碰撞体重构。
+     * @param entity 目标实体 ID
+     * @param halfHeight Capsule 半高（不含球帽）
+     * @param radius Capsule 半径
+     */
+    void ReplaceShapeCapsule(EntityID entity, float halfHeight, float radius);
 
-    /// 直接设置动态体的世界位置（贴墙吸附用）
-    void SetPosition(uint32_t joltBodyID, float px, float py, float pz);
+    /**
+     * @brief 按实体 ID 设置刚体世界位置。
+     * @details 设置后会激活目标 Body 以保证位置修正立即生效。
+     * @param entity 目标实体 ID
+     * @param px X 坐标
+     * @param py Y 坐标
+     * @param pz Z 坐标
+     */
+    void SetPosition(EntityID entity, float px, float py, float pz);
 
-    /// 强制激活 Body（防止 sleep 状态下 AddForce 无效）
-    void ActivateBody(uint32_t joltBodyID);
+    /**
+     * @brief 按实体 ID 强制激活刚体。
+     * @details 用于防止睡眠状态下外力/速度设置无法立即体现。
+     * @param entity 目标实体 ID
+     */
+    void ActivateBody(EntityID entity);
 
 private:
     // --- Jolt 对象（生命周期由 Sys_Physics 管理）---
@@ -281,8 +336,9 @@ private:
     ECSContactListener          m_ContactListener;
 
     // --- 映射表 ---
-    // jolt_body_id (uint32) → EntityID，用于碰撞事件的实体查找
+    // BodyID 原始值 (uint32) ↔ EntityID
     std::unordered_map<uint32_t, EntityID> m_BodyToEntity;
+    std::unordered_map<EntityID, uint32_t> m_EntityToBody;
 
     // BroadPhase 优化标志（场景加载完毕后调用一次 OptimizeBroadPhase）
     bool m_BroadPhaseOptimized = false;
@@ -294,6 +350,14 @@ private:
     void SyncTransformsFromJolt(Registry& reg, float fixedDt);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);
+    /**
+     * @brief 尝试从实体 ID 解析对应的 Jolt BodyID。
+     * @details 查询 Scene 内部维护的 EntityID 到 BodyID 反向映射；若实体尚未创建刚体或已被清理，则返回 false。
+     * @param entity 输入的 ECS 实体 ID
+     * @param outBodyID 成功时输出对应的 Jolt BodyID
+     * @return 找到有效 Body 返回 true，否则返回 false
+     */
+    bool TryGetBodyID(EntityID entity, JPH::BodyID& outBodyID) const;
     // NCL ↔ Jolt 转换
     static JPH::Vec3  ToJolt(float x, float y, float z);
     static JPH::Quat  ToJoltQuat(float qx, float qy, float qz, float qw);
