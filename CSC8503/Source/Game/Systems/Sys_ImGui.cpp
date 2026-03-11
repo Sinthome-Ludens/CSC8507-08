@@ -114,7 +114,12 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
             if (ImGui::MenuItem("Scene_PhysicsTest")) flags.debugSceneIndex = 1;
             if (ImGui::MenuItem("Scene_NavTest"))     flags.debugSceneIndex = 2;
             if (ImGui::MenuItem("Scene_TutorialLevel"))     flags.debugSceneIndex = 3;
-            if (ImGui::MenuItem("Scene_NetworkGame")) flags.debugSceneIndex = 4;
+            if (ImGui::MenuItem("Scene_Dock"))     flags.debugSceneIndex = 4;
+            if (ImGui::MenuItem("Scene_HangerA"))     flags.debugSceneIndex = 5;
+            if (ImGui::MenuItem("Scene_HangerB"))     flags.debugSceneIndex = 6;
+            if (ImGui::MenuItem("Scene_Helipad"))     flags.debugSceneIndex = 7;
+            if (ImGui::MenuItem("Scene_Lab"))     flags.debugSceneIndex = 8;
+            if (ImGui::MenuItem("Scene_NetworkGame")) flags.debugSceneIndex = 9;
 
         }
         ImGui::EndMenu();
