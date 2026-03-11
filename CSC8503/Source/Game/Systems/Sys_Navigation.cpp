@@ -1,3 +1,10 @@
+/**
+ * @file Sys_Navigation.cpp
+ * @brief 导航系统实现。
+ *
+ * @details
+ * 管理寻路代理的路径推进、朝向更新与基于 EntityID 的物理速度/旋转写回。
+ */
 #include "Sys_Navigation.h"
 #include <cstring>
 #include <cmath>
@@ -108,6 +115,12 @@ static void CopyPathToAgent(C_D_NavAgent& agent,
 // ─────────────────────────────────────────────────────────────────────────────
 // 主更新
 // ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @brief 更新所有寻路代理的路径跟随与状态驱动行为。
+ * @details 根据 AI 状态在 Safe、Caution、Alert、Hunt 分支间切换，必要时重规划路径，并通过 Sys_Physics 的 EntityID 接口同步速度与旋转。
+ * @param registry 当前场景注册表
+ * @param dt 本帧时间步长（秒）
+ */
 void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
     if (!m_Pathfinder) {
         LOG_WARN("[Sys_Navigation] Pathfinder is null, skipping update.");

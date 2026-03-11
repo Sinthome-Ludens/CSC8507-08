@@ -350,6 +350,13 @@ private:
     void SyncTransformsFromJolt(Registry& reg, float fixedDt);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);
+    /**
+     * @brief 尝试从实体 ID 解析对应的 Jolt BodyID。
+     * @details 查询 Scene 内部维护的 EntityID 到 BodyID 反向映射；若实体尚未创建刚体或已被清理，则返回 false。
+     * @param entity 输入的 ECS 实体 ID
+     * @param outBodyID 成功时输出对应的 Jolt BodyID
+     * @return 找到有效 Body 返回 true，否则返回 false
+     */
     bool TryGetBodyID(EntityID entity, JPH::BodyID& outBodyID) const;
     // NCL ↔ Jolt 转换
     static JPH::Vec3  ToJolt(float x, float y, float z);

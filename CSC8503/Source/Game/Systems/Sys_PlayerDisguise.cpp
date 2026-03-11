@@ -1,3 +1,10 @@
+/**
+ * @file Sys_PlayerDisguise.cpp
+ * @brief 玩家伪装系统实现。
+ *
+ * @details
+ * 处理伪装开启/关闭条件检查，并读取 EntityID 语义的物理速度用于判定。
+ */
 #include "Sys_PlayerDisguise.h"
 
 #include "Game/Components/C_D_Input.h"
@@ -12,6 +19,12 @@
 
 namespace ECS {
 
+/**
+ * @brief 根据输入切换玩家伪装状态。
+ * @details 按下伪装键时检查移动速度、姿态和贴墙状态；满足条件则进入伪装并在必要时请求强制站立，否则直接退出伪装。
+ * @param registry 当前场景注册表
+ * @param dt 本帧时间步长（当前实现未直接使用）
+ */
 void Sys_PlayerDisguise::OnUpdate(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Sys_Physics*>()) return;
     auto* physics = registry.ctx<Sys_Physics*>();

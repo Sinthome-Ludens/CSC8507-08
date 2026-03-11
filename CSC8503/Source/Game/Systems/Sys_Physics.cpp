@@ -362,6 +362,13 @@ void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
     );
 }
 
+/**
+ * @brief 尝试从实体 ID 解析对应的 Jolt BodyID。
+ * @details 仅查询 Sys_Physics 内部维护的反向映射，不触发 Body 创建；若实体不存在映射项，则返回 false 并保持调用方可安全跳过本次物理操作。
+ * @param entity 输入的 ECS 实体 ID
+ * @param outBodyID 成功时输出对应的 Jolt BodyID
+ * @return 找到有效映射返回 true，否则返回 false
+ */
 bool ECS::Sys_Physics::TryGetBodyID(EntityID entity, JPH::BodyID& outBodyID) const {
     const auto it = m_EntityToBody.find(entity);
     if (it == m_EntityToBody.end()) return false;
