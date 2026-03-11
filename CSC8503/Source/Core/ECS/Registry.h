@@ -85,6 +85,7 @@
 #include <unordered_map>
 #include <memory>
 #include <any>
+#include <unordered_set>
 #include <vector>
 #include <functional>
 #include <tuple>
@@ -260,7 +261,7 @@ public:
 
     /**
      * @brief 以回调方式遍历当前所有存活实体。
-     * @details 遍历内部槽位数组，跳过空实体与版本不匹配的已销毁实体，按当前有效的 EntityID 调用回调。
+     * @details 遍历内部槽位数组，并显式跳过空槽、已回收到 `m_FreeList` 的槽位，以及已进入延迟销毁队列的实体，确保结果与当前活跃实体集合一致。
      * @tparam Func 可调用类型，签名需兼容 `void(EntityID)`。
      * @param func 对每个存活实体执行的回调。
      */
@@ -678,11 +679,19 @@ View<Ts...> Registry::view() {
 
 template<typename Func>
 void Registry::ForEachActiveEntity(Func&& func) const {
+    std::unordered_set<uint32_t> freeIndices(m_FreeList.begin(), m_FreeList.end());
+    std::unordered_set<EntityID> pendingDestroy(m_PendingDestroy.begin(), m_PendingDestroy.end());
+
     for (uint32_t index = 0; index < static_cast<uint32_t>(m_Versions.size()); ++index) {
-        const EntityID entity = Entity::Make(index, m_Versions[index]);
-        if (!Valid(entity)) {
+        if (freeIndices.contains(index)) {
             continue;
         }
+
+        const EntityID entity = Entity::Make(index, m_Versions[index]);
+        if (!Valid(entity) || pendingDestroy.contains(entity)) {
+            continue;
+        }
+
         std::invoke(std::forward<Func>(func), entity);
     }
 }
