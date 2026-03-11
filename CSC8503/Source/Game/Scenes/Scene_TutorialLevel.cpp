@@ -79,7 +79,10 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     }
 
     // ── 3. 初始实体生成：创建 TutorialMap 地图实体 ───────────────────────
-    ECS::EntityID entity_map = PrefabFactory::CreateStaticMap(registry, mapMesh);
+    // 缩放系数：修改此值可等比例缩放整个 TutorialLevel（视觉 + 物理 + 寻路同步）
+    constexpr float kMapScale = 2.0f;
+
+    ECS::EntityID entity_map = PrefabFactory::CreateStaticMap(registry, mapMesh, kMapScale);
     LOG_INFO("[Scene_TutorialLevel] map entity id=" << entity_map);
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
@@ -95,22 +98,22 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     m_Pathfinder = std::make_unique<ECS::NavMeshPathfinderUtil>();
     navSys->SetPathfinder(m_Pathfinder.get());
     m_Pathfinder->LoadNavMesh(NCL::Assets::MESHDIR + "TutorialMap.navmesh");
+    m_Pathfinder->ScaleVertices(kMapScale);   // 寻路坐标与物理世界同步缩放
 
     // ── 墙体碰撞体自动生成 ──────────────────────────────────────────────
     // 从 navmesh 边界边提取墙面位置，创建隐形 Box 碰撞体。
+    // ScaleVertices 已将顶点坐标缩放，因此边界边坐标已是缩放后的世界空间值。
     //
-    // 坐标系对齐：
-    //   navmesh Y ≈ 0.583（Unity 原始坐标系）
-    //   地图实体 Y 偏移 = -6.0（CreateStaticMap Transform）
-    //   物理世界地面 Y = 0.583 + (-6.0) = -5.417
+    // 坐标系对齐（以 kMapScale=2 为例）：
+    //   navmesh Y ≈ 0.583 × 2 = 1.166（已缩放）
+    //   地图实体 Y 偏移 = -6.0 × 2 = -12.0
+    //   物理世界地面 Y = 1.166 + (-12.0) = -10.834
     //
-    // 墙体参数：
-    //   高度 8m（半高 4m），完全覆盖可通行区域
-    //   厚度 0.5m（半厚 0.25m），防止隧穿
+    // 墙体参数均随 kMapScale 等比扩展：
     {
-        constexpr float kMapYOffset    = -6.0f;
-        constexpr float kWallHalfH     = 4.0f;
-        constexpr float kWallHalfThick = 0.25f;
+        constexpr float kMapYOffset    = -6.0f  * kMapScale;
+        constexpr float kWallHalfH     =  4.0f  * kMapScale;
+        constexpr float kWallHalfThick =  0.25f * kMapScale;
 
         auto edges = m_Pathfinder->GetBoundaryEdges();
         int wallIdx = 0;

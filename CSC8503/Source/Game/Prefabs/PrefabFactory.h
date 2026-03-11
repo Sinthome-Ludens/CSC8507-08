@@ -82,7 +82,8 @@ public:
      */
     static ECS::EntityID CreateStaticMap(
         ECS::Registry&  reg,
-        ECS::MeshHandle mapMesh
+        ECS::MeshHandle mapMesh,
+        float           scale = 1.0f
     );
 
     // ============================================================

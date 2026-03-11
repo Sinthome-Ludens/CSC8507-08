@@ -55,9 +55,40 @@ static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
     dir.y = 0.0f;
 
     float distSq = dir.x * dir.x + dir.z * dir.z;
-    if (distSq < 0.25f) { // 到达路点阈值 0.5m
-        if (agent.current_waypoint_index < agent.path_length - 1) {
+    bool isLastWaypoint = (agent.current_waypoint_index == agent.path_length - 1);
+
+    // ── 前瞻跳跃：若下一路点比当前路点更近，说明 agent 已越过当前路点 ──────────
+    // 原因：agent 以全速运动时可能略微冲过路点，此时当前路点已在身后或侧方，
+    // 继续朝它移动会产生向后偏转。直接跳到最近的后续路点（保留终点不跳过）。
+    while (!isLastWaypoint) {
+        const NCL::Maths::Vector3& nxt =
+            agent.path_waypoints[agent.current_waypoint_index + 1];
+        float ndx = nxt.x - tf.position.x;
+        float ndz = nxt.z - tf.position.z;
+        float nDistSq = ndx*ndx + ndz*ndz;
+        if (nDistSq < distSq) {
             agent.current_waypoint_index++;
+            targetPoint  = nxt;
+            dir.x = ndx; dir.z = ndz;
+            distSq = nDistSq;
+            isLastWaypoint = (agent.current_waypoint_index == agent.path_length - 1);
+        } else {
+            break;
+        }
+    }
+
+    // 到达阈值：终点使用 stopping_distance，中间路点固定 0.25m²（0.5m 半径）
+    float arrivalSq = isLastWaypoint
+        ? (agent.stopping_distance * agent.stopping_distance)
+        : 0.25f;
+
+    if (distSq < arrivalSq) {
+        if (!isLastWaypoint) {
+            agent.current_waypoint_index++;
+            // 清零速度，防止转角处惯性冲进墙体
+            if (physics && rb.body_created) {
+                physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+            }
         } else {
             // 到达终点
             agent.is_active = false;
@@ -72,7 +103,8 @@ static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
     dir.x /= dist;
     dir.z /= dist;
 
-    if (agent.smooth_rotation) {
+    // 旋转：仅当距离足够大（>0.2m）才更新方向，防止抖动导致自转
+    if (agent.smooth_rotation && distSq > 0.04f) {
         float targetYaw = atan2f(-dir.x, -dir.z) * 57.29577f;
         NCL::Maths::Quaternion targetRot =
             NCL::Maths::Quaternion::EulerAnglesToQuaternion(0, targetYaw, 0);
@@ -83,9 +115,15 @@ static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
         }
     }
 
+    // 接近中间路点时降速（防止转角冲过头卡进墙角）
+    float speed = agent.speed;
+    if (!isLastWaypoint && dist < 1.5f) {
+        speed *= std::max(0.4f, dist / 1.5f);
+    }
+
     if (physics && rb.body_created) {
         physics->SetLinearVelocity(rb.jolt_body_id,
-            dir.x * agent.speed, 0.0f, dir.z * agent.speed);
+            dir.x * speed, 0.0f, dir.z * speed);
     }
 }
 
@@ -103,6 +141,28 @@ static void CopyPathToAgent(C_D_NavAgent& agent,
     agent.path_length              = count;
     agent.current_waypoint_index   = 0;
     agent.is_active                = (count > 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 内部辅助：路径重规划后跳过已在到达半径内的初始路点
+//
+// 问题根因：CopyPathToAgent 将 current_waypoint_index 归零，新路径前几个路点
+// 可能已在 agent 当前位置附近甚至身后。若不跳过，agent 会先转向这些路点，
+// 产生每次重规划后的"抖动转向"。
+// ─────────────────────────────────────────────────────────────────────────────
+static void SkipReachedWaypoints(C_D_NavAgent& agent, const C_D_Transform& tf)
+{
+    while (agent.current_waypoint_index < agent.path_length - 1) {
+        const NCL::Maths::Vector3& wp =
+            agent.path_waypoints[agent.current_waypoint_index];
+        float dx = wp.x - tf.position.x;
+        float dz = wp.z - tf.position.z;
+        if (dx*dx + dz*dz < 0.25f) {   // 与中间路点到达阈值一致（0.5m）
+            agent.current_waypoint_index++;
+        } else {
+            break;
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -205,6 +265,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                 std::vector<NCL::Maths::Vector3> tempPath;
                 if (m_Pathfinder->FindPath(tf.position, agent.alert_snapshot_pos, tempPath)) {
                     CopyPathToAgent(agent, tempPath);
+                    SkipReachedWaypoints(agent, tf);
                 }
                 agent.timer = 0.0f;
             }
@@ -217,12 +278,26 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
         default: {
             if (!targetFound) break;
 
+            // 已在停止距离内：停止移动，仅保持朝向目标（防止反复规划导致抖动）
+            float stopSq = agent.stopping_distance * agent.stopping_distance;
+            if (minDistanceSq < stopSq) {
+                agent.path_length            = 0;
+                agent.current_waypoint_index = 0;
+                agent.is_active              = false;
+                if (physics && rb.body_created) {
+                    physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+                }
+                ApplyRotationToward(agent, tf, rb, physics, liveTargetPos, dt);
+                break;
+            }
+
             bool justEntered = (agent.prev_state != EnemyState::Hunt);
             if (justEntered) {
                 // 首次进入 Hunt：立即规划路径，不等待计时器
                 std::vector<NCL::Maths::Vector3> tempPath;
                 if (m_Pathfinder->FindPath(tf.position, liveTargetPos, tempPath)) {
                     CopyPathToAgent(agent, tempPath);
+                    SkipReachedWaypoints(agent, tf);
                 }
                 agent.timer = 0.0f;
             } else {
@@ -231,6 +306,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                     std::vector<NCL::Maths::Vector3> tempPath;
                     if (m_Pathfinder->FindPath(tf.position, liveTargetPos, tempPath)) {
                         CopyPathToAgent(agent, tempPath);
+                        SkipReachedWaypoints(agent, tf);
                     }
                     agent.timer = 0.0f;
                 }

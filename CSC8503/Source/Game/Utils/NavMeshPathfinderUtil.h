@@ -61,6 +61,16 @@ public:
     bool IsLoaded() const { return m_Loaded; }
 
     /**
+     * @brief 对所有顶点坐标等比例缩放（必须在 LoadNavMesh 之后、GetBoundaryEdges 之前调用）
+     *
+     * 用于使 navmesh 寻路坐标与经过 scale 变换的地图物理世界对齐。
+     * 同步更新三角形重心。
+     *
+     * @param scale 缩放倍率（与 CreateStaticMap 的 scale 保持一致）
+     */
+    void ScaleVertices(float scale);
+
+    /**
      * @brief 提取 navmesh 的所有边界边（无邻居的三角形边 = 墙壁位置）
      *
      * 用于在场景初始化时自动创建隐形墙体碰撞体。

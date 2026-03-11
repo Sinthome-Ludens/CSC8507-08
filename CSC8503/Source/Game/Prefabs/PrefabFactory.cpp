@@ -147,17 +147,15 @@ EntityID PrefabFactory::CreateFloor(Registry& reg, ECS::MeshHandle cubeMesh)
 // ============================================================
 // CreateStaticMap  →  PREFAB_ENV_TUTORIAL_MAP
 // ============================================================
-EntityID PrefabFactory::CreateStaticMap(Registry& reg, ECS::MeshHandle mapMesh)
+EntityID PrefabFactory::CreateStaticMap(Registry& reg, ECS::MeshHandle mapMesh, float scale)
 {
     EntityID entity = reg.Create();
 
-    // C_D_Transform（Y=-6 与 NavTest 坐标系对齐）
-    // 敌人生成 Y=-4.0，Box 顶 Y=-5.4，敌人位于 Box 上方，重力使其正常落地
-    // TutorialMap.obj 顶点 Y=0.583 → 世界 Y = 0.583 + (-6) = -5.417（紧贴 Box 顶，视觉一致）
+    // C_D_Transform（Y=-6*scale 与 NavTest 坐标系对齐）
     reg.Emplace<C_D_Transform>(entity,
-        Vector3(0.0f, -6.0f, 0.0f),
+        Vector3(0.0f, -6.0f * scale, 0.0f),
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(1.0f, 1.0f, 1.0f)
+        Vector3(scale, scale, scale)
     );
 
     // C_D_MeshRenderer（使用 TutorialMap.obj，.mtl 由 Assimp 自动加载）
@@ -171,14 +169,12 @@ EntityID PrefabFactory::CreateStaticMap(Registry& reg, ECS::MeshHandle mapMesh)
     rb.is_static = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    // C_D_Collider（Box，覆盖地图全局足迹）
-    // 实体位于 (0,-6,0)，Box 以实体为中心扩展至 X=[-25,25]，Z=[-25,25]
-    // 涵盖 navmesh 范围 X=[0,19]，Z=[-19,16]
+    // C_D_Collider（Box，覆盖地图全局足迹，随 scale 等比扩展）
     C_D_Collider col{};
     col.type   = ColliderType::Box;
-    col.half_x = 25.0f;
-    col.half_y = 0.6f;
-    col.half_z = 25.0f;
+    col.half_x = 25.0f * scale;
+    col.half_y =  0.6f * scale;
+    col.half_z = 25.0f * scale;
     reg.Emplace<C_D_Collider>(entity, col);
 
     // C_D_Material（默认 BlinnPhong）

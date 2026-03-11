@@ -233,6 +233,26 @@ bool NavMeshPathfinderUtil::LoadRawFormat(std::ifstream& file)
 }
 
 // ============================================================
+// ScaleVertices — 等比例缩放所有顶点坐标，并重新计算三角形重心
+// ============================================================
+void NavMeshPathfinderUtil::ScaleVertices(float scale)
+{
+    for (auto& v : m_Vertices) {
+        v.x *= scale;
+        v.y *= scale;
+        v.z *= scale;
+    }
+    for (auto& t : m_Triangles) {
+        const auto& a = m_Vertices[t.v[0]];
+        const auto& b = m_Vertices[t.v[1]];
+        const auto& c = m_Vertices[t.v[2]];
+        t.centroid.x = (a.x + b.x + c.x) / 3.0f;
+        t.centroid.y = (a.y + b.y + c.y) / 3.0f;
+        t.centroid.z = (a.z + b.z + c.z) / 3.0f;
+    }
+}
+
+// ============================================================
 // GetBoundaryEdges — 提取 navmesh 所有边界边（无邻居的三角形边）
 //
 // 原理：对每个三角形的每条边（v_e, v_{e+1 mod 3}），在所有其他三角形中
@@ -538,6 +558,29 @@ bool NavMeshPathfinderUtil::FindPath(const NCL::Maths::Vector3& start,
         outPath.back() = end;
     } else {
         outPath.push_back(end);
+    }
+
+    // ── 路径简化：移除近似共线路点（减少不必要的方向切换）──────────────
+    // 若前→中→后三点在 XZ 平面上几乎共线（方向夹角 < ~11°），移除中间点。
+    if (outPath.size() > 2) {
+        std::vector<NCL::Maths::Vector3> simplified;
+        simplified.push_back(outPath.front());
+        for (size_t k = 1; k + 1 < outPath.size(); ++k) {
+            const NCL::Maths::Vector3& prev = simplified.back();
+            const NCL::Maths::Vector3& curr = outPath[k];
+            const NCL::Maths::Vector3& next = outPath[k + 1];
+            float ax = curr.x - prev.x, az = curr.z - prev.z;
+            float bx = next.x - curr.x, bz = next.z - curr.z;
+            float la = sqrtf(ax*ax + az*az);
+            float lb = sqrtf(bx*bx + bz*bz);
+            if (la < 0.01f || lb < 0.01f) continue; // 退化点跳过
+            float dot = (ax/la)*(bx/lb) + (az/la)*(bz/lb);
+            if (dot < 0.98f) { // 方向变化超过约 11° 才保留
+                simplified.push_back(curr);
+            }
+        }
+        simplified.push_back(outPath.back());
+        outPath = std::move(simplified);
     }
 
     return true;
