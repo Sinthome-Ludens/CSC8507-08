@@ -258,6 +258,15 @@ public:
     template<typename... Ts>
     View<Ts...> view();
 
+    /**
+     * @brief 以回调方式遍历当前所有存活实体。
+     * @details 遍历内部槽位数组，跳过空实体与版本不匹配的已销毁实体，按当前有效的 EntityID 调用回调。
+     * @tparam Func 可调用类型，签名需兼容 `void(EntityID)`。
+     * @param func 对每个存活实体执行的回调。
+     */
+    template<typename Func>
+    void ForEachActiveEntity(Func&& func) const;
+
     // -------------------------------------------------------------------------
     // Context (Global Resources)
     // -------------------------------------------------------------------------
@@ -665,6 +674,17 @@ bool Registry::Has(EntityID entity) const {
 template<typename... Ts>
 View<Ts...> Registry::view() {
     return View<Ts...>(GetOrCreatePool<Ts>()...);
+}
+
+template<typename Func>
+void Registry::ForEachActiveEntity(Func&& func) const {
+    for (uint32_t index = 0; index < static_cast<uint32_t>(m_Versions.size()); ++index) {
+        const EntityID entity = Entity::Make(index, m_Versions[index]);
+        if (!Valid(entity)) {
+            continue;
+        }
+        std::invoke(std::forward<Func>(func), entity);
+    }
 }
 
 template<typename T>

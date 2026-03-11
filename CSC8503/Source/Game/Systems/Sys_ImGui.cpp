@@ -65,7 +65,6 @@ void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
     if (registry.has_ctx<Res_UIFlags>()) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (flags.showTestControls) RenderTestControlsWindow(registry);
-        if (flags.showCubeDebug)    RenderCubeDebugWindow(registry);
         if (flags.showNetworkDebug && registry.has_ctx<Res_Network>())
             RenderNetworkDebugWindow(registry);
     }
@@ -86,7 +85,7 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
         if (registry.has_ctx<Res_UIFlags>()) {
             auto& flags = registry.ctx<Res_UIFlags>();
             ImGui::MenuItem("Test Controls", nullptr, &flags.showTestControls);
-            ImGui::MenuItem("Cube Debug",    nullptr, &flags.showCubeDebug);
+            ImGui::MenuItem("Entity Debug",  nullptr, &flags.showEntityDebug);
             ImGui::MenuItem("Network Debug", nullptr, &flags.showNetworkDebug);
         }
         ImGui::EndMenu();
@@ -98,7 +97,7 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (ImGui::BeginMenu("Test Scene")) {
             ImGui::MenuItem("Test Controls", nullptr, &flags.showTestControls);
-            ImGui::MenuItem("Cube Debug",    nullptr, &flags.showCubeDebug);
+            ImGui::MenuItem("Entity Debug",  nullptr, &flags.showEntityDebug);
             ImGui::MenuItem("Network Debug", nullptr, &flags.showNetworkDebug);
             ImGui::MenuItem("Raycast",       nullptr, &flags.showRaycast);
             ImGui::EndMenu();
@@ -276,56 +275,6 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
         auto& state = registry.ctx<Res_TestState>();
         ImGui::Text("Cubes alive: %d",   (int)state.cubeEntities.size());
         ImGui::Text("Capsules alive: %d", (int)state.capsuleEntities.size());
-    }
-
-    ImGui::End();
-}
-
-// ============================================================
-// RenderCubeDebugWindow（独立浮动 Debug 窗口）
-// ============================================================
-
-void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
-    if (!registry.has_ctx<Res_TestState>()) return;
-    auto& state = registry.ctx<Res_TestState>();
-    auto& flags = registry.ctx<Res_UIFlags>();
-
-    ImGui::Begin("Cube Debug Info", &flags.showCubeDebug,
-                 ImGuiWindowFlags_NoCollapse);
-
-    ImGui::Text("%-6s  %-20s  %-8s  %-7s",
-                "ID", "Position", "Gravity", "Body");
-    ImGui::Separator();
-
-    // 清除已失效的 cube（可能被外部途径销毁）
-    state.cubeEntities.erase(
-        std::remove_if(state.cubeEntities.begin(), state.cubeEntities.end(),
-            [&](ECS::EntityID id) { return !registry.Valid(id); }),
-        state.cubeEntities.end()
-    );
-
-    for (ECS::EntityID id : state.cubeEntities) {
-        if (!registry.Valid(id)) continue;
-
-        Vector3     pos        = {};
-        float       grav       = 0.0f;
-        const char* bodyStatus = "pending";
-
-        if (registry.Has<C_D_Transform>(id)) {
-            pos = registry.Get<C_D_Transform>(id).position;
-        }
-        if (registry.Has<C_D_RigidBody>(id)) {
-            auto& rb   = registry.Get<C_D_RigidBody>(id);
-            grav       = rb.gravity_factor;
-            bodyStatus = rb.body_created ? "created" : "pending";
-        }
-
-        ImGui::Text("%-6u  (%-5.1f, %-5.1f, %-5.1f)  %-8.2f  %-7s",
-                    id, pos.x, pos.y, pos.z, grav, bodyStatus);
-    }
-
-    if (state.cubeEntities.empty()) {
-        ImGui::TextDisabled("No cube entities.");
     }
 
     ImGui::End();

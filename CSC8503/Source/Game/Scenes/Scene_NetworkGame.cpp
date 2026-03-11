@@ -17,6 +17,7 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Systems/Sys_Chat.h"
 #include "Game/Components/Res_UIState.h"
@@ -96,9 +97,10 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Camera>       (180);
     systems.Register<ECS::Sys_Render>       (200);
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>        (300);
-    systems.Register<ECS::Sys_Chat>         (450);
-    systems.Register<ECS::Sys_UI>           (500);
+    systems.Register<ECS::Sys_ImGui>           (300);
+    systems.Register<ECS::Sys_ImGuiEntityDebug>(310);
+    systems.Register<ECS::Sys_Chat>            (450);
+    systems.Register<ECS::Sys_UI>              (500);
 #endif
 
     // 5. 初始化游戏状态（多人模式）

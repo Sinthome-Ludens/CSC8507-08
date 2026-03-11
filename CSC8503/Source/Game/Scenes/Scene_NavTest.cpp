@@ -25,6 +25,7 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_ImGuiNavTest.h"
 #endif
 
@@ -95,8 +96,9 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 C_D_AIPerception::is_spotted）
 
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>        (300);   // 菜单栏 + 性能窗口
-    systems.Register<ECS::Sys_ImGuiNavTest> (310);   // NavTest 敌人/目标生成控制面板
+    systems.Register<ECS::Sys_ImGui>           (300);   // 菜单栏 + 性能窗口
+    systems.Register<ECS::Sys_ImGuiEntityDebug>(305);   // 全量实体列表 + 详情面板
+    systems.Register<ECS::Sys_ImGuiNavTest>    (310);   // NavTest 敌人/目标生成控制面板
 #endif
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────

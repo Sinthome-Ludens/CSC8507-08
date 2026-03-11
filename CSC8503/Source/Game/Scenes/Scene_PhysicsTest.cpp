@@ -35,6 +35,7 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_ImGuiEnemyAI.h"
 #include "Game/Systems/Sys_ImGuiPhysicsTest.h"
 #include "Game/Systems/Sys_ImGuiCapsuleGen.h"
@@ -172,7 +173,8 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
     systems.Register<ECS::Sys_Render>          (200);   // ECS 实体 → NCL 代理对象桥接
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + Cube/Capsule 控制面板
+    systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + 测试控制面板
+    systems.Register<ECS::Sys_ImGuiEntityDebug>  (305);   // 全量实体列表 + 详情面板
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 通用敌人状态监控表格（场景无关）
     systems.Register<ECS::Sys_ImGuiPhysicsTest>  (320);   // PhysicsTest 场景敌人生成/删除控制面板
     systems.Register<ECS::Sys_Chat>              (450);   // 对话逻辑（在 UI 之前）

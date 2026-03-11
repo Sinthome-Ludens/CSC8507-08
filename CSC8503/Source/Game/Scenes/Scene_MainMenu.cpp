@@ -6,6 +6,7 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_UIFlags.h"
@@ -71,8 +72,9 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_UIFlags>();
     }
 
-    systems.Register<ECS::Sys_ImGui>(300);
-    systems.Register<ECS::Sys_UI>  (500);
+    systems.Register<ECS::Sys_ImGui>           (300);
+    systems.Register<ECS::Sys_ImGuiEntityDebug>(310);
+    systems.Register<ECS::Sys_UI>              (500);
 #endif
 
     systems.AwakeAll(registry);
