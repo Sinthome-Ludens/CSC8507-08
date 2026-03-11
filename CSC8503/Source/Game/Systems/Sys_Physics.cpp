@@ -488,6 +488,14 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
 // ============================================================
 // 工具函数
 // ============================================================
+/**
+ * @brief 按实体 ID 设置线速度。
+ * @details 若实体未绑定有效刚体或物理系统尚未初始化，则直接返回，不产生副作用。
+ * @param entity 目标实体 ID
+ * @param vx X 方向速度
+ * @param vy Y 方向速度
+ * @param vz Z 方向速度
+ */
 void ECS::Sys_Physics::SetLinearVelocity(EntityID entity, float vx, float vy, float vz) {
     if (!m_PhysicsSystem) return;
     JPH::BodyID bodyID;
@@ -496,6 +504,14 @@ void ECS::Sys_Physics::SetLinearVelocity(EntityID entity, float vx, float vy, fl
         bodyID, ToJolt(vx, vy, vz));
 }
 
+/**
+ * @brief 按实体 ID 施加冲量。
+ * @details 若实体没有有效 Body 映射，则忽略本次调用。
+ * @param entity 目标实体 ID
+ * @param ix X 方向冲量
+ * @param iy Y 方向冲量
+ * @param iz Z 方向冲量
+ */
 void ECS::Sys_Physics::ApplyImpulse(EntityID entity, float ix, float iy, float iz) {
     if (!m_PhysicsSystem) return;
     JPH::BodyID bodyID;
@@ -504,6 +520,14 @@ void ECS::Sys_Physics::ApplyImpulse(EntityID entity, float ix, float iy, float i
         bodyID, ToJolt(ix, iy, iz));
 }
 
+/**
+ * @brief 按实体 ID 施加持续力。
+ * @details 该接口通常被逐帧调用，以便让动态体持续受到外力驱动。
+ * @param entity 目标实体 ID
+ * @param fx X 方向力
+ * @param fy Y 方向力
+ * @param fz Z 方向力
+ */
 void ECS::Sys_Physics::AddForce(EntityID entity, float fx, float fy, float fz) {
     if (!m_PhysicsSystem) return;
     JPH::BodyID bodyID;
@@ -512,6 +536,12 @@ void ECS::Sys_Physics::AddForce(EntityID entity, float fx, float fy, float fz) {
         bodyID, ToJolt(fx, fy, fz));
 }
 
+/**
+ * @brief 按实体 ID 读取线速度。
+ * @details 若目标实体没有有效刚体映射，则返回零向量。
+ * @param entity 目标实体 ID
+ * @return 当前线速度
+ */
 Vector3 ECS::Sys_Physics::GetLinearVelocity(EntityID entity) {
     if (!m_PhysicsSystem) return Vector3(0, 0, 0);
     JPH::BodyID bodyID;
@@ -521,6 +551,19 @@ Vector3 ECS::Sys_Physics::GetLinearVelocity(EntityID entity) {
     return Vector3(v.GetX(), v.GetY(), v.GetZ());
 }
 
+/**
+ * @brief 按实体 ID 驱动运动学刚体移动。
+ * @details 根据传入目标位姿与固定步长，把 EntityID 解析为底层 Body 后调用 Jolt 的 MoveKinematic。
+ * @param entity 目标实体 ID
+ * @param px 目标位置 X
+ * @param py 目标位置 Y
+ * @param pz 目标位置 Z
+ * @param qx 目标旋转 X
+ * @param qy 目标旋转 Y
+ * @param qz 目标旋转 Z
+ * @param qw 目标旋转 W
+ * @param dt 本次运动学更新步长
+ */
 void ECS::Sys_Physics::MoveKinematic(
     EntityID entity,
     float px, float py, float pz,
@@ -540,8 +583,14 @@ void ECS::Sys_Physics::MoveKinematic(
 // ============================================================
 // SetRotation（供 Sys_Navigation 调用 - 来自 feat/navmesh-system）
 // ============================================================
+/**
+ * @brief 按实体 ID 设置刚体旋转。
+ * @details 主要用于导航等系统同步刚体朝向，并在设置后立即激活目标 Body。
+ * @param entity 目标实体 ID
+ * @param rotation 目标旋转
+ */
 void ECS::Sys_Physics::SetRotation(EntityID entity,
-                                   const NCL::Maths::Quaternion& rotation)
+                                    const NCL::Maths::Quaternion& rotation)
 {
     if (!m_PhysicsSystem) return;
     JPH::BodyID bodyID;
@@ -602,6 +651,13 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
 // ============================================================
 // ReplaceShapeCapsule — 运行时替换碰撞体为 Capsule (来自 master)
 // ============================================================
+/**
+ * @brief 按实体 ID 替换为 Capsule 碰撞体。
+ * @details 用于玩家姿态切换等运行时形状调整场景，保留现有质量属性并激活目标 Body。
+ * @param entity 目标实体 ID
+ * @param halfHeight Capsule 半高
+ * @param radius Capsule 半径
+ */
 void ECS::Sys_Physics::ReplaceShapeCapsule(EntityID entity, float halfHeight, float radius) {
     if (!m_PhysicsSystem) return;
     JPH::BodyID jid;
@@ -621,6 +677,14 @@ void ECS::Sys_Physics::ReplaceShapeCapsule(EntityID entity, float halfHeight, fl
 // ============================================================
 // SetPosition — 直接设置动态体世界位置 (来自 master)
 // ============================================================
+/**
+ * @brief 按实体 ID 设置刚体世界位置。
+ * @details 设置位置后会立即激活目标 Body，确保位移在后续模拟中马上生效。
+ * @param entity 目标实体 ID
+ * @param px X 坐标
+ * @param py Y 坐标
+ * @param pz Z 坐标
+ */
 void ECS::Sys_Physics::SetPosition(EntityID entity, float px, float py, float pz) {
     if (!m_PhysicsSystem) return;
     JPH::BodyID bodyID;
@@ -633,6 +697,11 @@ void ECS::Sys_Physics::SetPosition(EntityID entity, float px, float py, float pz
 // ============================================================
 // ActivateBody — 强制唤醒 Body (来自 master)
 // ============================================================
+/**
+ * @brief 按实体 ID 强制唤醒刚体。
+ * @details 用于确保睡眠中的刚体能立即响应后续的力、速度或位置更新。
+ * @param entity 目标实体 ID
+ */
 void ECS::Sys_Physics::ActivateBody(EntityID entity) {
     if (!m_PhysicsSystem) return;
     JPH::BodyID bodyID;

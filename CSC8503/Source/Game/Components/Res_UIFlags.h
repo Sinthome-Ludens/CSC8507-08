@@ -1,3 +1,7 @@
+/**
+ * @file Res_UIFlags.h
+ * @brief 全局 UI 窗口显隐标志资源定义。
+ */
 #pragma once
 
 #include <cstdint>

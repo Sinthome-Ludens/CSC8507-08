@@ -1,3 +1,7 @@
+/**
+ * @file Scene_NetworkGame.cpp
+ * @brief 联机场景生命周期实现。
+ */
 #include "Scene_NetworkGame.h"
 
 #include "Assets.h"
@@ -34,9 +38,16 @@
 #include "Game/Components/C_D_InterpBuffer.h"
 #include "Game/Components/C_D_RigidBody.h"
 
+/**
+ * @brief 进入联机场景并初始化网络、物理与 UI 系统。
+ * @details 预热资源、创建网络上下文与初始同步实体，依据当前 PeerType 配置客户端插值表现，然后注册网络场景所需系统并唤醒它们。
+ * @param registry 当前场景注册表
+ * @param systems 当前场景系统管理器
+ * @param nclPtrs NCL 桥接资源（当前函数未直接使用）
+ */
 void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
-                                ECS::SystemManager&     systems,
-                                const Res_NCL_Pointers& /*nclPtrs*/)
+                                 ECS::SystemManager&     systems,
+                                 const Res_NCL_Pointers& /*nclPtrs*/)
 {
     // 1. 资源预热
     ECS::AssetManager::Instance().Init();
@@ -132,8 +143,14 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_NetworkGame] OnEnter complete. Mode=" << (m_Mode == ECS::PeerType::SERVER ? "SERVER" : "CLIENT"));
 }
 
+/**
+ * @brief 退出联机场景并释放本场景持有的上下文资源。
+ * @details 先销毁全部系统，再清理网络和 UI 相关 context，最后清空 Registry，避免跨场景残留同步状态或悬空指针。
+ * @param registry 当前场景注册表
+ * @param systems 当前场景系统管理器
+ */
 void Scene_NetworkGame::OnExit(ECS::Registry&      registry,
-                               ECS::SystemManager& systems) 
+                                ECS::SystemManager& systems) 
 {
     systems.DestroyAll(registry);
     // Explicitly clear context resources owned/used by this scene to avoid

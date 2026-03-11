@@ -18,8 +18,23 @@ namespace ECS {
  */
 class Sys_ImGuiEntityDebug : public ISystem {
 public:
+    /**
+     * @brief 初始化全量实体调试窗口系统。
+     * @param registry 当前场景注册表
+     */
     void OnAwake(Registry& registry) override;
+
+    /**
+     * @brief 根据 UI 标志渲染全量实体调试窗口。
+     * @param registry 当前场景注册表
+     * @param dt 本帧时间步长
+     */
     void OnUpdate(Registry& registry, float dt) override;
+
+    /**
+     * @brief 销毁全量实体调试窗口系统。
+     * @param registry 当前场景注册表
+     */
     void OnDestroy(Registry& registry) override;
 
 private:

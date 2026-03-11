@@ -22,12 +22,20 @@
 
 namespace ECS {
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 辅助：将实体平滑旋转朝向 targetPos（Caution 与路径跟随共用）
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @brief 将实体平滑旋转到朝向目标位置。
+ * @details 该辅助函数被 Caution 朝向修正与路径跟随逻辑共用，并在需要时把旋转同步回物理系统。
+ * @param entity 当前实体 ID
+ * @param agent 导航代理组件
+ * @param tf 当前实体变换
+ * @param rb 当前实体刚体
+ * @param physics 物理系统指针
+ * @param targetPos 目标世界位置
+ * @param dt 本帧时间步长
+ */
 static void ApplyRotationToward(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
-                                C_D_RigidBody& rb, Sys_Physics* physics,
-                                const NCL::Maths::Vector3& targetPos, float dt)
+                                 C_D_RigidBody& rb, Sys_Physics* physics,
+                                 const NCL::Maths::Vector3& targetPos, float dt)
 {
     NCL::Maths::Vector3 dir = targetPos - tf.position;
     dir.y = 0.0f;
@@ -49,11 +57,18 @@ static void ApplyRotationToward(EntityID entity, C_D_NavAgent& agent, C_D_Transf
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 辅助：按 path_waypoints 推进路点并施加速度（Alert / Hunt 共用）
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @brief 按路径路点推进导航代理。
+ * @details 在 Alert 与 Hunt 状态下复用该辅助逻辑，负责推进当前路点、同步朝向并向物理系统写入期望速度。
+ * @param entity 当前实体 ID
+ * @param agent 导航代理组件
+ * @param tf 当前实体变换
+ * @param rb 当前实体刚体
+ * @param physics 物理系统指针
+ * @param dt 本帧时间步长
+ */
 static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
-                       C_D_RigidBody& rb, Sys_Physics* physics, float dt)
+                        C_D_RigidBody& rb, Sys_Physics* physics, float dt)
 {
     if (!agent.is_active || agent.path_length == 0) return;
 

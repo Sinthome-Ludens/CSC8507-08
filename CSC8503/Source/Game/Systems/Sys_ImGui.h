@@ -26,26 +26,96 @@ namespace ECS {
  */
 class Sys_ImGui : public ISystem {
 public:
+    /**
+     * @brief 初始化 ImGui 通用窗口系统。
+     * @param registry 当前场景注册表
+     */
     void OnAwake  (Registry& registry)           override;
+
+    /**
+     * @brief 渲染 ImGui 通用菜单栏与基础调试窗口。
+     * @param registry 当前场景注册表
+     * @param dt 本帧时间步长
+     */
     void OnUpdate (Registry& registry, float dt) override;
+
+    /**
+     * @brief 销毁 ImGui 通用窗口系统。
+     * @param registry 当前场景注册表
+     */
     void OnDestroy(Registry& registry)           override;
 
 private:
     // ── 核心窗口 ──────────────────────────────────────────────────────────
+    /**
+     * @brief 渲染主菜单栏。
+     * @param registry 当前场景注册表
+     */
     void RenderMainMenuBar  (Registry& registry);
+
+    /**
+     * @brief 渲染基础调试窗口。
+     * @param registry 当前场景注册表
+     * @param dt 本帧时间步长
+     */
     void RenderDebugWindow  (Registry& registry, float dt);
+
+    /**
+     * @brief 渲染 NCL 运行状态窗口。
+     * @param registry 当前场景注册表
+     */
     void RenderNCLStatus    (Registry& registry);
 
     // ── Test Scene 调试控制（状态读写 Res_TestState context）────────────
-    void RenderTestControlsWindow(Registry& registry);  ///< 控制面板：Cube/Capsule Spawn/Delete/Gravity
-    void RenderNetworkDebugWindow(Registry& registry);  ///< 网络调试面板：状态/流量/NetID映射
+    /**
+     * @brief 渲染测试场景控制面板。
+     * @param registry 当前场景注册表
+     */
+    void RenderTestControlsWindow(Registry& registry);
 
-    void SpawnCube          (Registry& registry);                          ///< 通过 PrefabFactory 生成动态方块
-    void DeleteLastCube     (Registry& registry);                          ///< 销毁最后生成的方块
-    void SpawnCapsule       (Registry& registry);                          ///< 通过 PrefabFactory 生成动态胶囊
-    void DeleteLastCapsule  (Registry& registry);                          ///< 销毁最后生成的胶囊
-    void SetGravityAll      (Registry& registry, float factor);            ///< 批量修改 gravity_factor（cube + capsule）
-    void CleanupTestEntities(Registry& registry, Res_TestState& state);    ///< 清除实体列表中已失效的 EntityID
+    /**
+     * @brief 渲染网络调试面板。
+     * @param registry 当前场景注册表
+     */
+    void RenderNetworkDebugWindow(Registry& registry);
+
+    /**
+     * @brief 生成一个测试方块实体。
+     * @param registry 当前场景注册表
+     */
+    void SpawnCube(Registry& registry);
+
+    /**
+     * @brief 删除最后生成的测试方块实体。
+     * @param registry 当前场景注册表
+     */
+    void DeleteLastCube(Registry& registry);
+
+    /**
+     * @brief 生成一个测试胶囊实体。
+     * @param registry 当前场景注册表
+     */
+    void SpawnCapsule(Registry& registry);
+
+    /**
+     * @brief 删除最后生成的测试胶囊实体。
+     * @param registry 当前场景注册表
+     */
+    void DeleteLastCapsule(Registry& registry);
+
+    /**
+     * @brief 批量设置测试实体的重力系数。
+     * @param registry 当前场景注册表
+     * @param factor 目标重力系数
+     */
+    void SetGravityAll(Registry& registry, float factor);
+
+    /**
+     * @brief 清理测试实体列表中的失效 EntityID。
+     * @param registry 当前场景注册表
+     * @param state 测试场景运行时状态
+     */
+    void CleanupTestEntities(Registry& registry, Res_TestState& state);
 
     // ── 窗口可见标志（系统配置，非游戏状态）────────────────────────────
     bool m_ShowDemoWindow  = false;

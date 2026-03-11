@@ -36,10 +36,18 @@ namespace ECS {
 // OnAwake / OnDestroy
 // ============================================================
 
+/**
+ * @brief 初始化 ImGui 通用窗口系统。
+ * @param registry 当前场景注册表
+ */
 void Sys_ImGui::OnAwake(Registry& /*registry*/) {
     LOG_INFO("[Sys_ImGui] OnAwake");
 }
 
+/**
+ * @brief 销毁 ImGui 通用窗口系统。
+ * @param registry 当前场景注册表
+ */
 void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
     LOG_INFO("[Sys_ImGui] OnDestroy");
 }
@@ -48,6 +56,12 @@ void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
 // OnUpdate
 // ============================================================
 
+/**
+ * @brief 渲染 ImGui 通用菜单栏与基础调试窗口。
+ * @details 当开发者模式开启时，负责驱动主菜单栏、性能调试、NCL 状态和测试控制等基础窗口。
+ * @param registry 当前场景注册表
+ * @param dt 本帧时间步长（秒）
+ */
 void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
     // 开发者模式关闭时隐藏所有调试界面
     if (registry.has_ctx<Res_UIState>()
@@ -74,6 +88,11 @@ void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
 // RenderMainMenuBar
 // ============================================================
 
+/**
+ * @brief 渲染主菜单栏。
+ * @details 提供基础窗口显隐开关、测试场景工具入口和调试场景切换请求入口。
+ * @param registry 当前场景注册表
+ */
 void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
     if (!ImGui::BeginMainMenuBar()) return;
 
@@ -124,6 +143,12 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
 // RenderDebugWindow
 // ============================================================
 
+/**
+ * @brief 渲染基础调试窗口。
+ * @details 展示帧率、实体数量、渲染状态，以及与相机调试相关的常用控制项。
+ * @param registry 当前场景注册表
+ * @param dt 本帧时间步长（秒）
+ */
 void Sys_ImGui::RenderDebugWindow(Registry& registry, float dt) {
     ImGui::Begin("Debug Window", &m_ShowDebugWindow);
     ImGui::Text("FPS: %.1f",           (dt > 0.0f) ? 1.0f / dt : 0.0f);
@@ -178,6 +203,11 @@ void Sys_ImGui::RenderDebugWindow(Registry& registry, float dt) {
 // RenderNCLStatus
 // ============================================================
 
+/**
+ * @brief 渲染 NCL 运行状态窗口。
+ * @details 展示底层 GameWorld 对象数量、约束数量和 Physics Bridge 是否可用等状态信息。
+ * @param registry 当前场景注册表
+ */
 void Sys_ImGui::RenderNCLStatus(Registry& registry) {
     ImGui::Begin("NCL Status", &m_ShowNCLStatus);
 

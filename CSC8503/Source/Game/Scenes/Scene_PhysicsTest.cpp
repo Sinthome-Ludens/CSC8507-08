@@ -55,9 +55,16 @@
 // OnEnter（场景加载阶段）
 // ============================================================
 
+/**
+ * @brief 进入物理测试场景并准备测试资源、实体与系统。
+ * @details 加载测试网格、重置测试态 context、生成基础地板/玩家/边界墙，并注册物理测试场景所需的玩法、渲染和调试系统。
+ * @param registry 当前场景注册表
+ * @param systems 当前场景系统管理器
+ * @param nclPtrs NCL 桥接资源（当前函数未直接使用）
+ */
 void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
-                                ECS::SystemManager&     systems,
-                                const Res_NCL_Pointers& /*nclPtrs*/)
+                                 ECS::SystemManager&     systems,
+                                 const Res_NCL_Pointers& /*nclPtrs*/)
 {
     // ── 1. 资源预热：初始化 AssetManager，加载本场景所需 mesh ──────────
     ECS::AssetManager::Instance().Init();
@@ -226,8 +233,14 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 // OnExit（场景卸载阶段）
 // ============================================================
 
+/**
+ * @brief 退出物理测试场景并清理测试场景上下文资源。
+ * @details 逆序销毁系统后移除测试场景注入的配置、UI 和测试状态资源，最后清空 Registry 中的全部实体与组件。
+ * @param registry 当前场景注册表
+ * @param systems 当前场景系统管理器
+ */
 void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
-                               ECS::SystemManager& systems)
+                                ECS::SystemManager& systems)
 {
     // 逆序停机
     systems.DestroyAll(registry);
