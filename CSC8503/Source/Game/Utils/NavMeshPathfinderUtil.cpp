@@ -16,6 +16,30 @@
 namespace ECS {
 
 // ============================================================
+// ComputeSlopeAngle — 计算三角形坡度角（0=平地，90=垂直墙）
+// ============================================================
+static float ComputeSlopeAngle(const NCL::Maths::Vector3& a,
+                                const NCL::Maths::Vector3& b,
+                                const NCL::Maths::Vector3& c)
+{
+    NCL::Maths::Vector3 ab(b.x - a.x, b.y - a.y, b.z - a.z);
+    NCL::Maths::Vector3 ac(c.x - a.x, c.y - a.y, c.z - a.z);
+
+    // 叉积：normal = ab × ac
+    NCL::Maths::Vector3 normal(
+        ab.y * ac.z - ab.z * ac.y,
+        ab.z * ac.x - ab.x * ac.z,
+        ab.x * ac.y - ab.y * ac.x);
+
+    float len = sqrtf(normal.x*normal.x + normal.y*normal.y + normal.z*normal.z);
+    if (len < 0.0001f) return 0.0f;   // 退化三角形
+
+    // cosθ = dot(normal, up) / |normal| = normal.y / len
+    float cosTheta = normal.y / len;
+    return acosf(std::clamp(cosTheta, -1.0f, 1.0f)) * 57.29577f;
+}
+
+// ============================================================
 // LoadNavMesh — 检测格式并委托给对应解析器
 // 命名格式（TutorialMap.navmesh）：首个非注释 token 为字母
 // 纯数字格式（test.navmesh）：首个非注释 token 为整数
@@ -200,13 +224,14 @@ bool NavMeshPathfinderUtil::LoadRawFormat(std::ifstream& file)
             LOG_WARN("[NavMeshPathfinderUtil] Triangle read error at " << i);
             return false;
         }
-        // 计算重心
+        // 计算重心 + 坡度
         const auto& a = m_Vertices[t.v[0]];
         const auto& b = m_Vertices[t.v[1]];
         const auto& c = m_Vertices[t.v[2]];
         t.centroid.x = (a.x + b.x + c.x) / 3.0f;
         t.centroid.y = (a.y + b.y + c.y) / 3.0f;
         t.centroid.z = (a.z + b.z + c.z) / 3.0f;
+        t.slope_angle = ComputeSlopeAngle(a, b, c);
     }
 
     // ── 3. 读取内嵌邻居数据（可选，每行 n0 n1 n2）──────────
@@ -249,6 +274,7 @@ void NavMeshPathfinderUtil::ScaleVertices(float scale)
         t.centroid.x = (a.x + b.x + c.x) / 3.0f;
         t.centroid.y = (a.y + b.y + c.y) / 3.0f;
         t.centroid.z = (a.z + b.z + c.z) / 3.0f;
+        t.slope_angle = ComputeSlopeAngle(a, b, c);
     }
 }
 
@@ -334,7 +360,7 @@ void NavMeshPathfinderUtil::BuildAdjacency()
 {
     int N = static_cast<int>(m_Triangles.size());
 
-    // ── 计算重心 ──────────────────────────────────────────────
+    // ── 计算重心 + 坡度 ──────────────────────────────────────────
     for (int i = 0; i < N; ++i) {
         NavTriangle& t = m_Triangles[i];
         const NCL::Maths::Vector3& a = m_Vertices[t.v[0]];
@@ -343,6 +369,7 @@ void NavMeshPathfinderUtil::BuildAdjacency()
         t.centroid.x = (a.x + b.x + c.x) / 3.0f;
         t.centroid.y = (a.y + b.y + c.y) / 3.0f;
         t.centroid.z = (a.z + b.z + c.z) / 3.0f;
+        t.slope_angle = ComputeSlopeAngle(a, b, c);
     }
 
     // ── 按位置判断是否相邻（共享两个坐标相同的顶点）────────────
@@ -385,8 +412,8 @@ void NavMeshPathfinderUtil::BuildAdjacency()
 }
 
 // ============================================================
-// FindNearestTriangle — 返回 XZ 平面上重心距 p 最近的可行走三角形
-// 只考虑 XZ 平面距离，避免高度差导致选到错误层的三角形。
+// FindNearestTriangle — 返回 3D 距离最近的可行走三角形（Y 权重 2×）
+// Y 权重加倍可防止多层地图中选到错误楼层（垂直分离优先于水平接近）。
 // 跳过 area != 0 的不可通行三角形。
 // ============================================================
 int NavMeshPathfinderUtil::FindNearestTriangle(const NCL::Maths::Vector3& p) const
@@ -399,8 +426,9 @@ int NavMeshPathfinderUtil::FindNearestTriangle(const NCL::Maths::Vector3& p) con
 
         const NCL::Maths::Vector3& c = m_Triangles[i].centroid;
         float dx = p.x - c.x;
+        float dy = p.y - c.y;
         float dz = p.z - c.z;
-        float d  = dx*dx + dz*dz;
+        float d  = dx*dx + (dy*dy)*4.0f + dz*dz;  // Y 权重 2×（平方后 4×）
         if (d < bestD) {
             bestD = d;
             best  = i;
@@ -460,7 +488,11 @@ bool NavMeshPathfinderUtil::AStarSearch(int startTri, int endTri,
             const NCL::Maths::Vector3& cc = m_Triangles[cur].centroid;
             const NCL::Maths::Vector3& nc = m_Triangles[nb].centroid;
             float dx = nc.x - cc.x, dy = nc.y - cc.y, dz = nc.z - cc.z;
-            float newG = gCost[cur] + sqrtf(dx*dx + dy*dy + dz*dz);
+            float edgeDist = sqrtf(dx*dx + dy*dy + dz*dz);
+
+            // 斜坡代价惩罚：坡度 > 15° 的三角形移动代价 × 1.5
+            float slopePenalty = (m_Triangles[nb].slope_angle > 15.0f) ? 1.5f : 1.0f;
+            float newG = gCost[cur] + edgeDist * slopePenalty;
 
             if (newG < gCost[nb]) {
                 gCost[nb]  = newG;
@@ -575,7 +607,10 @@ bool NavMeshPathfinderUtil::FindPath(const NCL::Maths::Vector3& start,
             float lb = sqrtf(bx*bx + bz*bz);
             if (la < 0.01f || lb < 0.01f) continue; // 退化点跳过
             float dot = (ax/la)*(bx/lb) + (az/la)*(bz/lb);
-            if (dot < 0.98f) { // 方向变化超过约 11° 才保留
+
+            // 保留路点条件：XZ 方向变化 > 11° OR Y 高度变化 > 0.3m
+            float yDelta = std::max(fabsf(curr.y - prev.y), fabsf(next.y - curr.y));
+            if (dot < 0.98f || yDelta > 0.3f) {
                 simplified.push_back(curr);
             }
         }
@@ -584,6 +619,26 @@ bool NavMeshPathfinderUtil::FindPath(const NCL::Maths::Vector3& start,
     }
 
     return true;
+}
+
+// ============================================================
+// GetWalkableGeometry — 导出可行走三角形（供地板碰撞体生成）
+// ============================================================
+void NavMeshPathfinderUtil::GetWalkableGeometry(
+    std::vector<NCL::Maths::Vector3>& outVerts,
+    std::vector<int>& outIndices) const
+{
+    if (!m_Loaded) return;
+
+    // 直接输出全部顶点（Jolt 仅使用索引引用的顶点）
+    outVerts = m_Vertices;
+
+    for (const auto& tri : m_Triangles) {
+        if (tri.area != static_cast<int>(NavArea::Walkable)) continue;
+        outIndices.push_back(tri.v[0]);
+        outIndices.push_back(tri.v[1]);
+        outIndices.push_back(tri.v[2]);
+    }
 }
 
 } // namespace ECS

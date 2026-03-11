@@ -19,6 +19,7 @@
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
 
 using namespace NCL::Maths;
 
@@ -130,11 +131,20 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
 void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     if (!m_PhysicsSystem) return;
 
-    // 1. 检测并创建新实体的 Jolt Body
+    // 1. 检测并创建新实体的 Jolt Body（标准碰撞体）
     registry.view<C_D_Transform, C_D_RigidBody, C_D_Collider>().each(
         [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col) {
             if (!rb.body_created) {
                 CreateBodyForEntity(registry, id, tf, rb, col);
+            }
+        }
+    );
+
+    // 1b. 检测并创建三角网格碰撞体（用于多层地图地板/斜坡）
+    registry.view<C_D_Transform, C_D_RigidBody, C_D_TriMeshCollider>().each(
+        [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb, C_D_TriMeshCollider& tri) {
+            if (!rb.body_created) {
+                CreateTriMeshBodyForEntity(registry, id, tf, rb, tri);
             }
         }
     );
@@ -336,6 +346,77 @@ void ECS::Sys_Physics::CreateBodyForEntity(
     rb.jolt_body_id  = rawID;
     rb.body_created  = true;
     m_BodyToEntity[rawID] = id;
+}
+
+// ============================================================
+// CreateTriMeshBodyForEntity — Jolt MeshShape（多层地图地板）
+// ============================================================
+void ECS::Sys_Physics::CreateTriMeshBodyForEntity(
+    Registry& reg, EntityID id,
+    C_D_Transform& tf, C_D_RigidBody& rb, C_D_TriMeshCollider& tri)
+{
+    if (tri.vertices.empty() || tri.indices.empty()) {
+        LOG_WARN("[Sys_Physics] CreateTriMeshBodyForEntity: empty geometry for entity " << id);
+        return;
+    }
+    const int triCount = static_cast<int>(tri.indices.size()) / 3;
+    if (triCount == 0) return;
+
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+
+    // 构建 Jolt 顶点列表
+    JPH::VertexList joltVerts;
+    joltVerts.reserve(tri.vertices.size());
+    for (const auto& v : tri.vertices) {
+        joltVerts.push_back(JPH::Float3(v.x, v.y, v.z));
+    }
+
+    // 构建 Jolt 三角形索引列表
+    JPH::IndexedTriangleList joltTris;
+    joltTris.reserve(triCount);
+    for (int i = 0; i < triCount; ++i) {
+        joltTris.push_back(JPH::IndexedTriangle(
+            static_cast<uint32_t>(tri.indices[i*3 + 0]),
+            static_cast<uint32_t>(tri.indices[i*3 + 1]),
+            static_cast<uint32_t>(tri.indices[i*3 + 2]),
+            0));
+    }
+
+    JPH::MeshShapeSettings meshSettings(joltVerts, joltTris);
+    auto shapeResult = meshSettings.Create();
+    if (shapeResult.HasError()) {
+        LOG_ERROR("[Sys_Physics] MeshShape creation failed for entity " << id
+                  << ": " << shapeResult.GetError().c_str());
+        return;
+    }
+
+    JPH::BodyCreationSettings bcs(
+        shapeResult.Get(),
+        JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
+        JPH::Quat::sIdentity(),
+        JPH::EMotionType::Static,
+        PhysicsLayers::NON_MOVING);
+
+    bcs.mFriction    = tri.friction;
+    bcs.mRestitution = tri.restitution;
+    bcs.mUserData    = static_cast<uint64_t>(id);
+
+    JPH::Body* body = bi.CreateBody(bcs);
+    if (!body) {
+        LOG_ERROR("[Sys_Physics] Failed to create TriMesh Body for entity " << id);
+        return;
+    }
+
+    bi.AddBody(body->GetID(), JPH::EActivation::DontActivate);
+
+    uint32_t rawID   = body->GetID().GetIndexAndSequenceNumber();
+    rb.jolt_body_id  = rawID;
+    rb.body_created  = true;
+    m_BodyToEntity[rawID] = id;
+
+    LOG_INFO("[Sys_Physics] TriMesh floor body created: entity=" << id
+             << " tris=" << triCount
+             << " pos=(" << tf.position.x << "," << tf.position.y << "," << tf.position.z << ")");
 }
 
 // ============================================================

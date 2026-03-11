@@ -31,7 +31,8 @@ private:
     void SpawnTarget         (Registry& registry);
     void DeleteLastTarget    (Registry& registry);
 
-    bool m_ShowWindow = true;
+    bool  m_ShowWindow   = true;
+    float m_SpawnYOffset = 0.0f;  ///< 生成高度偏移（相机 Y + offset），默认 0 = 与相机同高
 };
 
 } // namespace ECS

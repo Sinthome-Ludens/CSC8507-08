@@ -34,6 +34,7 @@ struct NavTriangle {
     int  neighbors[3];   ///< 相邻三角形索引（-1 = 无）
     NCL::Maths::Vector3 centroid; ///< 三角形重心（预计算）
     int  area = 0;       ///< 区域类型（0=可行走，1=不可通行）
+    float slope_angle = 0.0f; ///< 坡度角（0=平地，90=垂直墙，用于 A* 代价调整）
 };
 
 /**
@@ -79,6 +80,19 @@ public:
      * @return 边界边列表（navmesh 局部坐标系下）
      */
     std::vector<BoundaryEdge> GetBoundaryEdges() const;
+
+    /**
+     * @brief 提取所有可行走三角形的顶点和索引（area == Walkable）
+     *
+     * 用于生成 NavMesh 地板物理碰撞体（配合 PrefabFactory::CreateNavMeshFloor）。
+     * 坐标为 navmesh 局部空间，已经过 ScaleVertices 处理。
+     * 必须在 LoadNavMesh 和 ScaleVertices 之后调用。
+     *
+     * @param outVerts   输出顶点列表（局部空间）
+     * @param outIndices 输出索引列表（每 3 个为一个三角形）
+     */
+    void GetWalkableGeometry(std::vector<NCL::Maths::Vector3>& outVerts,
+                              std::vector<int>& outIndices) const;
 
     /**
      * @brief PathfinderUtil 接口：A* 寻路

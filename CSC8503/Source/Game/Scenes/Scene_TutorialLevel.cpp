@@ -100,6 +100,15 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     m_Pathfinder->LoadNavMesh(NCL::Assets::MESHDIR + "TutorialMap.navmesh");
     m_Pathfinder->ScaleVertices(kMapScale);   // 寻路坐标与物理世界同步缩放
 
+    // NavMesh 三角网格地板碰撞体（为斜坡/多层平台提供精确物理支撑）
+    {
+        std::vector<NCL::Maths::Vector3> floorVerts;
+        std::vector<int>                 floorIndices;
+        m_Pathfinder->GetWalkableGeometry(floorVerts, floorIndices);
+        PrefabFactory::CreateNavMeshFloor(registry, floorVerts, floorIndices,
+                                          NCL::Maths::Vector3(0.0f, -6.0f * kMapScale, 0.0f));
+    }
+
     // ── 墙体碰撞体自动生成 ──────────────────────────────────────────────
     // 从 navmesh 边界边提取墙面位置，创建隐形 Box 碰撞体。
     // ScaleVertices 已将顶点坐标缩放，因此边界边坐标已是缩放后的世界空间值。

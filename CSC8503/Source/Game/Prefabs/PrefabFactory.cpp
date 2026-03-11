@@ -27,6 +27,7 @@
 #include "Game/Components/C_D_Material.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
+#include "Game/Components/C_D_TriMeshCollider.h"
 #include "Game/Components/C_T_Player.h"
 #include "Game/Components/C_T_InvisibleWall.h"
 #include "Game/Components/C_D_PlayerState.h"
@@ -667,6 +668,48 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
     LOG_INFO("[PrefabFactory] CreatePhysicsCapsule id=" << entity
              << " index=" << spawnIndex
              << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateNavMeshFloor  →  PREFAB_ENV_NAVMESH_FLOOR
+// ============================================================
+ECS::EntityID PrefabFactory::CreateNavMeshFloor(
+    ECS::Registry&                          reg,
+    const std::vector<NCL::Maths::Vector3>& vertices,
+    const std::vector<int>&                 indices,
+    NCL::Maths::Vector3                     worldOffset)
+{
+    EntityID entity = reg.Create();
+
+    // C_D_Transform：体原点设为 worldOffset，顶点为该原点的局部空间
+    reg.Emplace<C_D_Transform>(entity,
+        worldOffset,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    // C_D_RigidBody（静态体）
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    // C_D_TriMeshCollider（三角网格地板）
+    C_D_TriMeshCollider tri{};
+    tri.vertices    = vertices;
+    tri.indices     = indices;
+    tri.friction    = 0.5f;
+    tri.restitution = 0.0f;
+    reg.Emplace<C_D_TriMeshCollider>(entity, std::move(tri));
+
+    // C_D_DebugName
+    AttachDebugName(reg, entity, "ENTITY_Env_NavMeshFloor");
+
+    LOG_INFO("[PrefabFactory] CreateNavMeshFloor id=" << entity
+             << " verts=" << vertices.size()
+             << " tris=" << (indices.size() / 3)
+             << " offset=(" << worldOffset.x << "," << worldOffset.y << "," << worldOffset.z << ")");
 
     return entity;
 }

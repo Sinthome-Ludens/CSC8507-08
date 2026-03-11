@@ -19,6 +19,7 @@
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
+#include "Game/Components/C_D_TriMeshCollider.h"
 #include "Game/Events/Evt_Phys_Collision.h"
 #include "Game/Events/Evt_Phys_Trigger.h"
 
@@ -291,6 +292,9 @@ private:
     void InitJolt();
     void CreateBodyForEntity(Registry& reg, EntityID id,
                              C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col);
+    void CreateTriMeshBodyForEntity(Registry& reg, EntityID id,
+                                    C_D_Transform& tf, C_D_RigidBody& rb,
+                                    C_D_TriMeshCollider& tri);
     void SyncTransformsFromJolt(Registry& reg, float fixedDt);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);

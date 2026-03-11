@@ -83,6 +83,15 @@ void Scene_Helipad::OnEnter(ECS::Registry&          registry,
     m_Pathfinder->LoadNavMesh(NCL::Assets::MESHDIR + "Helipad.navmesh");
     m_Pathfinder->ScaleVertices(kMapScale);
 
+    // NavMesh 三角网格地板碰撞体（为斜坡/多层平台提供精确物理支撑）
+    {
+        std::vector<NCL::Maths::Vector3> floorVerts;
+        std::vector<int>                 floorIndices;
+        m_Pathfinder->GetWalkableGeometry(floorVerts, floorIndices);
+        PrefabFactory::CreateNavMeshFloor(registry, floorVerts, floorIndices,
+                                          NCL::Maths::Vector3(0.0f, -6.0f * kMapScale, 0.0f));
+    }
+
     {
         constexpr float kMapYOffset    = -6.0f  * kMapScale;
         constexpr float kWallHalfH     =  4.0f  * kMapScale;

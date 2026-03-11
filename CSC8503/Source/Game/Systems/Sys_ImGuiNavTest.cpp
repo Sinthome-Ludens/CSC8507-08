@@ -31,8 +31,9 @@ void Sys_ImGuiNavTest::OnUpdate(Registry& registry, float /*dt*/) {
 
 // ============================================================
 // 相机前方生成位置（内部辅助，供 SpawnXxx 复用）
+// yOffset：在相机 Y 基础上的额外偏移（正值向上，负值向下）
 // ============================================================
-static Vector3 CalcNavSpawnPos(Registry& registry) {
+static Vector3 CalcNavSpawnPos(Registry& registry, float yOffset = 0.0f) {
     Vector3 spawnPos(0.0f, 0.0f, 0.0f);
     if (registry.has_ctx<Res_CameraContext>()) {
         auto& camCtx = registry.ctx<Res_CameraContext>();
@@ -45,7 +46,7 @@ static Vector3 CalcNavSpawnPos(Registry& registry) {
             const float yawRad = cam.yaw * (3.14159265f / 180.0f);
             const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
             spawnPos   = tf.position + forward * 6.0f;
-            spawnPos.y = -4.0f;
+            spawnPos.y = tf.position.y + yOffset;  // 跟随相机高度，支持多层平台
         }
     }
     return spawnPos;
@@ -59,7 +60,16 @@ void Sys_ImGuiNavTest::RenderNavTestWindow(Registry& registry) {
 
     ImGui::Begin("Nav Test Controls", &m_ShowWindow);
 
+    // ── 生成高度控制 ────────────────────────────────────────────────
+    ImGui::Text("== Spawn Settings ==");
+    ImGui::Separator();
+    ImGui::SliderFloat("Y Offset", &m_SpawnYOffset, -10.0f, 10.0f);
+    ImGui::SameLine();
+    if (ImGui::Button("Reset##Y", ImVec2(50, 0))) m_SpawnYOffset = 0.0f;
+    ImGui::TextDisabled("  (Camera Y + offset = spawn height)");
+
     // ── Enemy Factory ──────────────────────────────────────────────
+    ImGui::Spacing();
     ImGui::Text("== Enemy Factory ==");
     ImGui::Separator();
     if (ImGui::Button("Spawn Nav Enemy",       ImVec2(150, 30))) SpawnEnemy_Nav(registry);
@@ -108,7 +118,7 @@ void Sys_ImGuiNavTest::SpawnEnemy_Nav(Registry& registry) {
         return;
     }
 
-    Vector3 spawnPos = CalcNavSpawnPos(registry);
+    Vector3 spawnPos = CalcNavSpawnPos(registry, m_SpawnYOffset);
     EntityID id = PrefabFactory::CreateNavEnemy(
         registry, state.enemyMeshHandle, state.enemySpawnIndex, spawnPos);
     ++state.enemySpawnIndex;
@@ -143,8 +153,7 @@ void Sys_ImGuiNavTest::SpawnTarget(Registry& registry) {
         return;
     }
 
-    Vector3 spawnPos = CalcNavSpawnPos(registry);
-    spawnPos.y = -4.5f;  // 地板顶面 y=-5.0，目标半高 0.5 → 中心在 -4.5，贴地放置
+    Vector3 spawnPos = CalcNavSpawnPos(registry, m_SpawnYOffset);
     EntityID id = PrefabFactory::CreateNavTarget(
         registry, state.targetMeshHandle, state.targetSpawnIndex, spawnPos);
     ++state.targetSpawnIndex;

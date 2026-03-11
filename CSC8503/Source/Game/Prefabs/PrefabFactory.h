@@ -4,6 +4,7 @@
 #include "Core/Bridge/AssetManager.h"
 #include "Vector.h"
 #include "Quaternion.h"
+#include <vector>
 
 /**
  * @brief 实体预制体工厂（硬编码模式）
@@ -259,5 +260,31 @@ public:
         ECS::MeshHandle     capsuleMesh,
         int                 spawnIndex,
         NCL::Maths::Vector3 spawnPos
+    );
+
+    // ============================================================
+    // NavMesh 地板碰撞体
+    // ============================================================
+
+    /**
+     * @brief 从 NavMesh 可行走三角形创建静态地板碰撞体（PREFAB_ENV_NAVMESH_FLOOR）
+     *
+     * 挂载：C_D_Transform, C_D_RigidBody(Static), C_D_TriMeshCollider, C_D_DebugName
+     * 不挂载 C_D_Collider（使用 TriMesh 路径）。
+     *
+     * 适用于多层地图（HangerA/HangerB/Lab 等），为斜坡和上层平台提供精确物理支撑。
+     * 顶点坐标应为 NavMesh 局部空间（已 ScaleVertices），worldOffset 提供 Y 偏移对齐。
+     *
+     * @param reg         ECS Registry
+     * @param vertices    NavMesh 可行走顶点列表（局部空间）
+     * @param indices     三角形索引列表（每 3 个为一个三角形）
+     * @param worldOffset 体的世界偏移（通常为 (0, -6*kMapScale, 0)）
+     * @return 地板实体 ID
+     */
+    static ECS::EntityID CreateNavMeshFloor(
+        ECS::Registry&                          reg,
+        const std::vector<NCL::Maths::Vector3>& vertices,
+        const std::vector<int>&                 indices,
+        NCL::Maths::Vector3                     worldOffset
     );
 };
