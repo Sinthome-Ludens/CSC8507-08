@@ -314,6 +314,11 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 // RenderNetworkDebugWindow
 // ============================================================
 
+/**
+ * @brief 渲染网络调试面板。
+ * @details 展示当前联机模式、连接状态、流量统计、NetID 映射和插值缓存信息，便于排查同步问题。
+ * @param registry 当前场景注册表
+ */
 void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
     if (!registry.has_ctx<Res_Network>()) return;
     auto& resNet = registry.ctx<Res_Network>();

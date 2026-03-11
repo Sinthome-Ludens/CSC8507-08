@@ -198,6 +198,11 @@ void ECS::Sys_Physics::OnFixedUpdate(Registry& registry, float fixedDt) {
 // ============================================================
 // OnDestroy
 // ============================================================
+/**
+ * @brief 销毁物理系统并释放当前场景创建的全部 Jolt 资源。
+ * @details 逐个移除并销毁已注册 Body，清空实体与 Body 的双向映射及运行时缓存，然后撤销 registry context 中的物理系统裸指针。
+ * @param registry 当前场景注册表
+ */
 void ECS::Sys_Physics::OnDestroy(Registry& registry) {
     // 移除所有 Jolt Body
     auto& bi = m_PhysicsSystem->GetBodyInterface();
@@ -228,6 +233,15 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
 // ============================================================
 // CreateBodyForEntity
 // ============================================================
+/**
+ * @brief 为指定实体创建 Jolt 刚体。
+ * @details 根据变换、刚体和碰撞体组件构建 Shape 与 BodyCreationSettings，创建成功后把 EntityID 与底层 BodyID 建立双向映射。
+ * @param reg 当前场景注册表
+ * @param id 目标实体 ID
+ * @param tf 目标实体变换组件
+ * @param rb 目标实体刚体组件
+ * @param col 目标实体碰撞体组件
+ */
 void ECS::Sys_Physics::CreateBodyForEntity(
     Registry& reg, EntityID id,
     C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col)
@@ -329,6 +343,12 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 // ============================================================
 // SyncTransformsFromJolt（动态体 Jolt→ECS / 运动学体 ECS→Jolt）
 // ============================================================
+/**
+ * @brief 在 ECS Transform 与 Jolt 模拟结果之间同步位姿。
+ * @details 对运动学体执行 ECS 到 Jolt 的 MoveKinematic，对动态体则把 Jolt 的位置和旋转回写到 ECS Transform。
+ * @param reg 当前场景注册表
+ * @param fixedDt 固定物理步长
+ */
 void ECS::Sys_Physics::SyncTransformsFromJolt(Registry& reg, float fixedDt) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
@@ -379,6 +399,11 @@ bool ECS::Sys_Physics::TryGetBodyID(EntityID entity, JPH::BodyID& outBodyID) con
 // ============================================================
 // FlushCollisionEvents
 // ============================================================
+/**
+ * @brief 将挂起的接触事件转换为 ECS 事件并发布。
+ * @details 从 ContactListener 提取缓存的碰撞与触发器事件，解析涉及实体后发布对应的 TriggerEnter、TriggerExit 或普通碰撞事件。
+ * @param reg 当前场景注册表
+ */
 void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
     // 从 ContactListener 取出 pending 事件（加锁后 swap）
     std::vector<ECSContactListener::PendingContact> contacts;
@@ -438,6 +463,11 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
 // ============================================================
 // DestroyOrphanBodies（清理已销毁实体的 Jolt Body）
 // ============================================================
+/**
+ * @brief 清理无效实体遗留的孤立 Jolt Body。
+ * @details 扫描 Body 到 Entity 的映射，销毁所有已经失效实体对应的 Body，并同步清理反向映射与运行时缓存，避免 stale 映射被后续复用命中。
+ * @param reg 当前场景注册表
+ */
 void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
     std::vector<uint32_t> toRemove;
