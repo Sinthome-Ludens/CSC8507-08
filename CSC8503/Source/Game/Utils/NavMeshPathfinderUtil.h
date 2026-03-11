@@ -2,8 +2,18 @@
 #include "Game/Utils/PathfinderUtil.h"
 #include <vector>
 #include <string>
+#include <fstream>
 
 namespace ECS {
+
+/**
+ * @brief NavMesh 区域类型
+ * 0 = 可行走，1 = 不可通行，2+ = 自定义（高代价等）
+ */
+enum class NavArea : int {
+    Walkable    = 0,
+    NotWalkable = 1,
+};
 
 /**
  * @brief NavMesh 三角形数据（内部使用）
@@ -12,6 +22,7 @@ struct NavTriangle {
     int  v[3];           ///< 顶点索引（m_Vertices 中）
     int  neighbors[3];   ///< 相邻三角形索引（-1 = 无）
     NCL::Maths::Vector3 centroid; ///< 三角形重心（预计算）
+    int  area = 0;       ///< 区域类型（0=可行走，1=不可通行）
 };
 
 /**
@@ -53,10 +64,16 @@ private:
     std::vector<NavTriangle>          m_Triangles;
     bool                              m_Loaded = false;
 
-    /// 计算每个三角形的重心并建立邻接表
+    /// 解析命名节格式（vertexCount / indexCount / vertices / indices / areas）
+    bool LoadNamedFormat(std::ifstream& file);
+
+    /// 解析纯数字格式（含内嵌邻居数据）
+    bool LoadRawFormat(std::ifstream& file);
+
+    /// 计算每个三角形的重心并建立邻接表（仅命名格式需要）
     void BuildAdjacency();
 
-    /// 返回重心距 p 最近的三角形索引
+    /// 返回重心距 p 最近的可行走三角形索引
     int  FindNearestTriangle(const NCL::Maths::Vector3& p) const;
 
     /// 在三角形图上执行 A* 搜索，outTriPath 为三角形索引序列
