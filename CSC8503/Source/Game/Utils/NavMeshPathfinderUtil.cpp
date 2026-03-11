@@ -233,7 +233,77 @@ bool NavMeshPathfinderUtil::LoadRawFormat(std::ifstream& file)
 }
 
 // ============================================================
-// BuildAdjacency — 计算每个三角形的重心，并建立边邻接关系
+// GetBoundaryEdges — 提取 navmesh 所有边界边（无邻居的三角形边）
+//
+// 原理：对每个三角形的每条边（v_e, v_{e+1 mod 3}），在所有其他三角形中
+// 搜索是否存在坐标相同的对边（顺序任意）。若无，则该边是边界边（= 墙面）。
+//
+// 复杂度 O(N² × 9)，与 BuildAdjacency 相同，在场景加载时调用一次。
+// ============================================================
+std::vector<BoundaryEdge> NavMeshPathfinderUtil::GetBoundaryEdges() const
+{
+    std::vector<BoundaryEdge> result;
+    if (!m_Loaded) return result;
+
+    constexpr float kEps2 = 0.01f * 0.01f;
+    int N = static_cast<int>(m_Triangles.size());
+
+    auto posEq = [&](int vi, int vj) -> bool {
+        const NCL::Maths::Vector3& a = m_Vertices[vi];
+        const NCL::Maths::Vector3& b = m_Vertices[vj];
+        float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+        return dx*dx + dy*dy + dz*dz < kEps2;
+    };
+
+    for (int i = 0; i < N; ++i) {
+        const NavTriangle& ti = m_Triangles[i];
+
+        for (int e = 0; e < 3; ++e) {
+            int va = ti.v[e];
+            int vb = ti.v[(e + 1) % 3];
+
+            // 检查是否有其他三角形共享该边（正向或反向）
+            bool shared = false;
+            for (int j = 0; j < N && !shared; ++j) {
+                if (j == i) continue;
+                const NavTriangle& tj = m_Triangles[j];
+                for (int f = 0; f < 3 && !shared; ++f) {
+                    int vc = tj.v[f];
+                    int vd = tj.v[(f + 1) % 3];
+                    if ((posEq(va, vc) && posEq(vb, vd)) ||
+                        (posEq(va, vd) && posEq(vb, vc))) {
+                        shared = true;
+                    }
+                }
+            }
+
+            if (!shared) {
+                const NCL::Maths::Vector3& p0 = m_Vertices[va];
+                const NCL::Maths::Vector3& p1 = m_Vertices[vb];
+                float dx  = p1.x - p0.x;
+                float dz  = p1.z - p0.z;
+                float len = sqrtf(dx*dx + dz*dz);
+                if (len < 0.05f) continue;   // 跳过退化边
+
+                BoundaryEdge be;
+                be.v0       = p0;
+                be.v1       = p1;
+                be.midpoint = NCL::Maths::Vector3(
+                    (p0.x + p1.x) * 0.5f,
+                    (p0.y + p1.y) * 0.5f,
+                    (p0.z + p1.z) * 0.5f);
+                be.length   = len;
+                be.dirX     = dx / len;
+                be.dirZ     = dz / len;
+                result.push_back(be);
+            }
+        }
+    }
+
+    return result;
+}
+
+
 //
 // 使用 世界坐标位置比较（epsilon 容差） 而非顶点索引比较。
 // 原因：Unity 导出的 navmesh 相邻三角形不共享整数索引，

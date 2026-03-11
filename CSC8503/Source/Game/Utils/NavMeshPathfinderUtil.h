@@ -7,6 +7,17 @@
 namespace ECS {
 
 /**
+ * @brief NavMesh 边界边数据（邻居为 -1 的三角形边 = 墙面位置）
+ * 用于在场景中自动生成隐形墙体碰撞体。
+ */
+struct BoundaryEdge {
+    NCL::Maths::Vector3 v0, v1;    ///< 两端点（navmesh 局部坐标系）
+    NCL::Maths::Vector3 midpoint;  ///< 边中点
+    float length;                  ///< 边长（XZ 平面）
+    float dirX, dirZ;              ///< 归一化边方向（XZ，用于计算旋转）
+};
+
+/**
  * @brief NavMesh 区域类型
  * 0 = 可行走，1 = 不可通行，2+ = 自定义（高代价等）
  */
@@ -48,6 +59,16 @@ public:
 
     /// 是否已成功加载 navmesh
     bool IsLoaded() const { return m_Loaded; }
+
+    /**
+     * @brief 提取 navmesh 的所有边界边（无邻居的三角形边 = 墙壁位置）
+     *
+     * 用于在场景初始化时自动创建隐形墙体碰撞体。
+     * 每条边界边对应一面墙壁，包含中点、长度和方向信息。
+     *
+     * @return 边界边列表（navmesh 局部坐标系下）
+     */
+    std::vector<BoundaryEdge> GetBoundaryEdges() const;
 
     /**
      * @brief PathfinderUtil 接口：A* 寻路

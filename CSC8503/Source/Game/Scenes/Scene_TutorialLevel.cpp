@@ -4,6 +4,7 @@
  */
 #include "Scene_TutorialLevel.h"
 
+#include <cmath>
 #include "Assets.h"
 #include "Core/Bridge/AssetManager.h"
 #include "Core/ECS/Registry.h"
@@ -94,6 +95,55 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     m_Pathfinder = std::make_unique<ECS::NavMeshPathfinderUtil>();
     navSys->SetPathfinder(m_Pathfinder.get());
     m_Pathfinder->LoadNavMesh(NCL::Assets::MESHDIR + "TutorialMap.navmesh");
+
+    // ── 墙体碰撞体自动生成 ──────────────────────────────────────────────
+    // 从 navmesh 边界边提取墙面位置，创建隐形 Box 碰撞体。
+    //
+    // 坐标系对齐：
+    //   navmesh Y ≈ 0.583（Unity 原始坐标系）
+    //   地图实体 Y 偏移 = -6.0（CreateStaticMap Transform）
+    //   物理世界地面 Y = 0.583 + (-6.0) = -5.417
+    //
+    // 墙体参数：
+    //   高度 8m（半高 4m），完全覆盖可通行区域
+    //   厚度 0.5m（半厚 0.25m），防止隧穿
+    {
+        constexpr float kMapYOffset    = -6.0f;
+        constexpr float kWallHalfH     = 4.0f;
+        constexpr float kWallHalfThick = 0.25f;
+
+        auto edges = m_Pathfinder->GetBoundaryEdges();
+        int wallIdx = 0;
+
+        for (const auto& edge : edges) {
+            // 墙体中心 Y = 边在 navmesh 中的 Y + 地图偏移 + 半高
+            float worldCenterY = edge.midpoint.y + kMapYOffset + kWallHalfH;
+
+            NCL::Maths::Vector3 wallPos(
+                edge.midpoint.x,
+                worldCenterY,
+                edge.midpoint.z);
+
+            // 旋转：使 Box 局部 X 轴对齐边方向
+            // Ry(θ) * (1,0,0) = (cosθ, 0, −sinθ) = (dirX, 0, dirZ)
+            // → θ = atan2(−dirZ, dirX)
+            float yawDeg = atan2f(-edge.dirZ, edge.dirX) * 57.29577f;
+            NCL::Maths::Quaternion wallRot =
+                NCL::Maths::Quaternion::EulerAnglesToQuaternion(0.0f, yawDeg, 0.0f);
+
+            // Box 半尺寸：X 方向沿边，Y 方向为高，Z 方向为厚度
+            NCL::Maths::Vector3 halfExtents(
+                edge.length * 0.5f,
+                kWallHalfH,
+                kWallHalfThick);
+
+            PrefabFactory::CreateInvisibleWall(
+                registry, wallIdx++, wallPos, halfExtents, wallRot);
+        }
+
+        LOG_INFO("[Scene_TutorialLevel] Generated " << wallIdx
+                 << " wall colliders from navmesh boundary edges.");
+    }
 
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
     systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 C_D_AIPerception::is_spotted）
