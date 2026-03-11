@@ -444,6 +444,10 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
 
     for (uint32_t rawID : toRemove) {
         JPH::BodyID jid(rawID);
+        const auto itEntity = m_BodyToEntity.find(rawID);
+        const EntityID entity = (itEntity != m_BodyToEntity.end())
+            ? itEntity->second
+            : Entity::NULL_ENTITY;
 
         // 移除 body 前，唤醒该区域内所有睡眠的动态体。
         // Jolt 的 RemoveBody 不会自动激活邻近体，导致叠放在上方的 cube
@@ -466,7 +470,11 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
 
         bi.RemoveBody(jid);
         bi.DestroyBody(jid);
+        if (Entity::IsValid(entity)) {
+            m_EntityToBody.erase(entity);
+        }
         m_BodyToEntity.erase(rawID);
+        g_LastGravityFactors.erase(rawID);
     }
 }
 
