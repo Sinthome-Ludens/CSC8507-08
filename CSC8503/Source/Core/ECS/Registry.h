@@ -85,7 +85,6 @@
 #include <unordered_map>
 #include <memory>
 #include <any>
-#include <unordered_set>
 #include <vector>
 #include <functional>
 #include <tuple>
@@ -679,16 +678,21 @@ View<Ts...> Registry::view() {
 
 template<typename Func>
 void Registry::ForEachActiveEntity(Func&& func) const {
-    std::unordered_set<uint32_t> freeIndices(m_FreeList.begin(), m_FreeList.end());
-    std::unordered_set<EntityID> pendingDestroy(m_PendingDestroy.begin(), m_PendingDestroy.end());
+    auto isFreeIndex = [&](uint32_t index) {
+        return std::find(m_FreeList.begin(), m_FreeList.end(), index) != m_FreeList.end();
+    };
+
+    auto isPendingDestroy = [&](EntityID entity) {
+        return std::find(m_PendingDestroy.begin(), m_PendingDestroy.end(), entity) != m_PendingDestroy.end();
+    };
 
     for (uint32_t index = 0; index < static_cast<uint32_t>(m_Versions.size()); ++index) {
-        if (freeIndices.contains(index)) {
+        if (isFreeIndex(index)) {
             continue;
         }
 
         const EntityID entity = Entity::Make(index, m_Versions[index]);
-        if (!Valid(entity) || pendingDestroy.contains(entity)) {
+        if (!Valid(entity) || isPendingDestroy(entity)) {
             continue;
         }
 

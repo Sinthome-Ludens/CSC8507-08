@@ -25,6 +25,15 @@
 
 namespace ECS {
 
+static std::vector<EntityID> CollectActiveEntities(const Registry& registry) {
+    std::vector<EntityID> entities;
+    entities.reserve(registry.EntityCount());
+    registry.ForEachActiveEntity([&](EntityID entity) {
+        entities.push_back(entity);
+    });
+    return entities;
+}
+
 /**
  * @brief 记录实体调试系统已启动。
  * @param registry 当前场景注册表
@@ -72,7 +81,9 @@ void Sys_ImGuiEntityDebug::RenderEntityDebugWindow(Registry& registry) {
         return;
     }
 
-    ImGui::Text("Active Entities: %d", static_cast<int>(registry.EntityCount()));
+    const std::vector<EntityID> entities = CollectActiveEntities(registry);
+
+    ImGui::Text("Active Entities: %d", static_cast<int>(entities.size()));
     ImGui::Separator();
 
     ImGui::Columns(2, "entity_debug_columns", true);
@@ -90,11 +101,7 @@ void Sys_ImGuiEntityDebug::RenderEntityDebugWindow(Registry& registry) {
  * @param registry 当前场景注册表
  */
 void Sys_ImGuiEntityDebug::RenderEntityList(Registry& registry) {
-    std::vector<EntityID> entities;
-    entities.reserve(registry.EntityCount());
-    registry.ForEachActiveEntity([&](EntityID entity) {
-        entities.push_back(entity);
-    });
+    const std::vector<EntityID> entities = CollectActiveEntities(registry);
 
     ImGui::TextUnformatted("Entities");
     ImGui::Separator();
