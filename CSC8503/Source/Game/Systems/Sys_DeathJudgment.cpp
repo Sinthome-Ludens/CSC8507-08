@@ -7,7 +7,7 @@
  * - OnUpdate:
  *   1. 更新无敌计时器（invTimer 递减）
  *   2. Hunt 敌人抓捕检测（XZ 平方距离 < captureDistance²）
- *   3. 死亡检查：玩家 hp<=0 触发场景重启，敌人 hp<=0 触发实体销毁
+ *   3. 死亡检查：玩家 hp<=0 触发场景重启，敌人 hp<=0 挂载 C_D_Dying + C_D_DeathVisual，由 Sys_DeathEffect 执行四阶段动画后延迟销毁
  * - OnDestroy: 取消 EventBus 订阅
  */
 #include "Sys_DeathJudgment.h"
@@ -24,6 +24,7 @@
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_EnemyEnums.h"
+#include "Game/UI/UI_ActionNotify.h"
 #include "Game/Events/Evt_Phys_Trigger.h"
 #include "Game/Events/Evt_Death.h"
 #include "Game/Scenes/IScene.h"
@@ -31,6 +32,10 @@
 
 namespace ECS {
 
+/**
+ * @brief 系统初始化：订阅 Evt_Phys_TriggerEnter，检测死亡区域并将受害者 HP 设为 0。
+ * @param registry ECS 注册表
+ */
 void Sys_DeathJudgment::OnAwake(Registry& registry) {
     // 订阅触发器进入事件（死亡区域即死）
     if (registry.has_ctx<EventBus*>()) {
@@ -73,6 +78,11 @@ void Sys_DeathJudgment::OnAwake(Registry& registry) {
     LOG_INFO("[Sys_DeathJudgment] OnAwake");
 }
 
+/**
+ * @brief 每帧更新：无敌计时器递减、Hunt 抓捕检测、死亡检查与通知推送。
+ * @param registry ECS 注册表
+ * @param dt       帧时间（秒）
+ */
 void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_DeathConfig>()) return;
     const auto& config = registry.ctx<Res_DeathConfig>();
@@ -193,16 +203,19 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                 registry.Emplace<C_D_DeathVisual>(entity);
 
                 // 击杀通知
-                if (registry.has_ctx<Res_GameState>()) {
-                    auto& gs = registry.ctx<Res_GameState>();
-                    gs.killNotifyActive = true;
-                    gs.killNotifyTimer  = 0.0f;
-                }
+#ifdef USE_IMGUI
+                ECS::UI::PushActionNotify(registry, "消灭", "敌人", 10,
+                                          ActionNotifyType::Kill);
+#endif
             }
         }
     );
 }
 
+/**
+ * @brief 系统销毁：取消 EventBus 中的 TriggerEnter 订阅。
+ * @param registry ECS 注册表
+ */
 void Sys_DeathJudgment::OnDestroy(Registry& registry) {
     if (m_TriggerSubId != 0 && registry.has_ctx<EventBus*>()) {
         auto* bus = registry.ctx<EventBus*>();

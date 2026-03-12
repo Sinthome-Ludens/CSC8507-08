@@ -30,6 +30,8 @@ void PushActionNotify(Registry& registry, const char* verb, const char* target,
     if (!registry.has_ctx<Res_ActionNotifyState>()) return;
     auto& state = registry.ctx<Res_ActionNotifyState>();
     auto& entry = state.entries[state.nextSlot];
+    if (!verb)   verb   = "";
+    if (!target) target = "";
     std::snprintf(entry.verb,   sizeof(entry.verb),   "%s", verb);
     std::snprintf(entry.target, sizeof(entry.target), "%s", target);
     entry.scoreDelta = scoreDelta;

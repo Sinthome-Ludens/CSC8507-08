@@ -1,3 +1,12 @@
+/**
+ * @file Sys_PlayerCQC.cpp
+ * @brief 玩家 CQC（近战制服）系统实现：状态机推进、拟态激活、背面扇形目标检测。
+ *
+ * @details
+ * - OnUpdate：驱动 Approach → Execute → Complete 三阶段状态机；
+ *             F 键优先检测拟态（对休眠敌人），其次检测 CQC 目标（背面扇形）；
+ *             Complete 阶段直接对目标挂载死亡组件并推送动作通知
+ */
 #include "Sys_PlayerCQC.h"
 
 #include "Game/Components/C_D_Input.h"
@@ -17,6 +26,7 @@
 #include "Game/Events/Evt_CQC_Mimicry.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/UI/UI_ActionNotify.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
 
@@ -27,6 +37,11 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
+/**
+ * @brief 每帧更新 CQC 状态机：冷却计时、阶段推进、目标检测与击杀通知。
+ * @param registry ECS 注册表
+ * @param dt       帧时间（秒）
+ */
 void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_CQCConfig>()) return;
     const auto& config = registry.ctx<Res_CQCConfig>();
@@ -77,11 +92,10 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                         LOG_INFO("[Sys_PlayerCQC] CQC kill: entity " << (int)target);
 
                         // 击杀通知
-                        if (registry.has_ctx<Res_GameState>()) {
-                            auto& gs = registry.ctx<Res_GameState>();
-                            gs.killNotifyActive = true;
-                            gs.killNotifyTimer  = 0.0f;
-                        }
+#ifdef USE_IMGUI
+                        ECS::UI::PushActionNotify(registry, "消灭", "敌人", 10,
+                                                  ECS::ActionNotifyType::Kill);
+#endif
 
                         // 发布 CQC 完成事件
                         if (bus) {
