@@ -20,14 +20,16 @@ namespace ECS {
  */
 class Sys_DeathEffect : public ISystem {
 public:
-    void OnAwake  (Registry& registry) override {}
+    /** @brief 系统初始化（无操作）。 */
+    void OnAwake  (Registry& /*registry*/) override {}
     /**
      * @brief 每帧推进死亡动画四阶段（数字冲击→霓虹故障→数据溶解→最终崩塌），动画结束后销毁实体。
      * @param registry ECS 注册表
      * @param dt       帧时间（秒）
      */
     void OnUpdate (Registry& registry, float dt) override;
-    void OnDestroy(Registry& registry) override {}
+    /** @brief 系统销毁（无操作）。 */
+    void OnDestroy(Registry& /*registry*/) override {}
 };
 
 } // namespace ECS
