@@ -111,10 +111,10 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                         // 冻结目标速度（防止死亡动画中残留 Jolt 速度漂移）
                         if (registry.has_ctx<Sys_Physics*>()) {
                             auto* physics = registry.ctx<Sys_Physics*>();
-                            if (physics && registry.Has<C_D_RigidBody>(cqc.targetEnemy)) {
-                                auto& erb = registry.Get<C_D_RigidBody>(cqc.targetEnemy);
+                            if (physics && registry.Has<C_D_RigidBody>(target)) {
+                                auto& erb = registry.Get<C_D_RigidBody>(target);
                                 if (erb.body_created) {
-                                    physics->SetLinearVelocity(cqc.targetEnemy, 0.0f, 0.0f, 0.0f);
+                                    physics->SetLinearVelocity(target, 0.0f, 0.0f, 0.0f);
                                 }
                             }
                         }
