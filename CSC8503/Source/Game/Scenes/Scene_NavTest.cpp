@@ -32,7 +32,12 @@
 // ============================================================
 // OnEnter（场景加载阶段）
 // ============================================================
-
+/**
+ * @brief 场景加载：初始化 AssetManager、注册 ctx 资源、生成实体、注册系统。
+ * @param registry ECS 注册表
+ * @param systems  系统管理器（注册并 Awake 各系统）
+ * @param nclPtrs  NCL 核心指针（GameWorld/PhysicsSystem/Renderer）
+ */
 void Scene_NavTest::OnEnter(ECS::Registry&          registry,
                             ECS::SystemManager&     systems,
                             const Res_NCL_Pointers& /*nclPtrs*/)
@@ -87,7 +92,7 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Physics>      (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyVision>  (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
     systems.Register<ECS::Sys_DeathJudgment>(125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死）
-    systems.Register<ECS::Sys_DeathEffect> (126);   // 死亡视觉特效（闪白 + 发光淡出 + 缩放消失）
+    systems.Register<ECS::Sys_DeathEffect> (126);   // 死亡视觉特效（赛博朋克四阶段：数字冲击→霓虹故障→数据溶解→最终崩塌）
 
     auto* navSys = systems.Register<ECS::Sys_Navigation>(130);
     m_Pathfinder = std::make_unique<ECS::NavMeshPathfinderUtil>();
@@ -126,7 +131,11 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 // ============================================================
 // OnExit（场景卸载阶段）
 // ============================================================
-
+/**
+ * @brief 场景卸载：逆序销毁所有系统，重置寻路器，清除场景指针 ctx。
+ * @param registry ECS 注册表
+ * @param systems  系统管理器（调用 DestroyAll）
+ */
 void Scene_NavTest::OnExit(ECS::Registry&      registry,
                            ECS::SystemManager& systems)
 {

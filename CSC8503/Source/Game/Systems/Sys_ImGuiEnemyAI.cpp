@@ -1,3 +1,13 @@
+/**
+ * @file Sys_ImGuiEnemyAI.cpp
+ * @brief 敌人 AI 调试监控系统实现：ImGui 表格展示所有敌人实体的状态与感知数据。
+ *
+ * @details
+ * - OnAwake：记录初始化日志
+ * - OnDestroy：记录销毁日志
+ * - OnUpdate：m_ShowWindow 为 true 时调用 RenderEnemyMonitorWindow
+ * - RenderEnemyMonitorWindow：渲染 "Enemy Monitoring Station" 调试窗口（5 列表格）
+ */
 #include "Sys_ImGuiEnemyAI.h"
 #ifdef USE_IMGUI
 

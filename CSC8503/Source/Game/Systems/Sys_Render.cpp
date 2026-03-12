@@ -1,3 +1,16 @@
+/**
+ * @file Sys_Render.cpp
+ * @brief ECS 渲染桥接系统实现：将 ECS 实体同步为 NCL GameTechRenderer 代理对象。
+ *
+ * @details
+ * - OnAwake：从 Res_NCL_Pointers 获取 GameWorld 指针
+ * - OnUpdate：遍历 C_D_Transform + C_D_MeshRenderer 实体，CreateProxy/SyncProxy；
+ *             调用 CleanupOrphans 删除已销毁实体的代理对象
+ * - OnDestroy：移除并释放所有代理对象
+ * - CreateProxy：为 ECS 实体在 GameWorld 中创建 NCL GameObject 代理
+ * - SyncProxy：将 ECS Transform/Material 同步到已有代理的 NCL GameObject
+ * - CleanupOrphans：检测并移除 ECS 中已销毁但代理仍存在的 GameObject
+ */
 #include "Sys_Render.h"
 #include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Utils/Log.h"

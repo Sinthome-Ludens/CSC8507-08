@@ -1,3 +1,11 @@
+/**
+ * @file C_D_NavAgent.h
+ * @brief NavAgent 数据组件：导航移动参数、路径状态与状态感知字段。
+ *
+ * @details
+ * 挂载条件：实体必须同时挂载 C_T_Pathfinder 才会被 Sys_Navigation 处理。
+ * 路径使用固定大小数组（NAV_MAX_WAYPOINTS = 8），不使用 std::vector。
+ */
 #pragma once
 #include "Vector.h"
 #include "Quaternion.h"

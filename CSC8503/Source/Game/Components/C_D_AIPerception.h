@@ -1,3 +1,11 @@
+/**
+ * @file C_D_AIPerception.h
+ * @brief AI 感知数据组件：警戒度累积、状态阈值与 Hunt 锁定计时器。
+ *
+ * @details
+ * 由 Sys_EnemyVision 写入 detection_value（视野内递增，视野外递减），
+ * 由 Sys_EnemyAI 读取阈值（hunt/alert/search_threshold）以驱动状态切换。
+ */
 #pragma once
 
 namespace ECS {

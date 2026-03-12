@@ -1,3 +1,11 @@
+/**
+ * @file Sys_Navigation.cpp
+ * @brief 导航系统实现：状态感知寻路与移动控制。
+ *
+ * @details
+ * 根据 C_D_AIState 当前状态分支执行：Safe 静止、Search 旋转朝向、
+ * Alert 前往快照位置、Hunt 实时追踪并定期重规划路径。
+ */
 #include "Sys_Navigation.h"
 #include <cstring>
 #include <cmath>
@@ -16,8 +24,15 @@
 namespace ECS {
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 辅助：将实体平滑旋转朝向 targetPos（Search 与路径跟随共用）
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @brief 将实体平滑旋转朝向 targetPos（Search 与路径跟随共用）。
+ * @param agent   NavAgent 数据组件（提供 rotation_speed）
+ * @param tf      实体变换组件（读写 rotation）
+ * @param rb      刚体组件（同步 Jolt Body 旋转）
+ * @param physics 物理系统指针（调用 SetRotation）
+ * @param targetPos 目标世界坐标（仅使用 XZ 分量）
+ * @param dt      帧时间（秒）
+ */
 static void ApplyRotationToward(C_D_NavAgent& agent, C_D_Transform& tf,
                                 C_D_RigidBody& rb, Sys_Physics* physics,
                                 const NCL::Maths::Vector3& targetPos, float dt)
@@ -106,8 +121,11 @@ static void CopyPathToAgent(C_D_NavAgent& agent,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 主更新
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @brief 每帧推进所有具有 C_T_Pathfinder + C_D_NavAgent 实体的导航逻辑。
+ * @param registry ECS 注册表，用于访问 C_D_AIState、C_D_Transform 等组件。
+ * @param dt       帧时间（秒）。
+ */
 void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
     if (!m_Pathfinder) {
         LOG_WARN("[Sys_Navigation] Pathfinder is null, skipping update.");

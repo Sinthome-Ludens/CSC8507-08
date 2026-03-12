@@ -55,7 +55,12 @@
 // ============================================================
 // OnEnter（场景加载阶段）
 // ============================================================
-
+/**
+ * @brief 场景加载：初始化 AssetManager、注册 ctx 资源、生成实体、注册系统。
+ * @param registry ECS 注册表
+ * @param systems  系统管理器（注册并 Awake 各系统）
+ * @param nclPtrs  NCL 核心指针（GameWorld/PhysicsSystem/Renderer）
+ */
 void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
                                 ECS::SystemManager&     systems,
                                 const Res_NCL_Pointers& /*nclPtrs*/)
@@ -227,7 +232,11 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 // ============================================================
 // OnExit（场景卸载阶段）
 // ============================================================
-
+/**
+ * @brief 场景卸载：逆序销毁所有系统，清除场景级 ctx 资源，防止跨场景状态泄漏。
+ * @param registry ECS 注册表
+ * @param systems  系统管理器（调用 DestroyAll）
+ */
 void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
                                ECS::SystemManager& systems)
 {

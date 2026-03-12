@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <vector>
 
 #include "Game/Components/C_D_Dying.h"
@@ -43,6 +44,11 @@ static uint32_t QuickHash(uint32_t seed, uint32_t salt) {
     return seed;
 }
 
+/**
+ * @brief 每帧推进所有具有 C_D_Dying 实体的死亡动画（四阶段），动画结束后销毁实体。
+ * @param registry ECS 注册表
+ * @param dt       帧时间（秒）
+ */
 void Sys_DeathEffect::OnUpdate(Registry& registry, float dt) {
     std::vector<EntityID> toDestroy;
 
