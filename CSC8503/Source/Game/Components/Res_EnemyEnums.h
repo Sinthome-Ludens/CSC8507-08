@@ -11,13 +11,15 @@
 namespace ECS {
 
 /**
- * @brief 敌人 AI 状态枚举（由 alertLevel 驱动）。
+ * @brief 敌人 AI 状态枚举（由 detection_value 驱动）。
  * @details
- * alertLevel → EnemyState 映射：
- *   - [0,  20) → Safe
- *   - [20, 40) → Search
- *   - [40, 80) → Alert
- *   - [80,100] → Hunt
+ * C_D_AIPerception.detection_value → EnemyState 映射（默认阈值）：
+ *   - [0,  20) → Safe   （search_threshold 以下）
+ *   - [20, 40) → Search （search_threshold ~ alert_threshold）
+ *   - [40, 80) → Alert  （alert_threshold ~ hunt_threshold）
+ *   - [80,100] → Hunt   （hunt_threshold 以上）
+ * 阈值由 C_D_AIPerception 的各 *_threshold 字段控制，可在运行时调节。
+ * @note 与 Res_GameState::AlertStatus 同名状态的阈值不同（AlertStatus 驱动于全局 gs.alertLevel）
  */
 enum class EnemyState : uint8_t {
     Safe   = 0,   ///< 安全状态：巡逻或待机
