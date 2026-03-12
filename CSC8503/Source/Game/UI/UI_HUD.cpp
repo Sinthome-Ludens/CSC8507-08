@@ -145,7 +145,6 @@ static void RenderHUD_Countdown(ImDrawList* draw, const Res_GameState& gs, float
     ImFont* titleFont = UITheme::GetFont_TerminalLarge();
 
     int totalSec = (int)std::max(0.0f, gs.countdownTimer);
-    if (totalSec > 30) return;  // 前2秒隐藏，玩家从30开始看到
 
     char timeBuf[8];
     snprintf(timeBuf, sizeof(timeBuf), "!%d!", totalSec);
