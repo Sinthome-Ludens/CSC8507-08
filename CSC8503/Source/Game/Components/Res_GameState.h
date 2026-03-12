@@ -12,9 +12,7 @@
  * - **Sys_Alert**：修改 `alertLevel`
  * - **Sys_Countdown**：修改 `countdownTimer`、`countdownActive`、`gameOverReason`
  * - **Sys_Chat**：读写 `alertLevel`（回复效果）
- * - **Sys_PlayerCQC**：写入 `killNotifyActive/Timer`（CQC 击杀触发）
- * - **Sys_DeathJudgment**：写入 `killNotifyActive/Timer`（HP 归零触发）
- * - **Sys_UI**：读取所有字段显示 HUD；推进 `killNotifyTimer`，到期清除 `killNotifyActive`
+ * - **Sys_UI**：读取所有字段显示 HUD
  *
  * @note 多个 System 可能同时写入此资源，需注意逻辑顺序。
  */
@@ -33,6 +31,11 @@ enum class AlertStatus : uint8_t {
     Hunt   = 3,   // 51 ~ 100
 };
 
+/**
+ * @brief 根据警戒等级数值返回对应的 AlertStatus 枚举。
+ * @param alertLevel 当前警戒等级（0.0 ~ 100.0）
+ * @return 对应的 AlertStatus 值（Safe/Search/Alert/Hunt）
+ */
 inline AlertStatus GetAlertStatus(float alertLevel) {
     if (alertLevel <= 15.0f)  return AlertStatus::Safe;
     if (alertLevel <= 30.0f)  return AlertStatus::Search;
@@ -40,6 +43,11 @@ inline AlertStatus GetAlertStatus(float alertLevel) {
     return AlertStatus::Hunt;
 }
 
+/**
+ * @brief 将 AlertStatus 枚举转换为可显示的字符串。
+ * @param s AlertStatus 枚举值
+ * @return 对应的英文大写字符串（"SAFE"/"SEARCH"/"ALERT"/"HUNT"/"UNKNOWN"）
+ */
 inline const char* GetAlertStatusText(AlertStatus s) {
     switch (s) {
         case AlertStatus::Safe:   return "SAFE";
@@ -50,18 +58,18 @@ inline const char* GetAlertStatusText(AlertStatus s) {
     }
 }
 
-// ── 玩家移动状态 ──────────────────────────────────────────────
+/// @brief 玩家移动状态枚举（Standing/Crouching/Running），由 Sys_Input 写入。
 enum class PlayerMoveState : uint8_t {
     Standing  = 0,
     Crouching = 1,
     Running   = 2,
 };
 
-// ── 装备槽显示数据 ──────────────────────────────────────────
+/// @brief 装备槽显示数据（名称/数量/冷却进度），由 HUD 渲染直接读取。
 struct SlotDisplay {
     char    name[16] = {};
     uint8_t count    = 0;
-    float   cooldown = 0.0f;   // 0.0 = ready, >0 = on cooldown (normalized 0~1)
+    float   cooldown = 0.0f;   ///< 0.0 = ready，>0 = 冷却中（归一化 0~1）
 };
 
 /**
@@ -81,8 +89,8 @@ struct Res_GameState {
     bool isGameOver = false;
 
     // ─ 倒计时 ─────────────────────────────────────────────
-    float countdownTimer   = 32.0f;
-    float countdownMax     = 32.0f;
+    float countdownTimer   = 30.0f;
+    float countdownMax     = 30.0f;
     bool  countdownActive  = false;
 
     // ─ 玩家状态 ───────────────────────────────────────────
@@ -119,10 +127,6 @@ struct Res_GameState {
     float    disruptionDuration  = 0.0f;   ///< 干扰总时长
     uint32_t networkPing         = 0;      ///< 网络延迟 RTT (ms)
 
-    // ─ 击杀通知 ─────────────────────────────────────────
-    bool  killNotifyActive   = false;   ///< 是否正在显示击杀通知
-    float killNotifyTimer    = 0.0f;    ///< 已经过时间（秒）
-    float killNotifyDuration = 2.0f;    ///< 总显示时长（秒）
 };
 
 } // namespace ECS

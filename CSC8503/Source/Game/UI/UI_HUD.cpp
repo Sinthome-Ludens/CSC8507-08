@@ -1,3 +1,14 @@
+/**
+ * @file UI_HUD.cpp
+ * @brief HUD 渲染实现：任务面板、警戒条、倒计时、玩家状态、噪音、装备槽、
+ *        降级特效、多人对战面板（对手进度条/干扰特效/网络状态）及 RenderHUD 入口。
+ *
+ * @details
+ * 所有子面板均为 static 函数，仅由 RenderHUD() 调用。
+ * 使用 ImDrawList（前景层）绘制，不产生 ImGui 窗口。
+ *
+ * @see UI_HUD.h, UI_ActionNotify.h（动作通知卡片独立渲染）
+ */
 #include "UI_HUD.h"
 #ifdef USE_IMGUI
 
@@ -13,7 +24,7 @@
 
 namespace ECS::UI {
 
-// ── 游戏区域宽度（去掉右侧聊天面板） ──────────────────────
+/// @brief 返回去掉右侧聊天面板后的游戏区域宽度（像素）。
 static float GetGameAreaWidth(float displayW) {
     return displayW - Res_ChatState::PANEL_WIDTH;
 }
@@ -21,6 +32,7 @@ static float GetGameAreaWidth(float displayW) {
 // ============================================================
 // 1. RenderHUD_MissionPanel — 左上角任务面板
 // ============================================================
+/// @brief 渲染左上角任务面板（任务名 + 目标文字）。
 static void RenderHUD_MissionPanel(ImDrawList* draw, const Res_GameState& gs, float /*gameW*/) {
     ImFont* smallFont = UITheme::GetFont_Small();
     ImFont* termFont  = UITheme::GetFont_Terminal();
@@ -50,8 +62,9 @@ static void RenderHUD_MissionPanel(ImDrawList* draw, const Res_GameState& gs, fl
 }
 
 // ============================================================
-// 2. RenderHUD_AlertGauge — 右上角 5 级分段彩色条
+// 2. RenderHUD_AlertGauge — 右上角 4 级分段彩色条
 // ============================================================
+/// @brief 渲染右上角警戒条（Safe/Search/Alert/Hunt 四级分段彩色条）。倒计时激活时隐藏。
 static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, float gameW) {
     // 倒计时激活时隐藏警戒条
     if (gs.countdownActive) return;
@@ -125,6 +138,7 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
 // ============================================================
 // 3. RenderHUD_Countdown — 上方中央倒计时
 // ============================================================
+/// @brief 渲染上方居中倒计时（MM:SS），仅在 countdownActive 时显示，脉冲动画随 globalTime。
 static void RenderHUD_Countdown(ImDrawList* draw, const Res_GameState& gs, float gameW, float globalTime) {
     if (!gs.countdownActive) return;
 
@@ -162,6 +176,7 @@ static void RenderHUD_Countdown(ImDrawList* draw, const Res_GameState& gs, float
 // ============================================================
 // 4. RenderHUD_PlayerState — 左下角状态标签
 // ============================================================
+/// @brief 渲染左下角玩家状态标签（STAND/CROUCH/RUN + DISGUISED）。
 static void RenderHUD_PlayerState(ImDrawList* draw, const Res_GameState& gs, float displayH) {
     ImFont* termFont = UITheme::GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
@@ -191,6 +206,7 @@ static void RenderHUD_PlayerState(ImDrawList* draw, const Res_GameState& gs, flo
 // ============================================================
 // 5. RenderHUD_NoiseIndicator — 左下偏右同心环
 // ============================================================
+/// @brief 渲染噪音同心环指示器（脉动环数随 noiseLevel 变化，globalTime 驱动动画）。
 static void RenderHUD_NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, float displayH, float globalTime) {
     float cx = 180.0f;
     float cy = displayH - 36.0f;
@@ -235,6 +251,7 @@ static void RenderHUD_NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, 
 // ============================================================
 // 6. RenderHUD_ItemSlots — 右下角装备槽
 // ============================================================
+/// @brief 渲染右下角装备槽（道具槽 x2 + 武器槽 x2），活跃槽高亮，冷却中显示进度条。
 static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
     ImFont* smallFont = UITheme::GetFont_Small();
 
@@ -316,6 +333,7 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
 // ============================================================
 // 7. RenderHUD_Degradation — 全屏退化效果叠加
 // ============================================================
+/// @brief 渲染随警戒等级加深的全屏退化效果（边缘发红 + 扫描线 + 噪点闪烁）。
 static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, float displayW, float displayH, float globalTime) {
     float alertMax = (gs.alertMax > 0.001f) ? gs.alertMax : 1.0f;
     float alertRatio = std::clamp(gs.alertLevel / alertMax, 0.0f, 1.0f);
@@ -373,6 +391,7 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
 // ============================================================
 // 8. RenderHUD_OpponentBar — 多人对战对手进度条
 // ============================================================
+/// @brief 渲染多人对战屏幕中央双方进度条（本地 vs 对手），仅在 isMultiplayer 时调用。
 static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, float gameW) {
     ImFont* termFont  = UITheme::GetFont_Terminal();
     ImFont* smallFont = UITheme::GetFont_Small();
@@ -440,6 +459,7 @@ static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, flo
 // ============================================================
 // 9. RenderHUD_DisruptionEffect — 干扰效果全屏叠加
 // ============================================================
+/// @brief 渲染对手干扰效果（视觉干扰/减速/信号扰乱），仅在 disruptionType != 0 时生效。
 static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs,
                                         float displayW, float displayH, float globalTime) {
     if (gs.disruptionType == 0 || gs.disruptionTimer <= 0.0f) return;
@@ -521,6 +541,7 @@ static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs
 // ============================================================
 // 10. RenderHUD_NetworkStatus — 右下角网络状态
 // ============================================================
+/// @brief 渲染右下角网络状态（PING 值，颜色随延迟变化），仅多人模式调用。
 static void RenderHUD_NetworkStatus(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
     ImFont* smallFont = UITheme::GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
@@ -542,56 +563,16 @@ static void RenderHUD_NetworkStatus(ImDrawList* draw, const Res_GameState& gs, f
     if (smallFont) ImGui::PopFont();
 }
 
-// ============================================================
-// 11. RenderHUD_KillNotification — 屏幕中心击杀通知
-// ============================================================
-static void RenderHUD_KillNotification(ImDrawList* draw, const Res_GameState& gs,
-                                        float gameW, float displayH) {
-    if (!gs.killNotifyActive) return;
-
-    constexpr float kFadeIn  = 0.25f;
-    constexpr float kHold    = 1.20f;
-    constexpr float kFadeOut = 0.55f;
-
-    float t = gs.killNotifyTimer;
-    float alpha = 1.0f;
-
-    if (t < kFadeIn) {
-        alpha = t / kFadeIn;                              // 淡入
-    } else if (t < kFadeIn + kHold) {
-        alpha = 1.0f;                                     // 停留
-    } else {
-        float fadeT = (t - kFadeIn - kHold) / kFadeOut;
-        alpha = 1.0f - std::min(fadeT, 1.0f);             // 淡出
-    }
-
-    const char* text = "TARGET ELIMINATED";
-    ImFont* bigFont = UITheme::GetFont_TerminalLarge();
-    if (bigFont) ImGui::PushFont(bigFont);
-    ImVec2 textSize = ImGui::CalcTextSize(text);
-
-    float cx = gameW * 0.5f - textSize.x * 0.5f;
-    float cy = displayH * 0.40f - textSize.y * 0.5f;
-    if (t < kFadeIn) cy += (1.0f - alpha) * 8.0f;        // 淡入时上滑 8px
-
-    uint8_t a = (uint8_t)(255 * alpha);
-
-    // 8 方向描边阴影
-    ImU32 shadowCol = IM_COL32(16, 13, 10, (uint8_t)(120 * alpha));
-    for (int dx = -1; dx <= 1; dx++)
-        for (int dy = -1; dy <= 1; dy++) {
-            if (dx == 0 && dy == 0) continue;
-            draw->AddText(ImVec2(cx + dx, cy + dy), shadowCol, text);
-        }
-    // 主文本 — 橙色强调色
-    draw->AddText(ImVec2(cx, cy), IM_COL32(252, 111, 41, a), text);
-
-    if (bigFont) ImGui::PopFont();
-}
 
 // ============================================================
 // RenderHUD — Main entry point
 // ============================================================
+/**
+ * @brief HUD 渲染入口：按顺序调用所有子面板渲染函数（任务/警戒/倒计时/玩家状态/噪音/装备/多人）。
+ *        由 Sys_UI::OnUpdate 在 UIScreen::HUD 状态下调用。
+ * @param registry ECS 注册表（读取 Res_UIState、Res_GameState）
+ * @param dt       帧时间（秒）
+ */
 
 void RenderHUD(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_UIState>()) return;
@@ -621,9 +602,6 @@ void RenderHUD(Registry& registry, float dt) {
         RenderHUD_DisruptionEffect(draw, gs, displaySize.x, displayH, ui.globalTime);
         RenderHUD_NetworkStatus(draw, gs, gameW, displayH);
     }
-
-    // Kill notification
-    RenderHUD_KillNotification(draw, gs, gameW, displayH);
 
     // Control hints (bottom, inside game area)
     ImFont* smallFont = UITheme::GetFont_Small();
