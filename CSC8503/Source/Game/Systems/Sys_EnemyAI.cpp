@@ -1,13 +1,27 @@
+/**
+ * @file Sys_EnemyAI.cpp
+ * @brief 敌人 AI 逻辑系统实现：感知警戒度增减与四状态切换。
+ *
+ * @details
+ * 遍历所有具有 C_T_Enemy + C_D_AIState + C_D_AIPerception 的实体，
+ * 根据 is_spotted 增减 detection_value，并按阈值切换 Safe/Search/Alert/Hunt 状态。
+ */
 #include "Sys_EnemyAI.h"
 #include <algorithm>
 #include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/C_D_AIState.h"
+#include "Game/Components/Res_EnemyEnums.h"   // EnemyState 枚举（直接依赖）
 #include "Game/Components/C_D_EnemyDormant.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Utils/Log.h"
 
 namespace ECS {
+    /**
+     * @brief 每帧更新所有敌人的感知警戒度并驱动四状态切换。
+     * @param registry ECS 注册表
+     * @param dt       帧时间（秒）
+     */
     void Sys_EnemyAI::OnUpdate(Registry& registry, float dt) {
         // 仅依赖 AI 核心组件，不要求寻路组件（寻路由独立系统处理）
         auto view = registry.view<C_T_Enemy, C_D_AIState, C_D_AIPerception>();

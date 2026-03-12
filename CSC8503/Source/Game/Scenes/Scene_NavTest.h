@@ -11,6 +11,7 @@
  *   - Sys_Camera         (50)  — 自由相机实体 + NCL Bridge
  *   - Sys_Physics        (100) — Jolt 物理引擎（Body 创建 + Transform 同步）
  *   - Sys_DeathJudgment  (125) — 死亡判定（敌人抓捕 + HP归零 + 触发器即死）
+ *   - Sys_DeathEffect    (126) — 赛博朋克四阶段死亡动画，动画结束后销毁实体
  *   - Sys_Navigation     (130) — NavAgent 路径查找 + 物理速度驱动移动
  *   - Sys_Render         (200) — ECS 实体 → NCL 代理 GameObject 桥接渲染
  *   - Sys_EnemyAI        (250) — 敌人警戒状态机（读取 C_D_AIPerception::is_spotted）
