@@ -9,12 +9,12 @@
  * - `EnterScene()` / `ExitCurrentScene()`：切换场景时重置累加器，
  *   防止残留积压时间在新场景首帧触发大量物理步进。
  * - `EndFrame()`：帧末执行 ProcessPendingDestroy 与延迟场景切换。
+ * - EventBus 生命周期与场景对齐，由 SceneManager 统一创建、注入与销毁。
  */
 #include "SceneManager.h"
 #include "Game/Utils/Assert.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Time.h"
-#include "Core/ECS/EventBus.h"
 
 namespace ECS {
 
@@ -117,9 +117,7 @@ void SceneManager::EndFrame() {
         m_CurrentScene->ClearNextScene();
 
         IScene* old = m_CurrentScene;
-        m_CurrentScene = nullptr;
-        old->OnExit(m_Registry, m_Systems);
-        LOG_INFO("[SceneManager] Scene exited (deferred switch).");
+        ExitCurrentScene();
         delete old;
 
         EnterScene(next);
@@ -165,6 +163,13 @@ void SceneManager::Shutdown() {
 void SceneManager::EnterScene(IScene* scene) {
     // 重置累加器，防止上一场景残留的积压时间在新场景首帧触发大量物理步进
     m_FixedAccumulator = 0.0f;
+
+    // 创建场景级 EventBus，生命周期与场景对齐
+    // 在 OnEnter 之前注入 ctx，确保所有 System::OnAwake 均可直接访问
+    m_EventBus = std::make_unique<ECS::EventBus>();
+    m_Registry.ctx_emplace<ECS::EventBus*>(m_EventBus.get());
+    LOG_INFO("[SceneManager] EventBus created and registered to ctx.");
+
     m_CurrentScene = scene;
     m_CurrentScene->OnEnter(m_Registry, m_Systems, m_NclPtrs);
     LOG_INFO("[SceneManager] Scene entered. Active systems: " << m_Systems.Count());
@@ -176,11 +181,21 @@ void SceneManager::EnterScene(IScene* scene) {
 
 void SceneManager::ExitCurrentScene() {
     if (!m_CurrentScene) return;
-    m_CurrentScene->OnExit(m_Registry, m_Systems);
-    m_CurrentScene = nullptr;
+
     // 重置累加器，防止场景切换后残留积压时间干扰下一场景的物理步进
     m_FixedAccumulator = 0.0f;
-    LOG_INFO("[SceneManager] Scene exited.");
+
+    // OnExit 内部会 DestroyAll + registry.Clear()
+    m_CurrentScene->OnExit(m_Registry, m_Systems);
+    m_CurrentScene = nullptr;
+
+    // 清理场景级 EventBus（在所有 System 销毁后执行，防止 OnDestroy 中取消订阅时 bus 已被销毁）
+    if (m_Registry.has_ctx<ECS::EventBus*>()) {
+        m_Registry.ctx_erase<ECS::EventBus*>();
+    }
+    m_EventBus.reset();
+
+    LOG_INFO("[SceneManager] Scene exited. EventBus destroyed.");
 }
 
 } // namespace ECS

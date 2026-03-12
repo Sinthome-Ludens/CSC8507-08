@@ -1,3 +1,7 @@
+/**
+ * @file Scene_MainMenu.cpp
+ * @brief 主菜单场景生命周期实现。
+ */
 #include "Scene_MainMenu.h"
 
 #include "Core/ECS/Registry.h"
@@ -6,6 +10,7 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_UIFlags.h"
@@ -21,9 +26,16 @@
 // OnEnter
 // ============================================================
 
+/**
+ * @brief 进入主菜单场景并初始化菜单相关系统与 UI 资源。
+ * @details 在系统启动前准备 UI 状态、窗口显隐标志和菜单所需的上下文资源，然后注册 ImGui/UI 系统并唤醒全部系统。
+ * @param registry 当前场景注册表
+ * @param systems 当前场景系统管理器
+ * @param nclPtrs NCL 桥接资源（当前函数未直接使用）
+ */
 void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
-                              ECS::SystemManager&     systems,
-                              const Res_NCL_Pointers& /*nclPtrs*/)
+                               ECS::SystemManager&     systems,
+                               const Res_NCL_Pointers& /*nclPtrs*/)
 {
 #ifdef USE_IMGUI
     // Res_UIState 必须在 AwakeAll 之前初始化，
@@ -71,8 +83,9 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_UIFlags>();
     }
 
-    systems.Register<ECS::Sys_ImGui>(300);
-    systems.Register<ECS::Sys_UI>  (500);
+    systems.Register<ECS::Sys_ImGui>           (300);
+    systems.Register<ECS::Sys_ImGuiEntityDebug>(310);
+    systems.Register<ECS::Sys_UI>              (500);
 #endif
 
     systems.AwakeAll(registry);
@@ -89,8 +102,14 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
 // OnExit
 // ============================================================
 
+/**
+ * @brief 退出主菜单场景并清理菜单相关上下文资源。
+ * @details 逆序销毁当前场景系统，移除本场景持有的 UI 相关 context，并最终清空 Registry 中的实体与组件数据。
+ * @param registry 当前场景注册表
+ * @param systems 当前场景系统管理器
+ */
 void Scene_MainMenu::OnExit(ECS::Registry&      registry,
-                             ECS::SystemManager& systems)
+                              ECS::SystemManager& systems)
 {
     systems.DestroyAll(registry);
 

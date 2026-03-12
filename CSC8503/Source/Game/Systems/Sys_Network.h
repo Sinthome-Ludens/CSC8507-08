@@ -1,3 +1,10 @@
+/**
+ * @file Sys_Network.h
+ * @brief ENet 网络系统声明。
+ *
+ * @details
+ * 定义 `ECS::Sys_Network` 的生命周期、数据包分发器，以及网络事件订阅接口。
+ */
 #pragma once
 
 #include "Core/ECS/SystemManager.h"
@@ -9,7 +16,6 @@
 #include "Game/Network/Net_Protocol.h"
 #include <unordered_map>
 #include <functional>
-#include <memory>
 
 namespace ECS {
 
@@ -131,7 +137,6 @@ private:
     }
 
     // ── 事件监听与发送 ──
-    std::unique_ptr<EventBus> m_EventBus; ///< 如果本系统创建，则拥有该 EventBus
     Registry* m_Registry = nullptr; ///< 缓存的注册表指针，用于在事件回调中获取网络资源
     SubscriptionID m_ActionSubID = 0; ///< 保存事件订阅的 ID
     uint32_t m_NextClientID = 1; ///< 服务端分配给下一个连接客户端的 ID

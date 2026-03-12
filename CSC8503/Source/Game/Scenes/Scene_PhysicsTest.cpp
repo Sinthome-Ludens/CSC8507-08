@@ -37,6 +37,7 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_ImGuiEnemyAI.h"
 #include "Game/Systems/Sys_ImGuiPhysicsTest.h"
 #include "Game/Systems/Sys_ImGuiCapsuleGen.h"
@@ -55,15 +56,17 @@
 // ============================================================
 // OnEnter（场景加载阶段）
 // ============================================================
+
 /**
- * @brief 场景加载：初始化 AssetManager、注册 ctx 资源、生成实体、注册系统。
+ * @brief 进入物理测试场景：初始化 AssetManager、注册 ctx 资源、生成实体、注册系统。
+ * @details 加载测试网格、重置测试态 context、生成基础地板/玩家/边界墙，并注册物理测试场景所需的玩法、渲染和调试系统。
  * @param registry ECS 注册表
  * @param systems  系统管理器（注册并 Awake 各系统）
- * @param nclPtrs  NCL 核心指针（GameWorld/PhysicsSystem/Renderer）
+ * @param nclPtrs  NCL 核心指针（GameWorld/PhysicsSystem/Renderer，当前未直接使用）
  */
 void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
-                                ECS::SystemManager&     systems,
-                                const Res_NCL_Pointers& /*nclPtrs*/)
+                                 ECS::SystemManager&     systems,
+                                 const Res_NCL_Pointers& /*nclPtrs*/)
 {
     // ── 1. 资源预热：初始化 AssetManager，加载本场景所需 mesh ──────────
     ECS::AssetManager::Instance().Init();
@@ -180,7 +183,8 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
     systems.Register<ECS::Sys_Render>          (200);   // ECS 实体 → NCL 代理对象桥接
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + Cube/Capsule 控制面板
+    systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + 测试控制面板
+    systems.Register<ECS::Sys_ImGuiEntityDebug>  (305);   // 全量实体列表 + 详情面板
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 通用敌人状态监控表格（场景无关）
     systems.Register<ECS::Sys_ImGuiPhysicsTest>  (320);   // PhysicsTest 场景敌人生成/删除控制面板
     systems.Register<ECS::Sys_Chat>              (450);   // 对话逻辑（在 UI 之前）
@@ -232,13 +236,15 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 // ============================================================
 // OnExit（场景卸载阶段）
 // ============================================================
+
 /**
- * @brief 场景卸载：逆序销毁所有系统，清除场景级 ctx 资源，防止跨场景状态泄漏。
+ * @brief 退出物理测试场景：逆序销毁所有系统，清除场景级 ctx 资源，防止跨场景状态泄漏。
+ * @details 逆序销毁系统后移除测试场景注入的配置、UI 和测试状态资源，最后清空 Registry 中的全部实体与组件。
  * @param registry ECS 注册表
  * @param systems  系统管理器（调用 DestroyAll）
  */
 void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
-                               ECS::SystemManager& systems)
+                                ECS::SystemManager& systems)
 {
     // 逆序停机
     systems.DestroyAll(registry);

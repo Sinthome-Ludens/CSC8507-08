@@ -5,6 +5,7 @@
  * @details
  * 根据 C_D_AIState 当前状态分支执行：Safe 静止、Search 旋转朝向、
  * Alert 前往快照位置、Hunt 实时追踪并定期重规划路径。
+ * 通过 EntityID 语义的 Sys_Physics 接口同步速度与旋转写回。
  */
 #include "Sys_Navigation.h"
 #include <cstring>
@@ -23,19 +24,20 @@
 
 namespace ECS {
 
-// ─────────────────────────────────────────────────────────────────────────────
 /**
  * @brief 将实体平滑旋转朝向 targetPos（Search 与路径跟随共用）。
- * @param agent   NavAgent 数据组件（提供 rotation_speed）
- * @param tf      实体变换组件（读写 rotation）
- * @param rb      刚体组件（同步 Jolt Body 旋转）
- * @param physics 物理系统指针（调用 SetRotation）
+ * @details 该辅助函数被 Search 朝向修正与路径跟随逻辑共用，并在需要时把旋转同步回物理系统。
+ * @param entity    当前实体 ID（传入 Sys_Physics::SetRotation）
+ * @param agent     NavAgent 数据组件（提供 rotation_speed）
+ * @param tf        实体变换组件（读写 rotation）
+ * @param rb        刚体组件（检查 body_created）
+ * @param physics   物理系统指针（调用 SetRotation）
  * @param targetPos 目标世界坐标（仅使用 XZ 分量）
- * @param dt      帧时间（秒）
+ * @param dt        帧时间（秒）
  */
-static void ApplyRotationToward(C_D_NavAgent& agent, C_D_Transform& tf,
-                                C_D_RigidBody& rb, Sys_Physics* physics,
-                                const NCL::Maths::Vector3& targetPos, float dt)
+static void ApplyRotationToward(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
+                                 C_D_RigidBody& rb, Sys_Physics* physics,
+                                 const NCL::Maths::Vector3& targetPos, float dt)
 {
     NCL::Maths::Vector3 dir = targetPos - tf.position;
     dir.y = 0.0f;
@@ -53,15 +55,22 @@ static void ApplyRotationToward(C_D_NavAgent& agent, C_D_Transform& tf,
         tf.rotation, targetRot, std::min(agent.rotation_speed * dt, 1.0f));
 
     if (physics && rb.body_created) {
-        physics->SetRotation(rb.jolt_body_id, tf.rotation);
+        physics->SetRotation(entity, tf.rotation);
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 辅助：按 path_waypoints 推进路点并施加速度（Alert / Hunt 共用）
-// ─────────────────────────────────────────────────────────────────────────────
-static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
-                       C_D_RigidBody& rb, Sys_Physics* physics, float dt)
+/**
+ * @brief 按路径路点推进导航代理。
+ * @details 在 Alert 与 Hunt 状态下复用该辅助逻辑，负责推进当前路点、同步朝向并向物理系统写入期望速度。
+ * @param entity 当前实体 ID
+ * @param agent 导航代理组件
+ * @param tf 当前实体变换
+ * @param rb 当前实体刚体
+ * @param physics 物理系统指针
+ * @param dt 本帧时间步长
+ */
+static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
+                        C_D_RigidBody& rb, Sys_Physics* physics, float dt)
 {
     if (!agent.is_active || agent.path_length == 0) return;
 
@@ -77,7 +86,7 @@ static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
             // 到达终点
             agent.is_active = false;
             if (physics && rb.body_created) {
-                physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+                physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
             }
         }
         return;
@@ -94,12 +103,12 @@ static void FollowPath(C_D_NavAgent& agent, C_D_Transform& tf,
         tf.rotation = NCL::Maths::Quaternion::Slerp(
             tf.rotation, targetRot, std::min(agent.rotation_speed * dt, 1.0f));
         if (physics && rb.body_created) {
-            physics->SetRotation(rb.jolt_body_id, tf.rotation);
+            physics->SetRotation(entity, tf.rotation);
         }
     }
 
     if (physics && rb.body_created) {
-        physics->SetLinearVelocity(rb.jolt_body_id,
+        physics->SetLinearVelocity(entity,
             dir.x * agent.speed, 0.0f, dir.z * agent.speed);
     }
 }
@@ -123,6 +132,8 @@ static void CopyPathToAgent(C_D_NavAgent& agent,
 // ─────────────────────────────────────────────────────────────────────────────
 /**
  * @brief 每帧推进所有具有 C_T_Pathfinder + C_D_NavAgent 实体的导航逻辑。
+ * @details 根据 AI 状态在 Safe、Search、Alert、Hunt 分支间切换，必要时重规划路径，
+ *          并通过 Sys_Physics 的 EntityID 接口同步速度与旋转。
  * @param registry ECS 注册表，用于访问 C_D_AIState、C_D_Transform 等组件。
  * @param dt       帧时间（秒）。
  */
@@ -190,7 +201,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                 agent.is_active                = false;
                 agent.timer                    = agent.update_frequency;
                 if (physics && rb.body_created) {
-                    physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+                    physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
                 }
             }
             break;
@@ -204,11 +215,11 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                 agent.is_active                = false;
                 agent.timer                    = agent.update_frequency;
                 if (physics && rb.body_created) {
-                    physics->SetLinearVelocity(rb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+                    physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
                 }
             }
             if (agent.smooth_rotation && agent.has_last_known_pos) {
-                ApplyRotationToward(agent, tf, rb, physics,
+                ApplyRotationToward(entity, agent, tf, rb, physics,
                                     agent.last_known_target_pos, dt);
             }
             break;
@@ -226,7 +237,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                 }
                 agent.timer = 0.0f;
             }
-            FollowPath(agent, tf, rb, physics, dt);
+            FollowPath(entity, agent, tf, rb, physics, dt);
             break;
         }
 
@@ -253,7 +264,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                     agent.timer = 0.0f;
                 }
             }
-            FollowPath(agent, tf, rb, physics, dt);
+            FollowPath(entity, agent, tf, rb, physics, dt);
             break;
         }
         }

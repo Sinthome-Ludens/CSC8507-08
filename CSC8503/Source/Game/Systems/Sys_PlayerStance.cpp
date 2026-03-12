@@ -1,3 +1,10 @@
+/**
+ * @file Sys_PlayerStance.cpp
+ * @brief 玩家姿态系统实现。
+ *
+ * @details
+ * 负责站立/下蹲切换、碰撞体高度调整，以及相关姿态事件发布。
+ */
 #include "Sys_PlayerStance.h"
 
 #include "Game/Components/C_D_Input.h"
@@ -16,6 +23,12 @@ namespace {
 
 namespace ECS {
 
+/**
+ * @brief 处理玩家姿态切换与碰撞体重建。
+ * @details 根据输入、伪装状态和强制站立请求决定目标姿态，并通过 Sys_Physics 的 EntityID 接口替换胶囊体、修正位置、唤醒刚体，再发布姿态切换事件。
+ * @param registry 当前场景注册表
+ * @param dt 本帧时间步长（当前实现未直接使用）
+ */
 void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Sys_Physics*>()) return;
     auto* physics = registry.ctx<Sys_Physics*>();
@@ -35,13 +48,13 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
 
                     ps.stance = PlayerStance::Standing;
                     ps.colliderHalfHeight = STAND_HALF_HEIGHT;
-                    physics->ReplaceShapeCapsule(rb.jolt_body_id, STAND_HALF_HEIGHT, CAPSULE_RADIUS);
+                    physics->ReplaceShapeCapsule(id, STAND_HALF_HEIGHT, CAPSULE_RADIUS);
 
                     float oldBottom = (tf.position.y - SKIN_OFFSET) - (oldHalfHeight + CAPSULE_RADIUS);
                     float newCenterY = oldBottom + STAND_HALF_HEIGHT + CAPSULE_RADIUS + SKIN_OFFSET;
-                    physics->SetPosition(rb.jolt_body_id, tf.position.x, newCenterY, tf.position.z);
+                    physics->SetPosition(id, tf.position.x, newCenterY, tf.position.z);
                     tf.position.y = newCenterY;
-                    physics->ActivateBody(rb.jolt_body_id);
+                    physics->ActivateBody(id);
 
                     auto* bus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;
                     if (bus) {
@@ -96,16 +109,16 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
             ps.colliderHalfHeight = newHalfHeight;
 
             // 1) 替换碰撞体形状
-            physics->ReplaceShapeCapsule(rb.jolt_body_id, newHalfHeight, CAPSULE_RADIUS);
+            physics->ReplaceShapeCapsule(id, newHalfHeight, CAPSULE_RADIUS);
 
             // 2) 调整 Y 位置，保持脚底不动
             float oldBottom = (tf.position.y - SKIN_OFFSET) - (oldHalfHeight + CAPSULE_RADIUS);
             float newCenterY = oldBottom + newHalfHeight + CAPSULE_RADIUS + SKIN_OFFSET;
-            physics->SetPosition(rb.jolt_body_id, tf.position.x, newCenterY, tf.position.z);
+            physics->SetPosition(id, tf.position.x, newCenterY, tf.position.z);
             tf.position.y = newCenterY;
 
             // 3) 强制激活 body
-            physics->ActivateBody(rb.jolt_body_id);
+            physics->ActivateBody(id);
 
             // 发布姿态切换事件
             auto* bus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;

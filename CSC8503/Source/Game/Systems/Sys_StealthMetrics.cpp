@@ -1,3 +1,10 @@
+/**
+ * @file Sys_StealthMetrics.cpp
+ * @brief 玩家潜行指标系统实现。
+ *
+ * @details
+ * 根据输入、姿态与物理速度更新移动倍率、噪音与可见度指标，并按节流规则发布噪音事件。
+ */
 #include "Sys_StealthMetrics.h"
 
 #include "Game/Components/C_D_Input.h"
@@ -16,6 +23,12 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
+/**
+ * @brief 更新玩家潜行相关指标并发布噪音事件。
+ * @details 读取 EntityID 语义的线速度，计算移动状态、奔跑条件、噪音等级与可见度，并在冷却允许时发送玩家噪音事件。
+ * @param registry 当前场景注册表
+ * @param dt 本帧时间步长（秒）
+ */
 void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
     if (!registry.has_ctx<Sys_Physics*>()) return;
     auto* physics = registry.ctx<Sys_Physics*>();
@@ -30,7 +43,7 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             ps.noiseCooldown -= dt;
             if (ps.noiseCooldown < 0.0f) ps.noiseCooldown = 0.0f;
 
-            Vector3 vel = physics->GetLinearVelocity(rb.jolt_body_id);
+            Vector3 vel = physics->GetLinearVelocity(id);
             float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);
             bool isMoving = (horizSpeed > 0.1f);
 

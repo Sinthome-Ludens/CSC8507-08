@@ -1,11 +1,11 @@
 /**
- * @file Sys_PlayerCQC.cpp
  * @brief 玩家 CQC（近战制服）系统实现：状态机推进、拟态激活、背面扇形目标检测。
  *
  * @details
  * - OnUpdate：驱动 Approach → Execute → Complete 三阶段状态机；
  *             F 键优先检测拟态（对休眠敌人），其次检测 CQC 目标（背面扇形）；
- *             Complete 阶段直接对目标挂载死亡组件并推送动作通知
+ *             Complete 阶段直接对目标挂载死亡组件并推送动作通知；
+ *             通过 EntityID 语义的 Sys_Physics 接口冻结目标速度
  */
 #include "Sys_PlayerCQC.h"
 
@@ -39,6 +39,8 @@ namespace ECS {
 
 /**
  * @brief 每帧更新 CQC 状态机：冷却计时、阶段推进、目标检测与击杀通知。
+ * @details 推进 Approach → Execute → Complete 三阶段状态机，处理休眠敌人拟态和
+ *          背后处决目标选择，并在 Complete 阶段通过 Sys_Physics 的 EntityID 接口清零目标速度。
  * @param registry ECS 注册表
  * @param dt       帧时间（秒）
  */
@@ -104,6 +106,17 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                             evt.target = target;
                             evt.position = playerTf.position;
                             bus->publish_deferred(evt);
+                        }
+
+                        // 冻结目标速度（防止死亡动画中残留 Jolt 速度漂移）
+                        if (registry.has_ctx<Sys_Physics*>()) {
+                            auto* physics = registry.ctx<Sys_Physics*>();
+                            if (physics && registry.Has<C_D_RigidBody>(cqc.targetEnemy)) {
+                                auto& erb = registry.Get<C_D_RigidBody>(cqc.targetEnemy);
+                                if (erb.body_created) {
+                                    physics->SetLinearVelocity(cqc.targetEnemy, 0.0f, 0.0f, 0.0f);
+                                }
+                            }
                         }
                     }
 

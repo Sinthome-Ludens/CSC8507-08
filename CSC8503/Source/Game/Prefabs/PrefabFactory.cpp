@@ -41,6 +41,7 @@
 #include "Game/Components/C_D_NavAgent.h"
 #include "Game/Components/C_T_Pathfinder.h"
 #include "Game/Components/C_T_NavTarget.h"
+#include "Game/Components/C_T_TriggerZone.h"
 #include "Game/Utils/Log.h"
 
 #include <cstring>
@@ -257,6 +258,51 @@ EntityID PrefabFactory::CreateInvisibleWall(
 
     LOG_INFO("[PrefabFactory] CreateInvisibleWall id=" << entity
              << " index=" << wallIndex
+             << " pos=(" << position.x << "," << position.y << "," << position.z
+             << ") half=(" << halfExtents.x << "," << halfExtents.y << "," << halfExtents.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateTriggerZone  →  PREFAB_TRIGGER_ZONE
+// ============================================================
+/**
+ * @brief 创建静态 Trigger 区域实体（PREFAB_TRIGGER_ZONE）的实现。
+ *
+ * @details
+ * 该 Prefab 仅用于重叠检测，不产生物理响应，也不挂载渲染组件。
+ * 物理层面使用静态 Box Sensor，并通过 `C_T_TriggerZone` 标签供游戏逻辑识别。
+ */
+EntityID PrefabFactory::CreateTriggerZone(
+    Registry&   reg,
+    Vector3     position,
+    Vector3     halfExtents)
+{
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        position,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    C_D_Collider col{};
+    col.type       = ColliderType::Box;
+    col.half_x     = halfExtents.x;
+    col.half_y     = halfExtents.y;
+    col.half_z     = halfExtents.z;
+    col.is_trigger = true;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    reg.Emplace<C_T_TriggerZone>(entity);
+    AttachDebugName(reg, entity, "ENTITY_Trigger_Zone");
+
+    LOG_INFO("[PrefabFactory] CreateTriggerZone id=" << entity
              << " pos=(" << position.x << "," << position.y << "," << position.z
              << ") half=(" << halfExtents.x << "," << halfExtents.y << "," << halfExtents.z << ")");
 
