@@ -351,12 +351,25 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 // ============================================================
 // CreateTriMeshBodyForEntity — Jolt MeshShape（多层地图地板）
 // ============================================================
+/**
+ * @brief 从 C_D_TriMeshCollider 数据创建 Jolt 静态 MeshShape 刚体。
+ *
+ * 仅用于静态地板/斜坡实体（is_static=true）。与 CreateBodyForEntity 的区别：
+ * 使用 JPH::MeshShapeSettings 而非 Box/Sphere/Capsule，支持任意三角网格。
+ *
+ * @param reg  ECS Registry
+ * @param id   目标实体 ID
+ * @param tf   实体 Transform（提供世界偏移）
+ * @param rb   RigidBody 组件（设置 body_created 标志）
+ * @param tri  TriMeshCollider 组件（顶点 + 索引，必须非空且索引数为 3 的倍数）
+ */
 void ECS::Sys_Physics::CreateTriMeshBodyForEntity(
     Registry& reg, EntityID id,
     C_D_Transform& tf, C_D_RigidBody& rb, C_D_TriMeshCollider& tri)
 {
     if (tri.vertices.empty() || tri.indices.empty()) {
         LOG_WARN("[Sys_Physics] CreateTriMeshBodyForEntity: empty geometry for entity " << id);
+        rb.body_created = true;  // 防止每帧重复触发
         return;
     }
     const int triCount = static_cast<int>(tri.indices.size()) / 3;

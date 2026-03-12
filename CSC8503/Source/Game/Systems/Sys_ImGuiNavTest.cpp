@@ -1,3 +1,7 @@
+/**
+ * @file Sys_ImGuiNavTest.cpp
+ * @brief ImGui 导航调试面板：敌人/目标生成、Spawn Y 偏移、NavAgent 状态显示。
+ */
 #include "Sys_ImGuiNavTest.h"
 #ifdef USE_IMGUI
 

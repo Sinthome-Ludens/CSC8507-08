@@ -1,3 +1,7 @@
+/**
+ * @file Scene_Lab.h
+ * @brief Lab 关卡场景定义（Lab.obj + Lab.navmesh）。
+ */
 #pragma once
 
 #include "IScene.h"

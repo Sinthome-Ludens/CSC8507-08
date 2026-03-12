@@ -1,3 +1,7 @@
+/**
+ * @file NavMeshPathfinderUtil.h
+ * @brief NavMesh 三角图寻路工具：解析 .navmesh、A* 搜索、边界提取、可行走几何体导出。
+ */
 #pragma once
 #include "Game/Utils/PathfinderUtil.h"
 #include <vector>

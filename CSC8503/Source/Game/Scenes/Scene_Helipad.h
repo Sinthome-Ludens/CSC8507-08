@@ -1,3 +1,7 @@
+/**
+ * @file Scene_Helipad.h
+ * @brief Helipad 关卡场景定义（Helipad.obj + Helipad.navmesh）。
+ */
 #pragma once
 
 #include "IScene.h"

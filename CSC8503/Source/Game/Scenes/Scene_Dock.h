@@ -1,3 +1,7 @@
+/**
+ * @file Scene_Dock.h
+ * @brief Dock 关卡场景定义（Dock.obj + Dock.navmesh）。
+ */
 #pragma once
 
 #include "IScene.h"

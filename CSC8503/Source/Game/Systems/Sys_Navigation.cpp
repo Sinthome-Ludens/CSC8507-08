@@ -1,3 +1,7 @@
+/**
+ * @file Sys_Navigation.cpp
+ * @brief NavAgent 路径跟随系统：3D 速度驱动、路点跳跃、Hunt/Patrol 行为切换。
+ */
 #include "Sys_Navigation.h"
 #include <cstring>
 #include <cmath>

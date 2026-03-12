@@ -1,3 +1,7 @@
+/**
+ * @file Scene_HangerB.h
+ * @brief HangerB 关卡场景定义（HangerB.obj + HangerB.navmesh）。
+ */
 #pragma once
 
 #include "IScene.h"

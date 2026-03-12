@@ -148,6 +148,17 @@ EntityID PrefabFactory::CreateFloor(Registry& reg, ECS::MeshHandle cubeMesh)
 // ============================================================
 // CreateStaticMap  →  PREFAB_ENV_TUTORIAL_MAP
 // ============================================================
+/**
+ * @brief 创建静态地图渲染实体（通用，适用于所有场景地图）。
+ *
+ * 仅添加渲染组件（C_D_MeshRenderer + C_D_Transform），不创建物理碰撞体。
+ * 物理支撑由 CreateNavMeshFloor 的三角网格地板提供。
+ *
+ * @param reg      ECS Registry
+ * @param mapMesh  地图网格句柄（由 AssetManager::LoadMesh 获取）
+ * @param scale    地图缩放系数（TutorialLevel=2.0，其余场景=1.0）
+ * @return 创建的实体 ID
+ */
 EntityID PrefabFactory::CreateStaticMap(Registry& reg, ECS::MeshHandle mapMesh, float scale)
 {
     EntityID entity = reg.Create();
@@ -675,12 +686,31 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
 // ============================================================
 // CreateNavMeshFloor  →  PREFAB_ENV_NAVMESH_FLOOR
 // ============================================================
+/**
+ * @brief 从 NavMesh 可行走三角形创建静态 TriMesh 地板碰撞实体。
+ *
+ * 顶点坐标为 NavMesh 本地空间（ScaleVertices 后），worldOffset 将其平移到
+ * 世界坐标（通常为 (0, -6*scale, 0)）。
+ * 若 vertices/indices 为空或 indices 不是 3 的倍数，直接返回 NULL_ENTITY。
+ *
+ * @param reg        ECS Registry
+ * @param vertices   NavMesh 可行走顶点（来自 GetWalkableGeometry）
+ * @param indices    三角形索引（每 3 个构成一个三角形）
+ * @param worldOffset 世界空间偏移（对齐地图渲染位置）
+ * @return 创建的实体 ID，或 NULL_ENTITY（几何体无效时）
+ */
 ECS::EntityID PrefabFactory::CreateNavMeshFloor(
     ECS::Registry&                          reg,
     const std::vector<NCL::Maths::Vector3>& vertices,
     const std::vector<int>&                 indices,
     NCL::Maths::Vector3                     worldOffset)
 {
+    if (vertices.empty() || indices.empty() || indices.size() % 3 != 0) {
+        LOG_WARN("[PrefabFactory] CreateNavMeshFloor: invalid geometry (verts="
+                 << vertices.size() << " idx=" << indices.size() << "), skipping.");
+        return ECS::Entity::NULL_ENTITY;
+    }
+
     EntityID entity = reg.Create();
 
     // C_D_Transform：体原点设为 worldOffset，顶点为该原点的局部空间

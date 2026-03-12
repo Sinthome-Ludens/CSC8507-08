@@ -32,7 +32,10 @@
 // ============================================================
 // OnEnter（场景加载阶段）
 // ============================================================
-
+/**
+ * @brief 加载地图资源、注册并唤醒所有系统、初始化 NavMesh 地板与边界墙碰撞体。
+ * Y 偏移 -6*kMapScale 将 NavMesh 本地坐标对齐到世界渲染位置。
+ */
 void Scene_HangerB::OnEnter(ECS::Registry&          registry,
                              ECS::SystemManager&     systems,
                              const Res_NCL_Pointers& /*nclPtrs*/)
@@ -161,7 +164,9 @@ void Scene_HangerB::OnEnter(ECS::Registry&          registry,
 // ============================================================
 // OnExit（场景卸载阶段）
 // ============================================================
-
+/**
+ * @brief 销毁所有系统、清理 NavMesh Pathfinder 及所有 context 资源。
+ */
 void Scene_HangerB::OnExit(ECS::Registry&      registry,
                             ECS::SystemManager& systems)
 {

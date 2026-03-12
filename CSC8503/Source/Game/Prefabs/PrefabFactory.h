@@ -69,16 +69,17 @@ public:
     );
 
     /**
-     * @brief 创建 TutorialMap 静态地图实体（PREFAB_ENV_TUTORIAL_MAP）
+     * @brief 创建静态地图渲染实体（通用，适用于所有场景地图）
      *
      * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody, C_D_Collider,
      *       C_D_Material, C_D_DebugName
      *
-     * 使用 TutorialMap.obj 的真实尺寸（scale 1,1,1），
-     * 碰撞体为 Box 近似（暂无 TriMesh 支持）。
+     * 仅添加渲染组件，不创建精确物理碰撞体。
+     * 物理支撑由 CreateNavMeshFloor 的三角网格地板提供。
      *
      * @param reg     ECS Registry
-     * @param mapMesh TutorialMap 网格句柄
+     * @param mapMesh 地图网格句柄（由 AssetManager::LoadMesh 获取）
+     * @param scale   地图缩放系数（TutorialLevel=2.0，其余场景=1.0）
      * @return 地图实体 ID
      */
     static ECS::EntityID CreateStaticMap(

@@ -1,3 +1,7 @@
+/**
+ * @file Scene_TutorialLevel.h
+ * @brief 教程关卡场景定义（TutorialMap.obj + TutorialMap.navmesh）。
+ */
 #pragma once
 
 #include "IScene.h"

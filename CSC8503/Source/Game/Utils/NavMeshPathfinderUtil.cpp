@@ -18,6 +18,7 @@ namespace ECS {
 // ============================================================
 // ComputeSlopeAngle — 计算三角形坡度角（0=平地，90=垂直墙）
 // ============================================================
+/** @brief 计算三角形法线与 Y 轴夹角（度），用于斜坡代价惩罚。 */
 static float ComputeSlopeAngle(const NCL::Maths::Vector3& a,
                                 const NCL::Maths::Vector3& b,
                                 const NCL::Maths::Vector3& c)
@@ -44,6 +45,11 @@ static float ComputeSlopeAngle(const NCL::Maths::Vector3& a,
 // 命名格式（TutorialMap.navmesh）：首个非注释 token 为字母
 // 纯数字格式（test.navmesh）：首个非注释 token 为整数
 // ============================================================
+/**
+ * @brief 加载 .navmesh 文件，自动检测命名/纯数字格式并解析。
+ * @param filePath .navmesh 文件绝对路径
+ * @return true 加载成功，false 文件打不开或格式错误
+ */
 bool NavMeshPathfinderUtil::LoadNavMesh(const std::string& filePath)
 {
     std::ifstream file(filePath);
@@ -94,6 +100,7 @@ bool NavMeshPathfinderUtil::LoadNavMesh(const std::string& filePath)
 //   areas              （可选节）
 //     area_id  × M/3   ← 每行一个，0=可行走，1=不可通行
 // ============================================================
+/** @brief 解析命名格式 .navmesh（TutorialMap 等 Unity 导出文件）。 */
 bool NavMeshPathfinderUtil::LoadNamedFormat(std::ifstream& file)
 {
     int vertexCount = 0, indexCount = 0;
@@ -113,6 +120,11 @@ bool NavMeshPathfinderUtil::LoadNamedFormat(std::ifstream& file)
     if (vertexCount <= 0 || indexCount <= 0) {
         LOG_WARN("[NavMeshPathfinderUtil] Invalid header (named format).");
         return false;
+    }
+
+    if (indexCount % 3 != 0) {
+        LOG_WARN("[NavMeshPathfinderUtil] indexCount=" << indexCount
+                 << " is not a multiple of 3, truncating.");
     }
 
     const int triCount = indexCount / 3;
@@ -193,12 +205,18 @@ bool NavMeshPathfinderUtil::LoadNamedFormat(std::ifstream& file)
 //   i × indexCount          ← 索引（逐个，每行 1 个整数；每 3 个构成一个三角形）
 //   n0 n1 n2 × triCount     ← 邻居索引（每行 3 个，可选；-1=边界）
 // ============================================================
+/** @brief 解析纯数字格式 .navmesh（vertexCount indexCount 开头）。 */
 bool NavMeshPathfinderUtil::LoadRawFormat(std::ifstream& file)
 {
     int vertexCount = 0, indexCount = 0;
     if (!(file >> vertexCount >> indexCount) || vertexCount <= 0 || indexCount <= 0) {
         LOG_WARN("[NavMeshPathfinderUtil] Invalid header (raw format).");
         return false;
+    }
+
+    if (indexCount % 3 != 0) {
+        LOG_WARN("[NavMeshPathfinderUtil] indexCount=" << indexCount
+                 << " is not a multiple of 3, truncating.");
     }
 
     const int triCount = indexCount / 3;
@@ -260,6 +278,7 @@ bool NavMeshPathfinderUtil::LoadRawFormat(std::ifstream& file)
 // ============================================================
 // ScaleVertices — 等比例缩放所有顶点坐标，并重新计算三角形重心
 // ============================================================
+/** @brief 等比例缩放所有顶点并重算重心与坡度角。 */
 void NavMeshPathfinderUtil::ScaleVertices(float scale)
 {
     for (auto& v : m_Vertices) {
@@ -286,6 +305,7 @@ void NavMeshPathfinderUtil::ScaleVertices(float scale)
 //
 // 复杂度 O(N² × 9)，与 BuildAdjacency 相同，在场景加载时调用一次。
 // ============================================================
+/** @brief 提取所有无邻居的三角形边作为边界边（墙面位置），场景加载时调用。 */
 std::vector<BoundaryEdge> NavMeshPathfinderUtil::GetBoundaryEdges() const
 {
     std::vector<BoundaryEdge> result;
@@ -356,6 +376,7 @@ std::vector<BoundaryEdge> NavMeshPathfinderUtil::GetBoundaryEdges() const
 //       而是重复写入相同坐标的顶点。
 // 复杂度 O(N² × 9)，对 N ≤ 512 的 navmesh 足够快（< 2ms）。
 // ============================================================
+/** @brief 构建三角形邻接表（坐标 epsilon 比较），并计算坡度角。 */
 void NavMeshPathfinderUtil::BuildAdjacency()
 {
     int N = static_cast<int>(m_Triangles.size());
@@ -416,6 +437,7 @@ void NavMeshPathfinderUtil::BuildAdjacency()
 // Y 权重加倍可防止多层地图中选到错误楼层（垂直分离优先于水平接近）。
 // 跳过 area != 0 的不可通行三角形。
 // ============================================================
+/** @brief 查找离给定点最近的可行走三角形，Y 方向权重 4×（平方后）。 */
 int NavMeshPathfinderUtil::FindNearestTriangle(const NCL::Maths::Vector3& p) const
 {
     int   best  = -1;
@@ -441,6 +463,7 @@ int NavMeshPathfinderUtil::FindNearestTriangle(const NCL::Maths::Vector3& p) con
 // ============================================================
 // AStarSearch — 在三角形图上搜索 startTri → endTri
 // ============================================================
+/** @brief 三角形图 A* 搜索，斜坡代价 1.5×，输出三角形索引路径。 */
 bool NavMeshPathfinderUtil::AStarSearch(int startTri, int endTri,
                                         std::vector<int>& outTriPath) const
 {
@@ -509,6 +532,7 @@ bool NavMeshPathfinderUtil::AStarSearch(int startTri, int endTri,
 // SharedEdgeMidpoint — 计算两个相邻三角形共享边的中点
 // 用于生成"通过走廊中央"的自然路径路点，代替三角形重心。
 // ============================================================
+/** @brief 计算相邻三角形共享边的中点，用于生成自然路径路点。 */
 static NCL::Maths::Vector3 SharedEdgeMidpoint(
     const NavTriangle& ti, const NavTriangle& tj,
     const std::vector<NCL::Maths::Vector3>& verts)
@@ -538,6 +562,13 @@ static NCL::Maths::Vector3 SharedEdgeMidpoint(
 // ============================================================
 // FindPath — 公开接口（PathfinderUtil 实现）
 // ============================================================
+/**
+ * @brief 计算 start→end 的 3D 导航路径（A* + 路径简化）。
+ * @param start 起点世界坐标
+ * @param end   终点世界坐标
+ * @param outPath 输出简化后的路点列表
+ * @return true 路径找到，false 起点/终点不在可行走区域或无通路
+ */
 bool NavMeshPathfinderUtil::FindPath(const NCL::Maths::Vector3& start,
                                      const NCL::Maths::Vector3& end,
                                      std::vector<NCL::Maths::Vector3>& outPath)
@@ -624,6 +655,7 @@ bool NavMeshPathfinderUtil::FindPath(const NCL::Maths::Vector3& start,
 // ============================================================
 // GetWalkableGeometry — 导出可行走三角形（供地板碰撞体生成）
 // ============================================================
+/** @brief 导出所有可行走三角形的顶点和索引，供 CreateNavMeshFloor 生成 Jolt MeshShape。 */
 void NavMeshPathfinderUtil::GetWalkableGeometry(
     std::vector<NCL::Maths::Vector3>& outVerts,
     std::vector<int>& outIndices) const
