@@ -13,6 +13,12 @@ namespace ECS::UI {
 static constexpr float kFadeOut = 0.4f;   ///< 淡出时长（秒）
 
 // ── 颜色映射 ─────────────────────────────────────────────────
+/**
+ * @brief 根据通知类型返回对应的 RGBA 颜色值。
+ * @param type 通知类型（Kill/ItemPickup/Weapon/Bonus/Alert）
+ * @param a    Alpha 通道（0–255）
+ * @return ImU32 IM_COL32 格式颜色
+ */
 static ImU32 TypeColor(ActionNotifyType type, uint8_t a) {
     switch (type) {
         case ActionNotifyType::Kill:       return IM_COL32(200,  50,  50, a);
