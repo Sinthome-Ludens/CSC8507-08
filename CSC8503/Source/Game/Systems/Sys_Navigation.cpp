@@ -1,9 +1,11 @@
 /**
  * @file Sys_Navigation.cpp
- * @brief 导航系统实现。
+ * @brief 导航系统实现：状态感知寻路与移动控制。
  *
  * @details
- * 管理寻路代理的路径推进、朝向更新与基于 EntityID 的物理速度/旋转写回。
+ * 根据 C_D_AIState 当前状态分支执行：Safe 静止、Search 旋转朝向、
+ * Alert 前往快照位置、Hunt 实时追踪并定期重规划路径。
+ * 通过 EntityID 语义的 Sys_Physics 接口同步速度与旋转写回。
  */
 #include "Sys_Navigation.h"
 #include <cstring>
@@ -23,15 +25,15 @@
 namespace ECS {
 
 /**
- * @brief 将实体平滑旋转到朝向目标位置。
- * @details 该辅助函数被 Caution 朝向修正与路径跟随逻辑共用，并在需要时把旋转同步回物理系统。
- * @param entity 当前实体 ID
- * @param agent 导航代理组件
- * @param tf 当前实体变换
- * @param rb 当前实体刚体
- * @param physics 物理系统指针
- * @param targetPos 目标世界位置
- * @param dt 本帧时间步长
+ * @brief 将实体平滑旋转朝向 targetPos（Search 与路径跟随共用）。
+ * @details 该辅助函数被 Search 朝向修正与路径跟随逻辑共用，并在需要时把旋转同步回物理系统。
+ * @param entity    当前实体 ID（传入 Sys_Physics::SetRotation）
+ * @param agent     NavAgent 数据组件（提供 rotation_speed）
+ * @param tf        实体变换组件（读写 rotation）
+ * @param rb        刚体组件（检查 body_created）
+ * @param physics   物理系统指针（调用 SetRotation）
+ * @param targetPos 目标世界坐标（仅使用 XZ 分量）
+ * @param dt        帧时间（秒）
  */
 static void ApplyRotationToward(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
                                  C_D_RigidBody& rb, Sys_Physics* physics,
@@ -128,13 +130,12 @@ static void CopyPathToAgent(C_D_NavAgent& agent,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 主更新
-// ─────────────────────────────────────────────────────────────────────────────
 /**
- * @brief 更新所有寻路代理的路径跟随与状态驱动行为。
- * @details 根据 AI 状态在 Safe、Caution、Alert、Hunt 分支间切换，必要时重规划路径，并通过 Sys_Physics 的 EntityID 接口同步速度与旋转。
- * @param registry 当前场景注册表
- * @param dt 本帧时间步长（秒）
+ * @brief 每帧推进所有具有 C_T_Pathfinder + C_D_NavAgent 实体的导航逻辑。
+ * @details 根据 AI 状态在 Safe、Search、Alert、Hunt 分支间切换，必要时重规划路径，
+ *          并通过 Sys_Physics 的 EntityID 接口同步速度与旋转。
+ * @param registry ECS 注册表，用于访问 C_D_AIState、C_D_Transform 等组件。
+ * @param dt       帧时间（秒）。
  */
 void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
     if (!m_Pathfinder) {
@@ -206,8 +207,8 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
             break;
         }
 
-        // ── Caution：停止移动，朝向最后已知目标位置旋转 ──────────────────
-        case EnemyState::Caution: {
+        // ── Search：停止移动，朝向最后已知目标位置旋转 ──────────────────
+        case EnemyState::Search: {
             if (agent.is_active) {
                 agent.path_length              = 0;
                 agent.current_waypoint_index   = 0;

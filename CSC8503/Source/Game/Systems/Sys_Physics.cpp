@@ -23,11 +23,21 @@
 using namespace NCL::Maths;
 
 // ============================================================
-// Jolt ↔ NCL 转换工具（内部静态函数）
+// Jolt ↔ NCL 转换工具
 // ============================================================
+/**
+ * @brief 将三个浮点分量转换为 Jolt Vec3。
+ * @param x, y, z 浮点坐标分量
+ * @return JPH::Vec3
+ */
 JPH::Vec3 ECS::Sys_Physics::ToJolt(float x, float y, float z) {
     return JPH::Vec3(x, y, z);
 }
+/**
+ * @brief 将四元数分量转换为 Jolt Quat。
+ * @param qx, qy, qz, qw 四元数分量
+ * @return JPH::Quat
+ */
 JPH::Quat ECS::Sys_Physics::ToJoltQuat(float qx, float qy, float qz, float qw) {
     return JPH::Quat(qx, qy, qz, qw);
 }
@@ -47,6 +57,9 @@ namespace {
     std::unordered_map<uint32_t, float> g_LastGravityFactors;
 }
 
+/**
+ * @brief Jolt 全局初始化（只执行一次）：注册内存分配器、Factory、类型。
+ */
 void ECS::Sys_Physics::InitJolt() {
     if (g_JoltInitialized) return;
 
@@ -80,6 +93,11 @@ void ECS::Sys_Physics::InitJolt() {
 // ============================================================
 // OnAwake
 // ============================================================
+/**
+ * @brief 系统初始化：调用 InitJolt、创建 BroadPhaseLayerInterface/PhysicsSystem、
+ *        设置碰撞/触发回调，并注册自身指针到 registry ctx。
+ * @param registry ECS 注册表
+ */
 void ECS::Sys_Physics::OnAwake(Registry& registry) {
     InitJolt();
 
@@ -473,8 +491,8 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
     std::vector<uint32_t> toRemove;
 
     for (auto& [bodyID, entityID] : m_BodyToEntity) {
-        // 如果实体不再有效（已销毁）
-        if (!reg.Valid(entityID)) {
+        // 实体已销毁 或 C_D_RigidBody 已被移除（死亡动画期间）
+        if (!reg.Valid(entityID) || !reg.Has<C_D_RigidBody>(entityID)) {
             toRemove.push_back(bodyID);
         }
     }

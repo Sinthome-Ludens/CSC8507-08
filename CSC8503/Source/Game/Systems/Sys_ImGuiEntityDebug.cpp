@@ -25,6 +25,11 @@
 
 namespace ECS {
 
+/**
+ * @brief 收集当前注册表中所有活跃实体。
+ * @param registry 当前场景注册表
+ * @return 所有活跃实体 ID 的列表
+ */
 static std::vector<EntityID> CollectActiveEntities(const Registry& registry) {
     std::vector<EntityID> entities;
     entities.reserve(registry.EntityCount());

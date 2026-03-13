@@ -1,3 +1,13 @@
+/**
+ * @file Sys_UI.cpp
+ * @brief UI 状态机系统实现：菜单导航、光标仲裁、UI 资源注册与渲染分发。
+ *
+ * @details
+ * - OnAwake：注册所有 UI ctx 资源（Res_UIState、Res_ToastState、Res_ActionNotifyState 等）
+ * - OnUpdate：处理 F1 devMode、ESC 导航、I/TAB 热键，推进 playTime，
+ *             按 activeScreen 分发到各 UI 渲染函数，最终仲裁光标状态
+ * - OnDestroy：空操作（ctx 资源跨场景存活，由 Scene::OnExit 清理）
+ */
 #include "Sys_UI.h"
 #ifdef USE_IMGUI
 
@@ -8,6 +18,7 @@
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_ActionNotifyState.h"
 #include "Game/Components/C_D_Interactable.h"
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_Menus.h"
@@ -24,6 +35,7 @@
 #include "Game/UI/UI_Interaction.h"
 #include "Game/UI/UI_Loading.h"
 #include "Game/UI/UI_Lobby.h"
+#include "Game/UI/UI_ActionNotify.h"
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
@@ -36,7 +48,10 @@ static constexpr float kGlobalTimeWrap = 6283.1853f;  // 2000 * PI
 // ============================================================
 // OnAwake
 // ============================================================
-
+/**
+ * @brief 系统初始化：加载字体、应用主题，注册所有 UI ctx 资源（含 Res_ActionNotifyState）。
+ * @param registry ECS 注册表
+ */
 void Sys_UI::OnAwake(Registry& registry) {
     UITheme::LoadFonts();
     UITheme::ApplyTheme();
@@ -61,13 +76,22 @@ void Sys_UI::OnAwake(Registry& registry) {
         registry.ctx_emplace<Res_LobbyState>();
     }
 
+    if (!registry.has_ctx<Res_ActionNotifyState>()) {
+        registry.ctx_emplace<Res_ActionNotifyState>();
+    }
+
     LOG_INFO("[Sys_UI] OnAwake — Fonts loaded, theme applied, all UI resources registered.");
 }
 
 // ============================================================
 // OnUpdate
 // ============================================================
-
+/**
+ * @brief 每帧处理热键输入（F1/ESC/I/TAB）、推进 playTime，并按 activeScreen
+ *        分发到对应 UI 渲染函数，最终仲裁光标状态与 CRT 特效。
+ * @param registry ECS 注册表
+ * @param dt       帧时间（秒）
+ */
 void Sys_UI::OnUpdate(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
@@ -88,9 +112,9 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     if (ui.devMode && kb && registry.has_ctx<Res_GameState>()) {
         auto& gs = registry.ctx<Res_GameState>();
 
-        // F2: Cycle alertLevel (0/30/60/100/150) — derive next from current value
+        // F2: Cycle alertLevel (0/25/50/75/100) — derive next from current value
         if (kb->KeyPressed(KeyCodes::F2)) {
-            static const float kAlertCycle[] = { 0.0f, 30.0f, 60.0f, 100.0f, 150.0f };
+            static const float kAlertCycle[] = { 0.0f, 25.0f, 50.0f, 75.0f, 100.0f };
             float next = kAlertCycle[0];
             for (int i = 0; i < 5; ++i) {
                 if (kAlertCycle[i] > gs.alertLevel + 0.01f) { next = kAlertCycle[i]; break; }
@@ -278,7 +302,8 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     // HUD 状态下累加 playTime（写操作在 System 层，UI 只读）
     if (ui.activeScreen == UIScreen::HUD && registry.has_ctx<Res_GameState>()) {
-        registry.ctx<Res_GameState>().playTime += dt;
+        auto& gs = registry.ctx<Res_GameState>();
+        gs.playTime += dt;
     }
 
     // Dispatch to render functions
@@ -300,11 +325,12 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             break;
     }
 
-    // HUD overlays (chat, interaction prompts, item wheel)
+    // HUD overlays (chat, interaction prompts, item wheel, action notify)
     if (ui.activeScreen == UIScreen::HUD) {
         UI::RenderChatPanel(registry, dt);
         UI::RenderInteractionPrompts(registry, dt);
         UI::RenderItemWheel(registry, dt);
+        UI::RenderActionNotify(registry, dt);
     }
 
     // Update input blocking flag
@@ -381,7 +407,10 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 // ============================================================
 // OnDestroy
 // ============================================================
-
+/**
+ * @brief 系统销毁（空操作）。ctx 资源由 Scene::OnExit 负责清理。
+ * @param registry ECS 注册表（未使用）
+ */
 void Sys_UI::OnDestroy(Registry& /*registry*/) {
     LOG_INFO("[Sys_UI] OnDestroy.");
 }

@@ -10,7 +10,7 @@ namespace ECS {
  *
  * 职责：
  *   - 以表格形式渲染所有 C_T_Enemy 实体的 AI 状态
- *   - 显示字段：Entity ID / 世界坐标 / AI State / Detection Value
+ *   - 显示字段：Entity ID / 世界坐标 / AI State / Detection Value / Action（Kill 按钮）
  *
  * 依赖组件：C_T_Enemy, C_D_Transform, C_D_AIState, C_D_AIPerception
  * 场景无关：只要 Registry 中有敌人实体，本面板均可工作。
@@ -24,6 +24,10 @@ public:
     void OnDestroy(Registry& registry)           override;
 
 private:
+    /**
+     * @brief 渲染 "Enemy Monitoring Station" 调试窗口（5 列表格：ID/坐标/状态/感知值/Kill按钮）。
+     * @param registry ECS 注册表
+     */
     void RenderEnemyMonitorWindow(Registry& registry);
 
     bool m_ShowWindow = true;
