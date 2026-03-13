@@ -20,6 +20,14 @@ struct ChatMessage {
     uint8_t senderType = 0;  // 0=system, 1=player, 2=NPC
 };
 
+enum class DirKey : uint8_t { Up = 0, Down = 1, Left = 2, Right = 3 };
+
+struct DirSequence {
+    static constexpr int kMaxKeys = 8;
+    DirKey  keys[kMaxKeys] = {};
+    uint8_t length  = 0;     // 实际长度 3-7
+};
+
 struct ChatReplyOption {
     char text[64]   = {};
     bool enabled    = true;
@@ -54,6 +62,12 @@ struct Res_ChatState {
     float   nextMessageDelay = 8.0f;
     bool    waitingForReply  = false;
 
+    // ─ 方向键输入系统 ────────────────────────────────────
+    static constexpr int kInputBufferSize = 8;
+    DirSequence replySequences[kMaxReplies] = {};  // 每个回复的方向序列
+    DirKey      inputBuffer[kInputBufferSize] = {};  // 玩家输入缓冲区
+    uint8_t     inputBufferLen    = 0;              // 当前输入长度
+    bool        dirInputActive    = false;          // 方向输入模式激活
 };
 
 // ─ Free functions (POD compliance) ──────────────────────
@@ -76,6 +90,17 @@ inline void ChatState_PushMessage(Res_ChatState& cs, const char* sender, const c
     }
 }
 
+inline void ChatState_ClearDirInput(Res_ChatState& cs) {
+    cs.inputBufferLen = 0;
+    for (auto& k : cs.inputBuffer) k = DirKey::Up;
+}
+
+inline void ChatState_ClearDirSequences(Res_ChatState& cs) {
+    for (auto& seq : cs.replySequences) { seq.length = 0; }
+    ChatState_ClearDirInput(cs);
+    cs.dirInputActive = false;
+}
+
 inline void ChatState_ClearReplies(Res_ChatState& cs) {
     cs.replyCount    = 0;
     cs.selectedReply = 0;
@@ -87,6 +112,7 @@ inline void ChatState_ClearReplies(Res_ChatState& cs) {
     cs.replyTimerActive = false;
     cs.replyTimer       = 0.0f;
     cs.waitingForReply  = false;
+    ChatState_ClearDirSequences(cs);
 }
 
 inline void ChatState_AddReply(Res_ChatState& cs, const char* text, int8_t effect = 0) {

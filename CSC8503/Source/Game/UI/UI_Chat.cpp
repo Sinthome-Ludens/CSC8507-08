@@ -116,12 +116,24 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     }
 
     // ── Messages area ─────────────────────────────────────
-    if (smallFont) ImGui::PushFont(smallFont);
+    ImFont* bodyFont = UITheme::GetFont_Body();
+    if (bodyFont) ImGui::PushFont(bodyFont);
 
     float msgStartY = contentY + 6.0f;
-    float replyAreaH = (chat.replyCount > 0) ? (chat.replyCount * 18.0f + 30.0f) : 24.0f;
+
+    // Reply area height calculation
+    float replyAreaH = 24.0f;  // bottom hint line
+    if (chat.replyCount > 0) {
+        replyAreaH  = 8.0f;                                          // top padding
+        if (chat.replyTimerActive) replyAreaH += 36.0f;              // countdown
+        replyAreaH += 28.0f;                                          // input box
+        replyAreaH += 4.0f;                                           // spacing
+        replyAreaH += chat.replyCount * 42.0f;                        // reply items
+        replyAreaH += 24.0f;                                          // bottom hint
+    }
+
     float msgEndY = panelY + panelH - replyAreaH;
-    constexpr float kMsgLineH = 18.0f;
+    constexpr float kMsgLineH = 22.0f;
 
     // Calculate how many messages fit
     int maxVisible = (int)((msgEndY - msgStartY) / kMsgLineH);
@@ -163,48 +175,150 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
         msgY += kMsgLineH;
     }
 
-    if (smallFont) ImGui::PopFont();
+    if (bodyFont) ImGui::PopFont();
 
     // ── Reply area separator ──────────────────────────────
-    float inputLineY = panelY + panelH - replyAreaH;
+    float replyTopY = panelY + panelH - replyAreaH;
     draw->AddLine(
-        ImVec2(panelX + 8.0f, inputLineY),
-        ImVec2(panelX + panelW - 8.0f, inputLineY),
+        ImVec2(panelX + 8.0f, replyTopY),
+        ImVec2(panelX + panelW - 8.0f, replyTopY),
         IM_COL32(200, 200, 200, 100), 1.0f);
 
-    // ── Reply options ─────────────────────────────────────
-    if (chat.replyCount > 0 && smallFont) {
-        ImGui::PushFont(smallFont);
-        float replyY = inputLineY + 6.0f;
-        for (int i = 0; i < chat.replyCount && i < Res_ChatState::kMaxReplies; ++i) {
-            bool isSel = (i == chat.selectedReply);
+    if (chat.replyCount > 0) {
+        float curY = replyTopY + 8.0f;
+        ImFont* largeFont = UITheme::GetFont_TerminalLarge();
 
-            // Selection highlight
-            if (isSel) {
+        // ── Countdown number (centered, 32px) ────────────
+        if (chat.replyTimerActive && chat.replyTimerMax > 0.0f) {
+            int secs = (int)std::ceil(chat.replyTimer);
+            char timerBuf[8];
+            snprintf(timerBuf, sizeof(timerBuf), "%d", secs);
+
+            if (largeFont) ImGui::PushFont(largeFont);
+            ImVec2 timerSize = ImGui::CalcTextSize(timerBuf);
+            float timerX = panelX + (panelW - timerSize.x) * 0.5f;
+
+            float ratio = std::clamp(chat.replyTimer / chat.replyTimerMax, 0.0f, 1.0f);
+            ImU32 timerColor;
+            if      (ratio > 0.5f)  timerColor = IM_COL32(80, 200, 120, 220);
+            else if (ratio > 0.25f) timerColor = IM_COL32(220, 200, 0, 220);
+            else                    timerColor = IM_COL32(220, 60, 40, 220);
+
+            draw->AddText(ImVec2(timerX, curY), timerColor, timerBuf);
+            if (largeFont) ImGui::PopFont();
+            curY += 36.0f;
+        }
+
+        // ── Helper: draw direction arrow triangle ────────
+        // dir: 0=Up, 1=Down, 2=Left, 3=Right
+        // cx,cy = center of the arrow cell, sz = half-size
+        auto DrawArrow = [&](float cx, float cy, int dir, ImU32 color, float sz = 6.0f) {
+            switch (dir) {
+                case 0: // Up
+                    draw->AddTriangleFilled(
+                        ImVec2(cx, cy - sz), ImVec2(cx - sz, cy + sz), ImVec2(cx + sz, cy + sz), color);
+                    break;
+                case 1: // Down
+                    draw->AddTriangleFilled(
+                        ImVec2(cx, cy + sz), ImVec2(cx - sz, cy - sz), ImVec2(cx + sz, cy - sz), color);
+                    break;
+                case 2: // Left
+                    draw->AddTriangleFilled(
+                        ImVec2(cx - sz, cy), ImVec2(cx + sz, cy - sz), ImVec2(cx + sz, cy + sz), color);
+                    break;
+                case 3: // Right
+                    draw->AddTriangleFilled(
+                        ImVec2(cx + sz, cy), ImVec2(cx - sz, cy - sz), ImVec2(cx - sz, cy + sz), color);
+                    break;
+            }
+        };
+
+        // ── Input recognition box (8 slots, centered) ────
+        constexpr float kSlotSize = 20.0f;
+        constexpr float kSlotGap  = 4.0f;
+        float totalSlotW = Res_ChatState::kInputBufferSize * kSlotSize + (Res_ChatState::kInputBufferSize - 1) * kSlotGap;
+        float slotStartX = panelX + (panelW - totalSlotW) * 0.5f;
+
+        for (int s = 0; s < Res_ChatState::kInputBufferSize; ++s) {
+            float sx = slotStartX + s * (kSlotSize + kSlotGap);
+            float sy = curY;
+
+            if (s < chat.inputBufferLen) {
+                // Filled slot — orange border + arrow
+                draw->AddRect(ImVec2(sx, sy), ImVec2(sx + kSlotSize, sy + kSlotSize),
+                    IM_COL32(252, 111, 41, 255), 2.0f, 0, 2.0f);
+                DrawArrow(sx + kSlotSize * 0.5f, sy + kSlotSize * 0.5f,
+                    static_cast<int>(chat.inputBuffer[s]), IM_COL32(252, 111, 41, 255), 5.0f);
+            } else {
+                // Empty slot — gray dashed border
+                draw->AddRect(ImVec2(sx, sy), ImVec2(sx + kSlotSize, sy + kSlotSize),
+                    IM_COL32(160, 160, 160, 100), 2.0f, 0, 1.0f);
+            }
+        }
+        curY += 28.0f;
+
+        // ── Determine which reply is prefix-matched ──────
+        int matchedReply = -1;
+        if (chat.inputBufferLen > 0) {
+            for (int i = 0; i < chat.replyCount; ++i) {
+                const auto& seq = chat.replySequences[i];
+                if (chat.inputBufferLen > seq.length) continue;
+                bool match = true;
+                for (uint8_t k = 0; k < chat.inputBufferLen; ++k) {
+                    if (chat.inputBuffer[k] != seq.keys[k]) { match = false; break; }
+                }
+                if (match) { matchedReply = i; break; }
+            }
+        }
+
+        // ── Reply options (text + direction sequence) ─────
+        if (bodyFont) ImGui::PushFont(bodyFont);
+        curY += 4.0f;
+        for (int i = 0; i < chat.replyCount && i < Res_ChatState::kMaxReplies; ++i) {
+            bool isMatch = (i == matchedReply);
+
+            // Highlight background for matched option
+            if (isMatch) {
                 draw->AddRectFilled(
-                    ImVec2(panelX + 6.0f, replyY - 1.0f),
-                    ImVec2(panelX + panelW - 6.0f, replyY + 15.0f),
+                    ImVec2(panelX + 6.0f, curY - 2.0f),
+                    ImVec2(panelX + panelW - 6.0f, curY + 40.0f),
                     IM_COL32(252, 111, 41, 30), 2.0f);
             }
 
-            // Reply number + text
-            ImU32 replyColor = isSel ? IM_COL32(252, 111, 41, 255)
-                                     : IM_COL32(16, 13, 10, 160);
-            char replyBuf[72];
-            snprintf(replyBuf, sizeof(replyBuf), "[%d] %s", i + 1, chat.replies[i].text);
-            draw->AddText(ImVec2(panelX + 10.0f, replyY), replyColor, replyBuf);
-            replyY += 18.0f;
-        }
-        ImGui::PopFont();
-    }
+            // Text line
+            ImU32 textColor = isMatch ? IM_COL32(252, 111, 41, 255)
+                                      : IM_COL32(16, 13, 10, 160);
+            draw->AddText(ImVec2(panelX + 10.0f, curY), textColor, chat.replies[i].text);
 
-    // ── Bottom hint ───────────────────────────────────────
-    if (smallFont) ImGui::PushFont(smallFont);
-    draw->AddText(
-        ImVec2(panelX + 10.0f, panelY + panelH - 18.0f),
-        IM_COL32(16, 13, 10, 100),
-        "[1-4] REPLY");
-    if (smallFont) ImGui::PopFont();
+            // Direction sequence arrows (below text)
+            const auto& seq = chat.replySequences[i];
+            float arrowY = curY + 22.0f;
+            float arrowX = panelX + 14.0f;
+            constexpr float kArrowCellW = 18.0f;
+
+            for (uint8_t k = 0; k < seq.length; ++k) {
+                // Bright if matched so far, dim otherwise
+                bool keyMatched = isMatch && (k < chat.inputBufferLen);
+                ImU32 arrowColor = keyMatched ? IM_COL32(252, 111, 41, 255)
+                                             : IM_COL32(16, 13, 10, 80);
+                DrawArrow(arrowX + kArrowCellW * 0.5f, arrowY + 7.0f,
+                    static_cast<int>(seq.keys[k]), arrowColor, 5.0f);
+                arrowX += kArrowCellW;
+            }
+
+            curY += 42.0f;
+        }
+        if (bodyFont) ImGui::PopFont();
+
+        // ── Bottom hint ──────────────────────────────────
+        if (smallFont) ImGui::PushFont(smallFont);
+        const char* hintText = "[ARROW KEYS] INPUT";
+        ImVec2 hintSize = ImGui::CalcTextSize(hintText);
+        float hintX = panelX + (panelW - hintSize.x) * 0.5f;
+        draw->AddText(ImVec2(hintX, panelY + panelH - 18.0f),
+            IM_COL32(16, 13, 10, 100), hintText);
+        if (smallFont) ImGui::PopFont();
+    }
 }
 
 } // namespace ECS::UI
