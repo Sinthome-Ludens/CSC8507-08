@@ -25,11 +25,11 @@ namespace ECS {
  * 挂载在地图中投掷物实体上，由 Sys_ItemEffects 追踪生命周期。
  */
 struct C_D_HoloBaitState {
-    NCL::Maths::Vector3 worldPos;            ///< 诱饵在世界中的位置
-    EntityID            attractedEnemy = {};  ///< 被吸引的敌人实体（Invalid = 尚未吸引）
-    float               remainingTime  = 3.0f; ///< 敌人抵达后恢复倒计时（秒）
-    bool                enemyArrived   = false; ///< 敌人是否已抵达诱饵位置
-    bool                active         = true;  ///< 诱饵是否仍处于激活状态
+    NCL::Maths::Vector3 worldPos;                ///< 诱饵在世界中的位置
+    EntityID            attractedEnemy = Entity::NULL_ENTITY; ///< 被吸引的敌人实体（Entity::NULL_ENTITY = 尚未吸引）
+    float               remainingTime  = 3.0f;   ///< 敌人抵达后恢复倒计时（秒）
+    bool                enemyArrived   = false;  ///< 敌人是否已抵达诱饵位置
+    bool                active         = true;   ///< 诱饵是否仍处于激活状态
 };
 
 } // namespace ECS
