@@ -1,6 +1,12 @@
 /**
  * @file Sys_Navigation.cpp
- * @brief NavAgent 路径跟随系统：3D 速度驱动、路点跳跃、Hunt/Patrol 行为切换。
+ * @brief 导航系统实现：3D 速度驱动的状态感知寻路与移动控制。
+ *
+ * @details
+ * 根据 C_D_AIState 当前状态分支执行：Safe 静止、Search 旋转朝向、
+ * Alert 前往快照位置、Hunt 实时追踪并定期重规划路径。
+ * 通过 EntityID 语义的 Sys_Physics 接口同步速度与旋转写回。
+ * FollowPath 使用 3D 速度以支持斜坡/多层地图移动。
  */
 #include "Sys_Navigation.h"
 #include <cstring>
@@ -20,7 +26,7 @@
 namespace ECS {
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 辅助：将实体平滑旋转朝向 targetPos（Caution 与路径跟随共用）
+// 辅助：将实体平滑旋转朝向 targetPos（Search 与路径跟随共用）
 // ─────────────────────────────────────────────────────────────────────────────
 static void ApplyRotationToward(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
                                 C_D_RigidBody& rb, Sys_Physics* physics,
@@ -247,8 +253,8 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
             break;
         }
 
-        // ── Caution：停止移动，朝向最后已知目标位置旋转 ──────────────────
-        case EnemyState::Caution: {
+        // ── Search：停止移动，朝向最后已知目标位置旋转 ──────────────────
+        case EnemyState::Search: {
             if (agent.is_active) {
                 agent.path_length              = 0;
                 agent.current_waypoint_index   = 0;

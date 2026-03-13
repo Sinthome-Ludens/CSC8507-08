@@ -59,7 +59,7 @@ void Sys_ImGuiEnemyAI::RenderEnemyMonitorWindow(Registry& registry) {
             ImGui::TableSetColumnIndex(2);
             const char* stateStr =
                 (aiState.current_state == EnemyState::Safe)    ? "SAFE"    :
-                (aiState.current_state == EnemyState::Caution) ? "CAUTION" :
+                (aiState.current_state == EnemyState::Search)  ? "SEARCH"  :
                 (aiState.current_state == EnemyState::Alert)   ? "ALERT"   : "HUNT";
             ImGui::TextUnformatted(stateStr);
 

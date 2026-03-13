@@ -53,8 +53,8 @@ namespace ECS {
                 nextState = EnemyState::Hunt;
             } else if (v >= detect.alert_threshold) {
                 nextState = EnemyState::Alert;
-            } else if (v >= detect.caution_threshold) {
-                nextState = EnemyState::Caution;
+            } else if (v >= detect.search_threshold) {
+                nextState = EnemyState::Search;
             } else {
                 nextState = EnemyState::Safe;
             }

@@ -166,7 +166,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Movement>        ( 65);   // 物理移动
     systems.Register<ECS::Sys_Physics>         (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyVision>    (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
-    systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Caution/Alert/Hunt）
+    systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Search/Alert/Hunt）
     systems.Register<ECS::Sys_DeathJudgment>   (125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死 → 场景重启/敌人销毁）
     systems.Register<ECS::Sys_PlayerCamera>    (150);   // 第三人称跟随相机
     systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
