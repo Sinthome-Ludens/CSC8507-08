@@ -167,7 +167,6 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
         // Message text
         ImVec2 senderSize = ImGui::CalcTextSize(senderBuf);
         float textX = panelX + 10.0f + senderSize.x + 6.0f;
-        float availW = panelW - (textX - panelX) - 8.0f;
 
         // Simple word-wrap: just truncate if too long for now
         draw->AddText(ImVec2(textX, msgY),
