@@ -21,6 +21,7 @@ struct ChatMessage {
 };
 
 enum class DirKey : uint8_t { Up = 0, Down = 1, Left = 2, Right = 3 };
+static constexpr int kDirKeyCount = 4;  ///< DirKey 枚举值数量
 
 struct DirSequence {
     static constexpr int kMaxKeys = 8;
