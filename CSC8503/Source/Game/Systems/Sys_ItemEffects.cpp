@@ -202,6 +202,9 @@ void Sys_ItemEffects::EffectDDoS(Registry& registry, const Evt_Item_Use& evt) {
         registry.Emplace<C_D_DDoSFrozen>(target);
     }
 
+    if (registry.Has<C_D_RoamAI>(target)) {
+        registry.Get<C_D_RoamAI>(target).active = false;
+    }
     LOG_INFO("[Sys_ItemEffects] DDoS frozen entity " << target << " for 5s.");
 }
 
