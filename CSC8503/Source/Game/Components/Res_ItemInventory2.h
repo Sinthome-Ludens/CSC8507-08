@@ -1,5 +1,5 @@
 /**
- * @file Res_ItemInventory.h
+ * @file Res_ItemInventory2.h
  * @brief 全局道具库存资源：存储玩家对五种道具的携带数量与仓库存量。
  *
  * @details
