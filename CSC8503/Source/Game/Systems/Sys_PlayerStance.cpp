@@ -1,3 +1,10 @@
+/**
+ * @file Sys_PlayerStance.cpp
+ * @brief 玩家姿态系统实现。
+ *
+ * @details
+ * 负责站立/下蹲切换、碰撞体高度调整，以及相关姿态事件发布。
+ */
 #include "Sys_PlayerStance.h"
 
 #include "Game/Components/C_D_Input.h"
@@ -16,6 +23,12 @@ namespace {
 
 namespace ECS {
 
+/**
+ * @brief 处理玩家姿态切换与碰撞体重建。
+ * @details 根据输入、伪装状态和强制站立请求决定目标姿态，并通过 Sys_Physics 的 EntityID 接口替换胶囊体、修正位置、唤醒刚体，再发布姿态切换事件。
+ * @param registry 当前场景注册表
+ * @param dt 本帧时间步长（当前实现未直接使用）
+ */
 void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Sys_Physics*>()) return;
     auto* physics = registry.ctx<Sys_Physics*>();

@@ -12,6 +12,7 @@
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Systems/Sys_DeathJudgment.h"
+#include "Game/Systems/Sys_DeathEffect.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
@@ -25,6 +26,7 @@
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
+#include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_ImGuiNavTest.h"
 #endif
 
@@ -32,9 +34,16 @@
 // OnEnter（场景加载阶段）
 // ============================================================
 
+/**
+ * @brief 进入导航测试场景：初始化 AssetManager、注册 ctx 资源、生成实体、注册系统。
+ * @details 加载导航测试资源、重置场景级 context、创建基础测试实体，并注册导航、感知、渲染与调试系统。
+ * @param registry ECS 注册表
+ * @param systems  系统管理器（注册并 Awake 各系统）
+ * @param nclPtrs  NCL 核心指针（GameWorld/PhysicsSystem/Renderer，当前未直接使用）
+ */
 void Scene_NavTest::OnEnter(ECS::Registry&          registry,
-                            ECS::SystemManager&     systems,
-                            const Res_NCL_Pointers& /*nclPtrs*/)
+                             ECS::SystemManager&     systems,
+                             const Res_NCL_Pointers& /*nclPtrs*/)
 {
     // ── 1. 资源预热：初始化 AssetManager，加载本场景所需 mesh ──────────
     ECS::AssetManager::Instance().Init();
@@ -80,12 +89,13 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
     //    执行顺序：Camera(50) → Physics(100) → EnemyVision(110)
-    //              → DeathJudgment(125) → Navigation(130) → Render(200)
-    //              → EnemyAI(250) → ImGui(300) → NavTest(310)
+    //              → DeathJudgment(125) → DeathEffect(126) → Navigation(130)
+    //              → Render(200) → EnemyAI(250) → ImGui(300) → NavTest(310)
     systems.Register<ECS::Sys_Camera>       ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>      (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyVision>  (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
     systems.Register<ECS::Sys_DeathJudgment>(125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死）
+    systems.Register<ECS::Sys_DeathEffect> (126);   // 死亡视觉特效（赛博朋克四阶段：数字冲击→霓虹故障→数据溶解→最终崩塌）
 
     auto* navSys = systems.Register<ECS::Sys_Navigation>(130);
     m_Pathfinder = std::make_unique<ECS::NavMeshPathfinderUtil>();
@@ -95,8 +105,9 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 C_D_AIPerception::is_spotted）
 
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>        (300);   // 菜单栏 + 性能窗口
-    systems.Register<ECS::Sys_ImGuiNavTest> (310);   // NavTest 敌人/目标生成控制面板
+    systems.Register<ECS::Sys_ImGui>           (300);   // 菜单栏 + 性能窗口
+    systems.Register<ECS::Sys_ImGuiEntityDebug>(305);   // 全量实体列表 + 详情面板
+    systems.Register<ECS::Sys_ImGuiNavTest>    (310);   // NavTest 敌人/目标生成控制面板
 #endif
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
@@ -125,8 +136,14 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 // OnExit（场景卸载阶段）
 // ============================================================
 
+/**
+ * @brief 退出导航测试场景：逆序销毁所有系统，重置寻路器，清除场景指针 ctx。
+ * @details 逆序销毁当前场景系统，释放路径查询工具和场景级 context，随后清空 Registry 中的全部实体与组件。
+ * @param registry ECS 注册表
+ * @param systems  系统管理器（调用 DestroyAll）
+ */
 void Scene_NavTest::OnExit(ECS::Registry&      registry,
-                           ECS::SystemManager& systems)
+                            ECS::SystemManager& systems)
 {
     // 逆序停机
     systems.DestroyAll(registry);

@@ -25,9 +25,17 @@
 
 namespace ECS {
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 辅助：将实体平滑旋转朝向 targetPos（Search 与路径跟随共用）
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @brief 将实体平滑旋转朝向 targetPos（Search 与路径跟随共用）。
+ * @details 该辅助函数被 Search 朝向修正与路径跟随逻辑共用，并在需要时把旋转同步回物理系统。
+ * @param entity    当前实体 ID（传入 Sys_Physics::SetRotation）
+ * @param agent     NavAgent 数据组件（提供 rotation_speed）
+ * @param tf        实体变换组件（读写 rotation）
+ * @param rb        刚体组件（检查 body_created）
+ * @param physics   物理系统指针（调用 SetRotation）
+ * @param targetPos 目标世界坐标（仅使用 XZ 分量）
+ * @param dt        帧时间（秒）
+ */
 static void ApplyRotationToward(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
                                 C_D_RigidBody& rb, Sys_Physics* physics,
                                 const NCL::Maths::Vector3& targetPos, float dt)
@@ -52,9 +60,17 @@ static void ApplyRotationToward(EntityID entity, C_D_NavAgent& agent, C_D_Transf
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 辅助：按 path_waypoints 推进路点并施加速度（Alert / Hunt 共用）
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @brief 按路径路点推进导航代理（3D 速度驱动）。
+ * @details 在 Alert 与 Hunt 状态下复用该辅助逻辑，负责推进当前路点、同步朝向并向物理系统写入期望速度。
+ *          使用 3D 距离计算和 3D 速度以支持斜坡/多层地图移动，Y 分量限幅 ±8 m/s 防止飞天。
+ * @param entity 当前实体 ID
+ * @param agent 导航代理组件
+ * @param tf 当前实体变换
+ * @param rb 当前实体刚体
+ * @param physics 物理系统指针
+ * @param dt 本帧时间步长
+ */
 static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
                        C_D_RigidBody& rb, Sys_Physics* physics, float dt)
 {
@@ -157,13 +173,14 @@ static void CopyPathToAgent(C_D_NavAgent& agent,
     agent.is_active                = (count > 0);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 内部辅助：路径重规划后跳过已在到达半径内的初始路点
-//
-// 问题根因：CopyPathToAgent 将 current_waypoint_index 归零，新路径前几个路点
-// 可能已在 agent 当前位置附近甚至身后。若不跳过，agent 会先转向这些路点，
-// 产生每次重规划后的"抖动转向"。
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @brief 路径重规划后跳过已在到达半径内的初始路点。
+ * @details CopyPathToAgent 将 current_waypoint_index 归零，新路径前几个路点
+ *          可能已在 agent 当前位置附近甚至身后。若不跳过，agent 会先转向这些路点，
+ *          产生每次重规划后的"抖动转向"。
+ * @param agent 导航代理组件
+ * @param tf    实体变换组件（读取当前位置）
+ */
 static void SkipReachedWaypoints(C_D_NavAgent& agent, const C_D_Transform& tf)
 {
     while (agent.current_waypoint_index < agent.path_length - 1) {
@@ -180,9 +197,13 @@ static void SkipReachedWaypoints(C_D_NavAgent& agent, const C_D_Transform& tf)
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 主更新
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @brief 每帧推进所有具有 C_T_Pathfinder + C_D_NavAgent 实体的导航逻辑。
+ * @details 根据 AI 状态在 Safe、Search、Alert、Hunt 分支间切换，必要时重规划路径，
+ *          并通过 Sys_Physics 的 EntityID 接口同步速度与旋转。
+ * @param registry ECS 注册表，用于访问 C_D_AIState、C_D_Transform 等组件。
+ * @param dt       帧时间（秒）。
+ */
 void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
     if (!m_Pathfinder) {
         LOG_WARN("[Sys_Navigation] Pathfinder is null, skipping update.");
