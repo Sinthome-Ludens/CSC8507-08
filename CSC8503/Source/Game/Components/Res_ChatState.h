@@ -37,7 +37,7 @@ struct ChatReplyOption {
 struct Res_ChatState {
     static constexpr int   kMaxMessages = 32;
     static constexpr int   kMaxReplies  = 4;
-    static constexpr float PANEL_WIDTH  = 320.0f;
+    static constexpr float kPanelWidth  = 320.0f;
 
     ChatMessage   messages[kMaxMessages] = {};
     int           messageCount           = 0;

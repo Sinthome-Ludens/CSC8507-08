@@ -65,7 +65,7 @@ void RenderInteractionPrompts(Registry& registry, float /*dt*/) {
     Matrix4 vpMat = projMat * viewMat;
 
     Vector3 camPos = cam.GetPosition();
-    float gameW = ImGui::GetIO().DisplaySize.x - Res_ChatState::PANEL_WIDTH;
+    float gameW = ImGui::GetIO().DisplaySize.x - Res_ChatState::kPanelWidth;
     float displayH = ImGui::GetIO().DisplaySize.y;
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();

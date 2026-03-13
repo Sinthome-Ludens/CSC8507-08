@@ -27,7 +27,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
 
     // Panel dimensions — right side, full height
-    float panelW = Res_ChatState::PANEL_WIDTH;
+    float panelW = Res_ChatState::kPanelWidth;
     float panelX = displaySize.x - panelW;
     float panelY = 0.0f;
     float panelH = displaySize.y;

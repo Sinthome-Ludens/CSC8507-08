@@ -39,7 +39,7 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     ImFont* smallFont = UITheme::GetFont_Small();
 
     // Center in game area (excluding chat panel)
-    float gameW = displaySize.x - Res_ChatState::PANEL_WIDTH;
+    float gameW = displaySize.x - Res_ChatState::kPanelWidth;
     float cx = gameW * 0.5f;
     float cy = displaySize.y * 0.5f;
     float outerR = 120.0f;

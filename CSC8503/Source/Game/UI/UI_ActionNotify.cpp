@@ -65,7 +65,7 @@ void RenderActionNotify(Registry& registry, float dt) {
     ImDrawList* draw        = ImGui::GetForegroundDrawList();
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
 
-    constexpr float kBoxW      = 320.0f;   // 与 Res_ChatState::PANEL_WIDTH 对齐
+    constexpr float kBoxW      = 320.0f;   // 与 Res_ChatState::kPanelWidth 对齐
     constexpr float kPadX      =  12.0f;
     constexpr float kPadY      =   7.0f;
     constexpr float kBoxH      =  34.0f;
