@@ -69,6 +69,9 @@ struct Res_ChatState {
     DirKey      inputBuffer[kInputBufferSize] = {};  // 玩家输入缓冲区
     uint8_t     inputBufferLen    = 0;              // 当前输入长度
     bool        dirInputActive    = false;          // 方向输入模式激活
+
+    static_assert(kInputBufferSize >= DirSequence::kMaxKeys,
+                  "kInputBufferSize must be >= DirSequence::kMaxKeys");
 };
 
 // ─ Free functions (POD compliance) ──────────────────────
