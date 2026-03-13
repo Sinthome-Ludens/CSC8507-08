@@ -212,28 +212,28 @@ public:
      */
     void OnDestroy(Registry& registry) override;
 
-    // --- 工具函数（供 Prefab 工厂等外部代码调用）---
+    // --- 工具函数（按 EntityID 操作物理体，内部通过 m_EntityToBody 查找 Jolt Body）---
 
-    /// 在 ECS 实体上设置 Jolt 线速度（动态体）
-    void SetLinearVelocity(uint32_t joltBodyID, float vx, float vy, float vz);
+    /// 设置实体的 Jolt 线速度（动态体）
+    void SetLinearVelocity(EntityID entity, float vx, float vy, float vz);
 
-    /// 直接设置 Jolt 刚体的旋转（供 Sys_Navigation 调用）
-    void SetRotation(uint32_t joltBodyID, const NCL::Maths::Quaternion& rotation);
+    /// 设置实体的 Jolt 刚体旋转
+    void SetRotation(EntityID entity, const NCL::Maths::Quaternion& rotation);
 
-    /// 给 Jolt 刚体施加冲量（动态体）
-    void ApplyImpulse(uint32_t joltBodyID, float ix, float iy, float iz);
+    /// 对实体施加冲量（动态体）
+    void ApplyImpulse(EntityID entity, float ix, float iy, float iz);
 
-    /// 直接设置 Kinematic 体的目标位置
-    void MoveKinematic(uint32_t joltBodyID,
+    /// 设置 Kinematic 体的目标位置
+    void MoveKinematic(EntityID entity,
                        float px, float py, float pz,
                        float qx, float qy, float qz, float qw,
                        float dt);
 
-    /// 给 Jolt 刚体施加持续力（动态体，需每帧调用）
-    void AddForce(uint32_t joltBodyID, float fx, float fy, float fz);
+    /// 对实体施加持续力（动态体，需每帧调用）
+    void AddForce(EntityID entity, float fx, float fy, float fz);
 
-    /// 获取 Jolt 刚体当前线速度（动态体）
-    NCL::Maths::Vector3 GetLinearVelocity(uint32_t joltBodyID);
+    /// 获取实体的 Jolt 线速度（动态体）
+    NCL::Maths::Vector3 GetLinearVelocity(EntityID entity);
 
     /// 获取 Jolt PhysicsSystem 指针（供调试/ImGui 使用）
     JPH::PhysicsSystem* GetJoltPhysicsSystem() const { return m_PhysicsSystem.get(); }
@@ -256,14 +256,14 @@ public:
                        float dx, float dy, float dz,
                        float maxDist);
 
-    /// 运行时替换指定 Body 的碰撞体形状为 Capsule（姿态切换用）
-    void ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight, float radius);
+    /// 运行时替换指定实体的碰撞体形状为 Capsule（姿态切换用）
+    void ReplaceShapeCapsule(EntityID entity, float halfHeight, float radius);
 
     /// 直接设置动态体的世界位置（贴墙吸附用）
-    void SetPosition(uint32_t joltBodyID, float px, float py, float pz);
+    void SetPosition(EntityID entity, float px, float py, float pz);
 
     /// 强制激活 Body（防止 sleep 状态下 AddForce 无效）
-    void ActivateBody(uint32_t joltBodyID);
+    void ActivateBody(EntityID entity);
 
 private:
     // --- Jolt 对象（生命周期由 Sys_Physics 管理）---
@@ -280,6 +280,8 @@ private:
     // --- 映射表 ---
     // jolt_body_id (uint32) → EntityID，用于碰撞事件的实体查找
     std::unordered_map<uint32_t, EntityID> m_BodyToEntity;
+    // EntityID → jolt_body_id (uint32)，用于按实体 ID 查找 Jolt Body
+    std::unordered_map<EntityID, uint32_t> m_EntityToBody;
 
     // EventBus 由 Sys_Physics 持有（EventBus 不可复制，无法直接存入 std::any）
     // 通过 registry.ctx_emplace<ECS::EventBus*>(ptr) 以裸指针注册到 Context
@@ -310,6 +312,7 @@ private:
     void SyncTransformsFromJolt(Registry& reg, float fixedDt);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);
+    bool TryGetBodyID(EntityID entity, JPH::BodyID& outBodyID) const;
     // NCL ↔ Jolt 转换
     static JPH::Vec3  ToJolt(float x, float y, float z);
     static JPH::Quat  ToJoltQuat(float qx, float qy, float qz, float qw);

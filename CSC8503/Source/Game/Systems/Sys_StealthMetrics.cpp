@@ -30,7 +30,7 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             ps.noiseCooldown -= dt;
             if (ps.noiseCooldown < 0.0f) ps.noiseCooldown = 0.0f;
 
-            Vector3 vel = physics->GetLinearVelocity(rb.jolt_body_id);
+            Vector3 vel = physics->GetLinearVelocity(id);
             float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);
             bool isMoving = (horizSpeed > 0.1f);
 

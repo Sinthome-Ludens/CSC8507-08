@@ -221,6 +221,7 @@ void ECS::Sys_Physics::OnDestroy(Registry& registry) {
         bi.DestroyBody(jid);
     }
     m_BodyToEntity.clear();
+    m_EntityToBody.clear();
     g_LastGravityFactors.clear();
 
     // 析构顺序：PhysicsSystem → JobSystem → TempAllocator
@@ -346,6 +347,7 @@ void ECS::Sys_Physics::CreateBodyForEntity(
     rb.jolt_body_id  = rawID;
     rb.body_created  = true;
     m_BodyToEntity[rawID] = id;
+    m_EntityToBody[id]    = rawID;
 }
 
 // ============================================================
@@ -426,6 +428,7 @@ void ECS::Sys_Physics::CreateTriMeshBodyForEntity(
     rb.jolt_body_id  = rawID;
     rb.body_created  = true;
     m_BodyToEntity[rawID] = id;
+    m_EntityToBody[id]    = rawID;
 
     LOG_INFO("[Sys_Physics] TriMesh floor body created: entity=" << id
              << " tris=" << triCount
@@ -555,61 +558,80 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
 
         bi.RemoveBody(jid);
         bi.DestroyBody(jid);
+        auto itE = m_BodyToEntity.find(rawID);
+        if (itE != m_BodyToEntity.end()) {
+            m_EntityToBody.erase(itE->second);
+        }
         m_BodyToEntity.erase(rawID);
     }
 }
 
 // ============================================================
-// 工具函数
+// TryGetBodyID — EntityID → JPH::BodyID 查找
 // ============================================================
-void ECS::Sys_Physics::SetLinearVelocity(uint32_t joltBodyID, float vx, float vy, float vz) {
-    if (!m_PhysicsSystem) return;
-    m_PhysicsSystem->GetBodyInterface().SetLinearVelocity(
-        JPH::BodyID(joltBodyID), ToJolt(vx, vy, vz));
+bool ECS::Sys_Physics::TryGetBodyID(EntityID entity, JPH::BodyID& outBodyID) const {
+    const auto it = m_EntityToBody.find(entity);
+    if (it == m_EntityToBody.end()) return false;
+    outBodyID = JPH::BodyID(it->second);
+    return true;
 }
 
-void ECS::Sys_Physics::ApplyImpulse(uint32_t joltBodyID, float ix, float iy, float iz) {
+// ============================================================
+// 工具函数（统一按 EntityID 操作，内部通过 TryGetBodyID 查找 Jolt Body）
+// ============================================================
+void ECS::Sys_Physics::SetLinearVelocity(EntityID entity, float vx, float vy, float vz) {
     if (!m_PhysicsSystem) return;
-    m_PhysicsSystem->GetBodyInterface().AddImpulse(
-        JPH::BodyID(joltBodyID), ToJolt(ix, iy, iz));
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
+    m_PhysicsSystem->GetBodyInterface().SetLinearVelocity(bodyID, ToJolt(vx, vy, vz));
 }
 
-void ECS::Sys_Physics::AddForce(uint32_t joltBodyID, float fx, float fy, float fz) {
+void ECS::Sys_Physics::ApplyImpulse(EntityID entity, float ix, float iy, float iz) {
     if (!m_PhysicsSystem) return;
-    m_PhysicsSystem->GetBodyInterface().AddForce(
-        JPH::BodyID(joltBodyID), ToJolt(fx, fy, fz));
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
+    m_PhysicsSystem->GetBodyInterface().AddImpulse(bodyID, ToJolt(ix, iy, iz));
 }
 
-Vector3 ECS::Sys_Physics::GetLinearVelocity(uint32_t joltBodyID) {
+void ECS::Sys_Physics::AddForce(EntityID entity, float fx, float fy, float fz) {
+    if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
+    m_PhysicsSystem->GetBodyInterface().AddForce(bodyID, ToJolt(fx, fy, fz));
+}
+
+Vector3 ECS::Sys_Physics::GetLinearVelocity(EntityID entity) {
     if (!m_PhysicsSystem) return Vector3(0, 0, 0);
-    JPH::Vec3 v = m_PhysicsSystem->GetBodyInterface().GetLinearVelocity(
-        JPH::BodyID(joltBodyID));
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return Vector3(0, 0, 0);
+    JPH::Vec3 v = m_PhysicsSystem->GetBodyInterface().GetLinearVelocity(bodyID);
     return Vector3(v.GetX(), v.GetY(), v.GetZ());
 }
 
 void ECS::Sys_Physics::MoveKinematic(
-    uint32_t joltBodyID,
+    EntityID entity,
     float px, float py, float pz,
     float qx, float qy, float qz, float qw,
     float dt)
 {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().MoveKinematic(
-        JPH::BodyID(joltBodyID),
+        bodyID,
         JPH::RVec3(px, py, pz),
         JPH::Quat(qx, qy, qz, qw),
         dt);
 }
 
-// ============================================================
-// SetRotation（供 Sys_Navigation 调用 - 来自 feat/navmesh-system）
-// ============================================================
-void ECS::Sys_Physics::SetRotation(uint32_t joltBodyID,
+void ECS::Sys_Physics::SetRotation(EntityID entity,
                                    const NCL::Maths::Quaternion& rotation)
 {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().SetRotation(
-        JPH::BodyID(joltBodyID),
+        bodyID,
         ToJoltQuat(rotation.x, rotation.y, rotation.z, rotation.w),
         JPH::EActivation::Activate);
 }
@@ -664,10 +686,11 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
 // ============================================================
 // ReplaceShapeCapsule — 运行时替换碰撞体为 Capsule (来自 master)
 // ============================================================
-void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight, float radius) {
+void ECS::Sys_Physics::ReplaceShapeCapsule(EntityID entity, float halfHeight, float radius) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID jid;
+    if (!TryGetBodyID(entity, jid)) return;
     auto& bi = m_PhysicsSystem->GetBodyInterface();
-    JPH::BodyID jid(joltBodyID);
     // 创建新的 Capsule 形状
     JPH::CapsuleShapeSettings capsuleSettings(halfHeight, radius);
     auto shapeResult = capsuleSettings.Create();
@@ -682,17 +705,19 @@ void ECS::Sys_Physics::ReplaceShapeCapsule(uint32_t joltBodyID, float halfHeight
 // ============================================================
 // SetPosition — 直接设置动态体世界位置 (来自 master)
 // ============================================================
-void ECS::Sys_Physics::SetPosition(uint32_t joltBodyID, float px, float py, float pz) {
+void ECS::Sys_Physics::SetPosition(EntityID entity, float px, float py, float pz) {
     if (!m_PhysicsSystem) return;
+    JPH::BodyID jid;
+    if (!TryGetBodyID(entity, jid)) return;
     auto& bi = m_PhysicsSystem->GetBodyInterface();
-    bi.SetPosition(JPH::BodyID(joltBodyID),
-                   JPH::RVec3(px, py, pz),
-                   JPH::EActivation::Activate);
+    bi.SetPosition(jid, JPH::RVec3(px, py, pz), JPH::EActivation::Activate);
 }
 // ============================================================
 // ActivateBody — 强制唤醒 Body (来自 master)
 // ============================================================
-void ECS::Sys_Physics::ActivateBody(uint32_t joltBodyID) {
+void ECS::Sys_Physics::ActivateBody(EntityID entity) {
     if (!m_PhysicsSystem) return;
-    m_PhysicsSystem->GetBodyInterface().ActivateBody(JPH::BodyID(joltBodyID));
+    JPH::BodyID jid;
+    if (!TryGetBodyID(entity, jid)) return;
+    m_PhysicsSystem->GetBodyInterface().ActivateBody(jid);
 }
