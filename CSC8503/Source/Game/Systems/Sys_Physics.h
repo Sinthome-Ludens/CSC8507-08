@@ -19,6 +19,7 @@
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
+#include "Game/Components/C_D_TriMeshCollider.h"
 #include "Game/Events/Evt_Phys_Collision.h"
 #include "Game/Events/Evt_Phys_Trigger.h"
 
@@ -215,7 +216,7 @@ public:
      */
     void OnDestroy(Registry& registry) override;
 
-    // --- 工具函数（供 Prefab 工厂等外部代码调用）---
+    // --- 工具函数（按 EntityID 操作物理体，内部通过 m_EntityToBody 查找 Jolt Body）---
 
     /**
      * @brief 按实体 ID 设置动态体线速度。
@@ -338,7 +339,12 @@ private:
     // --- 映射表 ---
     // BodyID 原始值 (uint32) ↔ EntityID
     std::unordered_map<uint32_t, EntityID> m_BodyToEntity;
+    // EntityID → jolt_body_id (uint32)，用于按实体 ID 查找 Jolt Body
     std::unordered_map<EntityID, uint32_t> m_EntityToBody;
+
+    // EventBus 由 Sys_Physics 持有（EventBus 不可复制，无法直接存入 std::any）
+    // 通过 registry.ctx_emplace<ECS::EventBus*>(ptr) 以裸指针注册到 Context
+    std::unique_ptr<ECS::EventBus> m_EventBus;
 
     // BroadPhase 优化标志（场景加载完毕后调用一次 OptimizeBroadPhase）
     bool m_BroadPhaseOptimized = false;
@@ -347,6 +353,21 @@ private:
     void InitJolt();
     void CreateBodyForEntity(Registry& reg, EntityID id,
                              C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col);
+    /**
+     * @brief 从 C_D_TriMeshCollider 数据创建 Jolt 静态 MeshShape 刚体。
+     *
+     * 仅用于静态地板/斜坡实体（is_static=true）。与 CreateBodyForEntity 的区别：
+     * 使用 JPH::MeshShapeSettings 而非 Box/Sphere/Capsule，支持任意三角网格。
+     *
+     * @param reg  ECS Registry
+     * @param id   目标实体 ID
+     * @param tf   实体 Transform（提供世界偏移）
+     * @param rb   RigidBody 组件（设置 body_created 标志）
+     * @param tri  TriMeshCollider 组件（顶点 + 索引，必须非空且索引数为 3 的倍数）
+     */
+    void CreateTriMeshBodyForEntity(Registry& reg, EntityID id,
+                                    C_D_Transform& tf, C_D_RigidBody& rb,
+                                    C_D_TriMeshCollider& tri);
     void SyncTransformsFromJolt(Registry& reg, float fixedDt);
     void FlushCollisionEvents(Registry& reg);
     void DestroyOrphanBodies(Registry& reg);

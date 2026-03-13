@@ -33,6 +33,12 @@
 #include "BehaviourSequence.h"
 #include "BehaviourAction.h"
 
+#include "Game/Scenes/Scene_TutorialLevel.h"
+#include "Game/Scenes/Scene_HangerA.h"
+#include "Game/Scenes/Scene_HangerB.h"
+#include "Game/Scenes/Scene_Helipad.h"
+#include "Game/Scenes/Scene_Lab.h"
+#include "Game/Scenes/Scene_Dock.h"
 #include "PhysicsSystem.h"
 
 #ifdef USEOPENGL
@@ -104,8 +110,14 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                 case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());    break;
                 case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest()); break;
                 case 2: sceneManager.RequestSceneChange(new Scene_NavTest());     break;
-                case 3: sceneManager.RequestSceneChange(
-                            new Scene_NetworkGame(ECS::PeerType::SERVER));        break;
+                case 3: sceneManager.RequestSceneChange(new Scene_TutorialLevel()); break;
+                case 4: sceneManager.RequestSceneChange(new Scene_HangerA());     break;
+                case 5: sceneManager.RequestSceneChange(new Scene_HangerB());     break;
+                case 6: sceneManager.RequestSceneChange(new Scene_Helipad());     break;
+                case 7: sceneManager.RequestSceneChange(new Scene_Lab());         break;
+                case 8: sceneManager.RequestSceneChange(new Scene_Dock());        break;
+                case 9: sceneManager.RequestSceneChange(
+                        new Scene_NetworkGame(ECS::PeerType::SERVER));        break;
                 default: break;
             }
             flags.debugSceneIndex = -1;

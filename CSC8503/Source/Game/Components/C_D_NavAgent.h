@@ -14,7 +14,7 @@
 namespace ECS {
 
 /// 单个 NavAgent 路径允许的最大路点数量
-static constexpr int NAV_MAX_WAYPOINTS = 8;
+static constexpr int NAV_MAX_WAYPOINTS = 32;
 
 /**
  * @brief NavAgent 数据组件 — 导航移动与路径状态

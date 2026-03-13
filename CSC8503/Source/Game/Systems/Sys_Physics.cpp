@@ -19,6 +19,7 @@
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
 #include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
 
 using namespace NCL::Maths;
 
@@ -142,11 +143,20 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
 void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     if (!m_PhysicsSystem) return;
 
-    // 1. 检测并创建新实体的 Jolt Body
+    // 1. 检测并创建新实体的 Jolt Body（标准碰撞体）
     registry.view<C_D_Transform, C_D_RigidBody, C_D_Collider>().each(
         [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col) {
             if (!rb.body_created) {
                 CreateBodyForEntity(registry, id, tf, rb, col);
+            }
+        }
+    );
+
+    // 1b. 检测并创建三角网格碰撞体（用于多层地图地板/斜坡）
+    registry.view<C_D_Transform, C_D_RigidBody, C_D_TriMeshCollider>().each(
+        [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb, C_D_TriMeshCollider& tri) {
+            if (!rb.body_created) {
+                CreateTriMeshBodyForEntity(registry, id, tf, rb, tri);
             }
         }
     );
@@ -355,7 +365,91 @@ void ECS::Sys_Physics::CreateBodyForEntity(
     uint32_t rawID = body->GetID().GetIndexAndSequenceNumber();
     rb.body_created  = true;
     m_BodyToEntity[rawID] = id;
-    m_EntityToBody[id] = rawID;
+    m_EntityToBody[id]    = rawID;
+}
+
+// ============================================================
+// CreateTriMeshBodyForEntity — Jolt MeshShape（多层地图地板）
+// ============================================================
+/**
+ * @brief 从 C_D_TriMeshCollider 数据创建 Jolt 静态 MeshShape 刚体。
+ *
+ * 仅用于静态地板/斜坡实体（is_static=true）。与 CreateBodyForEntity 的区别：
+ * 使用 JPH::MeshShapeSettings 而非 Box/Sphere/Capsule，支持任意三角网格。
+ *
+ * @param reg  ECS Registry
+ * @param id   目标实体 ID
+ * @param tf   实体 Transform（提供世界偏移）
+ * @param rb   RigidBody 组件（设置 body_created 标志）
+ * @param tri  TriMeshCollider 组件（顶点 + 索引，必须非空且索引数为 3 的倍数）
+ */
+void ECS::Sys_Physics::CreateTriMeshBodyForEntity(
+    Registry& reg, EntityID id,
+    C_D_Transform& tf, C_D_RigidBody& rb, C_D_TriMeshCollider& tri)
+{
+    if (tri.vertices.empty() || tri.indices.empty()) {
+        LOG_WARN("[Sys_Physics] CreateTriMeshBodyForEntity: empty geometry for entity " << id);
+        rb.body_created = true;  // 防止每帧重复触发
+        return;
+    }
+    const int triCount = static_cast<int>(tri.indices.size()) / 3;
+    if (triCount == 0) return;
+
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+
+    // 构建 Jolt 顶点列表
+    JPH::VertexList joltVerts;
+    joltVerts.reserve(tri.vertices.size());
+    for (const auto& v : tri.vertices) {
+        joltVerts.push_back(JPH::Float3(v.x, v.y, v.z));
+    }
+
+    // 构建 Jolt 三角形索引列表
+    JPH::IndexedTriangleList joltTris;
+    joltTris.reserve(triCount);
+    for (int i = 0; i < triCount; ++i) {
+        joltTris.push_back(JPH::IndexedTriangle(
+            static_cast<uint32_t>(tri.indices[i*3 + 0]),
+            static_cast<uint32_t>(tri.indices[i*3 + 1]),
+            static_cast<uint32_t>(tri.indices[i*3 + 2]),
+            0));
+    }
+
+    JPH::MeshShapeSettings meshSettings(joltVerts, joltTris);
+    auto shapeResult = meshSettings.Create();
+    if (shapeResult.HasError()) {
+        LOG_ERROR("[Sys_Physics] MeshShape creation failed for entity " << id
+                  << ": " << shapeResult.GetError().c_str());
+        return;
+    }
+
+    JPH::BodyCreationSettings bcs(
+        shapeResult.Get(),
+        JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
+        JPH::Quat::sIdentity(),
+        JPH::EMotionType::Static,
+        PhysicsLayers::NON_MOVING);
+
+    bcs.mFriction    = tri.friction;
+    bcs.mRestitution = tri.restitution;
+    bcs.mUserData    = static_cast<uint64_t>(id);
+
+    JPH::Body* body = bi.CreateBody(bcs);
+    if (!body) {
+        LOG_ERROR("[Sys_Physics] Failed to create TriMesh Body for entity " << id);
+        return;
+    }
+
+    bi.AddBody(body->GetID(), JPH::EActivation::DontActivate);
+
+    uint32_t rawID   = body->GetID().GetIndexAndSequenceNumber();
+    rb.body_created  = true;
+    m_BodyToEntity[rawID] = id;
+    m_EntityToBody[id]    = rawID;
+
+    LOG_INFO("[Sys_Physics] TriMesh floor body created: entity=" << id
+             << " tris=" << triCount
+             << " pos=(" << tf.position.x << "," << tf.position.y << "," << tf.position.z << ")");
 }
 
 // ============================================================
@@ -525,8 +619,9 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
 
         bi.RemoveBody(jid);
         bi.DestroyBody(jid);
-        if (Entity::IsValid(entity)) {
-            m_EntityToBody.erase(entity);
+        auto itE = m_BodyToEntity.find(rawID);
+        if (itE != m_BodyToEntity.end()) {
+            m_EntityToBody.erase(itE->second);
         }
         m_BodyToEntity.erase(rawID);
         g_LastGravityFactors.erase(rawID);
@@ -534,8 +629,9 @@ void ECS::Sys_Physics::DestroyOrphanBodies(Registry& reg) {
 }
 
 // ============================================================
-// 工具函数
+// 工具函数（统一按 EntityID 操作，内部通过 TryGetBodyID 查找 Jolt Body）
 // ============================================================
+
 /**
  * @brief 按实体 ID 设置线速度。
  * @details 若实体未绑定有效刚体或物理系统尚未初始化，则直接返回，不产生副作用。
@@ -548,8 +644,7 @@ void ECS::Sys_Physics::SetLinearVelocity(EntityID entity, float vx, float vy, fl
     if (!m_PhysicsSystem) return;
     JPH::BodyID bodyID;
     if (!TryGetBodyID(entity, bodyID)) return;
-    m_PhysicsSystem->GetBodyInterface().SetLinearVelocity(
-        bodyID, ToJolt(vx, vy, vz));
+    m_PhysicsSystem->GetBodyInterface().SetLinearVelocity(bodyID, ToJolt(vx, vy, vz));
 }
 
 /**
@@ -564,8 +659,7 @@ void ECS::Sys_Physics::ApplyImpulse(EntityID entity, float ix, float iy, float i
     if (!m_PhysicsSystem) return;
     JPH::BodyID bodyID;
     if (!TryGetBodyID(entity, bodyID)) return;
-    m_PhysicsSystem->GetBodyInterface().AddImpulse(
-        bodyID, ToJolt(ix, iy, iz));
+    m_PhysicsSystem->GetBodyInterface().AddImpulse(bodyID, ToJolt(ix, iy, iz));
 }
 
 /**
@@ -580,8 +674,7 @@ void ECS::Sys_Physics::AddForce(EntityID entity, float fx, float fy, float fz) {
     if (!m_PhysicsSystem) return;
     JPH::BodyID bodyID;
     if (!TryGetBodyID(entity, bodyID)) return;
-    m_PhysicsSystem->GetBodyInterface().AddForce(
-        bodyID, ToJolt(fx, fy, fz));
+    m_PhysicsSystem->GetBodyInterface().AddForce(bodyID, ToJolt(fx, fy, fz));
 }
 
 /**
@@ -594,8 +687,7 @@ Vector3 ECS::Sys_Physics::GetLinearVelocity(EntityID entity) {
     if (!m_PhysicsSystem) return Vector3(0, 0, 0);
     JPH::BodyID bodyID;
     if (!TryGetBodyID(entity, bodyID)) return Vector3(0, 0, 0);
-    JPH::Vec3 v = m_PhysicsSystem->GetBodyInterface().GetLinearVelocity(
-        bodyID);
+    JPH::Vec3 v = m_PhysicsSystem->GetBodyInterface().GetLinearVelocity(bodyID);
     return Vector3(v.GetX(), v.GetY(), v.GetZ());
 }
 
@@ -638,7 +730,7 @@ void ECS::Sys_Physics::MoveKinematic(
  * @param rotation 目标旋转
  */
 void ECS::Sys_Physics::SetRotation(EntityID entity,
-                                    const NCL::Maths::Quaternion& rotation)
+                                   const NCL::Maths::Quaternion& rotation)
 {
     if (!m_PhysicsSystem) return;
     JPH::BodyID bodyID;
@@ -738,9 +830,7 @@ void ECS::Sys_Physics::SetPosition(EntityID entity, float px, float py, float pz
     JPH::BodyID bodyID;
     if (!TryGetBodyID(entity, bodyID)) return;
     auto& bi = m_PhysicsSystem->GetBodyInterface();
-    bi.SetPosition(bodyID,
-                   JPH::RVec3(px, py, pz),
-                   JPH::EActivation::Activate);
+    bi.SetPosition(bodyID, JPH::RVec3(px, py, pz), JPH::EActivation::Activate);
 }
 // ============================================================
 // ActivateBody — 强制唤醒 Body (来自 master)
