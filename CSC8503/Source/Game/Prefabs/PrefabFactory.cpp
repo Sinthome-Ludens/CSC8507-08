@@ -37,6 +37,7 @@
 #include "Game/Components/C_D_Health.h"
 #include "Game/Components/C_T_DeathZone.h"
 #include "Game/Components/C_T_Enemy.h"
+#include "Game/Components/C_T_ItemPickup.h"
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/C_D_NavAgent.h"

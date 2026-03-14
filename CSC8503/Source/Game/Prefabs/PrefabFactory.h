@@ -9,6 +9,7 @@
 
 #include "Core/ECS/Registry.h"
 #include "Core/Bridge/AssetManager.h"
+#include "Game/Components/C_D_Item.h"
 #include "Vector.h"
 #include "Quaternion.h"
 #include <vector>
