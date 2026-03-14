@@ -323,6 +323,8 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
                 chat.selectedReply = 0;
                 GenerateDirSequences(chat, chat.dialoguePhase);
 
+                // Direction-key input requires a countdown to drive urgency;
+                // fall back to kDefaultReplyTime when JSON specifies 0 (no limit).
                 constexpr float kDefaultReplyTime = 10.0f;
                 float timeLimit = (node.replyTimeLimit > 0.0f) ? node.replyTimeLimit : kDefaultReplyTime;
                 chat.replyTimerActive = true;
