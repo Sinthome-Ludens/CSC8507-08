@@ -74,7 +74,7 @@ struct ItemSlot {
  *
  * 包含五种道具各自的 ItemSlot，通过 ItemID 下标访问。
  */
-struct Res_ItemInventory {
+struct Res_ItemInventory2 {
     static constexpr int kItemCount = static_cast<int>(ItemID::Count);
 
     ItemSlot slots[kItemCount] = {};
@@ -82,7 +82,7 @@ struct Res_ItemInventory {
     /**
      * @brief 构造函数：按需求文档初始化各道具默认参数。
      */
-    Res_ItemInventory() {
+    Res_ItemInventory2() {
         // 001 全息诱饵炸弹
         slots[0].itemId      = ItemID::HoloBait;
         slots[0].itemType    = ItemType::Gadget;

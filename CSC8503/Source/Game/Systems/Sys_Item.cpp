@@ -125,19 +125,48 @@ void Sys_Item::DetectPickup(Registry& registry) {
 }
 
 // ============================================================
-// OnPickup — 拾取事件回调：更新携带数量，销毁道具实体
+// OnPickup — 拾取事件回调：根据拾取点数量字段更新携带数量，并在数量耗尽后销毁道具实体
 // ============================================================
 void Sys_Item::OnPickup(Registry& registry, const Evt_Item_Pickup& evt) {
     if (!registry.has_ctx<Res_ItemInventory2>()) return;
     auto& inv = registry.ctx<Res_ItemInventory2>();
+    auto& slot = inv.Get(evt.itemId);
 
-    if (inv.Get(evt.itemId).PickupOne()) {
-        LOG_INFO("[Sys_Item] Player " << evt.pickerEntity
-                 << " picked up item " << static_cast<int>(evt.itemId)
-                 << " -> carried=" << (int)inv.Get(evt.itemId).carriedCount);
-        if (registry.Valid(evt.pickupEntity)) {
-            registry.Destroy(evt.pickupEntity);
+    if (!registry.Valid(evt.pickupEntity) ||
+        !registry.all_of<C_T_ItemPickup>(evt.pickupEntity)) {
+        if (slot.PickupOne()) {
+            LOG_INFO("[Sys_Item] Player " << evt.pickerEntity
+                     << " picked up item " << static_cast<int>(evt.itemId)
+                     << " -> carried=" << (int)slot.carriedCount);
+            if (registry.Valid(evt.pickupEntity)) {
+                registry.Destroy(evt.pickupEntity);
+            }
         }
+        return;
+    }
+
+    auto& pickup = registry.get<C_T_ItemPickup>(evt.pickupEntity);
+    int remaining = pickup.quantity > 0 ? pickup.quantity : 1;
+    int picked = 0;
+
+    while (remaining > 0 && slot.CanPickup()) {
+        if (!slot.PickupOne()) {
+            break;
+        }
+        ++picked;
+        --remaining;
+    }
+
+    pickup.quantity -= picked;
+
+    if (picked > 0) {
+        LOG_INFO("[Sys_Item] Player " << evt.pickerEntity
+                 << " picked up " << picked << "x item " << static_cast<int>(evt.itemId)
+                 << " -> carried=" << (int)slot.carriedCount);
+    }
+
+    if (pickup.quantity <= 0 && registry.Valid(evt.pickupEntity)) {
+        registry.Destroy(evt.pickupEntity);
     }
 }
 
@@ -185,7 +214,7 @@ void Sys_Item::ProcessItemUseInput(Registry& registry) {
             useEvt.itemId       = id;
             useEvt.targetPos    = tf.position;
             useEvt.isOnline     = isOnline;
-            bus->publish(useEvt);
+            bus->publish_deferred(useEvt);
         }
     );
 }

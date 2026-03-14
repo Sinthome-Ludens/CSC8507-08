@@ -8,8 +8,8 @@
  *     发布 Evt_Item_Pickup（携带已满则跳过）。
  *  2. **使用调度**：监听玩家输入，检查携带数量后发布 Evt_Item_Use，
  *     并递减对应 ItemSlot 的 carriedCount。
- *  3. **结算接口**：提供 SettleRound() 供场景退出时调用，执行 Res_ItemInventory2 的
- *     OnRoundEnd() / OnRoundStart()。
+ *  3. **结算处理**：在 OnAwake() / OnDestroy() 生命周期内调用 Res_ItemInventory2 的
+ *     OnRoundStart() / OnRoundEnd() 以完成开局与结束结算。
  *
  * 系统订阅 Evt_Item_Pickup 以更新 Res_ItemInventory2 中的携带数量，
  * 并在携带数量更新后发布结果供 Sys_UI 刷新 HUD。

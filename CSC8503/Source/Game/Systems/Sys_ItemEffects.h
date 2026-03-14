@@ -27,8 +27,10 @@
  */
 #pragma once
 
+#include <cstdint>
 #include "Core/ECS/BaseSystem.h"
 #include "Core/ECS/EventBus.h"
+#include "Vector.h"
 
 namespace ECS {
 

@@ -20,7 +20,6 @@
 
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Health.h"
-#include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Components/C_D_DebugName.h"
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_D_HoloBaitState.h"
@@ -49,7 +48,7 @@ namespace ECS {
 // ============================================================
 float Sys_ItemEffects::RandFloat() {
     m_RandSeed = m_RandSeed * 1664525u + 1013904223u;
-    return static_cast<float>(m_RandSeed & 0xFFFFu) / 65535.0f;
+    return static_cast<float>(m_RandSeed & 0xFFFFu) / 65536.0f;
 }
 
 // ============================================================
@@ -130,39 +129,53 @@ EntityID Sys_ItemEffects::FindNearestEnemy(Registry& registry, const Vector3& or
 // ============================================================
 // EffectHoloBait — 在目标位置创建诱饵实体并吸引附近安全状态敌人
 // ============================================================
-void Sys_ItemEffects::EffectHoloBait(Registry& registry, const Evt_Item_Use& evt) {
-    // 创建诱饵实体（占位：无渲染，仅数据）
+/**
+ * @brief Prefab-style helper to construct a holo bait entity with default components.
+ */
+static EntityID CreateHoloBaitPrefab(Registry& registry, const Vector3& worldPos) {
     EntityID baitEntity = registry.Create();
 
     auto& tf = registry.Emplace<C_D_Transform>(baitEntity);
-    tf.position = evt.targetPos;
+    tf.position = worldPos;
     tf.scale    = Vector3(0.5f, 0.5f, 0.5f);
 
     auto& bait = registry.Emplace<C_D_HoloBaitState>(baitEntity);
-    bait.worldPos      = evt.targetPos;
+    bait.worldPos      = worldPos;
     bait.remainingTime = 3.0f;
     bait.active        = true;
 
-    // 挂载 DebugName
     auto& dn = registry.Emplace<C_D_DebugName>(baitEntity);
-    std::strncpy(dn.name, "ENTITY_HoloBait", sizeof(C_D_DebugName::name) - 1);
+    std::strncpy(dn.name, "ENTITY_HoloBait", sizeof(dn.name) - 1);
+    dn.name[sizeof(dn.name) - 1] = '\0';
 
-    // 寻找最近的安全状态敌人并记录为吸引目标（敌人 AI 读取此字段以移动）
+    return baitEntity;
+}
+
+void Sys_ItemEffects::EffectHoloBait(Registry& registry, const Evt_Item_Use& evt) {
+    EntityID baitEntity = CreateHoloBaitPrefab(registry, evt.targetPos);
+
+    auto& bait = registry.Get<C_D_HoloBaitState>(baitEntity);
+
     EntityID attracted = Entity::NULL_ENTITY;
     float    minD2     = FLT_MAX;
     registry.view<C_T_Enemy, C_D_Transform, C_D_AIState>().each(
         [&](EntityID eid, C_T_Enemy&, C_D_Transform& etf, C_D_AIState& ai) {
-            if (ai.current_state != EnemyState::Safe) return;
-            float dx = etf.position.x - evt.targetPos.x;
-            float dz = etf.position.z - evt.targetPos.z;
+            if (ai.current_state != EnemyState::Safe) {
+                return;
+            }
+            float dx = etf.position.x - bait.worldPos.x;
+            float dz = etf.position.z - bait.worldPos.z;
             float d2 = dx*dx + dz*dz;
-            if (d2 < minD2) { minD2 = d2; attracted = eid; }
+            if (d2 < minD2) {
+                minD2    = d2;
+                attracted = eid;
+            }
         }
     );
     bait.attractedEnemy = attracted;
 
     LOG_INFO("[Sys_ItemEffects] HoloBait deployed at ("
-             << evt.targetPos.x << "," << evt.targetPos.z
+             << bait.worldPos.x << "," << bait.worldPos.z
              << ") attracted=" << attracted);
 }
 
@@ -209,19 +222,29 @@ void Sys_ItemEffects::EffectDDoS(Registry& registry, const Evt_Item_Use& evt) {
 }
 
 // ============================================================
-// EffectRoamAI — 在玩家位置创建流窜 AI 实体
+// RoamAI prefab helper
 // ============================================================
-void Sys_ItemEffects::EffectRoamAI(Registry& registry, const Evt_Item_Use& evt) {
+/**
+ * @brief Prefab helper to create and initialize a RoamAI entity at the given target position.
+ *
+ * This helper is responsible for calling registry.Create() and wiring up all
+ * components required by the RoamAI entity.
+ *
+ * @param registry ECS registry used to create and configure the entity.
+ * @param targetPos World-space position used as the RoamAI target and spawn reference.
+ * @return EntityID Identifier of the newly created RoamAI entity.
+ */
+static EntityID Prefab_CreateRoamAI(Registry& registry, const Vector3& targetPos) {
     EntityID roamId = registry.Create();
 
     auto& tf = registry.Emplace<C_D_Transform>(roamId);
-    tf.position = evt.targetPos + Vector3(0.0f, 0.5f, 0.0f); // 略高于玩家
+    tf.position = targetPos + Vector3(0.0f, 0.5f, 0.0f);
     tf.scale    = Vector3(0.4f, 0.4f, 0.4f);
 
     registry.Emplace<C_T_RoamAI>(roamId);
 
     auto& roam = registry.Emplace<C_D_RoamAI>(roamId);
-    roam.targetPos        = evt.targetPos;
+    roam.targetPos        = targetPos;
     roam.roamSpeed        = 6.0f;
     roam.waypointInterval = 2.0f;
     roam.detectRadius     = 1.5f;
@@ -229,6 +252,16 @@ void Sys_ItemEffects::EffectRoamAI(Registry& registry, const Evt_Item_Use& evt) 
 
     auto& dn = registry.Emplace<C_D_DebugName>(roamId);
     std::strncpy(dn.name, "ENTITY_RoamAI", sizeof(C_D_DebugName::name) - 1);
+    dn.name[sizeof(dn.name) - 1] = '\0';
+
+    return roamId;
+}
+
+// ============================================================
+// EffectRoamAI — 在玩家位置创建流窜 AI 实体
+// ============================================================
+void Sys_ItemEffects::EffectRoamAI(Registry& registry, const Evt_Item_Use& evt) {
+    EntityID roamId = Prefab_CreateRoamAI(registry, evt.targetPos);
 
     LOG_INFO("[Sys_ItemEffects] RoamAI spawned at ("
              << evt.targetPos.x << "," << evt.targetPos.z << ").");
@@ -252,7 +285,10 @@ void Sys_ItemEffects::EffectTargetStrike(Registry& registry, const Evt_Item_Use&
         auto& hp = registry.Get<C_D_Health>(target);
         hp.hp        = 0.0f;
         hp.deathCause = DeathType::EnemyHpZero;
-        LOG_INFO("[Sys_ItemEffects] TargetStrike killed entity " << target);
+        LOG_INFO("[Sys_ItemEffects] TargetStrike killed entity " << target << " via health component.");
+    } else if (registry.Has<C_T_Enemy>(target)) {
+        registry.Destroy(target);
+        LOG_INFO("[Sys_ItemEffects] TargetStrike destroyed enemy entity " << target << " without health component.");
     }
 }
 
@@ -266,13 +302,11 @@ void Sys_ItemEffects::UpdateHoloBait(Registry& registry, float dt) {
         [&](EntityID eid, C_D_HoloBaitState& bait) {
             if (!bait.active) { toDestroy.push_back(eid); return; }
 
-            if (bait.enemyArrived) {
-                bait.remainingTime -= dt;
-                if (bait.remainingTime <= 0.0f) {
-                    bait.active = false;
-                    toDestroy.push_back(eid);
-                    LOG_INFO("[Sys_ItemEffects] HoloBait expired, entity " << eid << " destroyed.");
-                }
+            bait.remainingTime -= dt;
+            if (bait.remainingTime <= 0.0f) {
+                bait.active = false;
+                toDestroy.push_back(eid);
+                LOG_INFO("[Sys_ItemEffects] HoloBait expired, entity " << eid << " destroyed.");
             }
         }
     );
@@ -339,15 +373,14 @@ void Sys_ItemEffects::UpdateRoamAI(Registry& registry, float dt) {
 
             // 检测与敌人的碰撞
             float r2 = roam.detectRadius * roam.detectRadius;
-            registry.view<C_T_Enemy, C_D_Transform, C_D_Health>().each(
-                [&](EntityID eid, C_T_Enemy&, C_D_Transform& etf, C_D_Health& hp) {
+            registry.view<C_T_Enemy, C_D_Transform>().each(
+                [&](EntityID eid, C_T_Enemy&, C_D_Transform& etf) {
                     float dx = etf.position.x - tf.position.x;
                     float dz = etf.position.z - tf.position.z;
                     if ((dx*dx + dz*dz) <= r2) {
-                        hp.hp        = 0.0f;
-                        hp.deathCause = DeathType::EnemyHpZero;
-                        roam.active   = false;
+                        roam.active = false;
                         toDestroy.push_back(roamId);
+                        toDestroy.push_back(eid);
                         LOG_INFO("[Sys_ItemEffects] RoamAI " << roamId
                                  << " killed enemy " << eid);
                     }

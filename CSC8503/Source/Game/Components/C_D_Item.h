@@ -4,7 +4,7 @@
  *
  * @details
  * 每个持有道具的实体（玩家）应为每种道具各挂载一个 C_D_Item，
- * 或通过 Res_ItemInventory 统一管理全局库存。
+ * 或通过 Res_ItemInventory2 统一管理全局库存。
  *
  * ## 道具编号对应关系
  * | ItemID           | 名称         | 类型   |
@@ -15,7 +15,7 @@
  * | RoamAI           | 流窜 AI      | Weapon |
  * | TargetStrike     | 靶向打击     | Weapon |
  *
- * @see Res_ItemInventory.h
+ * @see Res_ItemInventory2.h
  * @see Sys_Item.h
  */
 #pragma once
