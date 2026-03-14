@@ -27,10 +27,10 @@ namespace ECS {
 static void GenerateDirSequences(Res_ChatState& cs, uint8_t seed) {
     // Each option gets a unique first key (Up/Down/Left/Right)
     // Then 2-6 random keys appended (total length 3-7)
-    DirKey firstKeys[kDirKeyCount] = { DirKey::Up, DirKey::Down, DirKey::Left, DirKey::Right };
+    DirKey firstKeys[DirSequence::kDirKeyCount] = { DirKey::Up, DirKey::Down, DirKey::Left, DirKey::Right };
 
     // Shuffle first keys using seed
-    for (int i = kDirKeyCount - 1; i > 0; --i) {
+    for (int i = DirSequence::kDirKeyCount - 1; i > 0; --i) {
         int j = (seed + i * 7) % (i + 1);
         DirKey tmp = firstKeys[i];
         firstKeys[i] = firstKeys[j];
@@ -46,7 +46,7 @@ static void GenerateDirSequences(Res_ChatState& cs, uint8_t seed) {
         seq.length = 1 + extraLen;                      // total 3-7
 
         for (uint8_t k = 1; k <= extraLen; ++k) {
-            seq.keys[k] = static_cast<DirKey>((seed + i * 5 + k * 11) % kDirKeyCount);
+            seq.keys[k] = static_cast<DirKey>((seed + i * 5 + k * 11) % DirSequence::kDirKeyCount);
         }
     }
 
