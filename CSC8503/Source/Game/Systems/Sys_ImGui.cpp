@@ -36,10 +36,18 @@ namespace ECS {
 // OnAwake / OnDestroy
 // ============================================================
 
+/**
+ * @brief 初始化 ImGui 通用窗口系统。
+ * @param registry 当前场景注册表
+ */
 void Sys_ImGui::OnAwake(Registry& /*registry*/) {
     LOG_INFO("[Sys_ImGui] OnAwake");
 }
 
+/**
+ * @brief 销毁 ImGui 通用窗口系统。
+ * @param registry 当前场景注册表
+ */
 void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
     LOG_INFO("[Sys_ImGui] OnDestroy");
 }
@@ -48,6 +56,12 @@ void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
 // OnUpdate
 // ============================================================
 
+/**
+ * @brief 渲染 ImGui 通用菜单栏与基础调试窗口。
+ * @details 当开发者模式开启时，负责驱动主菜单栏、性能调试、NCL 状态和测试控制等基础窗口。
+ * @param registry 当前场景注册表
+ * @param dt 本帧时间步长（秒）
+ */
 void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
     // 开发者模式关闭时隐藏所有调试界面
     if (registry.has_ctx<Res_UIState>()
@@ -65,7 +79,6 @@ void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
     if (registry.has_ctx<Res_UIFlags>()) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (flags.showTestControls) RenderTestControlsWindow(registry);
-        if (flags.showCubeDebug)    RenderCubeDebugWindow(registry);
         if (flags.showNetworkDebug && registry.has_ctx<Res_Network>())
             RenderNetworkDebugWindow(registry);
     }
@@ -75,6 +88,11 @@ void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
 // RenderMainMenuBar
 // ============================================================
 
+/**
+ * @brief 渲染主菜单栏。
+ * @details 提供基础窗口显隐开关、测试场景工具入口和调试场景切换请求入口。
+ * @param registry 当前场景注册表
+ */
 void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
     if (!ImGui::BeginMainMenuBar()) return;
 
@@ -86,7 +104,7 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
         if (registry.has_ctx<Res_UIFlags>()) {
             auto& flags = registry.ctx<Res_UIFlags>();
             ImGui::MenuItem("Test Controls", nullptr, &flags.showTestControls);
-            ImGui::MenuItem("Cube Debug",    nullptr, &flags.showCubeDebug);
+            ImGui::MenuItem("Entity Debug",  nullptr, &flags.showEntityDebug);
             ImGui::MenuItem("Network Debug", nullptr, &flags.showNetworkDebug);
         }
         ImGui::EndMenu();
@@ -98,7 +116,7 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
         auto& flags = registry.ctx<Res_UIFlags>();
         if (ImGui::BeginMenu("Test Scene")) {
             ImGui::MenuItem("Test Controls", nullptr, &flags.showTestControls);
-            ImGui::MenuItem("Cube Debug",    nullptr, &flags.showCubeDebug);
+            ImGui::MenuItem("Entity Debug",  nullptr, &flags.showEntityDebug);
             ImGui::MenuItem("Network Debug", nullptr, &flags.showNetworkDebug);
             ImGui::MenuItem("Raycast",       nullptr, &flags.showRaycast);
             ImGui::EndMenu();
@@ -113,7 +131,14 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
             if (ImGui::MenuItem("Scene_MainMenu"))    flags.debugSceneIndex = 0;
             if (ImGui::MenuItem("Scene_PhysicsTest")) flags.debugSceneIndex = 1;
             if (ImGui::MenuItem("Scene_NavTest"))     flags.debugSceneIndex = 2;
-            if (ImGui::MenuItem("Scene_NetworkGame")) flags.debugSceneIndex = 3;
+            if (ImGui::MenuItem("Scene_TutorialLevel"))     flags.debugSceneIndex = 3;
+            if (ImGui::MenuItem("Scene_HangerA"))     flags.debugSceneIndex = 4;
+            if (ImGui::MenuItem("Scene_HangerB"))     flags.debugSceneIndex = 5;
+            if (ImGui::MenuItem("Scene_Helipad"))     flags.debugSceneIndex = 6;
+            if (ImGui::MenuItem("Scene_Lab"))     flags.debugSceneIndex = 7;
+            if (ImGui::MenuItem("Scene_Dock"))     flags.debugSceneIndex = 8;
+            if (ImGui::MenuItem("Scene_NetworkGame")) flags.debugSceneIndex = 9;
+
         }
         ImGui::EndMenu();
     }
@@ -125,6 +150,12 @@ void Sys_ImGui::RenderMainMenuBar(Registry& registry) {
 // RenderDebugWindow
 // ============================================================
 
+/**
+ * @brief 渲染基础调试窗口。
+ * @details 展示帧率、实体数量、渲染状态，以及与相机调试相关的常用控制项。
+ * @param registry 当前场景注册表
+ * @param dt 本帧时间步长（秒）
+ */
 void Sys_ImGui::RenderDebugWindow(Registry& registry, float dt) {
     ImGui::Begin("Debug Window", &m_ShowDebugWindow);
     ImGui::Text("FPS: %.1f",           (dt > 0.0f) ? 1.0f / dt : 0.0f);
@@ -179,6 +210,11 @@ void Sys_ImGui::RenderDebugWindow(Registry& registry, float dt) {
 // RenderNCLStatus
 // ============================================================
 
+/**
+ * @brief 渲染 NCL 运行状态窗口。
+ * @details 展示底层 GameWorld 对象数量、约束数量和 Physics Bridge 是否可用等状态信息。
+ * @param registry 当前场景注册表
+ */
 void Sys_ImGui::RenderNCLStatus(Registry& registry) {
     ImGui::Begin("NCL Status", &m_ShowNCLStatus);
 
@@ -282,59 +318,14 @@ void Sys_ImGui::RenderTestControlsWindow(Registry& registry) {
 }
 
 // ============================================================
-// RenderCubeDebugWindow（独立浮动 Debug 窗口）
-// ============================================================
-
-void Sys_ImGui::RenderCubeDebugWindow(Registry& registry) {
-    if (!registry.has_ctx<Res_TestState>()) return;
-    auto& state = registry.ctx<Res_TestState>();
-    auto& flags = registry.ctx<Res_UIFlags>();
-
-    ImGui::Begin("Cube Debug Info", &flags.showCubeDebug,
-                 ImGuiWindowFlags_NoCollapse);
-
-    ImGui::Text("%-6s  %-20s  %-8s  %-7s",
-                "ID", "Position", "Gravity", "Body");
-    ImGui::Separator();
-
-    // 清除已失效的 cube（可能被外部途径销毁）
-    state.cubeEntities.erase(
-        std::remove_if(state.cubeEntities.begin(), state.cubeEntities.end(),
-            [&](ECS::EntityID id) { return !registry.Valid(id); }),
-        state.cubeEntities.end()
-    );
-
-    for (ECS::EntityID id : state.cubeEntities) {
-        if (!registry.Valid(id)) continue;
-
-        Vector3     pos        = {};
-        float       grav       = 0.0f;
-        const char* bodyStatus = "pending";
-
-        if (registry.Has<C_D_Transform>(id)) {
-            pos = registry.Get<C_D_Transform>(id).position;
-        }
-        if (registry.Has<C_D_RigidBody>(id)) {
-            auto& rb   = registry.Get<C_D_RigidBody>(id);
-            grav       = rb.gravity_factor;
-            bodyStatus = rb.body_created ? "created" : "pending";
-        }
-
-        ImGui::Text("%-6u  (%-5.1f, %-5.1f, %-5.1f)  %-8.2f  %-7s",
-                    id, pos.x, pos.y, pos.z, grav, bodyStatus);
-    }
-
-    if (state.cubeEntities.empty()) {
-        ImGui::TextDisabled("No cube entities.");
-    }
-
-    ImGui::End();
-}
-
-// ============================================================
 // RenderNetworkDebugWindow
 // ============================================================
 
+/**
+ * @brief 渲染网络调试面板。
+ * @details 展示当前联机模式、连接状态、流量统计、NetID 映射和插值缓存信息，便于排查同步问题。
+ * @param registry 当前场景注册表
+ */
 void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
     if (!registry.has_ctx<Res_Network>()) return;
     auto& resNet = registry.ctx<Res_Network>();

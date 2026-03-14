@@ -1,3 +1,13 @@
+/**
+ * @file Sys_ImGuiEnemyAI.cpp
+ * @brief 敌人 AI 调试监控系统实现：ImGui 表格展示所有敌人实体的状态与感知数据。
+ *
+ * @details
+ * - OnAwake：记录初始化日志
+ * - OnDestroy：记录销毁日志
+ * - OnUpdate：m_ShowWindow 为 true 时调用 RenderEnemyMonitorWindow
+ * - RenderEnemyMonitorWindow：渲染 "Enemy Monitoring Station" 调试窗口（5 列表格）
+ */
 #include "Sys_ImGuiEnemyAI.h"
 #ifdef USE_IMGUI
 
@@ -7,6 +17,8 @@
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/Res_EnemyEnums.h"
+#include "Game/Components/C_D_Dying.h"
+#include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Utils/Log.h"
 
 namespace ECS {
@@ -33,7 +45,7 @@ void Sys_ImGuiEnemyAI::RenderEnemyMonitorWindow(Registry& registry) {
         return;
     }
 
-    if (ImGui::BeginTable("EnemyTable", 4,
+    if (ImGui::BeginTable("EnemyTable", 5,
         ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
         ImVec2(0.0f, 200.0f)))
     {
@@ -41,6 +53,7 @@ void Sys_ImGuiEnemyAI::RenderEnemyMonitorWindow(Registry& registry) {
         ImGui::TableSetupColumn("Position");
         ImGui::TableSetupColumn("AI State");
         ImGui::TableSetupColumn("Detection");
+        ImGui::TableSetupColumn("Action");
         ImGui::TableHeadersRow();
 
         auto view = registry.view<C_T_Enemy, C_D_Transform, C_D_AIState, C_D_AIPerception>();
@@ -59,12 +72,23 @@ void Sys_ImGuiEnemyAI::RenderEnemyMonitorWindow(Registry& registry) {
             ImGui::TableSetColumnIndex(2);
             const char* stateStr =
                 (aiState.current_state == EnemyState::Safe)    ? "SAFE"    :
-                (aiState.current_state == EnemyState::Caution) ? "CAUTION" :
+                (aiState.current_state == EnemyState::Search)  ? "SEARCH"  :
                 (aiState.current_state == EnemyState::Alert)   ? "ALERT"   : "HUNT";
             ImGui::TextUnformatted(stateStr);
 
             ImGui::TableSetColumnIndex(3);
             ImGui::ProgressBar(det.detection_value / 100.0f, ImVec2(-1.0f, 0.0f));
+
+            ImGui::TableSetColumnIndex(4);
+            ImGui::PushID(static_cast<int>(id));
+            if (ImGui::SmallButton("Kill")) {
+                if (!registry.Has<C_D_Dying>(id)) {
+                    registry.Emplace<C_D_Dying>(id);
+                    registry.Emplace<C_D_DeathVisual>(id);
+                    LOG_INFO("[Sys_ImGuiEnemyAI] Kill button: entity " << (int)id);
+                }
+            }
+            ImGui::PopID();
         });
 
         ImGui::EndTable();

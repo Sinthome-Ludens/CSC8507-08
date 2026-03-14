@@ -29,40 +29,47 @@ enum class AlertStatus : uint8_t {
     Search = 1,   // 16 ~ 30
     Alert  = 2,   // 31 ~ 50
     Hunt   = 3,   // 51 ~ 100
-    Raid   = 4,   // 101+
 };
 
+/**
+ * @brief 根据警戒等级数值返回对应的 AlertStatus 枚举。
+ * @param alertLevel 当前警戒等级（0.0 ~ 100.0）
+ * @return 对应的 AlertStatus 值（Safe/Search/Alert/Hunt）
+ */
 inline AlertStatus GetAlertStatus(float alertLevel) {
     if (alertLevel <= 15.0f)  return AlertStatus::Safe;
     if (alertLevel <= 30.0f)  return AlertStatus::Search;
     if (alertLevel <= 50.0f)  return AlertStatus::Alert;
-    if (alertLevel <= 100.0f) return AlertStatus::Hunt;
-    return AlertStatus::Raid;
+    return AlertStatus::Hunt;
 }
 
+/**
+ * @brief 将 AlertStatus 枚举转换为可显示的字符串。
+ * @param s AlertStatus 枚举值
+ * @return 对应的英文大写字符串（"SAFE"/"SEARCH"/"ALERT"/"HUNT"/"UNKNOWN"）
+ */
 inline const char* GetAlertStatusText(AlertStatus s) {
     switch (s) {
         case AlertStatus::Safe:   return "SAFE";
         case AlertStatus::Search: return "SEARCH";
         case AlertStatus::Alert:  return "ALERT";
         case AlertStatus::Hunt:   return "HUNT";
-        case AlertStatus::Raid:   return "RAID";
         default:                  return "UNKNOWN";
     }
 }
 
-// ── 玩家移动状态 ──────────────────────────────────────────────
+/// @brief 玩家移动状态枚举（Standing/Crouching/Running），由 Sys_Input 写入。
 enum class PlayerMoveState : uint8_t {
     Standing  = 0,
     Crouching = 1,
     Running   = 2,
 };
 
-// ── 装备槽显示数据 ──────────────────────────────────────────
+/// @brief 装备槽显示数据（名称/数量/冷却进度），由 HUD 渲染直接读取。
 struct SlotDisplay {
     char    name[16] = {};
     uint8_t count    = 0;
-    float   cooldown = 0.0f;   // 0.0 = ready, >0 = on cooldown (normalized 0~1)
+    float   cooldown = 0.0f;   ///< 0.0 = ready，>0 = 冷却中（归一化 0~1）
 };
 
 /**
@@ -75,15 +82,15 @@ struct Res_GameState {
     uint32_t playerLives  = 3;
 
     uint32_t enemyCount   = 0;
-    float    alertLevel   = 0.0f;   ///< 全局警戒等级（0.0 ~ 150.0）
-    float    alertMax     = 150.0f; ///< 警戒等级上限
+    float    alertLevel   = 0.0f;   ///< 全局警戒等级（0.0 ~ 100.0）
+    float    alertMax     = 100.0f; ///< 警戒等级上限
 
     bool isPaused   = false;
     bool isGameOver = false;
 
     // ─ 倒计时 ─────────────────────────────────────────────
-    float countdownTimer   = 120.0f;
-    float countdownMax     = 120.0f;
+    float countdownTimer   = 30.0f;
+    float countdownMax     = 30.0f;
     bool  countdownActive  = false;
 
     // ─ 玩家状态 ───────────────────────────────────────────
@@ -119,6 +126,7 @@ struct Res_GameState {
     float    disruptionTimer     = 0.0f;   ///< 干扰剩余时长
     float    disruptionDuration  = 0.0f;   ///< 干扰总时长
     uint32_t networkPing         = 0;      ///< 网络延迟 RTT (ms)
+
 };
 
 } // namespace ECS

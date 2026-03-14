@@ -1,3 +1,11 @@
+/**
+ * @file C_D_NavAgent.h
+ * @brief NavAgent 数据组件：导航移动参数、路径状态与状态感知字段。
+ *
+ * @details
+ * 挂载条件：实体必须同时挂载 C_T_Pathfinder 才会被 Sys_Navigation 处理。
+ * 路径使用固定大小数组（NAV_MAX_WAYPOINTS = 8），不使用 std::vector。
+ */
 #pragma once
 #include "Vector.h"
 #include "Quaternion.h"
@@ -6,7 +14,7 @@
 namespace ECS {
 
 /// 单个 NavAgent 路径允许的最大路点数量
-static constexpr int NAV_MAX_WAYPOINTS = 8;
+static constexpr int NAV_MAX_WAYPOINTS = 32;
 
 /**
  * @brief NavAgent 数据组件 — 导航移动与路径状态
@@ -36,7 +44,7 @@ struct C_D_NavAgent {
     bool is_active                = true;
 
     // ── 状态感知导航字段 ────────────────────────────────────────────────
-    NCL::Maths::Vector3 last_known_target_pos{0.0f, 0.0f, 0.0f}; ///< 最后已知目标位置（Caution 旋转用）
+    NCL::Maths::Vector3 last_known_target_pos{0.0f, 0.0f, 0.0f}; ///< 最后已知目标位置（Search 旋转用）
     NCL::Maths::Vector3 alert_snapshot_pos   {0.0f, 0.0f, 0.0f}; ///< 进入 Alert 时的位置快照
     EnemyState          prev_state = EnemyState::Safe;             ///< 上一帧 AI 状态（检测首次进入 Alert）
     bool                has_last_known_pos = false;                ///< 是否已记录过有效目标位置

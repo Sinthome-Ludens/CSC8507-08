@@ -1,3 +1,14 @@
+/**
+ * @file UI_HUD.cpp
+ * @brief HUD 渲染实现：任务面板、警戒条、倒计时、玩家状态、噪音、装备槽、
+ *        降级特效、多人对战面板（对手进度条/干扰特效/网络状态）及 RenderHUD 入口。
+ *
+ * @details
+ * 所有子面板均为 static 函数，仅由 RenderHUD() 调用。
+ * 使用 ImDrawList（前景层）绘制，不产生 ImGui 窗口。
+ *
+ * @see UI_HUD.h, UI_ActionNotify.h（动作通知卡片独立渲染）
+ */
 #include "UI_HUD.h"
 #ifdef USE_IMGUI
 
@@ -13,7 +24,7 @@
 
 namespace ECS::UI {
 
-// ── 游戏区域宽度（去掉右侧聊天面板） ──────────────────────
+/// @brief 返回去掉右侧聊天面板后的游戏区域宽度（像素）。
 static float GetGameAreaWidth(float displayW) {
     return displayW - Res_ChatState::PANEL_WIDTH;
 }
@@ -21,6 +32,7 @@ static float GetGameAreaWidth(float displayW) {
 // ============================================================
 // 1. RenderHUD_MissionPanel — 左上角任务面板
 // ============================================================
+/// @brief 渲染左上角任务面板（任务名 + 目标文字）。
 static void RenderHUD_MissionPanel(ImDrawList* draw, const Res_GameState& gs, float /*gameW*/) {
     ImFont* smallFont = UITheme::GetFont_Small();
     ImFont* termFont  = UITheme::GetFont_Terminal();
@@ -50,9 +62,13 @@ static void RenderHUD_MissionPanel(ImDrawList* draw, const Res_GameState& gs, fl
 }
 
 // ============================================================
-// 2. RenderHUD_AlertGauge — 右上角 5 级分段彩色条
+// 2. RenderHUD_AlertGauge — 右上角 4 级分段彩色条
 // ============================================================
+/// @brief 渲染右上角警戒条（Safe/Search/Alert/Hunt 四级分段彩色条）。倒计时激活时隐藏。
 static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, float gameW) {
+    // 倒计时激活时隐藏警戒条
+    if (gs.countdownActive) return;
+
     ImFont* termFont  = UITheme::GetFont_Terminal();
 
     float gaugeW = 220.0f;
@@ -62,15 +78,22 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     float alertMax = (gs.alertMax > 0.001f) ? gs.alertMax : 1.0f;
 
     AlertStatus status = GetAlertStatus(gs.alertLevel);
-    const char* statusText = GetAlertStatusText(status);
 
-    // Status label + value
+    // 彩色数字 "XX/100"，颜色随 AlertStatus 变化
+    ImU32 numCol;
+    switch (status) {
+        case AlertStatus::Safe:   numCol = IM_COL32(80, 200, 120, 220);  break; // green
+        case AlertStatus::Search: numCol = IM_COL32(220, 200, 0, 220);   break; // yellow
+        case AlertStatus::Alert:  numCol = IM_COL32(252, 111, 41, 220);  break; // orange
+        case AlertStatus::Hunt:   numCol = IM_COL32(220, 60, 40, 220);   break; // red
+        default:                  numCol = IM_COL32(16, 13, 10, 220);    break;
+    }
+
     if (termFont) ImGui::PushFont(termFont);
-    char alertBuf[48];
-    snprintf(alertBuf, sizeof(alertBuf), "%s %.0f / %.0f", statusText, gs.alertLevel, alertMax);
+    char alertBuf[16];
+    snprintf(alertBuf, sizeof(alertBuf), "%.0f/%.0f", gs.alertLevel, alertMax);
     ImVec2 alertTextSize = ImGui::CalcTextSize(alertBuf);
-    draw->AddText(ImVec2(gaugeX + gaugeW - alertTextSize.x, gaugeY),
-        IM_COL32(16, 13, 10, 220), alertBuf);
+    draw->AddText(ImVec2(gaugeX + gaugeW - alertTextSize.x, gaugeY), numCol, alertBuf);
     if (termFont) ImGui::PopFont();
 
     float barY = gaugeY + 22.0f;
@@ -81,14 +104,13 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
         ImVec2(gaugeX + gaugeW, barY + gaugeH),
         IM_COL32(16, 13, 10, 60), 2.0f);
 
-    // 5-segment thresholds and colors
+    // 4-segment thresholds and colors (no Raid)
     struct Segment { float threshold; ImU32 color; };
     Segment segments[] = {
         { 15.0f,  IM_COL32(80, 200, 120, 220) },   // Safe: green
         { 30.0f,  IM_COL32(220, 200, 0, 220) },     // Search: yellow
         { 50.0f,  IM_COL32(252, 111, 41, 220) },    // Alert: orange
         { 100.0f, IM_COL32(220, 60, 40, 220) },     // Hunt: red
-        { 150.0f, IM_COL32(255, 30, 30, 220) },     // Raid: bright red
     };
 
     float prevThresh = 0.0f;
@@ -111,45 +133,41 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
         ImVec2(gaugeX + gaugeW, barY + gaugeH),
         IM_COL32(200, 200, 200, 100), 2.0f);
 
-    // Segment dividers
-    float dividers[] = { 15.0f, 30.0f, 50.0f, 100.0f };
-    for (float d : dividers) {
-        float dx = gaugeX + (d / alertMax) * gaugeW;
-        draw->AddLine(ImVec2(dx, barY), ImVec2(dx, barY + gaugeH),
-            IM_COL32(16, 13, 10, 80), 1.0f);
-    }
 }
 
 // ============================================================
 // 3. RenderHUD_Countdown — 上方中央倒计时
 // ============================================================
+/// @brief 渲染上方居中倒计时（MM:SS），仅在 countdownActive 时显示，脉冲动画随 globalTime。
 static void RenderHUD_Countdown(ImDrawList* draw, const Res_GameState& gs, float gameW, float globalTime) {
     if (!gs.countdownActive) return;
 
     ImFont* titleFont = UITheme::GetFont_TerminalLarge();
 
     int totalSec = (int)std::max(0.0f, gs.countdownTimer);
-    int mm = totalSec / 60;
-    int ss = totalSec % 60;
 
-    char timeBuf[16];
-    snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d", mm, ss);
+    char timeBuf[8];
+    snprintf(timeBuf, sizeof(timeBuf), "!%d!", totalSec);
 
     if (titleFont) ImGui::PushFont(titleFont);
     ImVec2 textSize = ImGui::CalcTextSize(timeBuf);
     float cx = gameW * 0.5f - textSize.x * 0.5f;
-    float cy = 14.0f;
+    float cy = 14.0f + textSize.y * 2.0f;  // 下移两个文字高度
 
-    // Red glow when < 30s
-    ImU32 textCol;
-    if (gs.countdownTimer < 30.0f) {
-        float pulse = (sinf(globalTime * 6.0f) + 1.0f) * 0.5f;
-        uint8_t r = (uint8_t)(200 + pulse * 55);
-        textCol = IM_COL32(r, 30, 30, 255);
-    } else {
-        textCol = IM_COL32(16, 13, 10, 240);
+    // 红色脉冲（加亮：基础 230, 绿/蓝 60）
+    float pulse = (sinf(globalTime * 6.0f) + 1.0f) * 0.5f;
+    uint8_t r = (uint8_t)(230 + pulse * 25);
+    ImU32 textCol  = IM_COL32(r, 60, 60, 255);
+    ImU32 shadowCol = IM_COL32(80, 0, 0, 180);
+
+    // 描边模拟加粗（8方向偏移1px）
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            if (dx == 0 && dy == 0) continue;
+            draw->AddText(ImVec2(cx + dx, cy + dy), shadowCol, timeBuf);
+        }
     }
-
+    // 主文本
     draw->AddText(ImVec2(cx, cy), textCol, timeBuf);
     if (titleFont) ImGui::PopFont();
 }
@@ -157,6 +175,7 @@ static void RenderHUD_Countdown(ImDrawList* draw, const Res_GameState& gs, float
 // ============================================================
 // 4. RenderHUD_PlayerState — 左下角状态标签
 // ============================================================
+/// @brief 渲染左下角玩家状态标签（STAND/CROUCH/RUN + DISGUISED）。
 static void RenderHUD_PlayerState(ImDrawList* draw, const Res_GameState& gs, float displayH) {
     ImFont* termFont = UITheme::GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
@@ -186,6 +205,7 @@ static void RenderHUD_PlayerState(ImDrawList* draw, const Res_GameState& gs, flo
 // ============================================================
 // 5. RenderHUD_NoiseIndicator — 左下偏右同心环
 // ============================================================
+/// @brief 渲染噪音同心环指示器（脉动环数随 noiseLevel 变化，globalTime 驱动动画）。
 static void RenderHUD_NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, float displayH, float globalTime) {
     float cx = 180.0f;
     float cy = displayH - 36.0f;
@@ -230,6 +250,7 @@ static void RenderHUD_NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, 
 // ============================================================
 // 6. RenderHUD_ItemSlots — 右下角装备槽
 // ============================================================
+/// @brief 渲染右下角装备槽（道具槽 x2 + 武器槽 x2），活跃槽高亮，冷却中显示进度条。
 static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
     ImFont* smallFont = UITheme::GetFont_Small();
 
@@ -311,16 +332,17 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
 // ============================================================
 // 7. RenderHUD_Degradation — 全屏退化效果叠加
 // ============================================================
+/// @brief 渲染随警戒等级加深的全屏退化效果（边缘发红 + 扫描线 + 噪点闪烁）。
 static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, float displayW, float displayH, float globalTime) {
     float alertMax = (gs.alertMax > 0.001f) ? gs.alertMax : 1.0f;
     float alertRatio = std::clamp(gs.alertLevel / alertMax, 0.0f, 1.0f);
 
-    // Phase 0: 0~0.2 — nothing
-    if (alertRatio < 0.2f) return;
+    // Phase 0: 0~0.3 — 无效果
+    if (alertRatio < 0.3f) return;
 
-    // Phase 1: 0.2~0.4 — random noise dots
-    if (alertRatio >= 0.2f) {
-        float intensity = std::clamp((alertRatio - 0.2f) / 0.2f, 0.0f, 1.0f);
+    // Phase 1: 0.3~0.6 — 噪点
+    if (alertRatio >= 0.3f) {
+        float intensity = std::clamp((alertRatio - 0.3f) / 0.3f, 0.0f, 1.0f);
         int dotCount = (int)(intensity * 60);
         unsigned int seed = (unsigned int)(globalTime * 1000.0f);
         for (int i = 0; i < dotCount; ++i) {
@@ -335,9 +357,11 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
         }
     }
 
-    // Phase 2: 0.4~0.66 — horizontal glitch lines
-    if (alertRatio >= 0.4f) {
-        float intensity = std::clamp((alertRatio - 0.4f) / 0.26f, 0.0f, 1.0f);
+    // Phase 2: 0.6~1.0 — 水平干扰线 + 扫描线
+    if (alertRatio >= 0.6f) {
+        float intensity = std::clamp((alertRatio - 0.6f) / 0.4f, 0.0f, 1.0f);
+
+        // 水平干扰线
         int lineCount = (int)(intensity * 8);
         unsigned int seed = (unsigned int)(globalTime * 500.0f);
         for (int i = 0; i < lineCount; ++i) {
@@ -351,11 +375,8 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
             draw->AddRectFilled(ImVec2(lx, ly), ImVec2(lx + lw, ly + 2.0f),
                 IM_COL32(252, 111, 41, a));
         }
-    }
 
-    // Phase 3: 0.66~1.0 — heavy scanlines
-    if (alertRatio >= 0.66f) {
-        float intensity = std::clamp((alertRatio - 0.66f) / 0.34f, 0.0f, 1.0f);
+        // 扫描线
         float spacing = 4.0f - intensity * 2.0f;
         uint8_t alpha = (uint8_t)(10 + intensity * 20);
         if (spacing < 2.0f) spacing = 2.0f;
@@ -369,6 +390,7 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
 // ============================================================
 // 8. RenderHUD_OpponentBar — 多人对战对手进度条
 // ============================================================
+/// @brief 渲染多人对战屏幕中央双方进度条（本地 vs 对手），仅在 isMultiplayer 时调用。
 static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, float gameW) {
     ImFont* termFont  = UITheme::GetFont_Terminal();
     ImFont* smallFont = UITheme::GetFont_Small();
@@ -436,6 +458,7 @@ static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, flo
 // ============================================================
 // 9. RenderHUD_DisruptionEffect — 干扰效果全屏叠加
 // ============================================================
+/// @brief 渲染对手干扰效果（视觉干扰/减速/信号扰乱），仅在 disruptionType != 0 时生效。
 static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs,
                                         float displayW, float displayH, float globalTime) {
     if (gs.disruptionType == 0 || gs.disruptionTimer <= 0.0f) return;
@@ -517,6 +540,7 @@ static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs
 // ============================================================
 // 10. RenderHUD_NetworkStatus — 右下角网络状态
 // ============================================================
+/// @brief 渲染右下角网络状态（PING 值，颜色随延迟变化），仅多人模式调用。
 static void RenderHUD_NetworkStatus(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
     ImFont* smallFont = UITheme::GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
@@ -538,9 +562,16 @@ static void RenderHUD_NetworkStatus(ImDrawList* draw, const Res_GameState& gs, f
     if (smallFont) ImGui::PopFont();
 }
 
+
 // ============================================================
 // RenderHUD — Main entry point
 // ============================================================
+/**
+ * @brief HUD 渲染入口：按顺序调用所有子面板渲染函数（任务/警戒/倒计时/玩家状态/噪音/装备/多人）。
+ *        由 Sys_UI::OnUpdate 在 UIScreen::HUD 状态下调用。
+ * @param registry ECS 注册表（读取 Res_UIState、Res_GameState）
+ * @param dt       帧时间（秒）
+ */
 
 void RenderHUD(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_UIState>()) return;

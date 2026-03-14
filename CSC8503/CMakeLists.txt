@@ -52,11 +52,7 @@ set(ALL_FILES
 )
 
 if(USE_VULKAN)
-    set(ALL_FILES 
-        ${Header_Files}
-        ${Source_Files}
-        ${SHADER_FILES}
-    )
+    list(APPEND ALL_FILES ${SHADER_FILES})
 
 foreach (file ${SHADER_FILES})
     get_filename_component(file_name ${file} NAME)

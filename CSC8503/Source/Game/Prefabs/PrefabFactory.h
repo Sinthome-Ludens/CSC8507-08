@@ -12,6 +12,7 @@
 #include "Game/Components/C_D_Item.h"
 #include "Vector.h"
 #include "Quaternion.h"
+#include <vector>
 
 /**
  * @brief 实体预制体工厂（硬编码模式）
@@ -73,6 +74,26 @@ public:
     static ECS::EntityID CreateFloor(
         ECS::Registry&  reg,
         ECS::MeshHandle cubeMesh
+    );
+
+    /**
+     * @brief 创建静态地图渲染实体（通用，适用于所有场景地图）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody, C_D_Collider,
+     *       C_D_Material, C_D_DebugName
+     *
+     * 仅添加渲染组件，不创建精确物理碰撞体。
+     * 物理支撑由 CreateNavMeshFloor 的三角网格地板提供。
+     *
+     * @param reg     ECS Registry
+     * @param mapMesh 地图网格句柄（由 AssetManager::LoadMesh 获取）
+     * @param scale   地图缩放系数（TutorialLevel=2.0，其余场景=1.0）
+     * @return 地图实体 ID
+     */
+    static ECS::EntityID CreateStaticMap(
+        ECS::Registry&  reg,
+        ECS::MeshHandle mapMesh,
+        float           scale = 1.0f
     );
 
     // ============================================================
@@ -269,29 +290,28 @@ public:
     );
 
     // ============================================================
-    // 道具拾取实体
+    // NavMesh 地板碰撞体
     // ============================================================
 
     /**
-     * @brief 创建地图可拾取道具实体（PREFAB_ITEM_PICKUP）
+     * @brief 从 NavMesh 可行走三角形创建静态地板碰撞体（PREFAB_ENV_NAVMESH_FLOOR）
      *
-     * @details
-     * 挂载：C_D_Transform, C_D_MeshRenderer（占位立方体）, C_T_ItemPickup, C_D_DebugName。
-     * 不挂载 C_D_RigidBody / C_D_Collider（通过 Sys_Item 每帧 XZ 距离检测实现拾取，
-     * 无需物理 Trigger，减少物理开销）。
+     * 挂载：C_D_Transform, C_D_RigidBody(Static), C_D_TriMeshCollider, C_D_DebugName
+     * 不挂载 C_D_Collider（使用 TriMesh 路径）。
+     *
+     * 适用于多层地图（HangerA/HangerB/Lab 等），为斜坡和上层平台提供精确物理支撑。
+     * 顶点坐标应为 NavMesh 局部空间（已 ScaleVertices），worldOffset 提供 Y 偏移对齐。
      *
      * @param reg         ECS Registry
-     * @param cubeMesh    占位网格句柄（后续替换为道具专属模型）
-     * @param itemId      道具 ID（决定拾取后给予的道具类型）
-     * @param spawnPos    生成位置（世界坐标）
-     * @param spawnIndex  生成序号（用于 DebugName 编号）
-     * @return 道具拾取实体 ID
+     * @param vertices    NavMesh 可行走顶点列表（局部空间）
+     * @param indices     三角形索引列表（每 3 个为一个三角形）
+     * @param worldOffset 体的世界偏移（通常为 (0, -6*kMapScale, 0)）
+     * @return 地板实体 ID
      */
-    static ECS::EntityID CreateItemPickup(
-        ECS::Registry&      reg,
-        ECS::MeshHandle     cubeMesh,
-        ECS::ItemID         itemId,
-        NCL::Maths::Vector3 spawnPos,
-        int                 spawnIndex = 0
+    static ECS::EntityID CreateNavMeshFloor(
+        ECS::Registry&                          reg,
+        const std::vector<NCL::Maths::Vector3>& vertices,
+        const std::vector<int>&                 indices,
+        NCL::Maths::Vector3                     worldOffset
     );
 };

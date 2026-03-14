@@ -1,3 +1,12 @@
+/**
+ * @brief 玩家 CQC（近战制服）系统实现：状态机推进、拟态激活、背面扇形目标检测。
+ *
+ * @details
+ * - OnUpdate：驱动 Approach → Execute → Complete 三阶段状态机；
+ *             F 键优先检测拟态（对休眠敌人），其次检测 CQC 目标（背面扇形）；
+ *             Complete 阶段直接对目标挂载死亡组件并推送动作通知；
+ *             通过 EntityID 语义的 Sys_Physics 接口冻结目标速度
+ */
 #include "Sys_PlayerCQC.h"
 
 #include "Game/Components/C_D_Input.h"
@@ -8,12 +17,16 @@
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_AIState.h"
+#include "Game/Components/C_D_Dying.h"
+#include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/C_T_Player.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/Res_CQCConfig.h"
 #include "Game/Events/Evt_CQC_Takedown.h"
 #include "Game/Events/Evt_CQC_Mimicry.h"
 #include "Game/Systems/Sys_Physics.h"
+#include "Game/Components/Res_GameState.h"
+#include "Game/UI/UI_ActionNotify.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
 
@@ -24,6 +37,13 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
+/**
+ * @brief 每帧更新 CQC 状态机：冷却计时、阶段推进、目标检测与击杀通知。
+ * @details 推进 Approach → Execute → Complete 三阶段状态机，处理休眠敌人拟态和
+ *          背后处决目标选择，并在 Complete 阶段通过 Sys_Physics 的 EntityID 接口清零目标速度。
+ * @param registry ECS 注册表
+ * @param dt       帧时间（秒）
+ */
 void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_CQCConfig>()) return;
     const auto& config = registry.ctx<Res_CQCConfig>();
@@ -66,28 +86,35 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                     return;
                 }
                 case CQCPhase::Complete: {
-                    // 将目标敌人设为休眠
-                    if (cqc.targetEnemy != 0 && registry.Has<C_D_EnemyDormant>(cqc.targetEnemy)) {
-                        auto& dormant = registry.Get<C_D_EnemyDormant>(cqc.targetEnemy);
-                        dormant.isDormant = true;
-                        LOG_INFO("[CQC] Enemy " << (int)cqc.targetEnemy << " is now dormant");
+                    EntityID target = cqc.targetEnemy;
+                    if (target != 0 && !registry.Has<C_D_Dying>(target)) {
+                        // 直接触发死亡动画（无需 C_D_Health）
+                        registry.Emplace<C_D_Dying>(target);
+                        registry.Emplace<C_D_DeathVisual>(target);
+                        LOG_INFO("[Sys_PlayerCQC] CQC kill: entity " << (int)target);
+
+                        // 击杀通知
+#ifdef USE_IMGUI
+                        ECS::UI::PushActionNotify(registry, "消灭", "敌人", 10,
+                                                  ECS::ActionNotifyType::Kill);
+#endif
 
                         // 发布 CQC 完成事件
                         if (bus) {
                             Evt_CQC_Takedown evt{};
                             evt.player = playerId;
-                            evt.target = cqc.targetEnemy;
+                            evt.target = target;
                             evt.position = playerTf.position;
                             bus->publish_deferred(evt);
                         }
 
-                        // 冻结休眠敌人速度
+                        // 冻结目标速度（防止死亡动画中残留 Jolt 速度漂移）
                         if (registry.has_ctx<Sys_Physics*>()) {
                             auto* physics = registry.ctx<Sys_Physics*>();
-                            if (physics && registry.Has<C_D_RigidBody>(cqc.targetEnemy)) {
-                                auto& erb = registry.Get<C_D_RigidBody>(cqc.targetEnemy);
+                            if (physics && registry.Has<C_D_RigidBody>(target)) {
+                                auto& erb = registry.Get<C_D_RigidBody>(target);
                                 if (erb.body_created) {
-                                    physics->SetLinearVelocity(erb.jolt_body_id, 0.0f, 0.0f, 0.0f);
+                                    physics->SetLinearVelocity(target, 0.0f, 0.0f, 0.0f);
                                 }
                             }
                         }

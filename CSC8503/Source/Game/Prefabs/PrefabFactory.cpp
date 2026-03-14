@@ -27,6 +27,7 @@
 #include "Game/Components/C_D_Material.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
+#include "Game/Components/C_D_TriMeshCollider.h"
 #include "Game/Components/C_T_Player.h"
 #include "Game/Components/C_T_InvisibleWall.h"
 #include "Game/Components/C_D_PlayerState.h"
@@ -142,6 +143,61 @@ EntityID PrefabFactory::CreateFloor(Registry& reg, ECS::MeshHandle cubeMesh)
     AttachDebugName(reg, entity, "ENTITY_Env_Floor_Main");
 
     LOG_INFO("[PrefabFactory] CreateFloor id=" << entity);
+
+    return entity;
+}
+
+// ============================================================
+// CreateStaticMap  →  PREFAB_ENV_TUTORIAL_MAP
+// ============================================================
+/**
+ * @brief 创建静态地图渲染实体（通用，适用于所有场景地图）。
+ *
+ * 仅添加渲染组件（C_D_MeshRenderer + C_D_Transform），不创建物理碰撞体。
+ * 物理支撑由 CreateNavMeshFloor 的三角网格地板提供。
+ *
+ * @param reg      ECS Registry
+ * @param mapMesh  地图网格句柄（由 AssetManager::LoadMesh 获取）
+ * @param scale    地图缩放系数（TutorialLevel=2.0，其余场景=1.0）
+ * @return 创建的实体 ID
+ */
+EntityID PrefabFactory::CreateStaticMap(Registry& reg, ECS::MeshHandle mapMesh, float scale)
+{
+    EntityID entity = reg.Create();
+
+    // C_D_Transform（Y=-6*scale 与 NavTest 坐标系对齐）
+    reg.Emplace<C_D_Transform>(entity,
+        Vector3(0.0f, -6.0f * scale, 0.0f),
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(scale, scale, scale)
+    );
+
+    // C_D_MeshRenderer（使用 TutorialMap.obj，.mtl 由 Assimp 自动加载）
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        mapMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // C_D_RigidBody（静态体）
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    // C_D_Collider（Box，覆盖地图全局足迹，随 scale 等比扩展）
+    C_D_Collider col{};
+    col.type   = ColliderType::Box;
+    col.half_x = 25.0f * scale;
+    col.half_y =  0.6f * scale;
+    col.half_z = 25.0f * scale;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    // C_D_Material（默认 BlinnPhong）
+    reg.Emplace<C_D_Material>(entity);
+
+    // C_D_DebugName（规范必选）
+    AttachDebugName(reg, entity, "ENTITY_Env_TutorialMap");
+
+    LOG_INFO("[PrefabFactory] CreateStaticMap id=" << entity);
 
     return entity;
 }
@@ -451,13 +507,11 @@ EntityID PrefabFactory::CreateNavEnemy(
 {
     EntityID entity = reg.Create();
 
-    // 缩放推导见文件头注释与函数 Doxygen
-    // scale_XZ = phys_radius(0.5) / mesh_radius(1.1835) ≈ 0.4225
-    // scale_Y  = phys_total_h(3.0) / mesh_total_h(4.2514) ≈ 0.7058
+    // cube.obj 顶点 ±1.0，scale (1,1,1) → 世界尺寸 2×2×2，与 Box 碰撞体 half(1,1,1) 匹配
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(0.4225f, 0.7058f, 0.4225f)
+        Vector3(1.0f, 1.0f, 1.0f)
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
@@ -473,9 +527,10 @@ EntityID PrefabFactory::CreateNavEnemy(
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
     C_D_Collider col{};
-    col.type   = ColliderType::Capsule;
-    col.half_x = 0.5f;
+    col.type   = ColliderType::Box;
+    col.half_x = 1.0f;
     col.half_y = 1.0f;
+    col.half_z = 1.0f;
     reg.Emplace<C_D_Collider>(entity, col);
 
     // EnemyAI 核心组件（状态机）
@@ -676,46 +731,62 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
 }
 
 // ============================================================
-// CreateItemPickup  →  PREFAB_ITEM_PICKUP
+// CreateNavMeshFloor  →  PREFAB_ENV_NAVMESH_FLOOR
 // ============================================================
-ECS::EntityID PrefabFactory::CreateItemPickup(
-    Registry&   reg,
-    MeshHandle  cubeMesh,
-    ItemID      itemId,
-    Vector3     spawnPos,
-    int         spawnIndex)
+/**
+ * @brief 从 NavMesh 可行走三角形创建静态 TriMesh 地板碰撞实体。
+ *
+ * 顶点坐标为 NavMesh 本地空间（ScaleVertices 后），worldOffset 将其平移到
+ * 世界坐标（通常为 (0, -6*scale, 0)）。
+ * 若 vertices/indices 为空或 indices 不是 3 的倍数，直接返回 NULL_ENTITY。
+ *
+ * @param reg        ECS Registry
+ * @param vertices   NavMesh 可行走顶点（来自 GetWalkableGeometry）
+ * @param indices    三角形索引（每 3 个构成一个三角形）
+ * @param worldOffset 世界空间偏移（对齐地图渲染位置）
+ * @return 创建的实体 ID，或 NULL_ENTITY（几何体无效时）
+ */
+ECS::EntityID PrefabFactory::CreateNavMeshFloor(
+    ECS::Registry&                          reg,
+    const std::vector<NCL::Maths::Vector3>& vertices,
+    const std::vector<int>&                 indices,
+    NCL::Maths::Vector3                     worldOffset)
 {
+    if (vertices.empty() || indices.empty() || indices.size() % 3 != 0) {
+        LOG_WARN("[PrefabFactory] CreateNavMeshFloor: invalid geometry (verts="
+                 << vertices.size() << " idx=" << indices.size() << "), skipping.");
+        return ECS::Entity::NULL_ENTITY;
+    }
+
     EntityID entity = reg.Create();
 
-    // C_D_Transform（小立方体，视觉占位）
+    // C_D_Transform：体原点设为 worldOffset，顶点为该原点的局部空间
     reg.Emplace<C_D_Transform>(entity,
-        spawnPos,
+        worldOffset,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(0.4f, 0.4f, 0.4f)
+        Vector3(1.0f, 1.0f, 1.0f)
     );
 
-    // C_D_MeshRenderer（占位渲染，后续替换为道具专属模型）
-    reg.Emplace<C_D_MeshRenderer>(entity,
-        cubeMesh,
-        static_cast<uint32_t>(0)
-    );
+    // C_D_RigidBody（静态体）
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    // C_T_ItemPickup（标记为可拾取道具，记录道具 ID）
-    C_T_ItemPickup pickup{};
-    pickup.itemId   = itemId;
-    pickup.quantity = 1;
-    reg.Emplace<C_T_ItemPickup>(entity, pickup);
+    // C_D_TriMeshCollider（三角网格地板）
+    C_D_TriMeshCollider tri{};
+    tri.vertices    = vertices;
+    tri.indices     = indices;
+    tri.friction    = 0.5f;
+    tri.restitution = 0.0f;
+    reg.Emplace<C_D_TriMeshCollider>(entity, std::move(tri));
 
-    // C_D_DebugName（规范必选）
-    char debugName[64];
-    std::snprintf(debugName, sizeof(debugName),
-                  "ENTITY_ItemPickup_%02d_item%d", spawnIndex, static_cast<int>(itemId));
-    AttachDebugName(reg, entity, debugName);
+    // C_D_DebugName
+    AttachDebugName(reg, entity, "ENTITY_Env_NavMeshFloor");
 
-    LOG_INFO("[PrefabFactory] CreateItemPickup id=" << entity
-             << " itemId=" << static_cast<int>(itemId)
-             << " index=" << spawnIndex
-             << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+    LOG_INFO("[PrefabFactory] CreateNavMeshFloor id=" << entity
+             << " verts=" << vertices.size()
+             << " tris=" << (indices.size() / 3)
+             << " offset=(" << worldOffset.x << "," << worldOffset.y << "," << worldOffset.z << ")");
 
     return entity;
 }
