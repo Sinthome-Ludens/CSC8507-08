@@ -80,6 +80,7 @@ struct Res_ChatState {
 #pragma warning(disable: 4996)  // strncpy deprecation
 #endif
 
+/// @brief Append a message to the chat log (drops silently if full).
 inline void ChatState_PushMessage(Res_ChatState& cs, const char* sender, const char* text, uint8_t senderType = 0, bool isSystem = false) {
     if (cs.messageCount < Res_ChatState::kMaxMessages) {
         auto& msg = cs.messages[cs.messageCount];
@@ -94,17 +95,20 @@ inline void ChatState_PushMessage(Res_ChatState& cs, const char* sender, const c
     }
 }
 
+/// @brief Reset the player's direction-key input buffer.
 inline void ChatState_ClearDirInput(Res_ChatState& cs) {
     cs.inputBufferLen = 0;
     for (auto& k : cs.inputBuffer) k = DirKey::Up;
 }
 
+/// @brief Clear all direction sequences and deactivate direction-input mode.
 inline void ChatState_ClearDirSequences(Res_ChatState& cs) {
     for (auto& seq : cs.replySequences) { seq.length = 0; }
     ChatState_ClearDirInput(cs);
     cs.dirInputActive = false;
 }
 
+/// @brief Clear all reply options, timer, and direction sequences.
 inline void ChatState_ClearReplies(Res_ChatState& cs) {
     cs.replyCount    = 0;
     cs.selectedReply = 0;
@@ -119,6 +123,7 @@ inline void ChatState_ClearReplies(Res_ChatState& cs) {
     ChatState_ClearDirSequences(cs);
 }
 
+/// @brief Add a reply option to the current dialogue node (drops silently if full).
 inline void ChatState_AddReply(Res_ChatState& cs, const char* text, int8_t effect = 0) {
     if (cs.replyCount < Res_ChatState::kMaxReplies) {
         auto& r = cs.replies[cs.replyCount];
