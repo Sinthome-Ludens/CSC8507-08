@@ -67,7 +67,8 @@ enum class PlayerMoveState : uint8_t {
 
 /// @brief 装备槽显示数据（名称/数量/冷却进度），由 HUD 渲染直接读取。
 struct SlotDisplay {
-    char    name[16] = {};
+    char    name[24] = {};
+    uint8_t itemId   = 0;      ///< 对应 ItemID 枚举值，供击杀通知等使用
     uint8_t count    = 0;
     float   cooldown = 0.0f;   ///< 0.0 = ready，>0 = 冷却中（归一化 0~1）
 };

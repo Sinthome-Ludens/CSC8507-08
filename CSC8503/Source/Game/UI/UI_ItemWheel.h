@@ -1,6 +1,6 @@
 /**
  * @file UI_ItemWheel.h
- * @brief 道具轮盘渲染（TAB 长按弹出，8 扇区选择）
+ * @brief 道具轮盘渲染（TAB 长按弹出，4 扇区选择）
  *
  * @note Called by Sys_UI::OnUpdate()
  */
