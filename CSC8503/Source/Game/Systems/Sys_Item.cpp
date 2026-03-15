@@ -26,6 +26,7 @@
 #include "Game/Events/Evt_Item_Pickup.h"
 #include "Game/Events/Evt_Item_Use.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/Res_Network.h"
 #include "Core/ECS/EventBus.h"
 #include "Core/ECS/EntityID.h"
 
@@ -133,7 +134,7 @@ void Sys_Item::OnPickup(Registry& registry, const Evt_Item_Pickup& evt) {
     auto& slot = inv.Get(evt.itemId);
 
     if (!registry.Valid(evt.pickupEntity) ||
-        !registry.all_of<C_T_ItemPickup>(evt.pickupEntity)) {
+        !registry.Has<C_T_ItemPickup>(evt.pickupEntity)) {
         if (slot.PickupOne()) {
             LOG_INFO("[Sys_Item] Player " << evt.pickerEntity
                      << " picked up item " << static_cast<int>(evt.itemId)
@@ -145,7 +146,7 @@ void Sys_Item::OnPickup(Registry& registry, const Evt_Item_Pickup& evt) {
         return;
     }
 
-    auto& pickup = registry.get<C_T_ItemPickup>(evt.pickupEntity);
+    auto& pickup = registry.Get<C_T_ItemPickup>(evt.pickupEntity);
     int remaining = pickup.quantity > 0 ? pickup.quantity : 1;
     int picked = 0;
 
@@ -181,7 +182,7 @@ void Sys_Item::ProcessItemUseInput(Registry& registry) {
     if (!registry.has_ctx<Res_ItemInventory2>()) return;
     auto& inv = registry.ctx<Res_ItemInventory2>();
 
-    const bool isOnline = registry.has_ctx<struct Res_Network>();
+    const bool isOnline = registry.has_ctx<Res_Network>();
 
     registry.view<C_T_Player, C_D_Input, C_D_Transform>().each(
         [&](EntityID playerId, C_T_Player&, C_D_Input& input, C_D_Transform& tf) {

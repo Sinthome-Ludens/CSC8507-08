@@ -145,8 +145,7 @@ static EntityID CreateHoloBaitPrefab(Registry& registry, const Vector3& worldPos
     bait.active        = true;
 
     auto& dn = registry.Emplace<C_D_DebugName>(baitEntity);
-    std::strncpy(dn.name, "ENTITY_HoloBait", sizeof(dn.name) - 1);
-    dn.name[sizeof(dn.name) - 1] = '\0';
+    strncpy_s(dn.name, sizeof(dn.name), "ENTITY_HoloBait", _TRUNCATE);
 
     return baitEntity;
 }
@@ -251,8 +250,7 @@ static EntityID Prefab_CreateRoamAI(Registry& registry, const Vector3& targetPos
     roam.active           = true;
 
     auto& dn = registry.Emplace<C_D_DebugName>(roamId);
-    std::strncpy(dn.name, "ENTITY_RoamAI", sizeof(C_D_DebugName::name) - 1);
-    dn.name[sizeof(dn.name) - 1] = '\0';
+    strncpy_s(dn.name, sizeof(dn.name), "ENTITY_RoamAI", _TRUNCATE);
 
     return roamId;
 }
