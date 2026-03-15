@@ -1,3 +1,7 @@
+/**
+ * @file UI_Interaction.cpp
+ * @brief 交互提示渲染实现（世界空间浮动 [E] 标签）。
+ */
 #include "UI_Interaction.h"
 #ifdef USE_IMGUI
 
@@ -21,14 +25,10 @@ using namespace NCL::Maths;
 
 namespace ECS::UI {
 
-// ============================================================
-// RenderInteractionPrompts — World-space floating labels
-// ============================================================
-
 static constexpr int   kMaxPrompts    = 8;
 static constexpr float kMaxRenderDist = 20.0f;
 
-// Type -> color mapping
+/** @brief 根据交互类型返回对应颜色。 */
 static ImU32 GetTypeColor(InteractableType type, uint8_t alpha) {
     switch (type) {
         case InteractableType::Pickup:   return IM_COL32(80, 200, 120, alpha);   // green
@@ -39,7 +39,7 @@ static ImU32 GetTypeColor(InteractableType type, uint8_t alpha) {
     }
 }
 
-// Type -> action text
+/** @brief 根据交互类型返回操作提示文本。 */
 static const char* GetActionText(InteractableType type) {
     switch (type) {
         case InteractableType::Pickup:   return "[E] PICK UP";
@@ -50,6 +50,11 @@ static const char* GetActionText(InteractableType type) {
     }
 }
 
+/**
+ * @brief 渲染世界空间交互提示标签（靠近可交互实体时显示 [E] 浮标）。
+ * @param registry ECS 注册表
+ * @param dt       帧间隔（未使用）
+ */
 void RenderInteractionPrompts(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     if (!registry.has_ctx<Res_NCL_Pointers>()) return;
