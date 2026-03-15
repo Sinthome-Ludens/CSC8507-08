@@ -1,3 +1,7 @@
+/**
+ * @file UI_ActionNotify.cpp
+ * @brief 动作通知系统实现（右上角圆角卡片 + 积分同步）。
+ */
 #include "UI_ActionNotify.h"
 #ifdef USE_IMGUI
 
@@ -9,7 +13,6 @@
 
 namespace ECS::UI {
 
-// ── 动画时间常量（提升至文件作用域，PushActionNotify 也需要 kFadeOut）────
 static constexpr float kFadeOut = 0.4f;   ///< 淡出时长（秒）
 
 // ── 颜色映射 ─────────────────────────────────────────────────
@@ -30,7 +33,7 @@ static ImU32 TypeColor(ActionNotifyType type, uint8_t a) {
     }
 }
 
-// ── PushActionNotify ─────────────────────────────────────────
+/** @brief 推入一条动作通知并同步积分到 Res_GameState。 */
 void PushActionNotify(Registry& registry, const char* verb, const char* target,
                       int scoreDelta, ActionNotifyType type, float lifetime) {
     if (!registry.has_ctx<Res_ActionNotifyState>()) return;
@@ -57,7 +60,7 @@ void PushActionNotify(Registry& registry, const char* verb, const char* target,
     }
 }
 
-// ── RenderActionNotify ───────────────────────────────────────
+/** @brief 渲染右上角动作通知卡片列表（淡入 → 持续 → 淡出）。 */
 void RenderActionNotify(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_ActionNotifyState>()) return;
     auto& state = registry.ctx<Res_ActionNotifyState>();
