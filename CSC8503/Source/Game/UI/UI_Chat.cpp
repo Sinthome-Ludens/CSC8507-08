@@ -1,3 +1,7 @@
+/**
+ * @file UI_Chat.cpp
+ * @brief 聊天面板渲染实现（消息列表 + 方向键回复 UI + 倒计时）。
+ */
 #include "UI_Chat.h"
 #ifdef USE_IMGUI
 
@@ -11,10 +15,11 @@
 
 namespace ECS::UI {
 
-// ============================================================
-// RenderChatPanel — 常驻右侧面板 (320px, 全高)
-// ============================================================
-
+/**
+ * @brief 渲染常驻右侧聊天面板（320px 全高），包含消息列表与回复区域。
+ * @param registry ECS 注册表
+ * @param dt       帧间隔（未使用）
+ */
 void RenderChatPanel(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     if (!registry.has_ctx<Res_ChatState>()) return;
@@ -121,15 +126,22 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
 
     float msgStartY = contentY + 6.0f;
 
-    // Reply area height calculation
-    float replyAreaH = 24.0f;  // bottom hint line
+    // Reply area layout: padding(8) + countdown(36?) + inputBox(28) +
+    // spacing(4) + replies(N*42) + hint(24).  No replies → hint only (24).
+    constexpr float kReplyPad      =  8.0f;
+    constexpr float kCountdownH    = 36.0f;
+    constexpr float kInputBoxH     = 28.0f;
+    constexpr float kReplySpacing  =  4.0f;
+    constexpr float kReplyItemH    = 42.0f;
+    constexpr float kHintLineH     = 24.0f;
+
+    float replyAreaH = kHintLineH;
     if (chat.replyCount > 0) {
-        replyAreaH  = 8.0f;                                          // top padding
-        if (chat.replyTimerActive) replyAreaH += 36.0f;              // countdown
-        replyAreaH += 28.0f;                                          // input box
-        replyAreaH += 4.0f;                                           // spacing
-        replyAreaH += chat.replyCount * 42.0f;                        // reply items
-        replyAreaH += 24.0f;                                          // bottom hint
+        replyAreaH  = kReplyPad;
+        if (chat.replyTimerActive) replyAreaH += kCountdownH;
+        replyAreaH += kInputBoxH + kReplySpacing;
+        replyAreaH += chat.replyCount * kReplyItemH;
+        replyAreaH += kHintLineH;
     }
 
     float msgEndY = panelY + panelH - replyAreaH;
@@ -205,7 +217,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
 
             draw->AddText(ImVec2(timerX, curY), timerColor, timerBuf);
             if (largeFont) ImGui::PopFont();
-            curY += 36.0f;
+            curY += kCountdownH;
         }
 
         // ── Helper: draw direction arrow triangle ────────
@@ -254,7 +266,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
                     IM_COL32(160, 160, 160, 100), 2.0f, 0, 1.0f);
             }
         }
-        curY += 28.0f;
+        curY += kInputBoxH;
 
         // ── Determine which reply is prefix-matched ──────
         int matchedReply = -1;
@@ -305,7 +317,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
                 arrowX += kArrowCellW;
             }
 
-            curY += 42.0f;
+            curY += kReplyItemH;
         }
         if (bodyFont) ImGui::PopFont();
 
