@@ -314,7 +314,8 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
             if (ui.loadoutEquippedItems[s] >= 0) {
                 const char* src = kItems[ui.loadoutEquippedItems[s]].name;
                 size_t len = strlen(src);
-                if (len > 15) len = 15;
+                if (len > sizeof(gs.itemSlots[s].name) - 1)
+                    len = sizeof(gs.itemSlots[s].name) - 1;
                 memcpy(gs.itemSlots[s].name, src, len);
                 gs.itemSlots[s].name[len] = '\0';
                 gs.itemSlots[s].count = 1;
@@ -330,7 +331,8 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
             if (ui.loadoutEquippedWeapons[s] >= 0) {
                 const char* src = kWeapons[ui.loadoutEquippedWeapons[s]].name;
                 size_t len = strlen(src);
-                if (len > 15) len = 15;
+                if (len > sizeof(gs.weaponSlots[s].name) - 1)
+                    len = sizeof(gs.weaponSlots[s].name) - 1;
                 memcpy(gs.weaponSlots[s].name, src, len);
                 gs.weaponSlots[s].name[len] = '\0';
                 gs.weaponSlots[s].count = 1;

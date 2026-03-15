@@ -13,7 +13,8 @@ namespace ECS {
 
 struct InventoryItem {
     char     name[32]        = {};
-    char     description[64] = {};
+    char     description[80] = {};
+    uint8_t  itemId           = 0;    ///< 对应 ItemID 枚举值
     uint8_t  quantity         = 0;
     uint8_t  iconIndex        = 0;
     bool     isEmpty          = true;

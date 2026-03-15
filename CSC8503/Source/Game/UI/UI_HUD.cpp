@@ -254,7 +254,7 @@ static void RenderHUD_NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, 
 static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
     ImFont* smallFont = UITheme::GetFont_Small();
 
-    constexpr float kSlotW = 80.0f;
+    constexpr float kSlotW = 100.0f;
     constexpr float kSlotH = 44.0f;
     constexpr float kGap   = 6.0f;
 
