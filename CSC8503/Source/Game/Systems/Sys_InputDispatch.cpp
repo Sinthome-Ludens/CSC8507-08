@@ -15,6 +15,9 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_Input>()) return;
     auto& res = registry.ctx<Res_Input>();
 
+    // ── 从 Res_Input 读取滚轮输入（由 InputAdapter 采集） ──
+    int scrollWheel = res.scrollWheel;
+
     // ── 从 Res_Input 读取移动输入 ──
     float inputX = res.axisX;          // A=-1, D=+1 → 同向
     float inputZ = -res.axisY;         // W=+1 → 游戏中 W 是 -Z 方向，取反
@@ -79,6 +82,7 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
         inputZ = 0.0f;
         hasInput = false;
         shiftDown = false;
+        scrollWheel = 0;
     }
 
     // ── 写入所有玩家实体的 C_D_Input ──
@@ -98,6 +102,7 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
             input.item3JustPressed   = key3Pressed;
             input.item4JustPressed   = key4Pressed;
             input.item5JustPressed   = key5Pressed;
+            input.scrollDelta        = scrollWheel;
         }
     );
 }

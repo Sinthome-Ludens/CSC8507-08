@@ -6,7 +6,6 @@ namespace ECS {
 struct C_D_EnemyDormant {
     bool  isDormant       = false;
     float dormantTimer    = 0.0f;
-    bool  hasBeenMimicked = false;
 };
 
 } // namespace ECS

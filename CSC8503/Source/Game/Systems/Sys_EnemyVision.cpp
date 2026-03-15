@@ -3,7 +3,7 @@
  * @brief 敌人视野判定系统实现。
  *
  * 算法概要：
- * - 预收集玩家列表（缓存位置/可见度，跳过拟态玩家）
+ * - 预收集玩家列表（缓存位置/可见度）
  * - 对每个活跃敌人，依次执行：
  *   1. XZ 距离筛选（超出 maxDistance 跳过）
  *   2. visibilityFactor 门槛（低于 visibilityMin 视为完全隐形）
@@ -16,7 +16,6 @@
 
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_PlayerState.h"
-#include "Game/Components/C_D_CQCState.h"
 #include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/C_D_EnemyDormant.h"
 #include "Game/Components/C_T_Player.h"
@@ -61,12 +60,6 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
         [&](EntityID playerId, C_T_Player&, C_D_Transform& playerTf,
             C_D_PlayerState& ps) {
             if (playerCount >= 4) return;
-
-            // 拟态绕过：isMimicking 时不被视觉检测
-            if (registry.Has<C_D_CQCState>(playerId)) {
-                const auto& cqc = registry.Get<C_D_CQCState>(playerId);
-                if (cqc.isMimicking) return;
-            }
 
             players[playerCount].id               = playerId;
             players[playerCount].position          = playerTf.position;

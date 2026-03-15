@@ -17,9 +17,10 @@ void InputAdapter::Update(Window* window, Res_Input& input) {
     auto* keyboard = window->GetKeyboard();
     auto* mouse = window->GetMouse();
 
-    // 同步鼠标位置
+    // 同步鼠标位置和滚轮
     input.mousePos = mouse->GetAbsolutePosition();
     input.mouseDelta = mouse->GetRelativePosition();
+    input.scrollWheel = mouse->GetWheelMovement();
 
     // 同步键盘状态（遍历所有按键）
     for (int i = 0; i < 256; ++i) {
