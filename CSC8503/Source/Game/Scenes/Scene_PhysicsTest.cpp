@@ -240,7 +240,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     // ── 8. 存档加载 + 库存恢复 + 装备同步 ──────────────────────────────
     // 顺序：LoadGame → 恢复 storeCount → OnRoundStart → 装备同步 → SaveGame
     if (ECS::HasSaveFile()) {
-        ECS::LoadGame(registry);  // 恢复 storeCount 到 Res_ItemInventory2
+        ECS::LoadGame(registry, false);  // 恢复 storeCount，不覆盖用户刚选的 map
         if (registry.has_ctx<ECS::Res_ItemInventory2>()) {
             // 用正确的 storeCount 重新分配 carriedCount
             registry.ctx<ECS::Res_ItemInventory2>().OnRoundStart();
@@ -263,9 +263,9 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
         int weaponCount = 0;
         for (int i = 0; i < inv.kItemCount; ++i) {
             if (inv.slots[i].itemType == ECS::ItemType::Gadget) {
-                gadgetIndices[gadgetCount++] = i;
+                if (gadgetCount < 5) gadgetIndices[gadgetCount++] = i;
             } else {
-                weaponIndices[weaponCount++] = i;
+                if (weaponCount < 5) weaponIndices[weaponCount++] = i;
             }
         }
 
@@ -313,9 +313,6 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
                  << (int)ui.missionEquippedWeapons[1] << "]");
     }
 #endif
-
-    // 开局自动保存
-    ECS::SaveGame(registry);
 
     LOG_INFO("[Scene_PhysicsTest] OnEnter complete. "
              << systems.Count() << " systems awake.");

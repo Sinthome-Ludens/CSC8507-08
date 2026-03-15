@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <filesystem>
+#include <iterator>
 #include <chrono>
 #include <ctime>
 #include <iomanip>
@@ -28,14 +29,29 @@ namespace ECS {
 
 static constexpr int kSaveVersion = 1;
 
+/**
+ * @brief 返回存档文件的完整路径。
+ * @return Assets/Saves/autosave.save 的绝对路径字符串
+ */
 std::string GetSavePath() {
     return NCL::Assets::ASSETROOT + "Saves/autosave.save";
 }
 
+/**
+ * @brief 检查 autosave.save 存档文件是否存在。
+ * @return true 存档文件存在
+ */
 bool HasSaveFile() {
     return std::filesystem::exists(GetSavePath());
 }
 
+/**
+ * @brief 将当前游戏状态序列化到 Assets/Saves/autosave.save。
+ * @details 序列化 Res_GameState（player 段）、Res_ItemInventory2（inventory 段，含 itemId+storeCount）、
+ *          Res_UIState（mission 段）。自动创建 Saves/ 目录。
+ * @param registry ECS 注册表（读取 Res_GameState / Res_ItemInventory2 / Res_UIState）
+ * @return true 保存成功，false 文件写入失败或异常
+ */
 bool SaveGame(Registry& registry) {
     try {
         nlohmann::json root;
@@ -106,7 +122,15 @@ bool SaveGame(Registry& registry) {
     }
 }
 
-bool LoadGame(Registry& registry) {
+/**
+ * @brief 从 Assets/Saves/autosave.save 反序列化游戏状态到 ctx 资源。
+ * @details 按 itemId 匹配恢复 storeCount（而非数组下标），防止 ItemID 顺序变化导致错位。
+ *          始终更新 Res_UIState.savedStoreCount 缓存（供菜单阶段 MissionSelect 使用）。
+ * @param registry ECS 注册表（写入存在的 ctx 资源）
+ * @param restoreMission true 时恢复 missionSelectedMap（菜单阶段），false 跳过（游戏阶段保留用户选择）
+ * @return true 加载成功，false 文件不存在/版本不匹配/解析失败
+ */
+bool LoadGame(Registry& registry, bool restoreMission) {
     std::string path = GetSavePath();
     if (!std::filesystem::exists(path)) {
         LOG_INFO("[SaveManager] No save file found at " << path);
@@ -142,26 +166,30 @@ bool LoadGame(Registry& registry) {
         if (root.contains("inventory")) {
             auto& arr = root["inventory"];
 
-            // If Res_ItemInventory2 exists (in-game), restore directly
+            // If Res_ItemInventory2 exists (in-game), restore by itemId
             if (registry.has_ctx<Res_ItemInventory2>()) {
                 auto& inv = registry.ctx<Res_ItemInventory2>();
-                for (size_t i = 0; i < arr.size() && i < static_cast<size_t>(inv.kItemCount); ++i) {
-                    inv.slots[i].storeCount = arr[i].value("storeCount", static_cast<uint8_t>(0));
+                for (auto& entry : arr) {
+                    int id = entry.value("itemId", -1);
+                    if (id < 0 || id >= inv.kItemCount) continue;
+                    inv.slots[id].storeCount = entry.value("storeCount", static_cast<uint8_t>(0));
                 }
             }
 
-            // Always update UIState cache (for menu stage fallback)
+            // Always update UIState cache by itemId (for menu stage fallback)
             if (registry.has_ctx<Res_UIState>()) {
                 auto& ui = registry.ctx<Res_UIState>();
-                for (size_t i = 0; i < arr.size() && i < 5u; ++i) {
-                    ui.savedStoreCount[i] = arr[i].value("storeCount", static_cast<uint8_t>(0));
+                for (auto& entry : arr) {
+                    int id = entry.value("itemId", -1);
+                    if (id < 0 || id >= static_cast<int>(std::size(ui.savedStoreCount))) continue;
+                    ui.savedStoreCount[id] = entry.value("storeCount", static_cast<uint8_t>(0));
                 }
                 ui.hasSavedInventory = true;
             }
         }
 
-        // Restore mission selection
-        if (root.contains("mission") && registry.has_ctx<Res_UIState>()) {
+        // Restore mission selection (only in menu stage; game stage preserves user's pick)
+        if (restoreMission && root.contains("mission") && registry.has_ctx<Res_UIState>()) {
             auto& ui = registry.ctx<Res_UIState>();
             ui.missionSelectedMap = static_cast<int8_t>(
                 root["mission"].value("selectedMap", 0));

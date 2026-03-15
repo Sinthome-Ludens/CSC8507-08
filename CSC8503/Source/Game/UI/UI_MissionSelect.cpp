@@ -12,9 +12,11 @@
 #ifdef USE_IMGUI
 
 #include <imgui.h>
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <iterator>
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_ItemInventory2.h"
@@ -41,6 +43,14 @@ static const char* kMapDescs[] = {
 // ============================================================
 // RenderMissionSelect
 // ============================================================
+
+/**
+ * @brief 渲染关卡选择界面（三列布局：关卡 / 道具 / 武器）并处理导航输入。
+ * @param registry ECS 注册表（读写 Res_UIState 的 missionSelectedMap/Tab/Cursor/EquippedItems/Weapons；
+ *                 读 Res_ItemInventory2 库存数据，菜单阶段使用 fallback + savedStoreCount）
+ * @details 键盘 A/D 切 Tab、W/S 导航、Enter 装备/选择、C 触发 DEPLOY（设置 pendingSceneRequest=StartGame）。
+ *          鼠标悬浮自动高亮条目，左键点击可直接选择/装备。
+ */
 void RenderMissionSelect(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
@@ -94,7 +104,9 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     // 此时用临时默认实例读取道具列表，并从存档缓存恢复 storeCount。
     Res_ItemInventory2 fallbackInv;
     if (!registry.has_ctx<Res_ItemInventory2>() && ui.hasSavedInventory) {
-        for (int i = 0; i < fallbackInv.kItemCount; ++i)
+        int limit = std::min(fallbackInv.kItemCount,
+                             static_cast<int>(std::size(ui.savedStoreCount)));
+        for (int i = 0; i < limit; ++i)
             fallbackInv.slots[i].storeCount = ui.savedStoreCount[i];
     }
     Res_ItemInventory2& inv = registry.has_ctx<Res_ItemInventory2>()
