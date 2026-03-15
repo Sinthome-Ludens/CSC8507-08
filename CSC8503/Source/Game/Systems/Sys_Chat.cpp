@@ -1,3 +1,10 @@
+/**
+ * @file Sys_Chat.cpp
+ * @brief 聊天/对话系统实现。
+ *
+ * - OnAwake: 加载对话 JSON 并初始化 Res_ChatState / Res_DialogueData。
+ * - OnUpdate: 驱动对话流程（节点推进 / 方向键输入 / 倒计时 / 回复确认）。
+ */
 #include "Sys_Chat.h"
 
 #ifdef _MSC_VER
@@ -21,9 +28,14 @@ using namespace NCL;
 
 namespace ECS {
 
-// ============================================================
-// Helper: generate prefix-free direction sequences
-// ============================================================
+/**
+ * @brief 为当前回复选项生成前缀无冲突的方向键序列。
+ *
+ * 每个选项的首键唯一（Up/Down/Left/Right），后接 2-6 个随机键，
+ * 总长 3-7，由 seed 驱动伪随机变化。
+ * @param cs   聊天状态资源
+ * @param seed 伪随机种子（通常为 dialoguePhase）
+ */
 static void GenerateDirSequences(Res_ChatState& cs, uint8_t seed) {
     // Each option gets a unique first key (Up/Down/Left/Right)
     // Then 2-6 random keys appended (total length 3-7)
@@ -54,9 +66,12 @@ static void GenerateDirSequences(Res_ChatState& cs, uint8_t seed) {
     ChatState_ClearDirInput(cs);
 }
 
-// ============================================================
-// Helper: get dialogue sequence for current mode
-// ============================================================
+/**
+ * @brief 根据当前 chatMode 返回对应的对话序列指针。
+ * @param data     对话数据资源
+ * @param chatMode 对话模式索引
+ * @return 对应序列指针，越界时返回 nullptr
+ */
 static const DialogueSequence* GetSequence(const Res_DialogueData& data, uint8_t chatMode) {
     switch (chatMode) {
         case 0: return &data.proactive;
@@ -66,9 +81,10 @@ static const DialogueSequence* GetSequence(const Res_DialogueData& data, uint8_t
     }
 }
 
-// ============================================================
-// Fallback hardcoded data (used if JSON loading fails)
-// ============================================================
+/**
+ * @brief JSON 加载失败时填充硬编码对话数据（3 模式 × 1-3 节点）。
+ * @param data 对话数据资源，函数结束后 data.loaded = true
+ */
 static void LoadFallbackDialogue(Res_DialogueData& data) {
     // Proactive — 3 nodes
     {
@@ -146,10 +162,7 @@ static void LoadFallbackDialogue(Res_DialogueData& data) {
     data.loaded = true;
 }
 
-// ============================================================
-// OnAwake
-// ============================================================
-
+/** @brief 初始化聊天状态和对话数据（JSON 优先，失败用 fallback）。 */
 void Sys_Chat::OnAwake(Registry& registry) {
     if (!registry.has_ctx<Res_ChatState>()) {
         registry.ctx_emplace<Res_ChatState>();
@@ -181,10 +194,7 @@ void Sys_Chat::OnAwake(Registry& registry) {
              << (dialogueData.loaded ? "loaded" : "MISSING"));
 }
 
-// ============================================================
-// OnUpdate
-// ============================================================
-
+/** @brief 每帧驱动对话流程：模式切换 / 方向键输入 / 回复确认 / 超时 / NPC 消息调度。 */
 void Sys_Chat::OnUpdate(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_ChatState>()) return;
     if (!registry.has_ctx<Res_UIState>()) return;
