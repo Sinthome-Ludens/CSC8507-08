@@ -284,7 +284,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
 
         // ── Reply options (text + direction sequence) ─────
         if (bodyFont) ImGui::PushFont(bodyFont);
-        curY += 4.0f;
+        curY += kReplySpacing;
         for (int i = 0; i < chat.replyCount && i < Res_ChatState::kMaxReplies; ++i) {
             bool isMatch = (i == matchedReply);
 
