@@ -1,0 +1,11 @@
+# Unity Points Export (Z-Reversed for Right-Handed)
+# Root Space: TutorialLevel
+# Coordinate Space: Local to TutorialLevel
+startPointCount 1
+finishPointCount 1
+
+startPoints
+-12.235000 3.645000 -3.640000
+
+finishPoints
+-16.830000 0.525000 19.800000
