@@ -418,8 +418,14 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
     if (confirmedIndex >= 0) {
         switch (confirmedIndex) {
             case 0: // START OPERATION
-                ui.pendingSceneRequest = SceneRequest::StartGame;
-                LOG_INFO("[UI_Menus] MainMenu -> StartGame");
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen   = UIScreen::MissionSelect;
+                ui.missionSelectedTab = 0;
+                ui.missionSelectedMap = 0;
+                ui.missionCursorPerTab[0] = ui.missionCursorPerTab[1] = ui.missionCursorPerTab[2] = 0;
+                ui.missionEquippedItems[0] = ui.missionEquippedItems[1] = -1;
+                ui.missionEquippedWeapons[0] = ui.missionEquippedWeapons[1] = -1;
+                LOG_INFO("[UI_Menus] MainMenu -> MissionSelect");
                 break;
             case 1: // MULTIPLAYER
                 ui.previousScreen = ui.activeScreen;
