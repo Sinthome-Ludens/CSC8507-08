@@ -4,6 +4,7 @@
  */
 #include "Scene_PhysicsTest.h"
 
+#include <cstring>
 #include "Assets.h"
 #include "Core/ECS/Registry.h"
 #include "Core/ECS/SystemManager.h"
@@ -33,7 +34,10 @@
 #include "Game/Systems/Sys_PlayerCamera.h"
 #include "Game/Systems/Sys_Raycast.h"
 #include "Game/Systems/Sys_Render.h"
+#include "Game/Systems/Sys_Item.h"
+#include "Game/Systems/Sys_ItemEffects.h"
 #include "Game/Utils/Log.h"
+#include "Game/Utils/SaveManager.h"
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
@@ -50,6 +54,8 @@
 #include "Game/Components/Res_InventoryState.h"
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/Components/Res_DialogueData.h"
+#include "Game/Components/Res_ItemInventory2.h"
+#include "Game/Components/Res_RadarState.h"
 #include "Game/UI/UI_Toast.h"
 #endif
 
@@ -182,6 +188,8 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_PlayerCamera>    (150);   // 第三人称跟随相机
     systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
     systems.Register<ECS::Sys_Render>          (200);   // ECS 实体 → NCL 代理对象桥接
+    systems.Register<ECS::Sys_Item>            (250);   // 道具管理（拾取/使用/库存结算）
+    systems.Register<ECS::Sys_ItemEffects>     (260);   // 道具效果执行（HoloBait/DDoS/RoamAI/Radar/TargetStrike）
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + 测试控制面板
     systems.Register<ECS::Sys_ImGuiEntityDebug>  (305);   // 全量实体列表 + 详情面板
@@ -229,6 +237,86 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     ECS::UI::PushToast(registry, "MISSION START", ECS::ToastType::Success, 2.5f);
 #endif
 
+    // ── 8. 存档加载 + 库存恢复 + 装备同步 ──────────────────────────────
+    // 顺序：LoadGame → 恢复 storeCount → OnRoundStart → 装备同步 → SaveGame
+    if (ECS::HasSaveFile()) {
+        ECS::LoadGame(registry);  // 恢复 storeCount 到 Res_ItemInventory2
+        if (registry.has_ctx<ECS::Res_ItemInventory2>()) {
+            // 用正确的 storeCount 重新分配 carriedCount
+            registry.ctx<ECS::Res_ItemInventory2>().OnRoundStart();
+        }
+    }
+
+    // 装备同步：从 Res_UIState 读 MissionSelect 选择，写入 Res_GameState
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_UIState>()
+     && registry.has_ctx<ECS::Res_GameState>()
+     && registry.has_ctx<ECS::Res_ItemInventory2>()) {
+        auto& ui  = registry.ctx<ECS::Res_UIState>();
+        auto& gs  = registry.ctx<ECS::Res_GameState>();
+        auto& inv = registry.ctx<ECS::Res_ItemInventory2>();
+
+        // 建立 gadget/weapon 索引映射（与 MissionSelect 一致）
+        int gadgetIndices[5] = {};
+        int gadgetCount = 0;
+        int weaponIndices[5] = {};
+        int weaponCount = 0;
+        for (int i = 0; i < inv.kItemCount; ++i) {
+            if (inv.slots[i].itemType == ECS::ItemType::Gadget) {
+                gadgetIndices[gadgetCount++] = i;
+            } else {
+                weaponIndices[weaponCount++] = i;
+            }
+        }
+
+        // 写入 itemSlots
+        for (int s = 0; s < 2; ++s) {
+            int idx = ui.missionEquippedItems[s];
+            if (idx >= 0 && idx < gadgetCount) {
+                int invIdx = gadgetIndices[idx];
+                auto& slot = inv.slots[invIdx];
+                size_t len = strlen(slot.name);
+                if (len > sizeof(gs.itemSlots[s].name) - 1)
+                    len = sizeof(gs.itemSlots[s].name) - 1;
+                memcpy(gs.itemSlots[s].name, slot.name, len);
+                gs.itemSlots[s].name[len] = '\0';
+                gs.itemSlots[s].itemId  = static_cast<uint8_t>(slot.itemId);
+                gs.itemSlots[s].count   = slot.carriedCount;
+                gs.itemSlots[s].cooldown = 0.0f;
+            } else {
+                gs.itemSlots[s] = {};
+            }
+        }
+
+        // 写入 weaponSlots
+        for (int s = 0; s < 2; ++s) {
+            int idx = ui.missionEquippedWeapons[s];
+            if (idx >= 0 && idx < weaponCount) {
+                int invIdx = weaponIndices[idx];
+                auto& slot = inv.slots[invIdx];
+                size_t len = strlen(slot.name);
+                if (len > sizeof(gs.weaponSlots[s].name) - 1)
+                    len = sizeof(gs.weaponSlots[s].name) - 1;
+                memcpy(gs.weaponSlots[s].name, slot.name, len);
+                gs.weaponSlots[s].name[len] = '\0';
+                gs.weaponSlots[s].itemId  = static_cast<uint8_t>(slot.itemId);
+                gs.weaponSlots[s].count   = slot.carriedCount;
+                gs.weaponSlots[s].cooldown = 0.0f;
+            } else {
+                gs.weaponSlots[s] = {};
+            }
+        }
+
+        LOG_INFO("[Scene_PhysicsTest] Equipment synced from MissionSelect: items=["
+                 << (int)ui.missionEquippedItems[0] << "," << (int)ui.missionEquippedItems[1]
+                 << "] weapons=[" << (int)ui.missionEquippedWeapons[0] << ","
+                 << (int)ui.missionEquippedWeapons[1] << "]");
+    }
+#endif
+
+    // 开局自动保存
+    ECS::SaveGame(registry);
+
     LOG_INFO("[Scene_PhysicsTest] OnEnter complete. "
              << systems.Count() << " systems awake.");
 }
@@ -246,8 +334,11 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
                                 ECS::SystemManager& systems)
 {
-    // 逆序停机
+    // 逆序停机（Sys_Item::OnDestroy 调用 OnRoundEnd → carried→storeCount）
     systems.DestroyAll(registry);
+
+    // 结算后保存（storeCount 已更新，Res_ItemInventory2 尚未擦除）
+    ECS::SaveGame(registry);
 
     // 清除场景指针 ctx，防止 delete 后悬空指针
     if (registry.has_ctx<IScene*>()) {
@@ -263,6 +354,8 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
     if (registry.has_ctx<Res_TestState>())      registry.ctx_erase<Res_TestState>();
     if (registry.has_ctx<Res_EnemyTestState>()) registry.ctx_erase<Res_EnemyTestState>();
     if (registry.has_ctx<Res_CapsuleState>())   registry.ctx_erase<Res_CapsuleState>();
+    if (registry.has_ctx<ECS::Res_ItemInventory2>())   registry.ctx_erase<ECS::Res_ItemInventory2>();
+    if (registry.has_ctx<ECS::Res_RadarState>())      registry.ctx_erase<ECS::Res_RadarState>();
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_GameState>())      registry.ctx_erase<ECS::Res_GameState>();
     if (registry.has_ctx<ECS::Res_ToastState>())     registry.ctx_erase<ECS::Res_ToastState>();
