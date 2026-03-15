@@ -7,7 +7,7 @@
  * - OnUpdate:
  *   1. 更新无敌计时器（invTimer 递减）
  *   2. Hunt 敌人抓捕检测（XZ 平方距离 < captureDistance²）
- *   3. 死亡检查：玩家 hp<=0 触发场景重启，敌人 hp<=0 挂载 C_D_Dying + C_D_DeathVisual，由 Sys_DeathEffect 执行四阶段动画后延迟销毁
+ *   3. 死亡检查：玩家 hp<=0 触发 GameOver 界面，敌人 hp<=0 挂载 C_D_Dying + C_D_DeathVisual，由 Sys_DeathEffect 执行四阶段动画后延迟销毁
  * - OnDestroy: 取消 EventBus 订阅
  */
 #include "Sys_DeathJudgment.h"
@@ -23,11 +23,11 @@
 #include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #include "Game/UI/UI_ActionNotify.h"
 #include "Game/Events/Evt_Phys_Trigger.h"
 #include "Game/Events/Evt_Death.h"
-#include "Game/Scenes/IScene.h"
 #include "Game/Utils/Log.h"
 
 namespace ECS {
@@ -154,6 +154,10 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
     }
 
     // ── 3. 死亡检查 ──
+    // 已 GameOver 则跳过，避免每帧重复发布 Evt_Death
+    if (registry.has_ctx<Res_GameState>() && registry.ctx<Res_GameState>().isGameOver) {
+        return;
+    }
     // Registry::Destroy 是延迟销毁（加入 m_PendingDestroy），
     // 帧末 ProcessPendingDestroy 才真正移除实体，不会在 view.each()
     // 迭代期间使迭代器失效，因此可安全在循环内直接调用。
@@ -164,10 +168,10 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
             if (health.hp > 0.0f) return;
 
             if (registry.Has<C_T_Player>(entity)) {
-                // 玩家死亡 → 场景重启
+                // 玩家死亡 → GameOver 界面
                 if (!playerDied) {
                     playerDied = true;
-                    LOG_INFO("[DeathJudgment] Player " << (int)entity << " died, restarting scene");
+                    LOG_INFO("[DeathJudgment] Player " << (int)entity << " died, triggering GameOver");
 
                     if (registry.has_ctx<EventBus*>()) {
                         auto* bus = registry.ctx<EventBus*>();
@@ -179,9 +183,14 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                         }
                     }
 
-                    if (registry.has_ctx<IScene*>()) {
-                        auto* scene = registry.ctx<IScene*>();
-                        if (scene) scene->Restart();
+                    if (registry.has_ctx<Res_GameState>() && registry.has_ctx<Res_UIState>()) {
+                        auto& gs = registry.ctx<Res_GameState>();
+                        auto& ui = registry.ctx<Res_UIState>();
+                        gs.isGameOver       = true;
+                        gs.gameOverReason   = 2;   // OPERATOR DETECTED
+                        gs.gameOverTime     = gs.playTime;
+                        ui.activeScreen          = UIScreen::GameOver;
+                        ui.gameOverSelectedIndex  = 0;
                     }
                 }
             } else if (registry.Has<C_T_Enemy>(entity)) {

@@ -1,3 +1,7 @@
+/**
+ * @file UI_ItemWheel.cpp
+ * @brief 道具轮盘渲染实现（TAB 长按弹出，4 扇区选择）。
+ */
 #include "UI_ItemWheel.h"
 #ifdef USE_IMGUI
 
@@ -11,12 +15,13 @@
 
 namespace ECS::UI {
 
-// ============================================================
-// RenderItemWheel — 4-sector radial selector (TAB hold)
-// ============================================================
-
 static constexpr int kSectorCount = 4;
 
+/**
+ * @brief 渲染 4 扇区径向道具轮盘（TAB 长按弹出，居中于游戏区域）。
+ * @param registry ECS 注册表
+ * @param dt       帧间隔（未使用）
+ */
 void RenderItemWheel(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
@@ -39,7 +44,7 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     ImFont* smallFont = UITheme::GetFont_Small();
 
     // Center in game area (excluding chat panel)
-    float gameW = displaySize.x - Res_ChatState::PANEL_WIDTH;
+    float gameW = displaySize.x - Res_ChatState::kPanelWidth;
     float cx = gameW * 0.5f;
     float cy = displaySize.y * 0.5f;
     float outerR = 120.0f;

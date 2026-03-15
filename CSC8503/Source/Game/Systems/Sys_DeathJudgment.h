@@ -3,7 +3,7 @@
  * @brief 死亡判定系统声明（ECS 系统，优先级 125）。
  *
  * 检测三种死亡触发源（敌人抓捕/HP归零/触发区即死），
- * 玩家死亡触发场景重启，敌人死亡触发实体销毁。
+ * 玩家死亡触发 GameOver 界面，敌人死亡挂载死亡组件由 Sys_DeathEffect 处理。
  */
 #pragma once
 
@@ -20,8 +20,8 @@ namespace ECS {
  *   2. HP 归零（C_D_Health.hp <= 0）
  *   3. 触发器区域即死（Evt_Phys_TriggerEnter + C_T_DeathZone）
  *
- * 玩家死亡 → 场景重启（IScene::Restart）
- * 敌人死亡 → registry.Destroy（延迟销毁）
+ * 玩家死亡 → GameOver 界面（UIScreen::GameOver）
+ * 敌人死亡 → 挂载 C_D_Dying + C_D_DeathVisual，由 Sys_DeathEffect 执行动画后延迟销毁
  */
 class Sys_DeathJudgment : public ISystem {
 public:

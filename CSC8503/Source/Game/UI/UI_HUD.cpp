@@ -26,7 +26,7 @@ namespace ECS::UI {
 
 /// @brief 返回去掉右侧聊天面板后的游戏区域宽度（像素）。
 static float GetGameAreaWidth(float displayW) {
-    return displayW - Res_ChatState::PANEL_WIDTH;
+    return displayW - Res_ChatState::kPanelWidth;
 }
 
 // ============================================================

@@ -1,3 +1,10 @@
+/**
+ * @file Sys_Chat.cpp
+ * @brief 聊天/对话系统实现。
+ *
+ * - OnAwake: 加载对话 JSON 并初始化 Res_ChatState / Res_DialogueData。
+ * - OnUpdate: 驱动对话流程（节点推进 / 方向键输入 / 倒计时 / 回复确认）。
+ */
 #include "Sys_Chat.h"
 
 #ifdef _MSC_VER
@@ -21,9 +28,50 @@ using namespace NCL;
 
 namespace ECS {
 
-// ============================================================
-// Helper: get dialogue sequence for current mode
-// ============================================================
+/**
+ * @brief 为当前回复选项生成前缀无冲突的方向键序列。
+ *
+ * 每个选项的首键唯一（Up/Down/Left/Right），后接 2-6 个随机键，
+ * 总长 3-7，由 seed 驱动伪随机变化。
+ * @param cs   聊天状态资源
+ * @param seed 伪随机种子（通常为 dialoguePhase）
+ */
+static void GenerateDirSequences(Res_ChatState& cs, uint8_t seed) {
+    // Each option gets a unique first key (Up/Down/Left/Right)
+    // Then 2-6 random keys appended (total length 3-7)
+    DirKey firstKeys[DirSequence::kDirKeyCount] = { DirKey::Up, DirKey::Down, DirKey::Left, DirKey::Right };
+
+    // Shuffle first keys using seed
+    for (int i = DirSequence::kDirKeyCount - 1; i > 0; --i) {
+        int j = (seed + i * 7) % (i + 1);
+        DirKey tmp = firstKeys[i];
+        firstKeys[i] = firstKeys[j];
+        firstKeys[j] = tmp;
+    }
+
+    for (int i = 0; i < cs.replyCount && i < Res_ChatState::kMaxReplies; ++i) {
+        auto& seq = cs.replySequences[i];
+        seq.keys[0] = firstKeys[i];
+
+        // Total length 3-7, varied by seed + index
+        uint8_t extraLen = 2 + ((seed + i * 3) % 5);  // 2-6 extra keys
+        seq.length = 1 + extraLen;                      // total 3-7
+
+        for (uint8_t k = 1; k <= extraLen; ++k) {
+            seq.keys[k] = static_cast<DirKey>((seed + i * 5 + k * 11) % DirSequence::kDirKeyCount);
+        }
+    }
+
+    cs.dirInputActive = true;
+    ChatState_ClearDirInput(cs);
+}
+
+/**
+ * @brief 根据当前 chatMode 返回对应的对话序列指针。
+ * @param data     对话数据资源
+ * @param chatMode 对话模式索引
+ * @return 对应序列指针，越界时返回 nullptr
+ */
 static const DialogueSequence* GetSequence(const Res_DialogueData& data, uint8_t chatMode) {
     switch (chatMode) {
         case 0: return &data.proactive;
@@ -33,9 +81,10 @@ static const DialogueSequence* GetSequence(const Res_DialogueData& data, uint8_t
     }
 }
 
-// ============================================================
-// Fallback hardcoded data (used if JSON loading fails)
-// ============================================================
+/**
+ * @brief JSON 加载失败时填充硬编码对话数据（3 模式 × 1-3 节点）。
+ * @param data 对话数据资源，函数结束后 data.loaded = true
+ */
 static void LoadFallbackDialogue(Res_DialogueData& data) {
     // Proactive — 3 nodes
     {
@@ -113,12 +162,11 @@ static void LoadFallbackDialogue(Res_DialogueData& data) {
     data.loaded = true;
 }
 
-// ============================================================
-// OnAwake
-// ============================================================
-
+/** @brief 初始化聊天状态和对话数据（JSON 优先，失败用 fallback）。 */
 void Sys_Chat::OnAwake(Registry& registry) {
-    if (!registry.has_ctx<Res_ChatState>()) return;
+    if (!registry.has_ctx<Res_ChatState>()) {
+        registry.ctx_emplace<Res_ChatState>();
+    }
     auto& chat = registry.ctx<Res_ChatState>();
 
     ChatState_PushMessage(chat, "SYSTEM", "COMMS LINK ESTABLISHED", 0, true);
@@ -146,10 +194,7 @@ void Sys_Chat::OnAwake(Registry& registry) {
              << (dialogueData.loaded ? "loaded" : "MISSING"));
 }
 
-// ============================================================
-// OnUpdate
-// ============================================================
-
+/** @brief 每帧驱动对话流程：模式切换 / 方向键输入 / 回复确认 / 超时 / NPC 消息调度。 */
 void Sys_Chat::OnUpdate(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_ChatState>()) return;
     if (!registry.has_ctx<Res_UIState>()) return;
@@ -189,24 +234,48 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
         LOG_INFO("[Sys_Chat] Mode changed to " << (int)chat.chatMode);
     }
 
-    // ── Handle keyboard input for replies ─────────────────
+    // ── Handle direction-key input for replies ─────────────
     const Keyboard* kb = Window::GetKeyboard();
     int8_t confirmedReply = -1;
 
-    if (kb && chat.replyCount > 0) {
-        if (kb->KeyPressed(KeyCodes::W) || kb->KeyPressed(KeyCodes::UP)) {
-            chat.selectedReply = (chat.selectedReply - 1 + chat.replyCount) % chat.replyCount;
+    if (kb && chat.replyCount > 0 && chat.dirInputActive) {
+        // Detect arrow key press → append to buffer
+        DirKey pressed = DirKey::Up;
+        bool hasPress = false;
+        if      (kb->KeyPressed(KeyCodes::UP))    { pressed = DirKey::Up;    hasPress = true; }
+        else if (kb->KeyPressed(KeyCodes::DOWN))  { pressed = DirKey::Down;  hasPress = true; }
+        else if (kb->KeyPressed(KeyCodes::LEFT))  { pressed = DirKey::Left;  hasPress = true; }
+        else if (kb->KeyPressed(KeyCodes::RIGHT)) { pressed = DirKey::Right; hasPress = true; }
+
+        if (hasPress && chat.inputBufferLen < Res_ChatState::kInputBufferSize) {
+            chat.inputBuffer[chat.inputBufferLen++] = pressed;
+
+            // Check for exact match with any reply sequence
+            bool anyPrefix = false;
+            for (int i = 0; i < chat.replyCount; ++i) {
+                const auto& seq = chat.replySequences[i];
+                if (chat.inputBufferLen > seq.length) continue;
+
+                // Check if current buffer matches this sequence's prefix
+                bool match = true;
+                for (uint8_t k = 0; k < chat.inputBufferLen; ++k) {
+                    if (chat.inputBuffer[k] != seq.keys[k]) { match = false; break; }
+                }
+
+                if (match) {
+                    if (chat.inputBufferLen == seq.length) {
+                        confirmedReply = static_cast<int8_t>(i);
+                        break;
+                    }
+                    anyPrefix = true;
+                }
+            }
+
+            // If no sequence has this as a valid prefix → clear buffer
+            if (confirmedReply < 0 && !anyPrefix) {
+                ChatState_ClearDirInput(chat);
+            }
         }
-        if (kb->KeyPressed(KeyCodes::S) || kb->KeyPressed(KeyCodes::DOWN)) {
-            chat.selectedReply = (chat.selectedReply + 1) % chat.replyCount;
-        }
-        if (kb->KeyPressed(KeyCodes::RETURN)) {
-            confirmedReply = chat.selectedReply;
-        }
-        if (kb->KeyPressed(KeyCodes::NUM1) && chat.replyCount > 0) confirmedReply = 0;
-        if (kb->KeyPressed(KeyCodes::NUM2) && chat.replyCount > 1) confirmedReply = 1;
-        if (kb->KeyPressed(KeyCodes::NUM3) && chat.replyCount > 2) confirmedReply = 2;
-        if (kb->KeyPressed(KeyCodes::NUM4) && chat.replyCount > 3) confirmedReply = 3;
     }
 
     // ── Process confirmed reply ───────────────────────────
@@ -262,12 +331,15 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
                     ChatState_AddReply(chat, node.replies[i], node.effects[i]);
                 }
                 chat.selectedReply = 0;
+                GenerateDirSequences(chat, chat.dialoguePhase);
 
-                if (node.replyTimeLimit > 0.0f) {
-                    chat.replyTimerActive = true;
-                    chat.replyTimer       = node.replyTimeLimit;
-                    chat.replyTimerMax    = node.replyTimeLimit;
-                }
+                // Direction-key input requires a countdown to drive urgency;
+                // fall back to kDefaultReplyTime when JSON specifies 0 (no limit).
+                constexpr float kDefaultReplyTime = 10.0f;
+                float timeLimit = (node.replyTimeLimit > 0.0f) ? node.replyTimeLimit : kDefaultReplyTime;
+                chat.replyTimerActive = true;
+                chat.replyTimer       = timeLimit;
+                chat.replyTimerMax    = timeLimit;
 
                 chat.waitingForReply = true;
             } else {
