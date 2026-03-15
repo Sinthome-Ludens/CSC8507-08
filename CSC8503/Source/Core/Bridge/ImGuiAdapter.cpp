@@ -28,37 +28,9 @@ static LRESULT CALLBACK ImGuiSubclassProc(
     HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
     UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
-    // 诊断 A：subclass proc 是否被调用（仅鼠标消息，避免刷屏）
-    if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONUP || uMsg == WM_MOUSEMOVE) {
-        if (uMsg != WM_MOUSEMOVE) { // MOUSEMOVE 太频繁，只记录点击
-            LOG_INFO("[ImGuiSubclass-A] CALLED msg=" << uMsg
-                     << " init=" << ImGuiAdapter::s_Initialized
-                     << " sizeMove=" << WindowHelper::IsInSizeMove()
-                     << " hWnd=" << hWnd);
-        }
-    }
-
+    // subclass 仍然转发非鼠标消息（WM_CHAR、WM_MOUSEWHEEL 等）给 ImGui
     if (ImGuiAdapter::s_Initialized && !WindowHelper::IsInSizeMove()) {
-        // 诊断 B：转发到 ImGui
-        if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONUP) {
-            LOG_INFO("[ImGuiSubclass-B] FORWARDING msg=" << uMsg << " to ImGui");
-        }
-
-        LRESULT result = ::ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
-
-        // 诊断 C：ImGui 是否消费了消息
-        if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONUP) {
-            ImGuiIO& io = ImGui::GetIO();
-            LOG_INFO("[ImGuiSubclass-C] WndProcHandler returned=" << result
-                     << " WantCaptureMouse=" << io.WantCaptureMouse
-                     << " MouseDown[0]=" << io.MouseDown[0]);
-        }
-    } else {
-        // 诊断 D：为什么没有转发
-        if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONUP) {
-            LOG_INFO("[ImGuiSubclass-D] BLOCKED init=" << ImGuiAdapter::s_Initialized
-                     << " sizeMove=" << WindowHelper::IsInSizeMove());
-        }
+        ::ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
     }
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
@@ -124,17 +96,23 @@ void ImGuiAdapter::NewFrame() {
     if (!s_Initialized) return;
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplWin32_NewFrame();
-    ImGui::NewFrame();
 
-    // 诊断 E：每 300 帧打印一次状态，确认 ImGui 上下文存活
-    static int frameCount = 0;
-    if (++frameCount % 300 == 0) {
+    // 强制轮询鼠标状态，绕过 ImGui Win32 后端的 MouseTrackedArea 守卫。
+    // 当 WM_MOUSEMOVE 消息不可靠到达时（场景切换后间歇性发生），
+    // MouseTrackedArea 卡在非零值，阻止 GetCursorPos 回退，导致鼠标位置冻结。
+    // 直接轮询保证每帧都有正确的鼠标数据。
+    {
         ImGuiIO& io = ImGui::GetIO();
-        LOG_INFO("[ImGuiAdapter-E] frame=" << frameCount
-                 << " mousePos=(" << io.MousePos.x << "," << io.MousePos.y << ")"
-                 << " wantMouse=" << io.WantCaptureMouse
-                 << " ctx=" << ImGui::GetCurrentContext());
+        POINT pt;
+        if (::GetCursorPos(&pt) && ::ScreenToClient(s_TargetHWND, &pt)) {
+            io.AddMousePosEvent((float)pt.x, (float)pt.y);
+        }
+        io.AddMouseButtonEvent(0, (::GetAsyncKeyState(VK_LBUTTON)  & 0x8000) != 0);
+        io.AddMouseButtonEvent(1, (::GetAsyncKeyState(VK_RBUTTON)  & 0x8000) != 0);
+        io.AddMouseButtonEvent(2, (::GetAsyncKeyState(VK_MBUTTON)  & 0x8000) != 0);
     }
+
+    ImGui::NewFrame();
 }
 
 void ImGuiAdapter::Render() {
