@@ -6,26 +6,61 @@
 #include "OGLRenderer.h"
 #include "glad/gl.h"
 #include "Game/Utils/WindowHelper.h"
+#include "Game/Utils/Log.h"
+#include <commctrl.h>
+#pragma comment(lib, "comctl32.lib")
 #include <iostream>
 
 using namespace NCL;
 using namespace NCL::Win32Code;
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
+    HWND, UINT, WPARAM, LPARAM);
+
 namespace ECS {
 
 bool ImGuiAdapter::s_Initialized = false;
-HHOOK ImGuiAdapter::s_MessageHook = nullptr;
 HWND  ImGuiAdapter::s_TargetHWND  = nullptr;
 
-LRESULT CALLBACK ImGuiAdapter::MessageHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
-    if (nCode >= 0 && s_Initialized) {
-        MSG* pMsg = reinterpret_cast<MSG*>(lParam);
-        if (pMsg->hwnd == s_TargetHWND && !WindowHelper::IsInSizeMove()) {
-            extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
-            ImGui_ImplWin32_WndProcHandler(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam);
+static const UINT_PTR kImGuiSubclassId = 2; // WindowHelper uses 1
+
+static LRESULT CALLBACK ImGuiSubclassProc(
+    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    // 诊断 A：subclass proc 是否被调用（仅鼠标消息，避免刷屏）
+    if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONUP || uMsg == WM_MOUSEMOVE) {
+        if (uMsg != WM_MOUSEMOVE) { // MOUSEMOVE 太频繁，只记录点击
+            LOG_INFO("[ImGuiSubclass-A] CALLED msg=" << uMsg
+                     << " init=" << ImGuiAdapter::s_Initialized
+                     << " sizeMove=" << WindowHelper::IsInSizeMove()
+                     << " hWnd=" << hWnd);
         }
     }
-    return CallNextHookEx(s_MessageHook, nCode, wParam, lParam);
+
+    if (ImGuiAdapter::s_Initialized && !WindowHelper::IsInSizeMove()) {
+        // 诊断 B：转发到 ImGui
+        if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONUP) {
+            LOG_INFO("[ImGuiSubclass-B] FORWARDING msg=" << uMsg << " to ImGui");
+        }
+
+        LRESULT result = ::ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
+
+        // 诊断 C：ImGui 是否消费了消息
+        if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONUP) {
+            ImGuiIO& io = ImGui::GetIO();
+            LOG_INFO("[ImGuiSubclass-C] WndProcHandler returned=" << result
+                     << " WantCaptureMouse=" << io.WantCaptureMouse
+                     << " MouseDown[0]=" << io.MouseDown[0]);
+        }
+    } else {
+        // 诊断 D：为什么没有转发
+        if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONUP) {
+            LOG_INFO("[ImGuiSubclass-D] BLOCKED init=" << ImGuiAdapter::s_Initialized
+                     << " sizeMove=" << WindowHelper::IsInSizeMove());
+        }
+    }
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
 HWND ImGuiAdapter::GetHWND(Window* window) {
@@ -62,11 +97,8 @@ bool ImGuiAdapter::Init(Window* window, Rendering::OGLRenderer* renderer) {
         return false;
     }
 
-    DWORD threadId = GetWindowThreadProcessId(s_TargetHWND, nullptr);
-    s_MessageHook = SetWindowsHookEx(WH_GETMESSAGE, MessageHookProc, nullptr, threadId);
-
-    if (!s_MessageHook) {
-        std::cerr << "[ImGuiAdapter] SetWindowsHookEx failed (error: " << GetLastError() << ")" << std::endl;
+    if (!SetWindowSubclass(s_TargetHWND, ImGuiSubclassProc, kImGuiSubclassId, 0)) {
+        std::cerr << "[ImGuiAdapter] SetWindowSubclass failed" << std::endl;
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
@@ -80,10 +112,7 @@ bool ImGuiAdapter::Init(Window* window, Rendering::OGLRenderer* renderer) {
 
 void ImGuiAdapter::Shutdown() {
     if (!s_Initialized) return;
-    if (s_MessageHook) {
-        UnhookWindowsHookEx(s_MessageHook);
-        s_MessageHook = nullptr;
-    }
+    RemoveWindowSubclass(s_TargetHWND, ImGuiSubclassProc, kImGuiSubclassId);
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
@@ -96,6 +125,16 @@ void ImGuiAdapter::NewFrame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
+
+    // 诊断 E：每 300 帧打印一次状态，确认 ImGui 上下文存活
+    static int frameCount = 0;
+    if (++frameCount % 300 == 0) {
+        ImGuiIO& io = ImGui::GetIO();
+        LOG_INFO("[ImGuiAdapter-E] frame=" << frameCount
+                 << " mousePos=(" << io.MousePos.x << "," << io.MousePos.y << ")"
+                 << " wantMouse=" << io.WantCaptureMouse
+                 << " ctx=" << ImGui::GetCurrentContext());
+    }
 }
 
 void ImGuiAdapter::Render() {

@@ -22,12 +22,13 @@ public:
     static bool IsCapturingInput();
 
 private:
-    static LRESULT CALLBACK MessageHookProc(int nCode, WPARAM wParam, LPARAM lParam);
     static HWND GetHWND(NCL::Window* window);
 
     static bool  s_Initialized;
-    static HHOOK s_MessageHook;
     static HWND  s_TargetHWND;
+
+    friend LRESULT CALLBACK ImGuiSubclassProc(
+        HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
 };
 
 } // namespace ECS

@@ -23,6 +23,7 @@
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Utils/Log.h"
+#include "Game/Utils/MapPointsLoader.h"
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
@@ -158,6 +159,19 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
 
         LOG_INFO("[Scene_TutorialLevel] Generated " << wallIdx
                  << " wall colliders from navmesh boundary edges.");
+    }
+
+    // ── 玩家生成（从 .points 文件读取起始点）────────────────────────────
+    {
+        auto points = ECS::LoadMapPoints(NCL::Assets::MESHDIR + "TutorialMap.points");
+        if (points.loaded && !points.startPoints.empty()) {
+            const auto& sp = points.startPoints[0];
+            NCL::Maths::Vector3 spawnPos(
+                sp.x * kMapScale,
+                sp.y * kMapScale + (-6.0f * kMapScale) + 1.5f,
+                sp.z * kMapScale);
+            PrefabFactory::CreatePlayer(registry, cubeMesh, spawnPos);
+        }
     }
 
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
