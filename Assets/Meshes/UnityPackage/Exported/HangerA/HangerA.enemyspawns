@@ -1,0 +1,24 @@
+# Unity Enemy Spawn Points Export (Right-Handed)
+# Root Space: HangerA
+spawnCount 2
+
+spawn 0
+name SpawnPoint
+position -11.924000 0.874000 -10.365000
+patrolCount 4
+patrol
+-11.924000 0.874000 -10.365000
+12.047000 0.836000 -10.425000
+12.047000 0.836000 4.680000
+-11.904000 0.836000 4.680000
+
+spawn 1
+name SpawnPoint (1)
+position 11.990000 0.874000 4.620000
+patrolCount 4
+patrol
+11.990000 0.874000 4.620000
+-11.981000 0.836000 4.680028
+-11.981020 0.836000 -10.424970
+11.969980 0.836000 -10.425000
+
