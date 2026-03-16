@@ -90,7 +90,7 @@
 
 #pragma once
 
-#include "Game/Components/C_D_MeshRenderer.h" // Handle 类型定义
+#include "Game/Components/C_D_MeshRenderer.h" // Handle 类型定义（MeshHandle, TextureHandle, AnimHandle 等）
 #include "AssimpLoader.h" // Assimp 加载器
 #include <unordered_map>
 #include <string>
@@ -103,6 +103,8 @@ namespace NCL {
         class OGLMesh;
         class OGLTexture;
         class OGLShader;
+        class MeshAnimation;
+        class Texture;
     }
 }
 
@@ -180,17 +182,57 @@ public:
     TextureHandle LoadTexture(const std::string& path);
 
     /**
-     * @brief 解析 TextureHandle 为实际的 OGLTexture 指针。
+     * @brief 解析 TextureHandle 为实际的 Texture 基类指针。
      * @param handle 目标 Handle，若为 0 则返回默认紫黑格纹理
-     * @return OGLTexture 指针（非空）
+     * @return Texture 指针（非空）
      */
-    NCL::Rendering::OGLTexture* GetTexture(TextureHandle handle);
+    NCL::Rendering::Texture* GetTexture(TextureHandle handle);
 
     /**
      * @brief 减少纹理资源的引用计数。
      * @param handle 目标 Handle
      */
     void ReleaseTexture(TextureHandle handle);
+
+    /**
+     * @brief 获取默认 Albedo 纹理 Handle（1×1 白色）。
+     */
+    TextureHandle GetDefaultAlbedoHandle()   const { return m_DefaultAlbedoHandle;   }
+
+    /**
+     * @brief 获取默认 Normal 纹理 Handle（1×1 切线空间中性蓝）。
+     */
+    TextureHandle GetDefaultNormalHandle()   const { return m_DefaultNormalHandle;   }
+
+    /**
+     * @brief 获取默认 ORM 纹理 Handle（occlusion=0, roughness=0.5, metallic=0）。
+     */
+    TextureHandle GetDefaultOrmHandle()      const { return m_DefaultOrmHandle;      }
+
+    /**
+     * @brief 获取默认 Emissive 纹理 Handle（1×1 黑色）。
+     */
+    TextureHandle GetDefaultEmissiveHandle() const { return m_DefaultEmissiveHandle; }
+
+    // -------------------------------------------------------------------------
+    // Animation 资源管理
+    // -------------------------------------------------------------------------
+
+    /**
+     * @brief 加载骨骼动画剪辑，返回 AnimHandle。
+     * @param path 模型文件路径（含动画数据，如 .fbx、.gltf）
+     * @param meshToFill 同步填充骨骼绑定信息的目标网格（可为 nullptr）
+     * @return AnimHandle，若加载失败则返回 0（无效）
+     */
+    AnimHandle LoadAnimation(const std::string& path,
+                             NCL::Rendering::OGLMesh* meshToFill = nullptr);
+
+    /**
+     * @brief 解析 AnimHandle 为实际的 MeshAnimation 指针。
+     * @param handle 目标 Handle
+     * @return MeshAnimation 指针，若无效返回 nullptr
+     */
+    NCL::Rendering::MeshAnimation* GetAnimation(AnimHandle handle);
 
 private:
     AssetManager() = default;
@@ -218,8 +260,16 @@ private:
     MeshHandle    m_NextMeshHandle    = 1; // Handle 生成器（0 保留为无效值）
     TextureHandle m_NextTextureHandle = 1;
 
-    MeshHandle    m_DefaultMeshHandle    = INVALID_HANDLE; // 默认立方体 Handle
-    TextureHandle m_DefaultTextureHandle = INVALID_HANDLE; // 默认紫黑格 Handle
+    MeshHandle    m_DefaultMeshHandle    = INVALID_HANDLE;
+    TextureHandle m_DefaultTextureHandle = INVALID_HANDLE;
+    TextureHandle m_DefaultAlbedoHandle   = INVALID_HANDLE;
+    TextureHandle m_DefaultNormalHandle   = INVALID_HANDLE;
+    TextureHandle m_DefaultOrmHandle      = INVALID_HANDLE;
+    TextureHandle m_DefaultEmissiveHandle = INVALID_HANDLE;
+
+    std::unordered_map<AnimHandle, std::unique_ptr<NCL::Rendering::MeshAnimation>> m_AnimCache;
+    std::unordered_map<std::string, AnimHandle> m_PathToAnimHandle;
+    AnimHandle m_NextAnimHandle = 1;
 
     /**
      * @brief 创建默认立方体网格。
@@ -228,10 +278,11 @@ private:
     NCL::Rendering::OGLMesh* CreateDefaultMesh();
 
     /**
-     * @brief 创建默认紫黑格纹理。
-     * @return OGLTexture 指针（2x2 棋盘格）
+     * @brief 创建 1×1 单色 RGBA8 纹理。
+     * @param r,g,b,a 像素颜色分量（0-255）
+     * @return OGLTexture 指针
      */
-    NCL::Rendering::OGLTexture* CreateDefaultTexture();
+    NCL::Rendering::OGLTexture* CreateSolidColorTexture(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 };
 
 } // namespace ECS

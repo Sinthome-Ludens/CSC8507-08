@@ -78,6 +78,8 @@ void Sys_Render::OnDestroy(Registry& registry) {
 // 辅助：将 ECS C_D_Material 同步到 NCL GameTechMaterial
 // ============================================================
 static void SyncMaterial(GameTechMaterial& nclMat, const C_D_Material& ecsMat) {
+    auto& am = AssetManager::Instance();
+
     nclMat.shadingModel     = static_cast<NCL::CSC8503::ShadingModel>((int)ecsMat.shadingModel);
     nclMat.metallic         = ecsMat.metallic;
     nclMat.roughness        = ecsMat.roughness;
@@ -87,6 +89,36 @@ static void SyncMaterial(GameTechMaterial& nclMat, const C_D_Material& ecsMat) {
     nclMat.rimPower         = ecsMat.rimPower;
     nclMat.rimStrength      = ecsMat.rimStrength;
     nclMat.flatShading      = ecsMat.flatShading;
+
+    // Alpha 模式
+    nclMat.alphaMode   = static_cast<NCL::CSC8503::AlphaMode>((int)ecsMat.alphaMode);
+    nclMat.alphaCutoff = ecsMat.alphaCutoff;
+    nclMat.doubleSided = ecsMat.doubleSided;
+
+    // 纹理解析：无效 Handle 回退到默认纹理，确保不出现 nullptr
+    if (ecsMat.albedoHandle != INVALID_HANDLE) {
+        nclMat.diffuseTex = am.GetTexture(ecsMat.albedoHandle);
+    } else {
+        nclMat.diffuseTex = am.GetTexture(am.GetDefaultAlbedoHandle());
+    }
+
+    if (ecsMat.normalHandle != INVALID_HANDLE) {
+        nclMat.bumpTex = am.GetTexture(ecsMat.normalHandle);
+    } else {
+        nclMat.bumpTex = am.GetTexture(am.GetDefaultNormalHandle());
+    }
+
+    if (ecsMat.ormHandle != INVALID_HANDLE) {
+        nclMat.ormTex = am.GetTexture(ecsMat.ormHandle);
+    } else {
+        nclMat.ormTex = am.GetTexture(am.GetDefaultOrmHandle());
+    }
+
+    if (ecsMat.emissiveHandle != INVALID_HANDLE) {
+        nclMat.emissiveTex = am.GetTexture(ecsMat.emissiveHandle);
+    } else {
+        nclMat.emissiveTex = am.GetTexture(am.GetDefaultEmissiveHandle());
+    }
 }
 
 // ============================================================
@@ -112,11 +144,17 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
     mat.type       = MaterialType::Opaque;
     mat.diffuseTex = nullptr;
     mat.bumpTex    = nullptr;
+    mat.ormTex     = nullptr;
+    mat.emissiveTex = nullptr;
 
     // 同步 ECS 材质参数（如果有 C_D_Material 组件）
     if (reg.Has<C_D_Material>(id)) {
         const auto& ecsMat = reg.Get<C_D_Material>(id);
         SyncMaterial(mat, ecsMat);
+        // 透明物体加入透明列表
+        if (ecsMat.alphaMode == AlphaMode::Blend) {
+            mat.type = MaterialType::Transparent;
+        }
     }
 
     auto* ro = new NCL::CSC8503::RenderObject(proxy->GetTransform(), mesh, mat);

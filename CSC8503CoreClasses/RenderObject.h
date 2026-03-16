@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 namespace NCL {
 	namespace Rendering {
@@ -25,14 +25,28 @@ namespace NCL {
 			Stylized   = 2
 		};
 
+		/// @brief Alpha 混合模式（与 ECS::AlphaMode 对应）
+		enum class AlphaMode : uint8_t {
+			Opaque = 0, ///< 完全不透明
+			Mask   = 1, ///< Alpha 测试
+			Blend  = 2  ///< 半透明混合
+		};
+
 		struct GameTechMaterial
 		{
 			MaterialType	type		= MaterialType::Opaque;
-			Texture*		diffuseTex	= nullptr;
-			Texture*		bumpTex		= nullptr;
+			Texture*		diffuseTex	= nullptr; ///< Albedo / diffuse 纹理（unit 0）
+			Texture*		bumpTex		= nullptr; ///< 切线空间法线贴图（unit 1）
+			Texture*		ormTex		= nullptr; ///< R=occlusion G=roughness B=metallic（unit 2）
+			Texture*		emissiveTex	= nullptr; ///< 自发光纹理（unit 3）
 
 			// ── 着色模型选择 ────────────────────────────────
 			ShadingModel	shadingModel = ShadingModel::BlinnPhong;
+
+			// ── Alpha 模式 ──────────────────────────────────
+			AlphaMode	alphaMode   = AlphaMode::Opaque;
+			float		alphaCutoff = 0.5f;
+			bool		doubleSided = false;
 
 			// ── PBR 参数 ───────────────────────────────────
 			float metallic  = 0.0f;

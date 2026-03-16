@@ -85,6 +85,9 @@ using TextureHandle = uint32_t;
 /// @brief 着色器资源 Handle，指向 OGLShader*（0 = 无效）
 using ShaderHandle = uint32_t;
 
+/// @brief 骨骼动画剪辑 Handle，指向 AssetManager 中的 MeshAnimation*（0 = 无效）
+using AnimHandle = uint32_t;
+
 /// @brief 无效 Handle 哨兵值
 static constexpr uint32_t INVALID_HANDLE = 0;
 
