@@ -432,6 +432,7 @@ void ECS::Sys_Physics::CreateTriMeshBodyForEntity(
 
     bcs.mFriction    = tri.friction;
     bcs.mRestitution = tri.restitution;
+    bcs.mIsSensor    = tri.is_trigger;   // Trigger 模式：仅触发事件，不产生物理推力
     bcs.mUserData    = static_cast<uint64_t>(id);
 
     JPH::Body* body = bi.CreateBody(bcs);
@@ -536,12 +537,12 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
         EntityID entA = itA->second;
         EntityID entB = itB->second;
 
-        const bool hasColliderA = reg.Has<C_D_Collider>(entA);
-        const bool hasColliderB = reg.Has<C_D_Collider>(entB);
-        const bool isTriggerA = hasColliderA && reg.Get<C_D_Collider>(entA).is_trigger;
-        const bool isTriggerB = hasColliderB && reg.Get<C_D_Collider>(entB).is_trigger;
-
-        if (isTriggerA || isTriggerB) {
+        // 使用 ContactListener 直接从 Jolt body.IsSensor() 获取的标志
+        // 不再依赖 C_D_Collider 组件重查（兼容 C_D_TriMeshCollider 触发器）
+        if (c.is_trigger) {
+            // 确定哪个是触发器实体：检查 C_D_Collider 或 C_D_TriMeshCollider
+            bool isTriggerA = (reg.Has<C_D_Collider>(entA) && reg.Get<C_D_Collider>(entA).is_trigger)
+                           || (reg.Has<C_D_TriMeshCollider>(entA) && reg.Get<C_D_TriMeshCollider>(entA).is_trigger);
             const EntityID entityTrigger = isTriggerA ? entA : entB;
             const EntityID entityOther   = isTriggerA ? entB : entA;
 

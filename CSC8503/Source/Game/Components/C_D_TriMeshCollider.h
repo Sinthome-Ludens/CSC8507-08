@@ -22,4 +22,5 @@ struct C_D_TriMeshCollider {
 
     float friction    = 0.5f;
     float restitution = 0.0f;
+    bool  is_trigger  = false;  ///< true = Sensor 模式（仅触发事件，无物理推力）
 };

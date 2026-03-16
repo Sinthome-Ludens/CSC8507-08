@@ -36,12 +36,17 @@
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
+#include "Game/Systems/Sys_LevelGoal.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/MapPointsLoader.h"
 #include "Game/Utils/EnemySpawnLoader.h"
 #include "Game/Utils/SaveManager.h"
 #include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Components/C_T_NavTarget.h"
+#include "Game/Components/C_T_FinishZone.h"
+#include "Game/Components/C_D_Transform.h"
+#include "Game/Components/C_D_MeshRenderer.h"
+#include "Game/Components/C_D_Material.h"
 #include "Core/Bridge/AssimpLoader.h"
 
 #ifdef USE_IMGUI
@@ -183,6 +188,7 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_EnemyVision>     (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
     systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Search/Alert/Hunt）
     systems.Register<ECS::Sys_DeathJudgment>   (125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死）
+    systems.Register<ECS::Sys_LevelGoal>       (126);   // 关卡目标（玩家进入终点 → 过关）
     systems.Register<ECS::Sys_DeathEffect>     (126);   // 死亡视觉特效（四阶段动画）
 
     auto* navSys = systems.Register<ECS::Sys_Navigation>(130);
@@ -196,28 +202,64 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     // 不再从 NavMesh 边界边生成隐形墙（NavMesh 不经过窗口/开口，
     // 会在开口处产生边界边并用 Box 碰撞体封堵通道）。
 
-    // ── 终点区域生成（TutorialMap_finish.obj — 碰撞 mesh 与渲染 mesh 分离示例）──
+    // ── 终点区域生成 ────────────────────────────────────────────────────
+    // 渲染实体：TutorialMap_finish.obj 放在地图原点（OBJ 顶点自带位置）
+    // 同一实体挂 C_T_FinishZone，Sys_LevelGoal 用 OBJ 几何中心做距离检测
     {
-        std::string finishObjPath = NCL::Assets::MESHDIR + "TutorialMap_finish.obj";
+        ECS::MeshHandle finishMesh = ECS::AssetManager::Instance().LoadMesh(
+            NCL::Assets::MESHDIR + "TutorialMap_finish.obj");
 
-        // 渲染用 mesh
-        ECS::MeshHandle finishRenderMesh = ECS::AssetManager::Instance().LoadMesh(finishObjPath);
+        // 从 OBJ 提取几何中心，用于放置检测点
+        std::vector<NCL::Maths::Vector3> finVerts;
+        std::vector<int> finIdx;
+        ECS::AssimpLoader::LoadCollisionGeometry(
+            NCL::Assets::MESHDIR + "TutorialMap_finish.obj", finVerts, finIdx);
 
-        // 碰撞用三角网格（从同一 OBJ 提取，但可指向不同的简化碰撞模型）
-        std::vector<NCL::Maths::Vector3> finishCollVerts;
-        std::vector<int>                 finishCollIndices;
-        bool finishLoaded = ECS::AssimpLoader::LoadCollisionGeometry(
-            finishObjPath, finishCollVerts, finishCollIndices);
+        // 计算 OBJ 几何中心（本地空间）
+        NCL::Maths::Vector3 objCenter(0, 0, 0);
+        if (!finVerts.empty()) {
+            for (const auto& v : finVerts) {
+                objCenter.x += v.x;
+                objCenter.y += v.y;
+                objCenter.z += v.z;
+            }
+            float n = static_cast<float>(finVerts.size());
+            objCenter.x /= n;
+            objCenter.y /= n;
+            objCenter.z /= n;
+        }
 
-        if (finishLoaded && !finishCollVerts.empty()) {
-            PrefabFactory::CreateFinishZoneMesh(
-                registry, finishRenderMesh,
-                finishCollVerts, finishCollIndices,
+        // 检测点世界坐标（OBJ 中心 * kMapScale + 地图偏移）
+        NCL::Maths::Vector3 detectPos(
+            objCenter.x * kMapScale,
+            objCenter.y * kMapScale + (-6.0f * kMapScale),
+            objCenter.z * kMapScale);
+
+        // 1. 渲染实体（地图原点 + 缩放，OBJ 顶点自带位置）
+        if (finishMesh != 0) {
+            ECS::EntityID finishRender = registry.Create();
+            registry.Emplace<ECS::C_D_Transform>(finishRender,
                 NCL::Maths::Vector3(0.0f, -6.0f * kMapScale, 0.0f),
-                kMapScale);
-            LOG_INFO("[Scene_TutorialLevel] Finish zone loaded from TutorialMap_finish.obj");
-        } else {
-            LOG_WARN("[Scene_TutorialLevel] TutorialMap_finish.obj not found, skipping finish zone.");
+                NCL::Maths::Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+                NCL::Maths::Vector3(kMapScale, kMapScale, kMapScale));
+            registry.Emplace<ECS::C_D_MeshRenderer>(finishRender,
+                finishMesh, static_cast<uint32_t>(0));
+            ECS::C_D_Material mat{};
+            mat.baseColour = NCL::Maths::Vector4(1.0f, 0.0f, 0.0f, 1.0f);  // 红色（匹配 mtl Kd）
+            registry.Emplace<ECS::C_D_Material>(finishRender, mat);
+        }
+
+        // 2. 检测实体（不可见，放在 OBJ 几何中心的世界坐标）
+        {
+            ECS::EntityID finishDetect = registry.Create();
+            registry.Emplace<ECS::C_D_Transform>(finishDetect,
+                detectPos,
+                NCL::Maths::Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+                NCL::Maths::Vector3(1.0f, 1.0f, 1.0f));
+            registry.Emplace<ECS::C_T_FinishZone>(finishDetect);
+
+            LOG_INFO("[Scene_TutorialLevel] Finish zone: render at map origin, "
+                     << "detect at (" << detectPos.x << "," << detectPos.y << "," << detectPos.z << ")");
         }
     }
 
@@ -307,11 +349,9 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Countdown>          (350);   // alertLevel≥100 → 30s 倒计时 → GameOver
 
     // ── 5. 初始化游戏状态资源 ────────────────────────────────────────────
-#ifdef USE_IMGUI
     if (!registry.has_ctx<ECS::Res_GameState>()) {
         registry.ctx_emplace<ECS::Res_GameState>();
     }
-#endif
 
     // ── 6. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
@@ -447,8 +487,8 @@ void Scene_TutorialLevel::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
     if (registry.has_ctx<ECS::Res_ItemInventory2>())  registry.ctx_erase<ECS::Res_ItemInventory2>();
     if (registry.has_ctx<ECS::Res_RadarState>())      registry.ctx_erase<ECS::Res_RadarState>();
-#ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_GameState>())       registry.ctx_erase<ECS::Res_GameState>();
+#ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_ToastState>())      registry.ctx_erase<ECS::Res_ToastState>();
     if (registry.has_ctx<ECS::Res_ChatState>())       registry.ctx_erase<ECS::Res_ChatState>();
     if (registry.has_ctx<ECS::Res_InventoryState>())  registry.ctx_erase<ECS::Res_InventoryState>();
