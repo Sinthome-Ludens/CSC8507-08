@@ -499,12 +499,21 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
             maxLS.x = std::max(maxLS.x, ls.x); maxLS.y = std::max(maxLS.y, ls.y); maxLS.z = std::max(maxLS.z, ls.z);
         }
 
-        // 级联稳定化：将 AABB 中心取整到 texel 边界
-        float texelSize = (maxLS.x - minLS.x) / (float)m_shadowRes[c];
-        minLS.x = std::floor(minLS.x / texelSize) * texelSize;
-        minLS.y = std::floor(minLS.y / texelSize) * texelSize;
-        maxLS.x = minLS.x + (float)m_shadowRes[c] * texelSize;
-        maxLS.y = minLS.y + (float)m_shadowRes[c] * texelSize;
+        // 级联稳定化：使用正方形 frustum + 中心对齐到 texel 边界
+        // 必须用 max(rangeX, rangeY) 作为边长，否则窄轴被截短导致旋转裁切
+        float rangeX   = maxLS.x - minLS.x;
+        float rangeY   = maxLS.y - minLS.y;
+        float maxRange = std::max(rangeX, rangeY);
+        float texelSize = maxRange / (float)m_shadowRes[c];
+
+        // 将中心点对齐到 texel 网格（消除 shadow swimming）
+        float centerX = std::round(((minLS.x + maxLS.x) * 0.5f) / texelSize) * texelSize;
+        float centerY = std::round(((minLS.y + maxLS.y) * 0.5f) / texelSize) * texelSize;
+        float halfExt = maxRange * 0.5f;
+        minLS.x = centerX - halfExt;
+        maxLS.x = centerX + halfExt;
+        minLS.y = centerY - halfExt;
+        maxLS.y = centerY + halfExt;
 
         // Matrix::Orthographic 要求正的 near/far 距离。
         // 光照空间 z 对于位于光源前方的物体为负值，需要取反转换。
