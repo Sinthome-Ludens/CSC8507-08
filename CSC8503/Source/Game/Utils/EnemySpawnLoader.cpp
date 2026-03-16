@@ -71,9 +71,9 @@ EnemySpawnData LoadEnemySpawns(const std::string& filePath)
         result.spawns.push_back(std::move(entry));
     }
 
-    result.loaded = true;
+    result.loaded = (spawnCount > 0 && !result.spawns.empty());
     LOG_INFO("[EnemySpawnLoader] Loaded " << result.spawns.size()
-             << " enemy spawns from " << filePath);
+             << "/" << spawnCount << " enemy spawns from " << filePath);
     return result;
 }
 

@@ -92,7 +92,7 @@ namespace ECS {
                         auto& gs = registry.ctx<Res_GameState>();
                         gs.alertLevel = std::min(gs.alertLevel + 15.0f, gs.alertMax);
                     }
-                    LOG_INFO("SYS_ENEMY_AI: Entity " << (int)entity << " -> HUNT (lock 3s)");
+                    LOG_INFO("SYS_ENEMY_AI: Entity " << (int)entity << " -> HUNT (lock 1.5s)");
                 }
                 nextState = EnemyState::Hunt;
             } else if (v >= detect.alert_threshold) {

@@ -19,11 +19,22 @@
 
 namespace ECS {
 
+/**
+ * @brief 初始化：重置触发标志。
+ * @param registry ECS 注册表（未使用）
+ */
 void Sys_LevelGoal::OnAwake(Registry& /*registry*/) {
     m_FinishTriggered = false;
     LOG_INFO("[Sys_LevelGoal] OnAwake");
 }
 
+/**
+ * @brief 每帧检测玩家与所有 C_T_FinishZone 实体的 XZ 距离。
+ * @details 当距离 < 4m 时设置 Res_GameState::gameOverReason = 3（任务成功），
+ *          并切换 UI 到 GameOver 画面、推送 Toast 通知。仅触发一次。
+ * @param registry ECS 注册表
+ * @param dt       帧时间（未使用）
+ */
 void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
     if (m_FinishTriggered) return;
 
@@ -70,6 +81,10 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
         });
 }
 
+/**
+ * @brief 系统销毁：无需额外清理。
+ * @param registry ECS 注册表（未使用）
+ */
 void Sys_LevelGoal::OnDestroy(Registry& /*registry*/) {
     LOG_INFO("[Sys_LevelGoal] OnDestroy");
 }

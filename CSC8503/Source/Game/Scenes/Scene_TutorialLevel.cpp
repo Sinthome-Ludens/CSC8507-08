@@ -188,7 +188,7 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_EnemyVision>     (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
     systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Search/Alert/Hunt）
     systems.Register<ECS::Sys_DeathJudgment>   (125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死）
-    systems.Register<ECS::Sys_LevelGoal>       (126);   // 关卡目标（玩家进入终点 → 过关）
+    systems.Register<ECS::Sys_LevelGoal>       (127);   // 关卡目标（玩家进入终点 → 过关）
     systems.Register<ECS::Sys_DeathEffect>     (126);   // 死亡视觉特效（四阶段动画）
 
     auto* navSys = systems.Register<ECS::Sys_Navigation>(130);

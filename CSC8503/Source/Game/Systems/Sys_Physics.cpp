@@ -537,12 +537,15 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
         EntityID entA = itA->second;
         EntityID entB = itB->second;
 
-        // 使用 ContactListener 直接从 Jolt body.IsSensor() 获取的标志
-        // 不再依赖 C_D_Collider 组件重查（兼容 C_D_TriMeshCollider 触发器）
-        if (c.is_trigger) {
-            // 确定哪个是触发器实体：检查 C_D_Collider 或 C_D_TriMeshCollider
-            bool isTriggerA = (reg.Has<C_D_Collider>(entA) && reg.Get<C_D_Collider>(entA).is_trigger)
-                           || (reg.Has<C_D_TriMeshCollider>(entA) && reg.Get<C_D_TriMeshCollider>(entA).is_trigger);
+        // 触发器判定：Enter 事件用 ContactListener 的 is_trigger（Jolt IsSensor 直接结果），
+        // Exit 事件由 OnContactRemoved 无法获取 IsSensor，从组件重查。
+        bool isTriggerA = (reg.Has<C_D_Collider>(entA) && reg.Get<C_D_Collider>(entA).is_trigger)
+                       || (reg.Has<C_D_TriMeshCollider>(entA) && reg.Get<C_D_TriMeshCollider>(entA).is_trigger);
+        bool isTriggerB = (reg.Has<C_D_Collider>(entB) && reg.Get<C_D_Collider>(entB).is_trigger)
+                       || (reg.Has<C_D_TriMeshCollider>(entB) && reg.Get<C_D_TriMeshCollider>(entB).is_trigger);
+        bool isTrigger  = c.is_trigger || isTriggerA || isTriggerB;
+
+        if (isTrigger) {
             const EntityID entityTrigger = isTriggerA ? entA : entB;
             const EntityID entityOther   = isTriggerA ? entB : entA;
 

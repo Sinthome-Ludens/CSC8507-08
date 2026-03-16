@@ -12,7 +12,7 @@ namespace ECS {
 struct Res_VisionConfig {
     float fovDegrees      = 60.0f;   // 视野全角（度），cosHalfFov = cos(30°) ≈ 0.866
     float maxDistance      = 20.0f;   // 最大检测距离（米）
-    float closeRange       = 3.0f;   // 近距离感知范围（米），使用 rearFovDegrees
+    float closeRange       = 3.0f;   // 近距离感知范围（米）[当前未使用，保留供扩展]
     float visibilityMin    = 0.05f;  // 低于此 visibilityFactor 视为完全隐形
     bool  enableOcclusion  = true;   // 是否启用 CastRay 射线遮挡检测
     float rayOriginHeight  = 1.0f;   // 射线起点 Y 偏移（敌人眼睛高度）

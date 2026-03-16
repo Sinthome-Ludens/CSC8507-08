@@ -297,8 +297,8 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                 if (m_Pathfinder->FindPath(tf.position, dest, tempPath)) {
                     CopyPathToAgent(agent, tempPath);
                     SkipReachedWaypoints(agent, tf);
+                    patrol->needs_path = false;  // 成功时才清除，失败下帧重试
                 }
-                patrol->needs_path = false;
             }
 
             { float saved = agent.speed; agent.speed = agent.patrol_speed;
