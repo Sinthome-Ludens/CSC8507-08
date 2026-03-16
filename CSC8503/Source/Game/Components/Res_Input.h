@@ -100,6 +100,8 @@ struct Res_Input {
 
     float axisX = 0.0f; ///< 水平轴输入（A/左 = -1，D/右 = +1，不按 = 0）
     float axisY = 0.0f; ///< 垂直轴输入（S/下 = -1，W/上 = +1，不按 = 0）
+
+    int scrollWheel = 0; ///< 鼠标滚轮增量（正=上滚，负=下滚，0=无滚动）
 };
 
 } // namespace ECS

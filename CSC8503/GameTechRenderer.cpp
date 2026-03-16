@@ -316,6 +316,11 @@ void GameTechRenderer::RenderOpaquePass(std::vector<ObjectSortState>& list) {
 	int shadowTexLocation	= glGetUniformLocation(activeShader->GetProgramID(), "shadowTex");
 	int shadowLocation		= glGetUniformLocation(activeShader->GetProgramID(), "shadowMatrix");
 
+	// 边缘高亮 uniform（与 scene.frag 中 rimColour/rimPower/rimStrength 对应）
+	int rimColourLocation   = glGetUniformLocation(activeShader->GetProgramID(), "rimColour");
+	int rimPowerLocation    = glGetUniformLocation(activeShader->GetProgramID(), "rimPower");
+	int rimStrengthLocation = glGetUniformLocation(activeShader->GetProgramID(), "rimStrength");
+
 	Matrix4 viewMatrix = gameWorld.GetMainCamera().BuildViewMatrix();
 	Matrix4 projMatrix = gameWorld.GetMainCamera().BuildProjectionMatrix(hostWindow.GetScreenAspect());
 	glUniformMatrix4fv(projLocation, 1, false, (float*)&projMatrix);
@@ -355,6 +360,12 @@ void GameTechRenderer::RenderOpaquePass(std::vector<ObjectSortState>& list) {
 		glUniform1i(hasVColLocation, !o->GetMesh()->GetColourData().empty());
 
 		glUniform1i(hasTexLocation, diffuseTex ? 1 : 0);
+
+		// 同步边缘高亮参数（rimStrength==0 时 shader 跳过计算）
+		const auto& mat = o->GetMaterial();
+		glUniform3fv(rimColourLocation, 1, (float*)&mat.emissiveColor);
+		glUniform1f(rimPowerLocation, mat.rimPower);
+		glUniform1f(rimStrengthLocation, mat.rimStrength);
 
 		BindMesh((OGLMesh&)*o->GetMesh());
 		size_t layerCount = o->GetMesh()->GetSubMeshCount();
@@ -399,6 +410,11 @@ void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list)
 	int shadowTexLocation	= glGetUniformLocation(activeShader->GetProgramID(), "shadowTex");
 	int shadowLocation		= glGetUniformLocation(activeShader->GetProgramID(), "shadowMatrix");
 
+	// 边缘高亮 uniform（与 scene.frag 中 rimColour/rimPower/rimStrength 对应）
+	int rimColourLocation   = glGetUniformLocation(activeShader->GetProgramID(), "rimColour");
+	int rimPowerLocation    = glGetUniformLocation(activeShader->GetProgramID(), "rimPower");
+	int rimStrengthLocation = glGetUniformLocation(activeShader->GetProgramID(), "rimStrength");
+
 	Matrix4 viewMatrix = gameWorld.GetMainCamera().BuildViewMatrix();
 	Matrix4 projMatrix = gameWorld.GetMainCamera().BuildProjectionMatrix(hostWindow.GetScreenAspect());
 	glUniformMatrix4fv(projLocation, 1, false, (float*)&projMatrix);
@@ -438,7 +454,13 @@ void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list)
 		glUniform1i(hasVColLocation, !o->GetMesh()->GetColourData().empty());
 
 		glUniform1i(hasTexLocation, diffuseTex ? 1 : 0);
-	
+
+		// 同步边缘高亮参数（rimStrength==0 时 shader 跳过计算）
+		const auto& mat = o->GetMaterial();
+		glUniform3fv(rimColourLocation, 1, (float*)&mat.emissiveColor);
+		glUniform1f(rimPowerLocation, mat.rimPower);
+		glUniform1f(rimStrengthLocation, mat.rimStrength);
+
 		BindMesh((OGLMesh&)*o->GetMesh());
 
 		size_t layerCount = o->GetMesh()->GetSubMeshCount();

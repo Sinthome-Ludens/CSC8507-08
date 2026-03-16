@@ -1,7 +1,10 @@
+/**
+ * @file C_D_CQCState.h
+ * @brief 玩家 CQC 交互状态组件（POD）。
+ */
 #pragma once
 
 #include "Core/ECS/EntityID.h"
-#include "Game/Components/C_D_MeshRenderer.h"
 #include <cstdint>
 
 namespace ECS {
@@ -20,11 +23,10 @@ struct C_D_CQCState {
     float     phaseTimer    = 0.0f;
     float     cooldown      = 0.0f;
 
-    // Mimicry
-    bool      isMimicking   = false;
-    EntityID  mimicSource   = 0;
-    MeshHandle     originalMesh = INVALID_HANDLE;
-    MaterialHandle originalMat  = INVALID_HANDLE;
+    /* 目标选择 */
+    EntityID  highlightedEnemy = 0;
+    int       selectedIndex    = 0;
+    int       candidateCount   = 0;
 };
 
 } // namespace ECS

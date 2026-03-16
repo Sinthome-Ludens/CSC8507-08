@@ -1,11 +1,13 @@
 /**
- * @brief 玩家 CQC（近战制服）系统实现：状态机推进、拟态激活、背面扇形目标检测。
+ * @file Sys_PlayerCQC.cpp
+ * @brief 玩家 CQC（近战制服）系统实现：目标选择 + 高亮管理 + 状态机推进。
  *
  * @details
- * - OnUpdate：驱动 Approach → Execute → Complete 三阶段状态机；
- *             F 键优先检测拟态（对休眠敌人），其次检测 CQC 目标（背面扇形）；
- *             Complete 阶段直接对目标挂载死亡组件并推送动作通知；
- *             通过 EntityID 语义的 Sys_Physics 接口冻结目标速度
+ * - None 阶段：扫描范围内候选敌人，滚轮切换选中目标，管理 C_D_CQCHighlight 组件；
+ *   F 键发起 CQC 进入 Approach 阶段
+ * - Approach → Execute → Complete 三阶段状态机
+ * - Complete 阶段：对目标挂载死亡组件并推送动作通知
+ * - 通过 EntityID 语义的 Sys_Physics 接口冻结目标速度
  */
 #include "Sys_PlayerCQC.h"
 
@@ -14,7 +16,7 @@
 #include "Game/Components/C_D_PlayerState.h"
 #include "Game/Components/C_D_CQCState.h"
 #include "Game/Components/C_D_EnemyDormant.h"
-#include "Game/Components/C_D_MeshRenderer.h"
+#include "Game/Components/C_D_CQCHighlight.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/C_D_Dying.h"
@@ -23,7 +25,6 @@
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/Res_CQCConfig.h"
 #include "Game/Events/Evt_CQC_Takedown.h"
-#include "Game/Events/Evt_CQC_Mimicry.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/UI/UI_ActionNotify.h"
@@ -38,12 +39,28 @@ using namespace NCL::Maths;
 namespace ECS {
 
 /**
- * @brief 每帧更新 CQC 状态机：冷却计时、阶段推进、目标检测与击杀通知。
- * @details 推进 Approach → Execute → Complete 三阶段状态机，处理休眠敌人拟态和
- *          背后处决目标选择，并在 Complete 阶段通过 Sys_Physics 的 EntityID 接口清零目标速度。
- * @param registry ECS 注册表
- * @param dt       帧时间（秒）
+ * 候选目标条目（用于排序选择）
  */
+struct CQCCandidate {
+    EntityID id   = 0;
+    float    dist = 0.0f;
+};
+
+static constexpr int MAX_CANDIDATES = 8;
+
+/**
+ * 清除旧高亮组件并重置 CQC 选择状态
+ */
+static void ClearHighlight(Registry& registry, C_D_CQCState& cqc) {
+    if (cqc.highlightedEnemy != 0) {
+        if (registry.Valid(cqc.highlightedEnemy) &&
+            registry.Has<C_D_CQCHighlight>(cqc.highlightedEnemy)) {
+            registry.Remove<C_D_CQCHighlight>(cqc.highlightedEnemy);
+        }
+        cqc.highlightedEnemy = 0;
+    }
+}
+
 void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_CQCConfig>()) return;
     const auto& config = registry.ctx<Res_CQCConfig>();
@@ -65,19 +82,21 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
             }
 
             // ══════════════════════════════════════════════
-            // 状态机推进
+            // 状态机推进（非 None 阶段）
             // ══════════════════════════════════════════════
             switch (cqc.phase) {
                 case CQCPhase::Approach: {
+                    ClearHighlight(registry, cqc);
                     cqc.phaseTimer -= dt;
                     if (cqc.phaseTimer <= 0.0f) {
                         cqc.phase = CQCPhase::Execute;
                         cqc.phaseTimer = config.executeTime;
                         LOG_INFO("[CQC] Player " << (int)playerId << " -> Execute");
                     }
-                    return; // 阶段进行中，跳过输入检测
+                    return;
                 }
                 case CQCPhase::Execute: {
+                    ClearHighlight(registry, cqc);
                     cqc.phaseTimer -= dt;
                     if (cqc.phaseTimer <= 0.0f) {
                         cqc.phase = CQCPhase::Complete;
@@ -86,6 +105,7 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                     return;
                 }
                 case CQCPhase::Complete: {
+                    ClearHighlight(registry, cqc);
                     EntityID target = cqc.targetEnemy;
                     if (target != 0 && !registry.Has<C_D_Dying>(target)) {
                         // 直接触发死亡动画（无需 C_D_Health）
@@ -125,136 +145,130 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                     cqc.cooldown = config.cooldownTime;
                     cqc.targetEnemy = 0;
                     cqc.phaseTimer = 0.0f;
+                    cqc.selectedIndex = 0;
+                    cqc.candidateCount = 0;
+                    cqc.highlightedEnemy = 0;
                     return;
                 }
                 case CQCPhase::None:
                 default:
-                    break; // 继续处理输入
+                    break; // 继续处理目标选择
             }
 
             // ══════════════════════════════════════════════
-            // F 键输入检测（仅在 None 阶段处理）
+            // None 阶段：目标选择 + 高亮管理 + F 键发起 CQC
             // ══════════════════════════════════════════════
-            if (!input.cqcJustPressed) return;
 
             // 前置条件：站立 + 非伪装 + 非冲刺
-            if (ps.stance != PlayerStance::Standing) return;
-            if (ps.isDisguised) return;
-            if (ps.isSprinting) return;
-
-            // ── 拟态检测：对休眠敌人按 F 获得拟态（不受 cooldown 限制） ──
-            {
-                EntityID bestMimicTarget = 0;
-                float bestMimicDist = FLT_MAX;
-
-                registry.view<C_T_Enemy, C_D_Transform, C_D_EnemyDormant>().each(
-                    [&](EntityID enemyId, C_T_Enemy&, C_D_Transform& enemyTf, C_D_EnemyDormant& dormant) {
-                        if (!dormant.isDormant) return;
-                        if (dormant.hasBeenMimicked) return;
-
-                        float dx = playerTf.position.x - enemyTf.position.x;
-                        float dz = playerTf.position.z - enemyTf.position.z;
-                        float dist = std::sqrt(dx * dx + dz * dz);
-
-                        if (dist < config.mimicryDistance && dist < bestMimicDist) {
-                            bestMimicDist = dist;
-                            bestMimicTarget = enemyId;
-                        }
-                    }
-                );
-
-                if (bestMimicTarget != 0) {
-                    if (!cqc.isMimicking) {
-                        // 激活拟态：先验证双方都有 MeshRenderer，再标记和复制
-                        if (registry.Has<C_D_MeshRenderer>(playerId) &&
-                            registry.Has<C_D_MeshRenderer>(bestMimicTarget)) {
-                            auto& dormant = registry.Get<C_D_EnemyDormant>(bestMimicTarget);
-                            dormant.hasBeenMimicked = true;
-
-                            auto& playerMR = registry.Get<C_D_MeshRenderer>(playerId);
-                            auto& enemyMR  = registry.Get<C_D_MeshRenderer>(bestMimicTarget);
-
-                            cqc.originalMesh = playerMR.meshHandle;
-                            cqc.originalMat  = playerMR.materialHandle;
-                            cqc.mimicSource  = bestMimicTarget;
-                            cqc.isMimicking  = true;
-
-                            playerMR.meshHandle     = enemyMR.meshHandle;
-                            playerMR.materialHandle = enemyMR.materialHandle;
-
-                            LOG_INFO("[CQC] Mimicry activated: Player " << (int)playerId
-                                     << " mimics Enemy " << (int)bestMimicTarget);
-
-                            if (bus) {
-                                Evt_CQC_Mimicry evt{};
-                                evt.player = playerId;
-                                evt.source = bestMimicTarget;
-                                evt.activated = true;
-                                bus->publish_deferred(evt);
-                            }
-                        }
-                    }
-                    return; // 拟态操作完成，不继续 CQC 检测
-                }
+            if (ps.stance != PlayerStance::Standing || ps.isDisguised || ps.isSprinting) {
+                ClearHighlight(registry, cqc);
+                cqc.selectedIndex = 0;
+                cqc.candidateCount = 0;
+                return;
             }
 
-            // 已在拟态中不可发起 CQC
-            if (cqc.isMimicking) return;
-
-            // cooldown 仅限制新的 CQC takedown（拟态不受此限制）
-            if (cqc.cooldown > 0.0f) return;
-
-            // ── CQC 目标检测：背面扇形 ──
-            EntityID bestTarget = 0;
-            float bestDist = FLT_MAX;
+            // ── 收集候选目标 ──
+            CQCCandidate candidates[MAX_CANDIDATES];
+            int count = 0;
 
             registry.view<C_T_Enemy, C_D_Transform, C_D_AIState, C_D_EnemyDormant>().each(
                 [&](EntityID enemyId, C_T_Enemy&, C_D_Transform& enemyTf,
                     C_D_AIState& aiState, C_D_EnemyDormant& dormant) {
+                    if (count >= MAX_CANDIDATES) return;
                     // 休眠敌人不可 CQC
                     if (dormant.isDormant) return;
                     // Hunt 状态不可 CQC
                     if (aiState.current_state == EnemyState::Hunt) return;
 
-                    // 距离检测（XZ 平面）
+                    // XZ 平面距离
                     float dx = playerTf.position.x - enemyTf.position.x;
                     float dz = playerTf.position.z - enemyTf.position.z;
                     float dist = std::sqrt(dx * dx + dz * dz);
 
                     if (dist > config.maxDistance) return;
-                    if (dist < 0.001f) return; // 防除零
+                    if (dist < 0.001f) return;
 
-                    // 背面扇形判定：dot(enemyForward_xz, toPlayer_xz)
-                    // -Z 是前方（2.5D 约定）
-                    Vector3 enemyForward3D = enemyTf.rotation * Vector3(0.0f, 0.0f, -1.0f);
-                    float efx = enemyForward3D.x;
-                    float efz = enemyForward3D.z;
-                    float efLen = std::sqrt(efx * efx + efz * efz);
-                    if (efLen < 0.001f) return;
-                    efx /= efLen;
-                    efz /= efLen;
-
-                    // toPlayer 方向（从敌人到玩家）
-                    float tpx = dx / dist;
-                    float tpz = dz / dist;
-
-                    float dotVal = efx * tpx + efz * tpz;
-
-                    // 玩家在敌人背后：dotVal < -dorsalDotMin（即从背后接近）
-                    if (dotVal >= -config.dorsalDotMin) return;
-
-                    if (dist < bestDist) {
-                        bestDist = dist;
-                        bestTarget = enemyId;
-                    }
+                    candidates[count].id   = enemyId;
+                    candidates[count].dist = dist;
+                    ++count;
                 }
             );
 
-            if (bestTarget != 0) {
+            cqc.candidateCount = count;
+
+            // 无候选 → 清除高亮
+            if (count == 0) {
+                ClearHighlight(registry, cqc);
+                cqc.selectedIndex = 0;
+                return;
+            }
+
+            // ── 按距离升序排序（冒泡，最多 8 个） ──
+            for (int i = 0; i < count - 1; ++i) {
+                for (int j = 0; j < count - 1 - i; ++j) {
+                    if (candidates[j].dist > candidates[j + 1].dist) {
+                        CQCCandidate tmp = candidates[j];
+                        candidates[j] = candidates[j + 1];
+                        candidates[j + 1] = tmp;
+                    }
+                }
+            }
+
+            // ── selectedIndex 稳定性：跟随当前高亮目标 ──
+            if (cqc.highlightedEnemy != 0) {
+                bool found = false;
+                for (int i = 0; i < count; ++i) {
+                    if (candidates[i].id == cqc.highlightedEnemy) {
+                        cqc.selectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    // 旧高亮不在候选中，clamp
+                    if (cqc.selectedIndex >= count) {
+                        cqc.selectedIndex = count - 1;
+                    }
+                }
+            } else {
+                cqc.selectedIndex = 0;
+            }
+
+            // ── 滚轮切换 ──
+            if (input.scrollDelta != 0) {
+                cqc.selectedIndex += (input.scrollDelta > 0) ? -1 : 1;
+                // 循环包裹
+                cqc.selectedIndex = ((cqc.selectedIndex % count) + count) % count;
+            }
+
+            // ── 高亮管理 ──
+            EntityID newHighlight = candidates[cqc.selectedIndex].id;
+            if (newHighlight != cqc.highlightedEnemy) {
+                // 移除旧高亮
+                ClearHighlight(registry, cqc);
+                // 挂载新高亮
+                if (registry.Valid(newHighlight) && !registry.Has<C_D_CQCHighlight>(newHighlight)) {
+                    C_D_CQCHighlight hl;
+                    hl.rimColour   = config.highlightRimColour;
+                    hl.rimPower    = config.highlightRimPower;
+                    hl.rimStrength = config.highlightRimStrength;
+                    registry.Emplace<C_D_CQCHighlight>(newHighlight, hl);
+                }
+                cqc.highlightedEnemy = newHighlight;
+            }
+
+            // ── F 键发起 CQC ──
+            if (input.cqcJustPressed && cqc.cooldown <= 0.0f && cqc.highlightedEnemy != 0) {
                 cqc.phase = CQCPhase::Approach;
                 cqc.phaseTimer = config.approachTime;
-                cqc.targetEnemy = bestTarget;
-                LOG_INFO("[CQC] Player " << (int)playerId << " -> Approach on Enemy " << (int)bestTarget);
+                cqc.targetEnemy = cqc.highlightedEnemy;
+
+                // 移除高亮（进入 CQC 后不显示）
+                ClearHighlight(registry, cqc);
+                cqc.selectedIndex = 0;
+                cqc.candidateCount = 0;
+
+                LOG_INFO("[CQC] Player " << (int)playerId << " -> Approach on Enemy " << (int)cqc.targetEnemy);
             }
         }
     );

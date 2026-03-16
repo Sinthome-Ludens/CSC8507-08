@@ -13,6 +13,7 @@
  */
 #include "Sys_Render.h"
 #include "Game/Components/C_D_DeathVisual.h"
+#include "Game/Components/C_D_CQCHighlight.h"
 #include "Game/Utils/Log.h"
 #include "Matrix.h"
 #include "OGLMesh.h"
@@ -149,7 +150,7 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
         }
     }
 
-    // 死亡视觉覆盖：colour + 透明材质
+    // 视觉覆盖优先级：C_D_DeathVisual > C_D_CQCHighlight > 默认
     if (reg.Has<C_D_DeathVisual>(id)) {
         const auto& dv = reg.Get<C_D_DeathVisual>(id);
         auto* ro = proxy->GetRenderObject();
@@ -158,6 +159,23 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
             if (dv.useTransparent) {
                 ro->GetMaterial().type = MaterialType::Transparent;
             }
+        }
+    } else if (reg.Has<C_D_CQCHighlight>(id)) {
+        // 边缘高亮：写入 GameTechMaterial rim 参数，由 renderer 传给 scene.frag
+        const auto& hl = reg.Get<C_D_CQCHighlight>(id);
+        auto* ro = proxy->GetRenderObject();
+        if (ro) {
+            auto& mat = ro->GetMaterial();
+            mat.emissiveColor = hl.rimColour;
+            mat.rimPower      = hl.rimPower;
+            mat.rimStrength   = hl.rimStrength;
+        }
+    } else {
+        // 无视觉覆盖：仅清零 rim 高亮参数，不碰 SyncMaterial 已同步的值
+        auto* ro = proxy->GetRenderObject();
+        if (ro) {
+            auto& mat = ro->GetMaterial();
+            mat.rimStrength = 0.0f;
         }
     }
 }

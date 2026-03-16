@@ -12,6 +12,11 @@ uniform vec3	cameraPos;
 
 uniform bool hasTexture;
 
+// 边缘高亮（rim lighting）参数
+uniform vec3  rimColour    = vec3(0.0, 0.0, 0.0);
+uniform float rimPower     = 3.0;
+uniform float rimStrength  = 0.0;
+
 in Vertex
 {
 	vec4 colour;
@@ -26,35 +31,42 @@ out vec4 fragColor;
 void main(void)
 {
 	float shadow = 1.0; // New !
-	
+
 	if( IN . shadowProj . w > 0.0) { // New !
 		shadow = textureProj ( shadowTex , IN . shadowProj ) * 0.5f;
 	}
 
 	vec3  incident = normalize ( sunPos - IN.worldPos );
-	float lambert  = max (0.0 , dot ( incident , IN.normal )) * 0.9; 
-	
+	float lambert  = max (0.0 , dot ( incident , IN.normal )) * 0.9;
+
 	vec3 viewDir = normalize ( cameraPos - IN . worldPos );
 	vec3 halfDir = normalize ( incident + viewDir );
 
 	float rFactor = max (0.0 , dot ( halfDir , IN.normal ));
 	float sFactor = pow ( rFactor , 80.0 );
-	
+
 	vec4 albedo = IN.colour;
-	
+
 	if(hasTexture) {
 		albedo *= texture(mainTex, IN.texCoord);
 	}
-	
+
 	albedo.rgb = pow(albedo.rgb, vec3(2.2));
-	
+
 	fragColor.rgb = albedo.rgb * 0.05f; //ambient
-	
+
 	fragColor.rgb += albedo.rgb * sunColour.rgb * lambert * shadow; //diffuse light
-	
+
 	fragColor.rgb += sunColour.rgb * sFactor * shadow; //specular light
-	
+
+	// 边缘高亮：rimStrength > 0 时激活
+	if (rimStrength > 0.0) {
+		float rimDot = 1.0 - max(dot(viewDir, IN.normal), 0.0);
+		float rim = pow(rimDot, rimPower) * rimStrength;
+		fragColor.rgb += rimColour * rim;
+	}
+
 	fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / 2.2f));
-	
+
 	fragColor.a = albedo.a;
 }
