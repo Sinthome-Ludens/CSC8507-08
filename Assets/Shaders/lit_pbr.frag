@@ -57,6 +57,14 @@ uniform bool  doubleSided = false;
 // ── PCSS 参数 ────────────────────────────────────────────────
 uniform float pcssLightSize = 3.0; // 光源尺寸（光照空间单位）
 
+// ── 阴影偏置（可通过 ImGui 动态调整）────────────────────────
+uniform float shadowBiasSlope    = 0.00002; // tan(theta) 系数：掠射面自动增大
+uniform float shadowBiasConstant = 0.000015; // 基础常量偏置：避免 contact shadow 失效
+
+// ── 斜率自适应阴影偏置（在 main() 中基于 N·L 设定，helper 函数直接引用）──
+// 正对光时接近零，掠射角时增大，防止自阴影 acne 同时避免 Peter Panning
+float g_shadowBias = 0.0003;
+
 // ============================================================
 // PBR 辅助函数
 // ============================================================
@@ -116,14 +124,22 @@ const vec2 POISSON25[25] = vec2[25](
     vec2( 0.142,  0.972)
 );
 
+/// @brief Interleaved Gradient Noise → [0, 2π)，每像素唯一旋转角，消除固定 Poisson 图样
+float IGNAngle() {
+    return fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.28318530718;
+}
+
 /// @brief PCSS: 搜索遮挡物平均深度
 float FindBlockerAvgDepth(sampler2D shadowMap, vec2 uv, float depth, float searchRadius) {
+    float angle = IGNAngle();
+    float cs = cos(angle), sn = sin(angle);
     float blockerSum = 0.0;
     int   blockerCount = 0;
     for (int i = 0; i < 12; i++) {
-        vec2 offset = POISSON12[i] * searchRadius;
-        float shadowDepth = texture(shadowMap, uv + offset).r;
-        if (shadowDepth < depth - 0.0003) {
+        vec2 p = vec2(cs * POISSON12[i].x - sn * POISSON12[i].y,
+                      sn * POISSON12[i].x + cs * POISSON12[i].y) * searchRadius;
+        float shadowDepth = texture(shadowMap, uv + p).r;
+        if (shadowDepth < depth - g_shadowBias) {
             blockerSum += shadowDepth;
             blockerCount++;
         }
@@ -134,11 +150,14 @@ float FindBlockerAvgDepth(sampler2D shadowMap, vec2 uv, float depth, float searc
 
 /// @brief PCSS: PCF 采样（可变半径）
 float PCFFilter(sampler2D shadowMap, vec2 uv, float depth, float filterRadius) {
+    float angle = IGNAngle();
+    float cs = cos(angle), sn = sin(angle);
     float shadow = 0.0;
     for (int i = 0; i < 25; i++) {
-        vec2 offset = POISSON25[i] * filterRadius;
-        float shadowDepth = texture(shadowMap, uv + offset).r;
-        shadow += (shadowDepth < depth - 0.0003) ? 0.0 : 1.0;
+        vec2 p = vec2(cs * POISSON25[i].x - sn * POISSON25[i].y,
+                      sn * POISSON25[i].x + cs * POISSON25[i].y) * filterRadius;
+        float shadowDepth = texture(shadowMap, uv + p).r;
+        shadow += (shadowDepth < depth - g_shadowBias) ? 0.0 : 1.0;
     }
     return shadow / 25.0;
 }
@@ -161,7 +180,7 @@ float SampleShadowPCSS(sampler2D shadowMap, vec4 shadowCoord, int mapSize, bool 
         for (int x = -1; x <= 1; x++) {
             for (int y = -1; y <= 1; y++) {
                 float d = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-                shadow += (d < depth - 0.0003) ? 0.0 : 1.0;
+                shadow += (d < depth - g_shadowBias) ? 0.0 : 1.0;
             }
         }
         return shadow / 9.0;
@@ -181,32 +200,38 @@ float SampleShadowPCSS(sampler2D shadowMap, vec4 shadowCoord, int mapSize, bool 
     return PCFFilter(shadowMap, projCoords.xy, depth, filterRadius);
 }
 
-/// @brief 根据视空间深度选择 CSM 级联并采样阴影
+/// @brief 根据视空间深度选择 CSM 级联并采样阴影，过渡区双采样混合消除硬缝锯齿
 float ComputeCascadeShadow(vec3 worldPos, float viewDepth) {
-    mat4  chosenMatrix;
-    sampler2D chosenTex;
-    int   chosenRes;
-    bool  simplePCF;
+    // 相邻级联过渡混合宽度（世界单位）；在此区间内双倍采样并插值
+    const float blendRange = 4.0;
+
+    vec4 sc0 = shadowMatrix0 * vec4(worldPos, 1.0);
+    vec4 sc1 = shadowMatrix1 * vec4(worldPos, 1.0);
+    vec4 sc2 = shadowMatrix2 * vec4(worldPos, 1.0);
 
     if (viewDepth < cascadeSplits[0]) {
-        chosenMatrix = shadowMatrix0;
-        chosenTex    = shadowTex0;
-        chosenRes    = 4096;
-        simplePCF    = false;
+        float s0 = SampleShadowPCSS(shadowTex0, sc0, 4096, false);
+        // 接近 C0→C1 边界：与 C1 混合
+        float blendStart = cascadeSplits[0] - blendRange;
+        if (viewDepth > blendStart) {
+            float t  = (viewDepth - blendStart) / blendRange;
+            float s1 = SampleShadowPCSS(shadowTex1, sc1, 2048, false);
+            return mix(s0, s1, t);
+        }
+        return s0;
     } else if (viewDepth < cascadeSplits[1]) {
-        chosenMatrix = shadowMatrix1;
-        chosenTex    = shadowTex1;
-        chosenRes    = 2048;
-        simplePCF    = false;
+        float s1 = SampleShadowPCSS(shadowTex1, sc1, 2048, false);
+        // 接近 C1→C2 边界：与 C2 混合
+        float blendStart = cascadeSplits[1] - blendRange;
+        if (viewDepth > blendStart) {
+            float t  = (viewDepth - blendStart) / blendRange;
+            float s2 = SampleShadowPCSS(shadowTex2, sc2, 1024, true);
+            return mix(s1, s2, t);
+        }
+        return s1;
     } else {
-        chosenMatrix = shadowMatrix2;
-        chosenTex    = shadowTex2;
-        chosenRes    = 1024;
-        simplePCF    = true;
+        return SampleShadowPCSS(shadowTex2, sc2, 1024, true);
     }
-
-    vec4 shadowCoord = chosenMatrix * vec4(worldPos, 1.0);
-    return SampleShadowPCSS(chosenTex, shadowCoord, chosenRes, simplePCF);
 }
 
 // ============================================================
@@ -263,6 +288,13 @@ void main() {
         // kD（漫反射权重，金属无漫反射）
         vec3 kS = F;
         vec3 kD = (1.0 - kS) * (1.0 - matMetallic);
+
+        // 斜率自适应 shadow bias：tan(theta) = sinTheta/NdotL，与表面坡度成正比
+        // GL_FRONT culling 已消除 light-facing 面自阴影；此 bias 防止背光侧邻接面 acne
+        float NdotL_bias = max(dot(N, L), 0.0);
+        float sinAlpha   = sqrt(max(0.0, 1.0 - NdotL_bias * NdotL_bias));
+        float tanAlpha   = sinAlpha / max(NdotL_bias, 0.01);
+        g_shadowBias = clamp(shadowBiasSlope * tanAlpha + shadowBiasConstant, shadowBiasConstant, 0.005);
 
         // 阴影
         float shadow = ComputeCascadeShadow(IN.worldPos, viewDepth);

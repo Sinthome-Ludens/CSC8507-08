@@ -60,6 +60,8 @@ namespace NCL {
             void SetDebugCascades(bool v)         { m_debugCascades = v; }
             void SetShowSSAOBuffer(bool v)        { m_showSSAOBuffer = v; }
             void SetShowBloomBuffer(bool v)       { m_showBloomBuffer = v; }
+            void SetShadowBiasSlope(float v)      { m_shadowBiasSlope = v; }
+            void SetShadowBiasConstant(float v)   { m_shadowBiasConstant = v; }
 
         protected:
             struct ObjectSortState {
@@ -106,8 +108,9 @@ namespace NCL {
             Matrix4 m_lightViewMat;
             Matrix4 m_lightProjMat[NUM_CASCADES];
             Matrix4 m_shadowMatrix[NUM_CASCADES];       ///< bias * proj[i] * lightView
-            float   m_cascadeSplits[NUM_CASCADES]       = { 15.0f, 60.0f, 300.0f };
+            float   m_cascadeSplits[NUM_CASCADES]       = { 50.0f, 180.0f, 600.0f };
             int     m_shadowRes[NUM_CASCADES]            = { 4096, 2048, 1024 };
+            float   m_shadowNormalOffset[NUM_CASCADES]   = {}; ///< 法线偏移量（半个 texel），消除接触阴影 light bleeding
 
             // ── IBL ──────────────────────────────────────────
             GLuint m_irradianceMap  = 0; ///< 32×32 立方体贴图（漫反射卷积）
@@ -142,6 +145,10 @@ namespace NCL {
 
             // ── PCSS ─────────────────────────────────────────
             float m_pcssLightSize = 3.0f;
+
+            // ── Shadow Bias ───────────────────────────────────
+            float m_shadowBiasSlope    = 0.00002f;
+            float m_shadowBiasConstant = 0.000015f;
 
             // ── Debug flags ──────────────────────────────────
             bool  m_debugCascades   = false;

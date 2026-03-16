@@ -79,11 +79,14 @@ private:
     void DrawPostProcessSection(void* renderer);
 
     // ── 当前面板参数（镜像 GameTechRenderer 状态，供 ImGui 读写）──────────
+    bool  m_panelOpen        = true;
     bool  m_wireframe        = false;
     bool  m_debugCascades    = false;
-    float m_cascadeSplits[3] = { 15.0f, 60.0f, 300.0f };
+    float m_cascadeSplits[3] = { 50.0f, 180.0f, 600.0f };
     float m_pcssLightSize    = 3.0f;
     float m_iblIntensity     = 1.0f;
+    float m_shadowBiasSlope    = 0.00002f;
+    float m_shadowBiasConstant = 0.000015f;
     bool  m_ssaoEnabled      = true;
     float m_ssaoRadius       = 0.5f;
     float m_ssaoBias         = 0.025f;

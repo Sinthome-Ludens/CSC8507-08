@@ -505,6 +505,8 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
         float rangeY   = maxLS.y - minLS.y;
         float maxRange = std::max(rangeX, rangeY);
         float texelSize = maxRange / (float)m_shadowRes[c];
+        // 存储 Normal Offset Bias（0.5 texel），供 shadow pass 消除接触阴影 light bleeding
+        m_shadowNormalOffset[c] = texelSize * 0.5f;
 
         // 将中心点对齐到 texel 网格（消除 shadow swimming）
         float centerX = std::round(((minLS.x + maxLS.x) * 0.5f) / texelSize) * texelSize;
@@ -520,7 +522,7 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
         // near = -maxLS.z（离光源最近的视锥角点）减 10 单位余量
         // far  = -minLS.z（离光源最远）加 500 单位以捕获摄像机背后的投影物
         float shadowNear = std::max(0.1f, -(maxLS.z + 10.0f));
-        float shadowFar  = -(minLS.z - 500.0f);
+        float shadowFar  = -(minLS.z - 100.0f);
         if (shadowFar <= shadowNear) shadowFar = shadowNear + 100.0f;
         m_lightProjMat[c] = Matrix::Orthographic(minLS.x, maxLS.x,
                                                   minLS.y, maxLS.y,
@@ -645,7 +647,7 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
-    glCullFace(GL_FRONT);
+    glCullFace(GL_BACK);   // 存前向面深度：接触点 shadow 精确，自阴影由 fragment 斜率偏置防护
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
     UseShader(*shadowShader);
@@ -660,7 +662,6 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
 
         for (const auto& i : list) {
             const RenderObject* o = i.object;
-            // Alpha-Mask 物体用 alphatest shader
             if (o->GetMaterial().alphaMode == AlphaMode::Mask) {
                 UseShader(*m_shadowAlphaTestShader);
                 int mvpLoc2 = glGetUniformLocation(m_shadowAlphaTestShader->GetProgramID(), "mvpMatrix");
@@ -736,7 +737,8 @@ static void BindCommonSceneUniforms(
     GLuint shadowTex0, GLuint shadowTex1, GLuint shadowTex2,
     const Matrix4& shadowMat0, const Matrix4& shadowMat1, const Matrix4& shadowMat2,
     const float cascadeSplits[3], float pcssLightSize,
-    GLuint irradianceMap, GLuint prefilterMap, GLuint brdfLUT, float iblIntensity)
+    GLuint irradianceMap, GLuint prefilterMap, GLuint brdfLUT, float iblIntensity,
+    float shadowBiasSlope, float shadowBiasConstant)
 {
     GLuint pid = shader->GetProgramID();
     auto ul = [&](const char* n) { return glGetUniformLocation(pid, n); };
@@ -760,6 +762,8 @@ static void BindCommonSceneUniforms(
     glUniformMatrix4fv(ul("shadowMatrix2"), 1, false, (float*)&shadowMat2);
     glUniform1fv(ul("cascadeSplits"), 3, cascadeSplits);
     glUniform1f(ul("pcssLightSize"),  pcssLightSize);
+    glUniform1f(ul("shadowBiasSlope"),    shadowBiasSlope);
+    glUniform1f(ul("shadowBiasConstant"), shadowBiasConstant);
 
     // IBL (units 8, 9, 10)
     glActiveTexture(GL_TEXTURE8); glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);
@@ -882,7 +886,8 @@ void GameTechRenderer::RenderOpaquePass(std::vector<ObjectSortState>& list) {
                                     m_shadowTex[0], m_shadowTex[1], m_shadowTex[2],
                                     m_shadowMatrix[0], m_shadowMatrix[1], m_shadowMatrix[2],
                                     m_cascadeSplits, m_pcssLightSize,
-                                    m_irradianceMap, m_prefilterMap, m_brdfLUT, m_iblIntensity);
+                                    m_irradianceMap, m_prefilterMap, m_brdfLUT, m_iblIntensity,
+                                    m_shadowBiasSlope, m_shadowBiasConstant);
             lastShader = shader;
         }
 
@@ -923,7 +928,8 @@ void GameTechRenderer::RenderAlphaMaskPass(std::vector<ObjectSortState>& list) {
                                     m_shadowTex[0], m_shadowTex[1], m_shadowTex[2],
                                     m_shadowMatrix[0], m_shadowMatrix[1], m_shadowMatrix[2],
                                     m_cascadeSplits, m_pcssLightSize,
-                                    m_irradianceMap, m_prefilterMap, m_brdfLUT, m_iblIntensity);
+                                    m_irradianceMap, m_prefilterMap, m_brdfLUT, m_iblIntensity,
+                                    m_shadowBiasSlope, m_shadowBiasConstant);
             lastShader = shader;
         }
 
@@ -964,7 +970,8 @@ void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list)
                                     m_shadowTex[0], m_shadowTex[1], m_shadowTex[2],
                                     m_shadowMatrix[0], m_shadowMatrix[1], m_shadowMatrix[2],
                                     m_cascadeSplits, m_pcssLightSize,
-                                    m_irradianceMap, m_prefilterMap, m_brdfLUT, m_iblIntensity);
+                                    m_irradianceMap, m_prefilterMap, m_brdfLUT, m_iblIntensity,
+                                    m_shadowBiasSlope, m_shadowBiasConstant);
             lastShader = shader;
         }
 

@@ -50,6 +50,13 @@ uniform int   alphaMode   = 0;
 uniform float alphaCutoff = 0.5;
 uniform bool  doubleSided = false;
 
+// ── 阴影偏置（可通过 ImGui 动态调整）────────────────────────
+uniform float shadowBiasSlope    = 0.00002;
+uniform float shadowBiasConstant = 0.000015;
+
+// ── 斜率自适应阴影偏置（在 main() 中基于 N·L 设定）──────────────
+float g_shadowBias = 0.0003;
+
 // ============================================================
 // PCSS 阴影辅助
 // ============================================================
@@ -80,25 +87,33 @@ float SampleShadowCSM(sampler2D shadowMap, mat4 shadowMat, vec3 worldPos,
         proj.y < 0.0 || proj.y > 1.0 || proj.z > 1.0) return 1.0;
     float depth = proj.z;
 
+    // 每像素随机旋转 Poisson 盘，消除固定图样锯齿
+    float ign   = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) * 6.28318530718;
+    float cs = cos(ign), sn = sin(ign);
+
     if (simplePCF) {
         float s = 0.0; float ts = 1.0 / float(mapSize);
         for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) {
-            s += (texture(shadowMap, proj.xy + vec2(x, y) * ts).r < depth - 0.0003) ? 0.0 : 1.0;
+            s += (texture(shadowMap, proj.xy + vec2(x, y) * ts).r < depth - g_shadowBias) ? 0.0 : 1.0;
         }
         return s / 9.0;
     }
     float sr = pcssLightSize / float(mapSize);
     float bs = 0.0; int bc = 0;
     for (int i = 0; i < 12; i++) {
-        float d = texture(shadowMap, proj.xy + POISSON12[i] * sr).r;
-        if (d < depth - 0.0003) { bs += d; bc++; }
+        vec2 p = vec2(cs * POISSON12[i].x - sn * POISSON12[i].y,
+                      sn * POISSON12[i].x + cs * POISSON12[i].y) * sr;
+        float d = texture(shadowMap, proj.xy + p).r;
+        if (d < depth - g_shadowBias) { bs += d; bc++; }
     }
     if (bc == 0) return 1.0;
     float fr = clamp((depth - bs / float(bc)) / (bs / float(bc)) * pcssLightSize / float(mapSize),
                      1.0 / float(mapSize), 0.02);
     float s = 0.0;
     for (int i = 0; i < 25; i++) {
-        s += (texture(shadowMap, proj.xy + POISSON25[i] * fr).r < depth - 0.0003) ? 0.0 : 1.0;
+        vec2 p = vec2(cs * POISSON25[i].x - sn * POISSON25[i].y,
+                      sn * POISSON25[i].x + cs * POISSON25[i].y) * fr;
+        s += (texture(shadowMap, proj.xy + p).r < depth - g_shadowBias) ? 0.0 : 1.0;
     }
     return s / 25.0;
 }
@@ -129,13 +144,32 @@ void main() {
     vec3  halfDir  = normalize(incident + viewDir);
     float sFactor  = pow(max(0.0, dot(halfDir, N)), 80.0);
 
-    // ── CSM 阴影 ─────────────────────────────────────────────
-    float viewDist = length(cameraPos - IN.worldPos);
+    // ── CSM 阴影（过渡区双采样混合，消除硬缝锯齿）───────────────
+    // 斜率自适应 bias：GL_FRONT culling 消除自阴影后，此 bias 仅用于背光侧邻接面 acne
+    float NdotL_bias = max(dot(incident, N), 0.0);
+    float sinAlpha   = sqrt(max(0.0, 1.0 - NdotL_bias * NdotL_bias));
+    float tanAlpha   = sinAlpha / max(NdotL_bias, 0.01);
+    g_shadowBias = clamp(shadowBiasSlope * tanAlpha + shadowBiasConstant, shadowBiasConstant, 0.005);
+
+    float viewDist   = length(cameraPos - IN.worldPos);
+    const float blendRange = 4.0;
     float shadow;
     if (viewDist < cascadeSplits[0]) {
         shadow = SampleShadowCSM(shadowTex0, shadowMatrix0, IN.worldPos, 4096, false);
+        float blendStart = cascadeSplits[0] - blendRange;
+        if (viewDist > blendStart) {
+            float t = (viewDist - blendStart) / blendRange;
+            float s1 = SampleShadowCSM(shadowTex1, shadowMatrix1, IN.worldPos, 2048, false);
+            shadow = mix(shadow, s1, t);
+        }
     } else if (viewDist < cascadeSplits[1]) {
         shadow = SampleShadowCSM(shadowTex1, shadowMatrix1, IN.worldPos, 2048, false);
+        float blendStart = cascadeSplits[1] - blendRange;
+        if (viewDist > blendStart) {
+            float t = (viewDist - blendStart) / blendRange;
+            float s2 = SampleShadowCSM(shadowTex2, shadowMatrix2, IN.worldPos, 1024, true);
+            shadow = mix(shadow, s2, t);
+        }
     } else {
         shadow = SampleShadowCSM(shadowTex2, shadowMatrix2, IN.worldPos, 1024, true);
     }

@@ -41,9 +41,10 @@ void Sys_ImGuiRenderDebug::OnAwake(Registry& registry) {
 // ============================================================
 void Sys_ImGuiRenderDebug::OnUpdate(Registry& /*registry*/, float /*dt*/) {
     if (!m_renderer) return;
+    if (!m_panelOpen) return;
 
-    ImGui::SetNextWindowSize(ImVec2(380, 520), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("Render Debug")) { ImGui::End(); return; }
+    ImGui::SetNextWindowSize(ImVec2(380, 580), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("Render Debug", &m_panelOpen)) { ImGui::End(); return; }
 
     DrawGeometrySection(m_renderer);
     ImGui::Separator();
@@ -85,15 +86,24 @@ void Sys_ImGuiRenderDebug::DrawShadowSection(void* rendererPtr) {
     if (!ImGui::CollapsingHeader("Shadows (CSM + PCSS)", ImGuiTreeNodeFlags_DefaultOpen)) return;
 
     bool splitChanged = false;
-    splitChanged |= ImGui::SliderFloat("Near Split",   &m_cascadeSplits[0],  1.0f,  30.0f);
-    splitChanged |= ImGui::SliderFloat("Mid Split",    &m_cascadeSplits[1], 10.0f, 100.0f);
-    splitChanged |= ImGui::SliderFloat("Far Split",    &m_cascadeSplits[2], 50.0f, 500.0f);
+    splitChanged |= ImGui::SliderFloat("Near Split",   &m_cascadeSplits[0],  5.0f,  150.0f);
+    splitChanged |= ImGui::SliderFloat("Mid Split",    &m_cascadeSplits[1], 20.0f,  400.0f);
+    splitChanged |= ImGui::SliderFloat("Far Split",    &m_cascadeSplits[2], 80.0f, 1000.0f);
     if (splitChanged) {
         r->SetCascadeSplits(m_cascadeSplits[0], m_cascadeSplits[1], m_cascadeSplits[2]);
     }
 
     if (ImGui::SliderFloat("PCSS Light Size", &m_pcssLightSize, 0.5f, 20.0f)) {
         r->SetPCSSLightSize(m_pcssLightSize);
+    }
+
+    ImGui::Spacing();
+    ImGui::TextDisabled("Shadow Bias");
+    if (ImGui::SliderFloat("Bias Slope",    &m_shadowBiasSlope,    0.0f, 0.0002f, "%.6f")) {
+        r->SetShadowBiasSlope(m_shadowBiasSlope);
+    }
+    if (ImGui::SliderFloat("Bias Constant", &m_shadowBiasConstant, 0.0f, 0.0002f, "%.6f")) {
+        r->SetShadowBiasConstant(m_shadowBiasConstant);
     }
 
     if (ImGui::Checkbox("Debug Cascades", &m_debugCascades)) {
