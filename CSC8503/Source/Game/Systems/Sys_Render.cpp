@@ -14,6 +14,7 @@
 #include "Sys_Render.h"
 #include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/C_D_CQCHighlight.h"
+#include "Game/Components/C_D_Animation.h"
 #include "Game/Utils/Log.h"
 #include "Matrix.h"
 #include "OGLMesh.h"
@@ -77,21 +78,66 @@ void Sys_Render::OnDestroy(Registry& registry) {
 // ============================================================
 // 辅助：将 ECS C_D_Material 同步到 NCL GameTechMaterial
 // ============================================================
+/**
+ * @brief 将 ECS C_D_Material 字段逐一映射到 NCL GameTechMaterial 结构体。
+ * @details 纹理解析通过 AssetManager::GetTexture()；无效 Handle 回退到对应默认纹理，
+ *          避免渲染层收到 nullptr 导致 GPU 侧未定义行为。着色模型、Alpha 模式直接
+ *          static_cast 映射（两侧枚举值保持一一对应）。
+ */
 static void SyncMaterial(GameTechMaterial& nclMat, const C_D_Material& ecsMat) {
+    auto& am = AssetManager::Instance();
+
     nclMat.shadingModel     = static_cast<NCL::CSC8503::ShadingModel>((int)ecsMat.shadingModel);
     nclMat.metallic         = ecsMat.metallic;
     nclMat.roughness        = ecsMat.roughness;
     nclMat.ao               = ecsMat.ao;
     nclMat.emissiveColor    = ecsMat.emissiveColor;
     nclMat.emissiveStrength = ecsMat.emissiveStrength;
+    nclMat.rimColour        = ecsMat.rimColour;
     nclMat.rimPower         = ecsMat.rimPower;
     nclMat.rimStrength      = ecsMat.rimStrength;
     nclMat.flatShading      = ecsMat.flatShading;
+
+    // Alpha 模式
+    nclMat.alphaMode   = static_cast<NCL::CSC8503::AlphaMode>((int)ecsMat.alphaMode);
+    nclMat.alphaCutoff = ecsMat.alphaCutoff;
+    nclMat.doubleSided = ecsMat.doubleSided;
+
+    // 纹理解析：无效 Handle 回退到默认纹理，确保不出现 nullptr
+    if (ecsMat.albedoHandle != INVALID_HANDLE) {
+        nclMat.diffuseTex = am.GetTexture(ecsMat.albedoHandle);
+    } else {
+        nclMat.diffuseTex = am.GetTexture(am.GetDefaultAlbedoHandle());
+    }
+
+    if (ecsMat.normalHandle != INVALID_HANDLE) {
+        nclMat.bumpTex = am.GetTexture(ecsMat.normalHandle);
+    } else {
+        nclMat.bumpTex = am.GetTexture(am.GetDefaultNormalHandle());
+    }
+
+    if (ecsMat.ormHandle != INVALID_HANDLE) {
+        nclMat.ormTex = am.GetTexture(ecsMat.ormHandle);
+    } else {
+        nclMat.ormTex = am.GetTexture(am.GetDefaultOrmHandle());
+    }
+
+    if (ecsMat.emissiveHandle != INVALID_HANDLE) {
+        nclMat.emissiveTex = am.GetTexture(ecsMat.emissiveHandle);
+    } else {
+        nclMat.emissiveTex = am.GetTexture(am.GetDefaultEmissiveHandle());
+    }
 }
 
 // ============================================================
 // CreateProxy
 // ============================================================
+/**
+ * @brief 为 ECS 实体在 GameWorld 中创建 NCL GameObject 代理对象。
+ * @details 从 AssetManager 解析 MeshHandle 取得 OGLMesh 指针，分配 GameObject 并调用
+ *          SyncMaterial() 初始化材质；透明模式下将 MaterialType 设为 Transparent。
+ *          代理指针写入 m_ProxyObjects 映射，随后发布 Evt_Render_ProxyCreated 事件。
+ */
 void Sys_Render::CreateProxy(Registry& reg, EntityID id,
                               const C_D_Transform& tf, const C_D_MeshRenderer& mr)
 {
@@ -112,11 +158,17 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
     mat.type       = MaterialType::Opaque;
     mat.diffuseTex = nullptr;
     mat.bumpTex    = nullptr;
+    mat.ormTex     = nullptr;
+    mat.emissiveTex = nullptr;
 
     // 同步 ECS 材质参数（如果有 C_D_Material 组件）
     if (reg.Has<C_D_Material>(id)) {
         const auto& ecsMat = reg.Get<C_D_Material>(id);
         SyncMaterial(mat, ecsMat);
+        // 透明物体加入透明列表
+        if (ecsMat.alphaMode == AlphaMode::Blend) {
+            mat.type = MaterialType::Transparent;
+        }
     }
 
     auto* ro = new NCL::CSC8503::RenderObject(proxy->GetTransform(), mesh, mat);
@@ -141,6 +193,12 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
 // ============================================================
 // SyncProxy
 // ============================================================
+/**
+ * @brief 将 ECS Transform、Material、视觉覆盖及骨骼蒙皮状态同步到现有代理对象。
+ * @details 每帧调用：先更新 Transform，再按优先级处理视觉覆盖（DeathVisual > CQCHighlight >
+ *          默认清零）；若存在 C_D_Animation 则写入骨骼矩阵并开启 useSkinning，否则
+ *          显式关闭 useSkinning 防止残留脏值。
+ */
 void Sys_Render::SyncProxy(Registry& reg, EntityID id,
                             NCL::CSC8503::GameObject* proxy, const C_D_Transform& tf)
 {
@@ -175,7 +233,7 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
         auto* ro = proxy->GetRenderObject();
         if (ro) {
             auto& mat = ro->GetMaterial();
-            mat.emissiveColor = hl.rimColour;
+            mat.rimColour     = hl.rimColour;
             mat.rimPower      = hl.rimPower;
             mat.rimStrength   = hl.rimStrength;
         }
@@ -186,6 +244,21 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
             auto& mat = ro->GetMaterial();
             mat.rimStrength = 0.0f;
         }
+    }
+
+    // 骨骼蒙皮同步（S7-E）：将 C_D_Animation.boneMatrices 拷贝到代理 RenderObject
+    if (reg.Has<C_D_Animation>(id)) {
+        auto* ro = proxy->GetRenderObject();
+        if (ro) {
+            const auto& anim = reg.Get<C_D_Animation>(id);
+            ro->useSkinning = true;
+            ro->skinBoneMatrices.assign(
+                anim.boneMatrices,
+                anim.boneMatrices + C_D_Animation::MAX_BONES);
+        }
+    } else {
+        auto* ro = proxy->GetRenderObject();
+        if (ro) ro->useSkinning = false;
     }
 }
 

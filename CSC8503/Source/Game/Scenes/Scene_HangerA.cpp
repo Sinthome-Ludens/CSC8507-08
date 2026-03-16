@@ -17,6 +17,7 @@
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
+#include "Game/Systems/Sys_PlayerCamera.h"
 #include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_EnemyVision.h"
@@ -29,6 +30,7 @@
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
 #include "Game/Systems/Sys_ImGuiNavTest.h"
+#include "Game/Systems/Sys_ImGuiRenderDebug.h"
 #endif
 
 // ============================================================
@@ -87,7 +89,8 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
     systems.Register<ECS::Sys_Input>        ( 10);
-    systems.Register<ECS::Sys_Camera>       ( 50);
+    systems.Register<ECS::Sys_PlayerCamera> (150);
+    systems.Register<ECS::Sys_Camera>       (155);
     systems.Register<ECS::Sys_Physics>      (100);
     systems.Register<ECS::Sys_EnemyVision>  (110);
     systems.Register<ECS::Sys_DeathJudgment>(125);
@@ -158,8 +161,9 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_EnemyAI>  (250);
 
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>        (300);
-    systems.Register<ECS::Sys_ImGuiNavTest> (310);
+    systems.Register<ECS::Sys_ImGui>             (300);
+    systems.Register<ECS::Sys_ImGuiNavTest>      (310);
+    systems.Register<ECS::Sys_ImGuiRenderDebug>  (450);
 #endif
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────

@@ -17,6 +17,7 @@
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
+#include "Game/Systems/Sys_PlayerCamera.h"
 #include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_EnemyVision.h"
@@ -29,6 +30,7 @@
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
 #include "Game/Systems/Sys_ImGuiNavTest.h"
+#include "Game/Systems/Sys_ImGuiRenderDebug.h"
 #endif
 
 /**
@@ -79,7 +81,8 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_Dock] map entity id=" << entity_map);
 
     systems.Register<ECS::Sys_Input>        ( 10);
-    systems.Register<ECS::Sys_Camera>       ( 50);
+    systems.Register<ECS::Sys_PlayerCamera> (150);
+    systems.Register<ECS::Sys_Camera>       (155);
     systems.Register<ECS::Sys_Physics>      (100);
     systems.Register<ECS::Sys_EnemyVision>  (110);
     systems.Register<ECS::Sys_DeathJudgment>(125);
@@ -149,8 +152,9 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_EnemyAI>  (250);
 
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>        (300);
-    systems.Register<ECS::Sys_ImGuiNavTest> (310);
+    systems.Register<ECS::Sys_ImGui>             (300);
+    systems.Register<ECS::Sys_ImGuiNavTest>      (310);
+    systems.Register<ECS::Sys_ImGuiRenderDebug>  (450);
 #endif
 
     systems.AwakeAll(registry);

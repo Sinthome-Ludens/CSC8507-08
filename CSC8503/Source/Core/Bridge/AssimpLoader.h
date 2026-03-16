@@ -85,9 +85,9 @@
 // 包含 NCL 类型（用于返回值和参数）
 #include "Vector.h"
 
-// 前向声明 NCL Rendering 类型
 namespace NCL::Rendering {
     class OGLMesh;
+    class MeshAnimation;
 }
 
 namespace ECS {
@@ -138,6 +138,20 @@ public:
         std::vector<NCL::Maths::Vector3>& outVertices,
         std::vector<int>& outIndices
     );
+
+    /**
+     * @brief 从 FBX/GLTF 等文件加载骨骼动画剪辑，同时填充网格骨骼绑定姿态
+     *
+     * @param path       模型文件路径（含骨骼动画数据）
+     * @param meshToFill 需要填充 inverseBindPose / jointNames / jointParents 的目标网格，可为 nullptr
+     * @return MeshAnimation* 成功返回动画对象（堆分配，调用者负责释放），失败返回 nullptr
+     *
+     * @details
+     * 提取第一个动画剪辑，将所有帧的关节世界矩阵存储在 MeshAnimation::allJoints 中。
+     * 若 meshToFill 不为 nullptr，同时填充骨骼绑定信息（bindPose、inverseBindPose 等）。
+     */
+    static NCL::Rendering::MeshAnimation* LoadAnimation(const std::string& path,
+                                                         NCL::Rendering::OGLMesh* meshToFill = nullptr);
 
 private:
     AssimpLoader() = delete; // 禁止实例化
