@@ -18,6 +18,7 @@
  *  紧急更新修复
  */
 #include "Sys_Item.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Input.h"
@@ -64,6 +65,7 @@ void Sys_Item::OnAwake(Registry& registry) {
 // OnUpdate
 // ============================================================
 void Sys_Item::OnUpdate(Registry& registry, float /*dt*/) {
+    PAUSE_GUARD(registry);
     DetectPickup(registry);
     ProcessItemUseInput(registry);
 }

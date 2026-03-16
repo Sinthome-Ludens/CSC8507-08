@@ -10,6 +10,7 @@
  * - 通过 EntityID 语义的 Sys_Physics 接口冻结目标速度
  */
 #include "Sys_PlayerCQC.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_Transform.h"
@@ -62,6 +63,7 @@ static void ClearHighlight(Registry& registry, C_D_CQCState& cqc) {
 }
 
 void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Res_CQCConfig>()) return;
     const auto& config = registry.ctx<Res_CQCConfig>();
 

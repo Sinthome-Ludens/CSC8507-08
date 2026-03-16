@@ -17,6 +17,7 @@
  *  - TargetStrike：对最近敌人 hp 归零（触发 Sys_DeathJudgment）
  */
 #include "Sys_ItemEffects.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Health.h"
@@ -88,6 +89,7 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
 // OnUpdate
 // ============================================================
 void Sys_ItemEffects::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     UpdateHoloBait  (registry, dt);
     UpdateDDoSFrozen(registry, dt);
     UpdateRoamAI    (registry, dt);

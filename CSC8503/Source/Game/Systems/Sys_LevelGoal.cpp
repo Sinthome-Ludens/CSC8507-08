@@ -3,6 +3,7 @@
  * @brief 关卡目标系统实现：每帧检测玩家与终点区域的距离，到达即胜利。
  */
 #include "Sys_LevelGoal.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include <cmath>
 #include "Game/Components/C_D_Transform.h"
@@ -36,6 +37,7 @@ void Sys_LevelGoal::OnAwake(Registry& /*registry*/) {
  * @param dt       帧时间（未使用）
  */
 void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
+    PAUSE_GUARD(registry);
     if (m_FinishTriggered) return;
 
     // 获取玩家位置

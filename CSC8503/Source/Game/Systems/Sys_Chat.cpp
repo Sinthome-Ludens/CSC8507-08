@@ -6,6 +6,7 @@
  * - OnUpdate: 驱动对话流程（节点推进 / 方向键输入 / 倒计时 / 回复确认）。
  */
 #include "Sys_Chat.h"
+#include "Game/Utils/PauseGuard.h"
 
 #ifdef _MSC_VER
 #pragma warning(push)
@@ -197,6 +198,7 @@ void Sys_Chat::OnAwake(Registry& registry) {
 
 /** @brief 每帧驱动对话流程：模式切换 / 方向键输入 / 回复确认 / 超时 / NPC 消息调度。 */
 void Sys_Chat::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Res_ChatState>()) return;
     if (!registry.has_ctx<Res_UIState>()) return;
     if (!registry.has_ctx<Res_DialogueData>()) return;

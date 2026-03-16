@@ -210,16 +210,29 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                     UI::PushToast(registry, "PAUSE UNAVAILABLE IN MULTIPLAYER", ToastType::Warning);
                     LOG_INFO("[Sys_UI] HUD ESC blocked — multiplayer mode");
                 } else {
-                    ui.prePauseScreen = ui.activeScreen;
-                    ui.activeScreen = UIScreen::PauseMenu;
-                    ui.pauseSelectedIndex = 0;
-                    LOG_INFO("[Sys_UI] HUD -> PauseMenu (ESC)");
+                    // 倒计时激活时禁止暂停
+                    if (registry.has_ctx<Res_GameState>()
+                        && registry.ctx<Res_GameState>().countdownActive) {
+                        UI::PushToast(registry, "CANNOT PAUSE DURING COUNTDOWN", ToastType::Warning);
+                        LOG_INFO("[Sys_UI] HUD ESC blocked — countdown active");
+                    } else {
+                        ui.prePauseScreen = ui.activeScreen;
+                        ui.activeScreen = UIScreen::PauseMenu;
+                        ui.pauseSelectedIndex = 0;
+                        if (registry.has_ctx<Res_GameState>()) {
+                            registry.ctx<Res_GameState>().isPaused = true;
+                        }
+                        LOG_INFO("[Sys_UI] HUD -> PauseMenu (ESC) — game paused");
+                    }
                 }
                 break;
             }
             case UIScreen::PauseMenu:
                 ui.activeScreen = ui.prePauseScreen;
-                LOG_INFO("[Sys_UI] PauseMenu -> Resume (ESC)");
+                if (registry.has_ctx<Res_GameState>()) {
+                    registry.ctx<Res_GameState>().isPaused = false;
+                }
+                LOG_INFO("[Sys_UI] PauseMenu -> Resume (ESC) — game unpaused");
                 break;
             case UIScreen::Inventory:
                 ui.activeScreen = UIScreen::HUD;

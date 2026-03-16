@@ -11,6 +11,7 @@
  * - OnDestroy: 取消 EventBus 订阅
  */
 #include "Sys_DeathJudgment.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/C_D_Health.h"
 #include "Game/Components/C_D_Transform.h"
@@ -84,6 +85,7 @@ void Sys_DeathJudgment::OnAwake(Registry& registry) {
  * @param dt       帧时间（秒）
  */
 void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Res_DeathConfig>()) return;
     const auto& config = registry.ctx<Res_DeathConfig>();
 

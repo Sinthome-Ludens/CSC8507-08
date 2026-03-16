@@ -12,6 +12,7 @@
  * - `OnUpdate` 仅负责 Body 的创建/清理/参数同步，不执行步进。
  */
 #include "Sys_Physics.h"
+#include "Game/Utils/PauseGuard.h"
 #include "Game/Utils/Log.h"
 #include <iostream>
 #include <cfloat>
@@ -141,6 +142,7 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
  * @param dt       本帧变步长时间（秒，仅用于 gravity_factor 判断，不传入 Jolt）
  */
 void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     if (!m_PhysicsSystem) return;
 
     // 1. 检测并创建新实体的 Jolt Body（标准碰撞体）

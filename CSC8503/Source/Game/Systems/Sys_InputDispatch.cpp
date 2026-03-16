@@ -3,6 +3,7 @@
  * @brief 输入分发系统实现：Res_Input → per-entity C_D_Input。
  */
 #include "Sys_InputDispatch.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Keyboard.h"
 
@@ -16,6 +17,7 @@
 namespace ECS {
 
 void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Res_Input>()) return;
     auto& res = registry.ctx<Res_Input>();
 

@@ -7,6 +7,7 @@
  * 根据 is_spotted 增减 detection_value，并按阈值切换 Safe/Search/Alert/Hunt 状态。
  */
 #include "Sys_EnemyAI.h"
+#include "Game/Utils/PauseGuard.h"
 #include <algorithm>
 #include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/C_D_AIState.h"
@@ -25,6 +26,7 @@ namespace ECS {
      * @param dt       帧时间（秒）
      */
     void Sys_EnemyAI::OnUpdate(Registry& registry, float dt) {
+        PAUSE_GUARD(registry);
         // 预查找玩家位置（接触即发现用）
         NCL::Maths::Vector3 playerPos{};
         bool hasPlayer = false;

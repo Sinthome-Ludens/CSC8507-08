@@ -1,4 +1,5 @@
 #include "Sys_Countdown.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_UIState.h"
@@ -7,6 +8,7 @@
 namespace ECS {
 
 void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Res_GameState>()) return;
     if (!registry.has_ctx<Res_UIState>()) return;
 

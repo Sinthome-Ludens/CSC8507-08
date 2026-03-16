@@ -10,6 +10,7 @@
 #include <algorithm>
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_GameState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
@@ -787,6 +788,9 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
         switch (confirmedIndex) {
             case 0: // RESUME
                 ui.activeScreen = ui.prePauseScreen;
+                if (registry.has_ctx<Res_GameState>()) {
+                    registry.ctx<Res_GameState>().isPaused = false;
+                }
                 LOG_INFO("[UI_Menus] PauseMenu -> Resume");
                 break;
             case 1: // SETTINGS
@@ -795,6 +799,9 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
                 LOG_INFO("[UI_Menus] PauseMenu -> Settings");
                 break;
             case 2: // RETURN TO MENU
+                if (registry.has_ctx<Res_GameState>()) {
+                    registry.ctx<Res_GameState>().isPaused = false;
+                }
                 ui.pendingSceneRequest = SceneRequest::ReturnToMenu;
                 LOG_INFO("[UI_Menus] PauseMenu -> ReturnToMenu");
                 break;
