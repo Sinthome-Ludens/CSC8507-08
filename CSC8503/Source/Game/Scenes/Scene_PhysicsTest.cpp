@@ -178,7 +178,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);   // 伪装切换、C_T_Hidden 管理
     systems.Register<ECS::Sys_PlayerStance>    ( 60);   // 蹲/站切换、碰撞体替换
     systems.Register<ECS::Sys_StealthMetrics>  ( 62);   // 奔跑、速度乘数、噪音、可见度
-    systems.Register<ECS::Sys_PlayerCQC>       ( 63);   // CQC 近身制服 + 拟态
+    systems.Register<ECS::Sys_PlayerCQC>       ( 63);   // CQC 近身制服 + 目标选择
     systems.Register<ECS::Sys_Movement>        ( 65);   // 物理移动
     systems.Register<ECS::Sys_Physics>         (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyVision>    (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
