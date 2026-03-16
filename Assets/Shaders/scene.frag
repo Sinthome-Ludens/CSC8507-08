@@ -15,8 +15,8 @@ in Vertex {
 } IN;
 
 // ── 纹理 ────────────────────────────────────────────────────
-uniform sampler2D mainTex; // unit 0 (albedo/diffuse)
-uniform sampler2D bumpTex; // unit 1 (切线空间法线贴图)
+uniform sampler2D albedoTex; // unit 0 (albedo/diffuse)
+uniform sampler2D normalTex; // unit 1 (切线空间法线贴图)
 
 // ── 阴影贴图（CSM 三级联 unit 5-7，原始深度）─────────────────
 uniform sampler2D shadowTex0;
@@ -109,13 +109,13 @@ float SampleShadowCSM(sampler2D shadowMap, mat4 shadowMat, vec3 worldPos,
 void main() {
     // ── Albedo ───────────────────────────────────────────────
     vec4 albedo = IN.colour;
-    if (hasTexture) albedo *= texture(mainTex, IN.texCoord);
+    if (hasTexture) albedo *= texture(albedoTex, IN.texCoord);
     if (alphaMode == 1 && albedo.a < alphaCutoff) discard; // Alpha Mask
 
     // ── 法线 ────────────────────────────────────────────────
     vec3 N;
     if (hasBumpTex) {
-        vec3 ns = texture(bumpTex, IN.texCoord).rgb * 2.0 - 1.0;
+        vec3 ns = texture(normalTex, IN.texCoord).rgb * 2.0 - 1.0;
         N = normalize(IN.TBN * ns);
     } else {
         N = normalize(IN.normal);

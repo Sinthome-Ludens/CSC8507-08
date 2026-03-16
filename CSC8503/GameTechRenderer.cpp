@@ -458,37 +458,37 @@ void GameTechRenderer::GenerateIBL() {
 // ComputeCascadeMatrices
 // ============================================================
 
-void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const Matrix4& /*projMatrix*/) {
+void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const Matrix4& projMatrix) {
     Vector3 sunPos = gameWorld.GetSunPosition();
     m_lightViewMat = Matrix::View(sunPos, Vector3(0, 0, 0), Vector3(0, 1, 0));
+
+    // projMatrix.array[1][1] = 1/tan(halfFovV) — 对行列主序均成立（对角线元素）
+    float tanFovV = 1.0f / projMatrix.array[1][1];
+    float aspect  = hostWindow.GetScreenAspect();
+    float tanFovH = tanFovV * aspect;
 
     float nearPrev = 0.1f;
     for (int c = 0; c < NUM_CASCADES; c++) {
         float farDist = m_cascadeSplits[c];
 
-        // 相机视锥 8 个角点（近/远裁剪平面的4个角）
-        // 使用简化的正交拟合：以相机位置+方向为中心构建包围球
         Vector3 camPos   = gameWorld.GetMainCamera().GetPosition();
         Vector3 camFwd   = Vector3(-viewMatrix.array[0][2], -viewMatrix.array[1][2], -viewMatrix.array[2][2]);
         Vector3 camRight = Vector3( viewMatrix.array[0][0],  viewMatrix.array[1][0],  viewMatrix.array[2][0]);
         Vector3 camUp    = Vector3( viewMatrix.array[0][1],  viewMatrix.array[1][1],  viewMatrix.array[2][1]);
 
-        float halfFar   = farDist * 0.5f;
-        float halfNear  = nearPrev * 0.5f;
-        Vector3 center  = camPos + camFwd * (nearPrev + halfFar);
+        // 正确的视锥角点：halfW/H = distance * tan(halfFov)，XY 分量独立
+        float nearW = nearPrev * tanFovH, nearH = nearPrev * tanFovV;
+        float farW  = farDist  * tanFovH, farH  = farDist  * tanFovV;
 
-        // 转到光照空间，计算 AABB
         Vector3 corners[8];
-        float aspect = hostWindow.GetScreenAspect();
-        float tanFov = std::tan(3.14159265f / 8.0f); // 近似 45° FOV 的 half-tan
-        corners[0] = camPos + camFwd * nearPrev + (-camRight - camUp) * halfNear * tanFov * aspect;
-        corners[1] = camPos + camFwd * nearPrev + ( camRight - camUp) * halfNear * tanFov * aspect;
-        corners[2] = camPos + camFwd * nearPrev + (-camRight + camUp) * halfNear * tanFov;
-        corners[3] = camPos + camFwd * nearPrev + ( camRight + camUp) * halfNear * tanFov;
-        corners[4] = camPos + camFwd * farDist  + (-camRight - camUp) * halfFar  * tanFov * aspect;
-        corners[5] = camPos + camFwd * farDist  + ( camRight - camUp) * halfFar  * tanFov * aspect;
-        corners[6] = camPos + camFwd * farDist  + (-camRight + camUp) * halfFar  * tanFov;
-        corners[7] = camPos + camFwd * farDist  + ( camRight + camUp) * halfFar  * tanFov;
+        corners[0] = camPos + camFwd * nearPrev - camRight * nearW - camUp * nearH;
+        corners[1] = camPos + camFwd * nearPrev + camRight * nearW - camUp * nearH;
+        corners[2] = camPos + camFwd * nearPrev - camRight * nearW + camUp * nearH;
+        corners[3] = camPos + camFwd * nearPrev + camRight * nearW + camUp * nearH;
+        corners[4] = camPos + camFwd * farDist  - camRight * farW  - camUp * farH;
+        corners[5] = camPos + camFwd * farDist  + camRight * farW  - camUp * farH;
+        corners[6] = camPos + camFwd * farDist  - camRight * farW  + camUp * farH;
+        corners[7] = camPos + camFwd * farDist  + camRight * farW  + camUp * farH;
 
         Vector3 minLS(1e9f, 1e9f, 1e9f), maxLS(-1e9f, -1e9f, -1e9f);
         for (int i = 0; i < 8; i++) {
