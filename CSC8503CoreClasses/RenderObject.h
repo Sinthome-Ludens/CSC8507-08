@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 
 namespace NCL {
 	namespace Rendering {
@@ -96,6 +97,10 @@ namespace NCL {
 			{
 				return material;
 			}
+
+			// ── 骨骼蒙皮（由 Sys_Render 每帧写入，GameTechRenderer 上传到 shader）──
+			bool                 useSkinning     = false;
+			std::vector<Matrix4> skinBoneMatrices; ///< 仅在 useSkinning 时填充
 
 		protected:
 			Transform&	transform;

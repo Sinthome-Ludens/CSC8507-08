@@ -812,6 +812,14 @@ void GameTechRenderer::DrawObject(OGLShader* shader,
     // 双面渲染
     if (mat.doubleSided) glDisable(GL_CULL_FACE);
 
+    // 骨骼蒙皮
+    glUniform1i(ul("useSkinning"), o->useSkinning ? 1 : 0);
+    if (o->useSkinning && !o->skinBoneMatrices.empty()) {
+        int count = (int)o->skinBoneMatrices.size();
+        glUniformMatrix4fv(ul("boneMatrices"), count, false,
+                           (float*)o->skinBoneMatrices.data());
+    }
+
     OGLMesh* mesh = (OGLMesh*)o->GetMesh();
     BindMesh(*mesh);
     size_t layerCount = mesh->GetSubMeshCount();

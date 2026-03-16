@@ -14,6 +14,7 @@
 #include "Sys_Render.h"
 #include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/C_D_CQCHighlight.h"
+#include "Game/Components/C_D_Animation.h"
 #include "Game/Utils/Log.h"
 #include "Matrix.h"
 #include "OGLMesh.h"
@@ -223,6 +224,18 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
         if (ro) {
             auto& mat = ro->GetMaterial();
             mat.rimStrength = 0.0f;
+        }
+    }
+
+    // 骨骼蒙皮同步（S7-E）：将 C_D_Animation.boneMatrices 拷贝到代理 RenderObject
+    if (reg.Has<C_D_Animation>(id)) {
+        auto* ro = proxy->GetRenderObject();
+        if (ro) {
+            const auto& anim = reg.Get<C_D_Animation>(id);
+            ro->useSkinning = true;
+            ro->skinBoneMatrices.assign(
+                anim.boneMatrices,
+                anim.boneMatrices + C_D_Animation::MAX_BONES);
         }
     }
 }
