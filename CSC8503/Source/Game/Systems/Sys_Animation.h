@@ -11,8 +11,6 @@
  * 执行优先级：50（Sys_Physics = 100 之前，确保骨骼姿态先于物理更新）
  */
 #pragma once
-#ifdef USE_IMGUI // 仅在带调试功能的构建中完整启用（非 ImGui 构建也可工作）
-#endif
 
 #include "Core/ECS/BaseSystem.h"
 #include "Game/Components/C_D_Animation.h"

@@ -1,4 +1,14 @@
+/**
+ * @file RenderObject.h
+ * @brief NCL 渲染代理对象：封装 Mesh、Transform 及扩展 PBR/Alpha 材质参数（GameTechMaterial）。
+ *
+ * @details
+ * `RenderObject` 是 ECS 实体在 NCL GameWorld 中的渲染代理载体。
+ * `GameTechMaterial` 扩展了原始材质结构，新增 ORM/Emissive 纹理、Alpha 模式、骨骼蒙皮支持，
+ * 供 `GameTechRenderer` 在 opaque / alpha-mask / transparent pass 中分发材质绑定。
+ */
 #pragma once
+#include <cstdint>
 #include <vector>
 
 namespace NCL {

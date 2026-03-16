@@ -11,6 +11,9 @@
 #include "OGLMesh.h"
 #include "MeshAnimation.h"
 
+#include <cmath>
+#include <algorithm>
+
 using namespace NCL;
 using namespace NCL::Rendering;
 using namespace NCL::Maths;

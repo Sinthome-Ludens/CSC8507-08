@@ -13,7 +13,7 @@
  *
  * 通过 `Res_NCL_Pointers::renderer` 动态转换为 `GameTechRenderer*` 后调用其 setter。
  *
- * 执行优先级：450（介于 Sys_Render=400 和 Sys_UI=500 之间）
+ * 执行优先级：420（介于 Sys_Render=400 和 Sys_UI=500 之间）
  */
 #pragma once
 #ifdef USE_IMGUI

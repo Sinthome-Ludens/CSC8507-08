@@ -183,7 +183,10 @@ public:
 
     /**
      * @brief 解析 TextureHandle 为实际的 Texture 基类指针。
-     * @param handle 目标 Handle，若为 0 则返回默认紫黑格纹理
+     * @param handle 目标 Handle，若为无效值则按上下文返回类型特定的默认纹理：
+     *               albedo → 1×1 白色，normal → 1×1 切线空间中性蓝，
+     *               ORM → 1×1 (occlusion=0, roughness=0.5, metallic=0)，
+     *               emissive → 1×1 黑色。
      * @return Texture 指针（非空）
      */
     NCL::Rendering::Texture* GetTexture(TextureHandle handle);

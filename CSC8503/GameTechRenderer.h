@@ -60,7 +60,9 @@ namespace NCL {
             void SetDebugCascades(bool v)         { m_debugCascades = v; }
             void SetShowSSAOBuffer(bool v)        { m_showSSAOBuffer = v; }
             void SetShowBloomBuffer(bool v)       { m_showBloomBuffer = v; }
+            /// @brief 设置 slope-scaled shadow bias，防止 shadow acne（单位：光照空间深度偏移量）
             void SetShadowBiasSlope(float v)      { m_shadowBiasSlope = v; }
+            /// @brief 设置 constant shadow bias，防止 shadow acne（单位：光照空间深度偏移量）
             void SetShadowBiasConstant(float v)   { m_shadowBiasConstant = v; }
 
         protected:

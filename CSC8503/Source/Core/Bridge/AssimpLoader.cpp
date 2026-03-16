@@ -303,11 +303,9 @@ MeshAnimation* AssimpLoader::LoadAnimation(const std::string& path, OGLMesh* mes
     const aiScene* scene = importer.ReadFile(path,
         aiProcess_Triangulate | aiProcess_LimitBoneWeights);
 
-    if (!scene || !(scene->mFlags & AI_SCENE_FLAGS_NON_VERBOSE_FORMAT == 0)) {
-        if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-            LOG_ERROR("[AssimpLoader] LoadAnimation failed: " << importer.GetErrorString());
-            return nullptr;
-        }
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        LOG_ERROR("[AssimpLoader] LoadAnimation failed: " << importer.GetErrorString());
+        return nullptr;
     }
 
     if (scene->mNumAnimations == 0) {
@@ -320,19 +318,12 @@ MeshAnimation* AssimpLoader::LoadAnimation(const std::string& path, OGLMesh* mes
     const float  ticksPerSec = (anim->mTicksPerSecond > 0.0) ? (float)anim->mTicksPerSecond : 25.0f;
     const size_t frameCount  = (size_t)anim->mDuration + 1;
 
-    // 构建关节名→索引映射
+    // 构建关节名→索引映射（始终从动画通道构建，确保 meshToFill==nullptr 时也能正确匹配骨骼）
     std::unordered_map<std::string, int> jointIndexMap;
-    if (meshToFill) {
-        // 需要读取 jointNames，但 Mesh 没有公开此接口；改从 Assimp mesh 构建
-        for (unsigned int m = 0; m < scene->mNumMeshes; m++) {
-            const aiMesh* aiMesh = scene->mMeshes[m];
-            for (unsigned int b = 0; b < aiMesh->mNumBones; b++) {
-                std::string boneName(aiMesh->mBones[b]->mName.C_Str());
-                if (jointIndexMap.find(boneName) == jointIndexMap.end()) {
-                    int idx = (int)jointIndexMap.size();
-                    jointIndexMap[boneName] = idx;
-                }
-            }
+    for (unsigned int ch = 0; ch < anim->mNumChannels; ch++) {
+        std::string chanName(anim->mChannels[ch]->mNodeName.C_Str());
+        if (jointIndexMap.find(chanName) == jointIndexMap.end()) {
+            jointIndexMap[chanName] = (int)jointIndexMap.size();
         }
     }
 

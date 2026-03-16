@@ -78,6 +78,12 @@ void Sys_Render::OnDestroy(Registry& registry) {
 // ============================================================
 // 辅助：将 ECS C_D_Material 同步到 NCL GameTechMaterial
 // ============================================================
+/**
+ * @brief 将 ECS C_D_Material 字段逐一映射到 NCL GameTechMaterial 结构体。
+ * @details 纹理解析通过 AssetManager::GetTexture()；无效 Handle 回退到对应默认纹理，
+ *          避免渲染层收到 nullptr 导致 GPU 侧未定义行为。着色模型、Alpha 模式直接
+ *          static_cast 映射（两侧枚举值保持一一对应）。
+ */
 static void SyncMaterial(GameTechMaterial& nclMat, const C_D_Material& ecsMat) {
     auto& am = AssetManager::Instance();
 
@@ -126,6 +132,12 @@ static void SyncMaterial(GameTechMaterial& nclMat, const C_D_Material& ecsMat) {
 // ============================================================
 // CreateProxy
 // ============================================================
+/**
+ * @brief 为 ECS 实体在 GameWorld 中创建 NCL GameObject 代理对象。
+ * @details 从 AssetManager 解析 MeshHandle 取得 OGLMesh 指针，分配 GameObject 并调用
+ *          SyncMaterial() 初始化材质；透明模式下将 MaterialType 设为 Transparent。
+ *          代理指针写入 m_ProxyObjects 映射，随后发布 Evt_Render_ProxyCreated 事件。
+ */
 void Sys_Render::CreateProxy(Registry& reg, EntityID id,
                               const C_D_Transform& tf, const C_D_MeshRenderer& mr)
 {
@@ -181,6 +193,12 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
 // ============================================================
 // SyncProxy
 // ============================================================
+/**
+ * @brief 将 ECS Transform、Material、视觉覆盖及骨骼蒙皮状态同步到现有代理对象。
+ * @details 每帧调用：先更新 Transform，再按优先级处理视觉覆盖（DeathVisual > CQCHighlight >
+ *          默认清零）；若存在 C_D_Animation 则写入骨骼矩阵并开启 useSkinning，否则
+ *          显式关闭 useSkinning 防止残留脏值。
+ */
 void Sys_Render::SyncProxy(Registry& reg, EntityID id,
                             NCL::CSC8503::GameObject* proxy, const C_D_Transform& tf)
 {
@@ -238,6 +256,9 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
                 anim.boneMatrices,
                 anim.boneMatrices + C_D_Animation::MAX_BONES);
         }
+    } else {
+        auto* ro = proxy->GetRenderObject();
+        if (ro) ro->useSkinning = false;
     }
 }
 

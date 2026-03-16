@@ -404,13 +404,13 @@ void GameTechRenderer::GenerateIBL() {
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 32, 32);
         glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
         UseShader(*m_iblIrradianceShader);
-        int skyLoc = glGetUniformLocation(m_iblIrradianceShader->GetProgramID(), "skybox");
+        int skyLoc = glGetUniformLocation(m_iblIrradianceShader->GetProgramID(), "environmentMap");
         glUniform1i(skyLoc, 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTex);
         glViewport(0, 0, 32, 32);
         for (int face = 0; face < 6; face++) {
-            int faceLoc = glGetUniformLocation(m_iblIrradianceShader->GetProgramID(), "faceIndex");
+            int faceLoc = glGetUniformLocation(m_iblIrradianceShader->GetProgramID(), "face");
             glUniform1i(faceLoc, face);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                    GL_TEXTURE_CUBE_MAP_POSITIVE_X + face, m_irradianceMap, 0);
@@ -422,9 +422,9 @@ void GameTechRenderer::GenerateIBL() {
     // ── Prefilter Map（6 faces × 5 mip levels）────────
     if (m_iblPrefilterShader) {
         UseShader(*m_iblPrefilterShader);
-        int skyLoc  = glGetUniformLocation(m_iblPrefilterShader->GetProgramID(), "skybox");
+        int skyLoc  = glGetUniformLocation(m_iblPrefilterShader->GetProgramID(), "environmentMap");
         int roughLoc = glGetUniformLocation(m_iblPrefilterShader->GetProgramID(), "roughness");
-        int faceLoc = glGetUniformLocation(m_iblPrefilterShader->GetProgramID(), "faceIndex");
+        int faceLoc = glGetUniformLocation(m_iblPrefilterShader->GetProgramID(), "face");
         glUniform1i(skyLoc, 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTex);
@@ -1035,7 +1035,7 @@ void GameTechRenderer::RenderPostProcessChain() {
         UseShader(*m_ssaoBlurShader);
         pid = m_ssaoBlurShader->GetProgramID();
         glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, m_ssaoTex);
-        glUniform1i(glGetUniformLocation(pid, "ssaoInput"), 0);
+        glUniform1i(glGetUniformLocation(pid, "ssaoRawTex"), 0);
         glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, m_hdrDepthTex);
         glUniform1i(glGetUniformLocation(pid, "depthTex"), 1);
         glUniform2f(glGetUniformLocation(pid, "texelSize"), invW, invH);
@@ -1049,8 +1049,8 @@ void GameTechRenderer::RenderPostProcessChain() {
         UseShader(*m_bloomExtractShader);
         GLuint pid = m_bloomExtractShader->GetProgramID();
         glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, m_hdrColorTex);
-        glUniform1i(glGetUniformLocation(pid, "hdrTex"), 0);
-        glUniform1f(glGetUniformLocation(pid, "threshold"), m_bloomThreshold);
+        glUniform1i(glGetUniformLocation(pid, "hdrColorTex"), 0);
+        glUniform1f(glGetUniformLocation(pid, "bloomThreshold"), m_bloomThreshold);
         DrawFullscreenTriangle();
 
         // Kawase Blur × 5 ping-pong
@@ -1061,7 +1061,7 @@ void GameTechRenderer::RenderPostProcessChain() {
                 UseShader(*m_bloomBlurShader);
                 GLuint bpid = m_bloomBlurShader->GetProgramID();
                 glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, m_ppTex[src]);
-                glUniform1i(glGetUniformLocation(bpid, "inputTex"), 0);
+                glUniform1i(glGetUniformLocation(bpid, "bloomTex"), 0);
                 glUniform1i(glGetUniformLocation(bpid, "iteration"), iter);
                 glUniform2f(glGetUniformLocation(bpid, "texelSize"), invW, invH);
                 DrawFullscreenTriangle();
