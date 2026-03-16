@@ -54,6 +54,7 @@
 #include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_ImGuiEnemyAI.h"
 #include "Game/Systems/Sys_ImGuiNavTest.h"
+#include "Game/Systems/Sys_ImGuiRenderDebug.h"
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Systems/Sys_Chat.h"
 #include "Game/Components/Res_GameState.h"
@@ -343,6 +344,7 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGuiEntityDebug>  (305);   // 全量实体列表 + 详情面板
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 敌人状态监控表格
     systems.Register<ECS::Sys_ImGuiNavTest>      (315);   // NavTest 敌人/目标生成控制面板
+    systems.Register<ECS::Sys_ImGuiRenderDebug>  (320);   // 渲染调试面板
     systems.Register<ECS::Sys_Chat>              (450);   // 对话逻辑（在 UI 之前）
     systems.Register<ECS::Sys_UI>                (500);   // UI 渲染 + 输入导航
 #endif

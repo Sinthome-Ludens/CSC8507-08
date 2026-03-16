@@ -57,6 +57,7 @@
 #include "Game/Components/Res_ItemInventory2.h"
 #include "Game/Components/Res_RadarState.h"
 #include "Game/UI/UI_Toast.h"
+#include "Game/Systems/Sys_ImGuiRenderDebug.h"
 #endif
 
 // ============================================================
@@ -195,6 +196,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGuiEntityDebug>  (305);   // 全量实体列表 + 详情面板
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 通用敌人状态监控表格（场景无关）
     systems.Register<ECS::Sys_ImGuiPhysicsTest>  (320);   // PhysicsTest 场景敌人生成/删除控制面板
+    systems.Register<ECS::Sys_ImGuiRenderDebug>  (445);   // 渲染参数调试面板
     systems.Register<ECS::Sys_Chat>              (450);   // 对话逻辑（在 UI 之前）
     systems.Register<ECS::Sys_UI>                (500);   // UI 渲染 + 输入导航
 #endif

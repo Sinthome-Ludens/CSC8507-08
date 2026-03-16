@@ -29,6 +29,7 @@
 #include "Game/Systems/Sys_ImGui.h"
 #include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_ImGuiNavTest.h"
+#include "Game/Systems/Sys_ImGuiRenderDebug.h"
 #endif
 
 // ============================================================
@@ -110,6 +111,7 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGui>           (300);   // 菜单栏 + 性能窗口
     systems.Register<ECS::Sys_ImGuiEntityDebug>(305);   // 全量实体列表 + 详情面板
     systems.Register<ECS::Sys_ImGuiNavTest>    (310);   // NavTest 敌人/目标生成控制面板
+    systems.Register<ECS::Sys_ImGuiRenderDebug>(450);   // 渲染参数调试面板
 #endif
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────

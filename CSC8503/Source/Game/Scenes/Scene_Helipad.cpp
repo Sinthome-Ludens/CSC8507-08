@@ -54,6 +54,7 @@
 #include "Game/Systems/Sys_ImGuiEntityDebug.h"
 #include "Game/Systems/Sys_ImGuiEnemyAI.h"
 #include "Game/Systems/Sys_ImGuiNavTest.h"
+#include "Game/Systems/Sys_ImGuiRenderDebug.h"
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Systems/Sys_Chat.h"
 #include "Game/Components/Res_GameState.h"
@@ -309,6 +310,7 @@ void Scene_Helipad::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGuiEntityDebug>  (305);
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);
     systems.Register<ECS::Sys_ImGuiNavTest>      (315);
+    systems.Register<ECS::Sys_ImGuiRenderDebug>  (320);
     systems.Register<ECS::Sys_Chat>              (450);
     systems.Register<ECS::Sys_UI>                (500);
 #endif

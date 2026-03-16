@@ -65,6 +65,7 @@
 #include "Game/Components/Res_ItemInventory2.h"
 #include "Game/Components/Res_RadarState.h"
 #include "Game/UI/UI_Toast.h"
+#include "Game/Systems/Sys_ImGuiRenderDebug.h"
 #endif
 
 // ============================================================
@@ -345,6 +346,7 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGuiEntityDebug>  (305);   // 全量实体列表 + 详情面板
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 敌人状态监控表格
     systems.Register<ECS::Sys_ImGuiNavTest>      (315);   // NavTest 敌人/目标生成控制面板
+    systems.Register<ECS::Sys_ImGuiRenderDebug>  (420);   // 渲染参数调试面板
     systems.Register<ECS::Sys_Chat>              (450);   // 对话逻辑（在 UI 之前）
     systems.Register<ECS::Sys_UI>                (500);   // UI 渲染 + 输入导航
 #endif
