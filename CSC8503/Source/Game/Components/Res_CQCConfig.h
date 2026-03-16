@@ -1,3 +1,7 @@
+/**
+ * @file Res_CQCConfig.h
+ * @brief CQC 系统配置资源（数据驱动，注册到 registry ctx）。
+ */
 #pragma once
 
 #include "Vector.h"

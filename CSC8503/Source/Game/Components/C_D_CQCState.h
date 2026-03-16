@@ -1,3 +1,7 @@
+/**
+ * @file C_D_CQCState.h
+ * @brief 玩家 CQC 交互状态组件（POD）。
+ */
 #pragma once
 
 #include "Core/ECS/EntityID.h"

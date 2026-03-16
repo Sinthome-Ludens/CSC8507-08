@@ -1,3 +1,7 @@
+/**
+ * @file Sys_InputDispatch.cpp
+ * @brief 输入分发系统实现：Res_Input → per-entity C_D_Input。
+ */
 #include "Sys_InputDispatch.h"
 
 #include "Keyboard.h"

@@ -1,4 +1,5 @@
 /**
+ * @file Sys_PlayerCQC.cpp
  * @brief 玩家 CQC（近战制服）系统实现：目标选择 + 高亮管理 + 状态机推进。
  *
  * @details

@@ -1,3 +1,7 @@
+/**
+ * @file Sys_PlayerCQC.h
+ * @brief CQC 近身制服系统声明。
+ */
 #pragma once
 
 #include "Core/ECS/BaseSystem.h"

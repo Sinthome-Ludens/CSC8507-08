@@ -1,3 +1,7 @@
+/**
+ * @file C_D_EnemyDormant.h
+ * @brief 敌人休眠状态组件（CQC 制服后标记）。
+ */
 #pragma once
 
 namespace ECS {

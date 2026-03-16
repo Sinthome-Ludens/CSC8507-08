@@ -1,3 +1,7 @@
+/**
+ * @file Scene_PhysicsTest.h
+ * @brief 物理测试场景声明（ECS 架构验证场景）。
+ */
 #pragma once
 
 #include "IScene.h"

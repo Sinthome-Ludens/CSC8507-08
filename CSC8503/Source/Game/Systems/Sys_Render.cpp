@@ -171,13 +171,11 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
             mat.rimStrength   = hl.rimStrength;
         }
     } else {
-        // 无特殊效果：重置 rim 和颜色到默认值
+        // 无视觉覆盖：仅清零 rim 高亮参数，不碰 SyncMaterial 已同步的值
         auto* ro = proxy->GetRenderObject();
         if (ro) {
-            ro->SetColour({1.0f, 1.0f, 1.0f, 1.0f});
             auto& mat = ro->GetMaterial();
-            mat.emissiveColor = {0.0f, 0.0f, 0.0f};
-            mat.rimStrength   = 0.0f;
+            mat.rimStrength = 0.0f;
         }
     }
 }

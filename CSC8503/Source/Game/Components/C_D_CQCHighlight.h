@@ -1,3 +1,7 @@
+/**
+ * @file C_D_CQCHighlight.h
+ * @brief CQC 目标选中边缘高亮标记组件。
+ */
 #pragma once
 
 #include "Vector.h"
