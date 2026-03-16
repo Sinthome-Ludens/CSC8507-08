@@ -298,6 +298,13 @@ public:
                        float dx, float dy, float dz,
                        float maxDist);
 
+    /// CastRay 带忽略实体列表（跳过指定实体的碰撞体）
+    RaycastHit CastRayIgnoring(float ox, float oy, float oz,
+                               float dx, float dy, float dz,
+                               float maxDist,
+                               EntityID ignoreA,
+                               EntityID ignoreB = Entity::NULL_ENTITY);
+
     /**
      * @brief 按实体 ID 将碰撞体替换为 Capsule。
      * @details 用于站立/蹲伏姿态切换时的碰撞体重构。

@@ -44,6 +44,7 @@
 #include "Game/Components/C_T_Pathfinder.h"
 #include "Game/Components/C_T_NavTarget.h"
 #include "Game/Components/C_T_TriggerZone.h"
+#include "Game/Components/C_T_FinishZone.h"
 #include "Game/Utils/Log.h"
 
 #include <cstring>
@@ -292,10 +293,12 @@ EntityID PrefabFactory::CreateFinishZoneMesh(
     tri.indices     = collisionIndices;
     tri.friction    = 0.0f;
     tri.restitution = 0.0f;
+    tri.is_trigger  = true;
     reg.Emplace<C_D_TriMeshCollider>(entity, std::move(tri));
 
-    // C_T_TriggerZone 标签（供游戏逻辑检测终点到达）
+    // C_T_TriggerZone + C_T_FinishZone 标签（供 Sys_LevelGoal 检测终点到达）
     reg.Emplace<C_T_TriggerZone>(entity);
+    reg.Emplace<C_T_FinishZone>(entity);
 
     // C_D_Material（红色基础颜色，匹配 TutorialMap_finish.mtl 的 Kd 1 0 0）
     C_D_Material mat{};

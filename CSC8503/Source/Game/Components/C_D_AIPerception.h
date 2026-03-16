@@ -11,8 +11,8 @@
 namespace ECS {
     struct C_D_AIPerception {
         float detection_value          = 0.0f;
-        float detection_value_increase = 15.0f;
-        float detection_value_decrease = 5.0f;
+        float detection_value_increase = 8.0f;   ///< 视野内每秒增长（0→Hunt 80 约 10 秒）
+        float detection_value_decrease = 15.0f;  ///< 视野外每秒衰减
         bool  is_spotted               = false;
         float hunt_lock_timer          = 0.0f; // Hunt 状态锁定计时器
 

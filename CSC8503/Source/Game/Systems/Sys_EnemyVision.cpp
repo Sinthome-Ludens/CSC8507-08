@@ -26,6 +26,11 @@
 #include <cmath>
 #include <cfloat>
 
+#ifdef USE_IMGUI
+#include "Debug.h"
+#include "Game/Components/Res_UIFlags.h"
+#endif
+
 using namespace NCL::Maths;
 
 namespace ECS {
@@ -45,6 +50,8 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
     // 预计算半角余弦阈值
     const float halfAngleRad = (config.fovDegrees * 0.5f) * (PI / 180.0f);
     const float cosHalfFov = std::cos(halfAngleRad);
+
+    (void)config.closeRange;  // 近距离感知已移除，仅保留正向视锥
 
     // ── 1. 预收集玩家列表（避免嵌套 view） ──
     struct PlayerEntry {
@@ -113,23 +120,17 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
                 // 重叠位置直接判定为发现
                 if (distXZ < 0.001f) {
                     spotted = true;
-                } else {
+                } else if (hasFwd) {
+                    // 扇形视锥检测（仅正向 FOV）
+                    float tpx = dx / distXZ;
+                    float tpz = dz / distXZ;
+                    float dotVal = efx * tpx + efz * tpz;
 
-                    // C. 近距离 360° 感知
-                    if (distXZ <= config.closeRange) {
-                        spotted = true;
-                    } else if (hasFwd) {
-                        // D. 扇形视锥检测
-                        float tpx = dx / distXZ;
-                        float tpz = dz / distXZ;
-                        float dotVal = efx * tpx + efz * tpz;
-
-                        if (dotVal < cosHalfFov) continue;
-                        spotted = true;
-                    }
+                    if (dotVal < cosHalfFov) continue;
+                    spotted = true;
                 }
 
-                // E. 遮挡检测（射线偏移 + 过滤自身/玩家）
+                // E. 遮挡检测（射线忽略敌人和玩家自身碰撞体）
                 if (spotted && physics) {
                     float rayOx = enemyTf.position.x;
                     float rayOy = enemyTf.position.y + config.rayOriginHeight;
@@ -145,10 +146,12 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
                     float rayDist = std::sqrt(rayDx * rayDx + rayDy * rayDy + rayDz * rayDz);
 
                     if (rayDist > 0.001f) {
-                        auto hit = physics->CastRay(rayOx, rayOy, rayOz,
-                                                    rayDx, rayDy, rayDz, rayDist);
-                        if (hit.hit && hit.entity != enemyId && hit.entity != player.id) {
-                            // 命中第三者（墙壁/障碍物）= 有遮挡
+                        auto hit = physics->CastRayIgnoring(
+                            rayOx, rayOy, rayOz,
+                            rayDx, rayDy, rayDz, rayDist,
+                            enemyId, player.id);
+                        if (hit.hit) {
+                            // 命中墙壁/障碍物 = 有遮挡
                             spotted = false;
                         }
                     }
@@ -158,6 +161,40 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
             }
 
             perception.is_spotted = spotted;
+
+#ifdef USE_IMGUI
+            // FOV 可视化：仅线框模式下画扇形视锥轮廓
+            bool wireframe = false;
+            if (registry.has_ctx<Res_UIFlags>()) {
+                wireframe = registry.ctx<Res_UIFlags>().wireframeMode;
+            }
+            if (wireframe && hasFwd) {
+                const float drawDist = config.maxDistance;
+                const float eyeY = enemyTf.position.y + config.rayOriginHeight;
+                Vector3 origin(enemyTf.position.x, eyeY, enemyTf.position.z);
+
+                // 颜色：发现玩家 = 红，否则 = 绿
+                Vector4 colour = spotted ? Vector4(1, 0, 0, 1) : Vector4(0, 1, 0, 1);
+
+                // 扇形边缘线（左右各 halfAngle）
+                float cosHA = std::cos(halfAngleRad);
+                float sinHA = std::sin(halfAngleRad);
+
+                // 左边界：旋转 forward 逆时针 halfAngle
+                Vector3 leftDir(efx * cosHA - efz * sinHA, 0, efz * cosHA + efx * sinHA);
+                // 右边界：旋转 forward 顺时针 halfAngle
+                Vector3 rightDir(efx * cosHA + efz * sinHA, 0, efz * cosHA - efx * sinHA);
+
+                Vector3 leftEnd  = origin + leftDir  * drawDist;
+                Vector3 rightEnd = origin + rightDir * drawDist;
+                Vector3 fwdEnd   = origin + Vector3(efx, 0, efz) * drawDist;
+
+                NCL::Debug::DrawLine(origin, leftEnd,  colour);
+                NCL::Debug::DrawLine(origin, rightEnd, colour);
+                NCL::Debug::DrawLine(origin, fwdEnd,   colour);
+                NCL::Debug::DrawLine(leftEnd, rightEnd, colour);
+            }
+#endif
         }
     );
 }

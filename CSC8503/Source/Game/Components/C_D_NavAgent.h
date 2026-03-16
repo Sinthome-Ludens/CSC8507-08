@@ -27,7 +27,8 @@ static constexpr int NAV_MAX_WAYPOINTS = 32;
  * 挂载条件：实体必须同时挂载 C_T_Pathfinder 才会被 Sys_Navigation 处理。
  */
 struct C_D_NavAgent {
-    float speed             = 5.0f;
+    float speed             = 4.0f;    ///< Hunt 速度（< 玩家行走 5.0，< 玩家奔跑 7.5）
+    float patrol_speed      = 2.5f;    ///< 巡逻/Alert 速度（= 玩家行走速度的一半）
     float rotation_speed    = 10.0f;  ///< 转向速度（数值越大转得越快）
     bool  smooth_rotation   = true;   ///< 是否开启平滑转向
     float stopping_distance = 1.0f;

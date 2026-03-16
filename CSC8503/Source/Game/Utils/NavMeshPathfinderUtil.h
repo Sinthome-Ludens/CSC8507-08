@@ -76,6 +76,13 @@ public:
     void ScaleVertices(float scale);
 
     /**
+     * @brief 平移所有顶点坐标（ScaleVertices 之后调用，将 NavMesh 从局部空间搬到世界空间）
+     *
+     * @param offset 平移向量（通常为 (0, -6*kMapScale, 0)）
+     */
+    void OffsetVertices(const NCL::Maths::Vector3& offset);
+
+    /**
      * @brief 提取 navmesh 的所有边界边（无邻居的三角形边 = 墙壁位置）
      *
      * 用于在场景初始化时自动创建隐形墙体碰撞体。

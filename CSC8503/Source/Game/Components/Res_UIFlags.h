@@ -19,4 +19,5 @@ struct Res_UIFlags {
 
     int8_t debugSceneIndex = -1;  ///< -1=无请求, 0=MainMenu, 1=PhysicsTest, 2=NavTest, 3=NetworkGame(Server)
     bool showRaycast      = true;  ///< 是否显示 "Raycast" 控制面板
+    bool wireframeMode    = false; ///< 线框模式是否启用（Sys_ImGui 写入，其他系统读取）
 };

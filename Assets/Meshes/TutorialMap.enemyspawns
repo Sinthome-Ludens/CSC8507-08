@@ -1,0 +1,12 @@
+# Unity Enemy Spawn Points Export (Right-Handed)
+# Root Space: TutorialLevel
+spawnCount 1
+
+spawn 0
+name SpawnPoint
+position -18.065000 1.990000 -11.950000
+patrolCount 2
+patrol
+-18.065000 1.990000 -11.950000
+14.170000 1.755000 -11.980000
+

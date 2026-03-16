@@ -298,6 +298,23 @@ void NavMeshPathfinderUtil::ScaleVertices(float scale)
 }
 
 // ============================================================
+// OffsetVertices — 平移所有顶点，将 NavMesh 从局部空间搬到世界空间
+// ============================================================
+void NavMeshPathfinderUtil::OffsetVertices(const NCL::Maths::Vector3& offset)
+{
+    for (auto& v : m_Vertices) {
+        v.x += offset.x;
+        v.y += offset.y;
+        v.z += offset.z;
+    }
+    for (auto& t : m_Triangles) {
+        t.centroid.x += offset.x;
+        t.centroid.y += offset.y;
+        t.centroid.z += offset.z;
+    }
+}
+
+// ============================================================
 // GetBoundaryEdges — 提取 navmesh 所有边界边（无邻居的三角形边）
 //
 // 原理：对每个三角形的每条边（v_e, v_{e+1 mod 3}），在所有其他三角形中

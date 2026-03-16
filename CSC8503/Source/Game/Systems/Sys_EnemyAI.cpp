@@ -10,9 +10,11 @@
 #include <algorithm>
 #include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/C_D_AIState.h"
-#include "Game/Components/Res_EnemyEnums.h"   // EnemyState 枚举（直接依赖）
+#include "Game/Components/Res_EnemyEnums.h"
 #include "Game/Components/C_D_EnemyDormant.h"
+#include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_T_Enemy.h"
+#include "Game/Components/C_T_Player.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Utils/Log.h"
 
@@ -23,7 +25,15 @@ namespace ECS {
      * @param dt       帧时间（秒）
      */
     void Sys_EnemyAI::OnUpdate(Registry& registry, float dt) {
-        // 仅依赖 AI 核心组件，不要求寻路组件（寻路由独立系统处理）
+        // 预查找玩家位置（接触即发现用）
+        NCL::Maths::Vector3 playerPos{};
+        bool hasPlayer = false;
+        registry.view<C_T_Player, C_D_Transform>().each(
+            [&](EntityID, C_T_Player&, C_D_Transform& ptf) {
+                playerPos = ptf.position;
+                hasPlayer = true;
+            });
+
         auto view = registry.view<C_T_Enemy, C_D_AIState, C_D_AIPerception>();
 
         view.each([&](EntityID entity, C_T_Enemy&, C_D_AIState& state, C_D_AIPerception& detect) {
@@ -31,6 +41,20 @@ namespace ECS {
             if (registry.Has<C_D_EnemyDormant>(entity)) {
                 auto& dormant = registry.Get<C_D_EnemyDormant>(entity);
                 if (dormant.isDormant) return;
+            }
+
+            // ── 0. 接触即发现：XZ 距离 < 1.5m 时直接拉满警戒度 ──────────
+            // 接触感知：XZ < 1.5m 时警戒拉到 Alert 级别（不直接 Hunt）
+            if (hasPlayer && registry.Has<C_D_Transform>(entity)) {
+                const auto& etf = registry.Get<C_D_Transform>(entity);
+                float dx = playerPos.x - etf.position.x;
+                float dz = playerPos.z - etf.position.z;
+                if (dx * dx + dz * dz < 2.25f) {  // 1.5m
+                    if (detect.detection_value < detect.alert_threshold) {
+                        detect.detection_value = detect.alert_threshold;
+                    }
+                    detect.is_spotted = true;
+                }
             }
 
             // ── 1. 警戒度增减 ────────────────────────────────────────────
@@ -62,13 +86,13 @@ namespace ECS {
 
             if (v >= detect.hunt_threshold) {
                 if (state.current_state != EnemyState::Hunt) {
-                    detect.hunt_lock_timer = 3.0f; // 进入 Hunt 时启动 3 秒锁定
+                    detect.hunt_lock_timer = 1.5f; // 进入 Hunt 时启动 1.5 秒锁定
                     // 全局警戒度：每次有敌人进入 Hunt，+15
                     if (registry.has_ctx<Res_GameState>()) {
                         auto& gs = registry.ctx<Res_GameState>();
                         gs.alertLevel = std::min(gs.alertLevel + 15.0f, gs.alertMax);
                     }
-                    LOG_INFO("SYS_ENEMY_AI: Entity " << (int)entity << " -> HUNT (lock 3s)");
+                    LOG_INFO("SYS_ENEMY_AI: Entity " << (int)entity << " -> HUNT (lock 1.5s)");
                 }
                 nextState = EnemyState::Hunt;
             } else if (v >= detect.alert_threshold) {

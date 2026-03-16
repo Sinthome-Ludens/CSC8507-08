@@ -168,6 +168,9 @@ void Sys_ImGui::RenderDebugWindow(Registry& registry, float dt) {
         if (nclPtrs.renderer) {
             if (ImGui::Checkbox("Wireframe Mode", &m_WireframeMode)) {
                 nclPtrs.renderer->SetWireframeMode(m_WireframeMode);
+                if (registry.has_ctx<Res_UIFlags>()) {
+                    registry.ctx<Res_UIFlags>().wireframeMode = m_WireframeMode;
+                }
             }
         }
     }
