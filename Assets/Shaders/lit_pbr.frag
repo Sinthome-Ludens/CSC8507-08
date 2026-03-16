@@ -123,7 +123,7 @@ float FindBlockerAvgDepth(sampler2D shadowMap, vec2 uv, float depth, float searc
     for (int i = 0; i < 12; i++) {
         vec2 offset = POISSON12[i] * searchRadius;
         float shadowDepth = texture(shadowMap, uv + offset).r;
-        if (shadowDepth < depth - 0.005) {
+        if (shadowDepth < depth - 0.0003) {
             blockerSum += shadowDepth;
             blockerCount++;
         }
@@ -138,7 +138,7 @@ float PCFFilter(sampler2D shadowMap, vec2 uv, float depth, float filterRadius) {
     for (int i = 0; i < 25; i++) {
         vec2 offset = POISSON25[i] * filterRadius;
         float shadowDepth = texture(shadowMap, uv + offset).r;
-        shadow += (shadowDepth < depth - 0.005) ? 0.0 : 1.0;
+        shadow += (shadowDepth < depth - 0.0003) ? 0.0 : 1.0;
     }
     return shadow / 25.0;
 }
@@ -161,7 +161,7 @@ float SampleShadowPCSS(sampler2D shadowMap, vec4 shadowCoord, int mapSize, bool 
         for (int x = -1; x <= 1; x++) {
             for (int y = -1; y <= 1; y++) {
                 float d = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-                shadow += (d < depth - 0.005) ? 0.0 : 1.0;
+                shadow += (d < depth - 0.0003) ? 0.0 : 1.0;
             }
         }
         return shadow / 9.0;

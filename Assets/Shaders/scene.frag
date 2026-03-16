@@ -83,7 +83,7 @@ float SampleShadowCSM(sampler2D shadowMap, mat4 shadowMat, vec3 worldPos,
     if (simplePCF) {
         float s = 0.0; float ts = 1.0 / float(mapSize);
         for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) {
-            s += (texture(shadowMap, proj.xy + vec2(x, y) * ts).r < depth - 0.005) ? 0.0 : 1.0;
+            s += (texture(shadowMap, proj.xy + vec2(x, y) * ts).r < depth - 0.0003) ? 0.0 : 1.0;
         }
         return s / 9.0;
     }
@@ -91,14 +91,14 @@ float SampleShadowCSM(sampler2D shadowMap, mat4 shadowMat, vec3 worldPos,
     float bs = 0.0; int bc = 0;
     for (int i = 0; i < 12; i++) {
         float d = texture(shadowMap, proj.xy + POISSON12[i] * sr).r;
-        if (d < depth - 0.005) { bs += d; bc++; }
+        if (d < depth - 0.0003) { bs += d; bc++; }
     }
     if (bc == 0) return 1.0;
     float fr = clamp((depth - bs / float(bc)) / (bs / float(bc)) * pcssLightSize / float(mapSize),
                      1.0 / float(mapSize), 0.02);
     float s = 0.0;
     for (int i = 0; i < 25; i++) {
-        s += (texture(shadowMap, proj.xy + POISSON25[i] * fr).r < depth - 0.005) ? 0.0 : 1.0;
+        s += (texture(shadowMap, proj.xy + POISSON25[i] * fr).r < depth - 0.0003) ? 0.0 : 1.0;
     }
     return s / 25.0;
 }

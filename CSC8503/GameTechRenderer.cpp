@@ -637,8 +637,6 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
     glCullFace(GL_FRONT);
-    glPolygonOffset(2.0f, 4.0f);
-    glEnable(GL_POLYGON_OFFSET_FILL);
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
     UseShader(*shadowShader);
@@ -682,7 +680,6 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
         }
     }
 
-    glDisable(GL_POLYGON_OFFSET_FILL);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glCullFace(GL_BACK);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
