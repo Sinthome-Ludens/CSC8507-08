@@ -87,6 +87,7 @@ static void SyncMaterial(GameTechMaterial& nclMat, const C_D_Material& ecsMat) {
     nclMat.ao               = ecsMat.ao;
     nclMat.emissiveColor    = ecsMat.emissiveColor;
     nclMat.emissiveStrength = ecsMat.emissiveStrength;
+    nclMat.rimColour        = ecsMat.rimColour;
     nclMat.rimPower         = ecsMat.rimPower;
     nclMat.rimStrength      = ecsMat.rimStrength;
     nclMat.flatShading      = ecsMat.flatShading;
@@ -214,7 +215,7 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
         auto* ro = proxy->GetRenderObject();
         if (ro) {
             auto& mat = ro->GetMaterial();
-            mat.emissiveColor = hl.rimColour;
+            mat.rimColour     = hl.rimColour;
             mat.rimPower      = hl.rimPower;
             mat.rimStrength   = hl.rimStrength;
         }

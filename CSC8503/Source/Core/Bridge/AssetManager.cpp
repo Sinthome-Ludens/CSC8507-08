@@ -56,8 +56,8 @@ void AssetManager::Init() {
     m_TextureCache[2].refCount = 1;
     m_DefaultNormalHandle = 2;
 
-    // Default ORM: 1×1 (0, 128, 255) → occlusion=0, roughness=0.5, metallic=0
-    auto* orm = CreateSolidColorTexture(0, 128, 255, 255);
+    // Default ORM: 1×1 (255, 128, 0) → occlusion=1.0, roughness=0.5, metallic=0.0
+    auto* orm = CreateSolidColorTexture(255, 128, 0, 255);
     m_TextureCache[3].resource.reset(orm);
     m_TextureCache[3].refCount = 1;
     m_DefaultOrmHandle = 3;

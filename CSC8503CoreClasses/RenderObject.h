@@ -57,6 +57,7 @@ namespace NCL {
 			// ── Stylized 参数 ──────────────────────────────
 			Vector3 emissiveColor    = Vector3(0, 0, 0);
 			float   emissiveStrength = 0.0f;
+			Vector3 rimColour        = Vector3(1, 1, 1);
 			float   rimPower         = 3.0f;
 			float   rimStrength      = 0.5f;
 			bool    flatShading      = false;

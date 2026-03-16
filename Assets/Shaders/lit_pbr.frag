@@ -42,11 +42,11 @@ uniform vec3  sunColour = vec3(1.0, 1.0, 1.0);
 uniform vec3  cameraPos;
 
 // ── 材质参数（标量 fallback，ORM 贴图优先）────────────────────
-uniform float u_metallic  = 0.0;
-uniform float u_roughness = 0.5;
-uniform float u_ao        = 1.0;
-uniform vec3  u_emissiveColor    = vec3(0.0);
-uniform float u_emissiveStrength = 0.0;
+uniform float metallic  = 0.0;
+uniform float roughness = 0.5;
+uniform float ao        = 1.0;
+uniform vec3  emissiveColor    = vec3(0.0);
+uniform float emissiveStrength = 0.0;
 
 // ── Alpha 模式 ──────────────────────────────────────────────
 // 0=Opaque, 1=Mask, 2=Blend
@@ -225,11 +225,11 @@ void main() {
 
     // ── ORM 贴图 ────────────────────────────────────────────
     vec3  ormSample = texture(ormTex, IN.texCoord).rgb;
-    float ao        = ormSample.r  * u_ao;      // R = occlusion
-    float roughness = ormSample.g  + u_roughness * (1.0 - ormSample.g); // G = roughness
-    float metallic  = ormSample.b  + u_metallic  * (1.0 - ormSample.b); // B = metallic
-    roughness = clamp(roughness, 0.04, 1.0);
-    metallic  = clamp(metallic,  0.0,  1.0);
+    float matAo        = ormSample.r  * ao;          // R = occlusion
+    float matRoughness = ormSample.g  + roughness * (1.0 - ormSample.g); // G = roughness
+    float matMetallic  = ormSample.b  + metallic  * (1.0 - ormSample.b); // B = metallic
+    matRoughness = clamp(matRoughness, 0.04, 1.0);
+    matMetallic  = clamp(matMetallic,  0.0,  1.0);
 
     // ── 视方向 ──────────────────────────────────────────────
     vec3 V = normalize(cameraPos - IN.worldPos);
@@ -237,17 +237,10 @@ void main() {
     // ── F0（反射率基础值）────────────────────────────────────
     vec3 albedo = albedoSample.rgb;
     albedo = pow(albedo, vec3(2.2)); // sRGB → Linear
-    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    vec3 F0 = mix(vec3(0.04), albedo, matMetallic);
 
-    // ── 视空间深度（用于 CSM 级联选择）──────────────────────
-    // 近似：world→view 的 z 分量
-    // 实际用 gl_FragCoord.z 重建深度会更准确，但这里用简化版
-    // float viewZ = length(cameraPos - IN.worldPos); // 等效于 view-space depth 近似
-    // 更准确的 viewDepth：
-    float viewDepth = abs(dot(normalize(cameraPos - IN.worldPos), N)); // placeholder
-    // 真正的 viewDepth 需从相机矩阵计算，这里使用近似
-    // 在 C++ 端通过 uniform 传入视空间 Z 值会更精确，此处用 worldPos 距离代替
-    viewDepth = length(cameraPos - IN.worldPos);
+    // ── 视空间深度（CSM 级联选择用摄像机距离近似）──────────
+    float viewDepth = length(cameraPos - IN.worldPos);
 
     // ── 太阳光直接照明（Cook-Torrance BRDF）────────────────
     vec3 Lo = vec3(0.0);
@@ -259,8 +252,8 @@ void main() {
         float NdotH = max(dot(N, H), 0.0);
 
         // Cook-Torrance 镜面 BRDF
-        float D = D_GGX(NdotH, roughness * roughness);
-        float G = G_Smith(NdotV, NdotL, roughness);
+        float D = D_GGX(NdotH, matRoughness * matRoughness);
+        float G = G_Smith(NdotV, NdotL, matRoughness);
         vec3  F = F_Schlick(max(dot(H, V), 0.0), F0);
 
         vec3  numerator   = D * G * F;
@@ -269,7 +262,7 @@ void main() {
 
         // kD（漫反射权重，金属无漫反射）
         vec3 kS = F;
-        vec3 kD = (1.0 - kS) * (1.0 - metallic);
+        vec3 kD = (1.0 - kS) * (1.0 - matMetallic);
 
         // 阴影
         float shadow = ComputeCascadeShadow(IN.worldPos, viewDepth);
@@ -278,29 +271,29 @@ void main() {
     }
 
     // ── IBL 环境光（Stage 3 接通后取消注释）─────────────────
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    vec3 ambient = vec3(0.03) * albedo * matAo;
     /*
     if (useIBL) {
         float NdotV = max(dot(N, V), 0.0);
         vec3  F = F_SchlickRoughness(NdotV, F0, roughness);
         vec3  kS = F;
-        vec3  kD = (1.0 - kS) * (1.0 - metallic);
+        vec3  kD = (1.0 - kS) * (1.0 - matMetallic);
 
         vec3  irradiance = texture(irradianceMap, N).rgb;
         vec3  diffIBL    = kD * irradiance * albedo;
 
         const float MAX_REFLECTION_LOD = 4.0;
         vec3  R = reflect(-V, N);
-        vec3  prefiltered = textureLod(prefilterMap, R, roughness * MAX_REFLECTION_LOD).rgb;
-        vec2  envBRDF     = texture(brdfLUT, vec2(NdotV, roughness)).rg;
+        vec3  prefiltered = textureLod(prefilterMap, R, matRoughness * MAX_REFLECTION_LOD).rgb;
+        vec2  envBRDF     = texture(brdfLUT, vec2(NdotV, matRoughness)).rg;
         vec3  specIBL     = prefiltered * (F * envBRDF.x + envBRDF.y);
 
-        ambient = (diffIBL + specIBL) * ao * iblIntensity;
+        ambient = (diffIBL + specIBL) * matAo * iblIntensity;
     }
     */
 
     // ── 自发光 ────────────────────────────────────────────────
-    vec3 emissive = texture(emissiveTex, IN.texCoord).rgb * u_emissiveColor * u_emissiveStrength;
+    vec3 emissive = texture(emissiveTex, IN.texCoord).rgb * emissiveColor * emissiveStrength;
 
     // ── 最终颜色（HDR，后续由 tonemap.frag 处理）───────────────
     vec3 finalColor = ambient + Lo + emissive;

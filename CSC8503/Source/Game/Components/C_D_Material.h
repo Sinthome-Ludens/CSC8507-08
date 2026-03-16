@@ -48,6 +48,7 @@ struct C_D_Material {
     // ── Stylized 参数 (shadingModel == Stylized / BlinnPhong) ─
     NCL::Maths::Vector3 emissiveColor    = {0, 0, 0};
     float               emissiveStrength = 0.0f;
+    NCL::Maths::Vector3 rimColour        = {1, 1, 1};
     float               rimPower         = 3.0f;
     float               rimStrength      = 0.5f;
     bool                flatShading      = false;

@@ -506,9 +506,16 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
         maxLS.x = minLS.x + (float)m_shadowRes[c] * texelSize;
         maxLS.y = minLS.y + (float)m_shadowRes[c] * texelSize;
 
+        // Matrix::Orthographic 要求正的 near/far 距离。
+        // 光照空间 z 对于位于光源前方的物体为负值，需要取反转换。
+        // near = -maxLS.z（离光源最近的视锥角点）减 10 单位余量
+        // far  = -minLS.z（离光源最远）加 500 单位以捕获摄像机背后的投影物
+        float shadowNear = std::max(0.1f, -(maxLS.z + 10.0f));
+        float shadowFar  = -(minLS.z - 500.0f);
+        if (shadowFar <= shadowNear) shadowFar = shadowNear + 100.0f;
         m_lightProjMat[c] = Matrix::Orthographic(minLS.x, maxLS.x,
                                                   minLS.y, maxLS.y,
-                                                  minLS.z - 500.0f, maxLS.z + 10.0f);
+                                                  shadowNear, shadowFar);
         m_shadowMatrix[c] = biasMatrix * m_lightProjMat[c] * m_lightViewMat;
 
         nearPrev = farDist;
@@ -626,6 +633,9 @@ void GameTechRenderer::BuildObjectLists() {
 // ============================================================
 
 void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
     glCullFace(GL_FRONT);
     glPolygonOffset(2.0f, 4.0f);
     glEnable(GL_POLYGON_OFFSET_FILL);
@@ -801,7 +811,7 @@ void GameTechRenderer::DrawObject(OGLShader* shader,
     glUniform1f(ul("ao"),                mat.ao);
     glUniform3fv(ul("emissiveColor"),    1, (float*)&mat.emissiveColor);
     glUniform1f(ul("emissiveStrength"),  mat.emissiveStrength);
-    glUniform3fv(ul("rimColour"),        1, (float*)&mat.emissiveColor);
+    glUniform3fv(ul("rimColour"),        1, (float*)&mat.rimColour);
     glUniform1f(ul("rimPower"),          mat.rimPower);
     glUniform1f(ul("rimStrength"),       mat.rimStrength);
 
