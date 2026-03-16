@@ -1,0 +1,22 @@
+# Unity Enemy Spawn Points Export (Right-Handed)
+# Root Space: Helipad
+spawnCount 2
+
+spawn 0
+name SpawnPoint
+position 20.000000 1.000000 15.000000
+patrolCount 4
+patrol
+20.000000 1.000000 15.000000
+34.910000 0.962000 14.940000
+34.910000 0.962000 -18.400000
+21.050000 0.962000 -18.400000
+
+spawn 1
+name SpawnPoint (1)
+position -26.040000 1.000000 -16.380000
+patrolCount 2
+patrol
+-26.040000 1.000000 -16.380000
+-11.130000 0.962000 -16.440000
+
