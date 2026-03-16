@@ -35,8 +35,10 @@
 #include "Game/UI/UI_Interaction.h"
 #include "Game/UI/UI_Loading.h"
 #include "Game/UI/UI_Lobby.h"
+#include "Game/UI/UI_MissionSelect.h"
 #include "Game/UI/UI_ActionNotify.h"
 #include "Game/Utils/Log.h"
+#include "Game/Utils/SaveManager.h"
 
 using namespace NCL;
 
@@ -78,6 +80,11 @@ void Sys_UI::OnAwake(Registry& registry) {
 
     if (!registry.has_ctx<Res_ActionNotifyState>()) {
         registry.ctx_emplace<Res_ActionNotifyState>();
+    }
+
+    // 加载存档到 UIState 缓存（菜单阶段只有 UIState 存在）
+    if (ECS::HasSaveFile()) {
+        ECS::LoadGame(registry);
     }
 
     LOG_INFO("[Sys_UI] OnAwake — Fonts loaded, theme applied, all UI resources registered.");
@@ -223,6 +230,12 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                 ui.menuSelectedIndex = 0;
                 LOG_INFO("[Sys_UI] Loadout -> MainMenu (ESC)");
                 break;
+            case UIScreen::MissionSelect:
+                ui.previousScreen = ui.activeScreen;
+                ui.activeScreen = UIScreen::MainMenu;
+                ui.menuSelectedIndex = 0;
+                LOG_INFO("[Sys_UI] MissionSelect -> MainMenu (ESC)");
+                break;
             case UIScreen::Team:
                 ui.previousScreen = ui.activeScreen;
                 ui.activeScreen = UIScreen::MainMenu;
@@ -316,7 +329,8 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         case UIScreen::HUD:         UI::RenderHUD(registry, dt);             break;
         case UIScreen::GameOver:    UI::RenderGameOverScreen(registry, dt);  break;
         case UIScreen::Inventory:   UI::RenderInventoryScreen(registry, dt); break;
-        case UIScreen::Loadout:     UI::RenderLoadoutScreen(registry, dt);   break;
+        case UIScreen::Loadout:        UI::RenderLoadoutScreen(registry, dt);   break;
+        case UIScreen::MissionSelect: UI::RenderMissionSelect(registry, dt);  break;
         case UIScreen::Team:        UI::RenderTeamScreen(registry, dt);      break;
         case UIScreen::Loading:     UI::RenderLoadingScreen(registry, dt);   break;
         case UIScreen::Lobby:       UI::RenderLobbyScreen(registry, dt);     break;

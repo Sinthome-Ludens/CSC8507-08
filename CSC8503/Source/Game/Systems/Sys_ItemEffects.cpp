@@ -39,6 +39,10 @@
 #include <cfloat>
 #include <vector>
 
+#ifdef USE_IMGUI
+#include "Game/UI/UI_ActionNotify.h"
+#endif
+
 using namespace NCL::Maths;
 
 namespace ECS {
@@ -176,6 +180,11 @@ void Sys_ItemEffects::EffectHoloBait(Registry& registry, const Evt_Item_Use& evt
     LOG_INFO("[Sys_ItemEffects] HoloBait deployed at ("
              << bait.worldPos.x << "," << bait.worldPos.z
              << ") attracted=" << attracted);
+
+#ifdef USE_IMGUI
+    ECS::UI::PushActionNotify(registry, "HOLOBAIT", "DEPLOYED",
+                              5, ActionNotifyType::Bonus);
+#endif
 }
 
 // ============================================================
@@ -190,6 +199,11 @@ void Sys_ItemEffects::EffectPhotonRadar(Registry& registry, const Evt_Item_Use& 
     radar.refreshTimer = 0.0f; // 立即触发第一次刷新
 
     LOG_INFO("[Sys_ItemEffects] PhotonRadar activated.");
+
+#ifdef USE_IMGUI
+    ECS::UI::PushActionNotify(registry, "RADAR", "ACTIVATED",
+                              5, ActionNotifyType::Bonus);
+#endif
 }
 
 // ============================================================
@@ -218,6 +232,11 @@ void Sys_ItemEffects::EffectDDoS(Registry& registry, const Evt_Item_Use& evt) {
         registry.Get<C_D_RoamAI>(target).active = false;
     }
     LOG_INFO("[Sys_ItemEffects] DDoS frozen entity " << target << " for 5s.");
+
+#ifdef USE_IMGUI
+    ECS::UI::PushActionNotify(registry, "DDOS", "GUARD",
+                              10, ActionNotifyType::Weapon);
+#endif
 }
 
 // ============================================================
@@ -284,9 +303,17 @@ void Sys_ItemEffects::EffectTargetStrike(Registry& registry, const Evt_Item_Use&
         hp.hp        = 0.0f;
         hp.deathCause = DeathType::EnemyHpZero;
         LOG_INFO("[Sys_ItemEffects] TargetStrike killed entity " << target << " via health component.");
+#ifdef USE_IMGUI
+        ECS::UI::PushActionNotify(registry, "TARGET STRIKE", "GUARD",
+                                  50, ActionNotifyType::Weapon);
+#endif
     } else if (registry.Has<C_T_Enemy>(target)) {
         registry.Destroy(target);
         LOG_INFO("[Sys_ItemEffects] TargetStrike destroyed enemy entity " << target << " without health component.");
+#ifdef USE_IMGUI
+        ECS::UI::PushActionNotify(registry, "TARGET STRIKE", "GUARD",
+                                  50, ActionNotifyType::Weapon);
+#endif
     }
 }
 
@@ -381,6 +408,10 @@ void Sys_ItemEffects::UpdateRoamAI(Registry& registry, float dt) {
                         toDestroy.push_back(eid);
                         LOG_INFO("[Sys_ItemEffects] RoamAI " << roamId
                                  << " killed enemy " << eid);
+#ifdef USE_IMGUI
+                        ECS::UI::PushActionNotify(registry, "ROAM AI", "GUARD",
+                                                  30, ActionNotifyType::Kill);
+#endif
                     }
                 }
             );

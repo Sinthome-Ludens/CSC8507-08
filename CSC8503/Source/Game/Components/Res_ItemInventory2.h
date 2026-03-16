@@ -19,6 +19,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdio>
 #include "Game/Components/C_D_Item.h"
 
 namespace ECS {
@@ -27,6 +28,8 @@ namespace ECS {
 struct ItemSlot {
     ItemID  itemId      = ItemID::HoloBait; ///< 道具唯一标识
     ItemType itemType   = ItemType::Gadget; ///< 道具类型
+    char    name[24]    = {};               ///< 道具显示名称（UTF-8，如中文最多7字）
+    char    desc[80]    = {};               ///< 道具描述文本（UTF-8）
 
     uint8_t carriedCount = 0;  ///< 本局携带数量
     uint8_t maxCarry     = 2;  ///< 最大携带上限
@@ -83,19 +86,23 @@ struct Res_ItemInventory2 {
      * @brief 构造函数：按需求文档初始化各道具默认参数。
      */
     Res_ItemInventory2() {
-        // 001 全息诱饵炸弹
+        // 001 HoloBait (全息诱饵弹)
         slots[0].itemId      = ItemID::HoloBait;
         slots[0].itemType    = ItemType::Gadget;
         slots[0].maxCarry    = 2;
         slots[0].maxStore    = 99;
         slots[0].mapPickupMax = 10;
+        snprintf(slots[0].name, sizeof(slots[0].name), "HoloBait");
+        snprintf(slots[0].desc, sizeof(slots[0].desc), "Lure Safe enemies to target");
 
-        // 002 光子雷达（地图内数量为 0，无商店库存上限视为 99）
+        // 002 PhotonRadar (光子雷达)
         slots[1].itemId      = ItemID::PhotonRadar;
         slots[1].itemType    = ItemType::Gadget;
         slots[1].maxCarry    = 2;
         slots[1].maxStore    = 99;
         slots[1].mapPickupMax = 0;
+        snprintf(slots[1].name, sizeof(slots[1].name), "Radar");
+        snprintf(slots[1].desc, sizeof(slots[1].desc), "Reveal enemies on map");
 
         // 003 DDoS
         slots[2].itemId      = ItemID::DDoS;
@@ -103,20 +110,26 @@ struct Res_ItemInventory2 {
         slots[2].maxCarry    = 2;
         slots[2].maxStore    = 99;
         slots[2].mapPickupMax = 10;
+        snprintf(slots[2].name, sizeof(slots[2].name), "DDOS");
+        snprintf(slots[2].desc, sizeof(slots[2].desc), "Freeze nearest target 5s");
 
-        // 004 流窜 AI
+        // 004 RoamAI (流窜 AI)
         slots[3].itemId      = ItemID::RoamAI;
         slots[3].itemType    = ItemType::Weapon;
         slots[3].maxCarry    = 2;
         slots[3].maxStore    = 99;
         slots[3].mapPickupMax = 10;
+        snprintf(slots[3].name, sizeof(slots[3].name), "RoamAI");
+        snprintf(slots[3].desc, sizeof(slots[3].desc), "Patrol AI, kills on contact");
 
-        // 005 靶向打击
+        // 005 TargetStrike (靶向打击)
         slots[4].itemId      = ItemID::TargetStrike;
         slots[4].itemType    = ItemType::Weapon;
         slots[4].maxCarry    = 2;
         slots[4].maxStore    = 99;
         slots[4].mapPickupMax = 10;
+        snprintf(slots[4].name, sizeof(slots[4].name), "Strike");
+        snprintf(slots[4].desc, sizeof(slots[4].desc), "Kill nearest enemy instantly");
     }
 
     /**
