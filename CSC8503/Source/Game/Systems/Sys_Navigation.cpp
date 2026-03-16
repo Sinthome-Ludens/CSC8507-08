@@ -19,6 +19,7 @@
 #include "Game/Components/C_T_Pathfinder.h"
 #include "Game/Components/C_T_NavTarget.h"
 #include "Game/Components/C_D_AIState.h"
+#include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Utils/Log.h"
@@ -260,30 +261,60 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
 
         switch (curState) {
 
-        // ── Safe：完全静止 ────────────────────────────────────────────────
+        // ── Safe：巡逻（有 C_D_PatrolRoute）或静止（无）────────────────
         case EnemyState::Safe: {
-            if (agent.is_active) {
-                agent.path_length              = 0;
-                agent.current_waypoint_index   = 0;
-                agent.is_active                = false;
-                agent.timer                    = agent.update_frequency;
-                if (physics && rb.body_created) {
-                    physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
+            auto* patrol = registry.TryGet<C_D_PatrolRoute>(entity);
+            if (!patrol || patrol->count < 2) {
+                // 无巡逻路线或路点不足：完全静止（向后兼容）
+                if (agent.is_active) {
+                    agent.path_length              = 0;
+                    agent.current_waypoint_index   = 0;
+                    agent.is_active                = false;
+                    agent.timer                    = agent.update_frequency;
+                    if (physics && rb.body_created) {
+                        physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
+                    }
                 }
+                break;
             }
+
+            // 从非 Safe 状态回落时，标记需要重新规划巡逻路径
+            if (agent.prev_state != EnemyState::Safe) {
+                patrol->needs_path = true;
+            }
+
+            // 到达当前巡逻路点 → 推进到下一个（循环）
+            // FollowPath 到达终点后设置 is_active=false，以此检测完成
+            if (!agent.is_active && !patrol->needs_path) {
+                patrol->current_index = (patrol->current_index + 1) % patrol->count;
+                patrol->needs_path    = true;
+            }
+
+            // 需要规划到当前巡逻路点的路径
+            if (patrol->needs_path) {
+                const NCL::Maths::Vector3& dest = patrol->waypoints[patrol->current_index];
+                std::vector<NCL::Maths::Vector3> tempPath;
+                if (m_Pathfinder->FindPath(tf.position, dest, tempPath)) {
+                    CopyPathToAgent(agent, tempPath);
+                    SkipReachedWaypoints(agent, tf);
+                }
+                patrol->needs_path = false;
+            }
+
+            { float saved = agent.speed; agent.speed = agent.patrol_speed;
+            FollowPath(entity, agent, tf, rb, physics, dt);
+            agent.speed = saved; }
             break;
         }
 
         // ── Search：停止移动，朝向最后已知目标位置旋转 ──────────────────
         case EnemyState::Search: {
-            if (agent.is_active) {
-                agent.path_length              = 0;
-                agent.current_waypoint_index   = 0;
-                agent.is_active                = false;
-                agent.timer                    = agent.update_frequency;
-                if (physics && rb.body_created) {
-                    physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
-                }
+            // 进入 Search 时停止并清路径
+            agent.path_length              = 0;
+            agent.current_waypoint_index   = 0;
+            agent.is_active                = false;
+            if (physics && rb.body_created) {
+                physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
             }
             if (agent.smooth_rotation && agent.has_last_known_pos) {
                 ApplyRotationToward(entity, agent, tf, rb, physics,
@@ -292,10 +323,9 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
             break;
         }
 
-        // ── Alert：移动到进入 Alert 时的目标位置快照 ─────────────────────
+        // ── Alert：移动到最后已知目标位置 ──────────────────────────────
         case EnemyState::Alert: {
-            bool justEntered = (agent.prev_state != EnemyState::Alert);
-            if (justEntered && agent.has_last_known_pos) {
+            if (agent.prev_state != EnemyState::Alert && agent.has_last_known_pos) {
                 // 首次进入：对当前最后已知位置做快照，立即规划路径
                 agent.alert_snapshot_pos = agent.last_known_target_pos;
                 std::vector<NCL::Maths::Vector3> tempPath;
@@ -303,9 +333,10 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
                     CopyPathToAgent(agent, tempPath);
                     SkipReachedWaypoints(agent, tf);
                 }
-                agent.timer = 0.0f;
             }
+            { float saved = agent.speed; agent.speed = agent.patrol_speed;
             FollowPath(entity, agent, tf, rb, physics, dt);
+            agent.speed = saved; }
             break;
         }
 

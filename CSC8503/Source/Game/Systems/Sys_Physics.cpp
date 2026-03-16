@@ -788,6 +788,71 @@ ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRay(
     }
     return result;
 }
+
+// ============================================================
+// CastRayIgnoring — 射线检测，忽略指定实体的碰撞体
+// ============================================================
+ECS::Sys_Physics::RaycastHit ECS::Sys_Physics::CastRayIgnoring(
+    float ox, float oy, float oz,
+    float dx, float dy, float dz,
+    float maxDist,
+    EntityID ignoreA, EntityID ignoreB)
+{
+    RaycastHit result{};
+    if (!m_PhysicsSystem) return result;
+
+    float len = std::sqrt(dx * dx + dy * dy + dz * dz);
+    if (len < 1e-6f) return result;
+    dx /= len; dy /= len; dz /= len;
+
+    // 查找需要忽略的 Jolt BodyID
+    JPH::BodyID ignoreBodyA, ignoreBodyB;
+    {
+        auto it = m_EntityToBody.find(ignoreA);
+        if (it != m_EntityToBody.end())
+            ignoreBodyA = JPH::BodyID(it->second);
+    }
+    if (ignoreB != Entity::NULL_ENTITY) {
+        auto it = m_EntityToBody.find(ignoreB);
+        if (it != m_EntityToBody.end())
+            ignoreBodyB = JPH::BodyID(it->second);
+    }
+
+    // BodyFilter：排除指定实体
+    struct IgnoreFilter : public JPH::BodyFilter {
+        JPH::BodyID a, b;
+        bool ShouldCollide(const JPH::BodyID& inBodyID) const override {
+            return inBodyID != a && inBodyID != b;
+        }
+        bool ShouldCollideLocked(const JPH::Body&) const override { return true; }
+    };
+    IgnoreFilter filter;
+    filter.a = ignoreBodyA;
+    filter.b = ignoreBodyB;
+
+    JPH::RRayCast ray(JPH::RVec3(ox, oy, oz),
+                      JPH::Vec3(dx * maxDist, dy * maxDist, dz * maxDist));
+    JPH::RayCastResult hit;
+    hit.mFraction = 1.0f + FLT_EPSILON;
+
+    const auto& query = m_PhysicsSystem->GetNarrowPhaseQuery();
+    if (query.CastRay(ray, hit, JPH::BroadPhaseLayerFilter(),
+                      JPH::ObjectLayerFilter(), filter)) {
+        result.hit      = true;
+        result.fraction = hit.mFraction;
+        const uint32_t rawBodyID = hit.mBodyID.GetIndexAndSequenceNumber();
+        const auto itEntity = m_BodyToEntity.find(rawBodyID);
+        if (itEntity != m_BodyToEntity.end()) {
+            result.entity = itEntity->second;
+        }
+        JPH::RVec3 hitPoint = ray.GetPointOnRay(hit.mFraction);
+        result.pointX = static_cast<float>(hitPoint.GetX());
+        result.pointY = static_cast<float>(hitPoint.GetY());
+        result.pointZ = static_cast<float>(hitPoint.GetZ());
+    }
+    return result;
+}
+
 // ============================================================
 // ReplaceShapeCapsule — 运行时替换碰撞体为 Capsule (来自 master)
 // ============================================================
