@@ -32,9 +32,10 @@ void InputAdapter::Update(Window* window, Res_Input& input) {
         input.mouseButtons[i]       = now;
     }
 
-    // ── 鼠标位置 ──
-    input.mousePos   = mouse->GetAbsolutePosition();
-    input.mouseDelta = mouse->GetRelativePosition();
+    // ── 鼠标位置 & 滚轮 ──
+    input.mousePos    = mouse->GetAbsolutePosition();
+    input.mouseDelta  = mouse->GetRelativePosition();
+    input.scrollWheel = mouse->GetWheelMovement();
 
     // ── 合成轴 ──
     input.axisX = (input.keyStates[KeyCodes::D] ? 1.f : 0.f)

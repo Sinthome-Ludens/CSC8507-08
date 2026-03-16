@@ -1,3 +1,7 @@
+/**
+ * @file ImGuiAdapter.cpp
+ * @brief ImGui Win32/OpenGL3 后端实现。
+ */
 #include "ImGuiAdapter.h"
 #ifdef USE_IMGUI
 
@@ -32,7 +36,8 @@ static LRESULT CALLBACK ImGuiSubclassProc(
 {
     // subclass 仍然转发非鼠标消息（WM_CHAR、WM_MOUSEWHEEL 等）给 ImGui
     if (ImGuiAdapter::s_Initialized && !WindowHelper::IsInSizeMove()) {
-        ::ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam);
+        if (::ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+            return 0;   // ImGui 已消费该消息，不再 forward
     }
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }

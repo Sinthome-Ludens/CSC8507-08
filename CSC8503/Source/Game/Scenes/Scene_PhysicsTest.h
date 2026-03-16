@@ -1,3 +1,7 @@
+/**
+ * @file Scene_PhysicsTest.h
+ * @brief 物理测试场景声明（ECS 架构验证场景）。
+ */
 #pragma once
 
 #include "IScene.h"
@@ -11,7 +15,7 @@
  *   - Sys_PlayerDisguise  ( 59) — 伪装切换、C_T_Hidden 管理
  *   - Sys_PlayerStance    ( 60) — 蹲/站切换、碰撞体替换
  *   - Sys_StealthMetrics  ( 62) — 奔跑、速度乘数、噪音、可见度
- *   - Sys_PlayerCQC       ( 63) — CQC 近身制服 + 拟态
+ *   - Sys_PlayerCQC       ( 63) — CQC 近身制服 + 目标选择
  *   - Sys_Movement        ( 65) — 物理移动
  *   - Sys_Physics         (100) — Jolt Body 创建 + 物理步进 + Transform 同步
  *   - Sys_EnemyVision     (110) — 敌人视野判定（扇形视锥 + 遮挡射线）

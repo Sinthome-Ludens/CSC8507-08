@@ -1,3 +1,7 @@
+/**
+ * @file UI_Lobby.cpp
+ * @brief 多人大厅 UI。
+ */
 #include "UI_Lobby.h"
 #ifdef USE_IMGUI
 

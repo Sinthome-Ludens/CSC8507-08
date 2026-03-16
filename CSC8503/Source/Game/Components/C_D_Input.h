@@ -36,6 +36,9 @@ struct C_D_Input {
     bool  item3JustPressed = false; ///< 数字键 3 → DDoS          (ItemID::DDoS)
     bool  item4JustPressed = false; ///< 数字键 4 → 流窜 AI       (ItemID::RoamAI)
     bool  item5JustPressed = false; ///< 数字键 5 → 靶向打击      (ItemID::TargetStrike)
+
+    // ── 滚轮输入（CQC 目标切换） ──
+    int   scrollDelta = 0;
 };
 
 } // namespace ECS
