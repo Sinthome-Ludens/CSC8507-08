@@ -1,3 +1,7 @@
+/**
+ * @file C_D_Material.h
+ * @brief 统一材质组件（PBR/Stylized/BlinnPhong）。
+ */
 #pragma once
 
 #include "Vector.h"

@@ -1,3 +1,7 @@
+/**
+ * @file UI_TitleScreen.cpp
+ * @brief 主标题/启动画面 UI。
+ */
 #include "UI_TitleScreen.h"
 #ifdef USE_IMGUI
 

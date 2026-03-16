@@ -1,3 +1,7 @@
+/**
+ * @file UI_Loadout.cpp
+ * @brief 武器/装备选择 UI。
+ */
 #include "UI_Loadout.h"
 #ifdef USE_IMGUI
 

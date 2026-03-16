@@ -1,3 +1,7 @@
+/**
+ * @file UI_Menus.cpp
+ * @brief 通用菜单 UI 系统。
+ */
 #include "UI_Menus.h"
 #ifdef USE_IMGUI
 

@@ -1,3 +1,7 @@
+/**
+ * @file ImGuiAdapter.h
+ * @brief ImGui 初始化与窗口适配器声明。
+ */
 #pragma once
 #ifdef USE_IMGUI
 

@@ -1,3 +1,7 @@
+/**
+ * @file UI_GameOver.cpp
+ * @brief 游戏结束画面 UI。
+ */
 #include "UI_GameOver.h"
 #ifdef USE_IMGUI
 

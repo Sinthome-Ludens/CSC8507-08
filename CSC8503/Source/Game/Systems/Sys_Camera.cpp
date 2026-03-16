@@ -1,3 +1,7 @@
+/**
+ * @file Sys_Camera.cpp
+ * @brief 摄像机控制系统实现。
+ */
 #include "Sys_Camera.h"
 
 #include "Window.h"

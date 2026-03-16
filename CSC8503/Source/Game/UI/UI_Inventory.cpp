@@ -1,3 +1,7 @@
+/**
+ * @file UI_Inventory.cpp
+ * @brief ImGui 物品栏 UI 渲染。
+ */
 #include "UI_Inventory.h"
 #ifdef USE_IMGUI
 

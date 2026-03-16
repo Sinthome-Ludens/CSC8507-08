@@ -720,6 +720,7 @@ void NavMeshPathfinderUtil::GetWalkableGeometry(
 
     // 直接输出全部顶点（Jolt 仅使用索引引用的顶点）
     outVerts = m_Vertices;
+    outIndices.clear();
 
     for (const auto& tri : m_Triangles) {
         if (tri.area != static_cast<int>(NavArea::Walkable)) continue;
@@ -740,6 +741,7 @@ void NavMeshPathfinderUtil::GetAllGeometry(
     if (!m_Loaded) return;
 
     outVerts = m_Vertices;
+    outIndices.clear();
 
     for (const auto& tri : m_Triangles) {
         outIndices.push_back(tri.v[0]);
