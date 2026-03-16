@@ -81,8 +81,10 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     // ── 1. 资源预热：初始化 AssetManager，加载本场景所需 mesh ──────────
     ECS::AssetManager::Instance().Init();
 
+    // 渲染用 collision OBJ（不含 SpawnPoint/PatrolPoint 标记物）
+    // 原始 TutorialMap.obj 包含 Unity 导出的标记物几何，collision 版本已排除
     ECS::MeshHandle mapMesh = ECS::AssetManager::Instance().LoadMesh(
-        NCL::Assets::MESHDIR + "TutorialMap.obj");
+        NCL::Assets::MESHDIR + "TutorialMap_collision.obj");
 
     ECS::MeshHandle cubeMesh = ECS::AssetManager::Instance().LoadMesh(
         NCL::Assets::MESHDIR + "cube.obj");
