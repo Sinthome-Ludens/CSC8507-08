@@ -43,6 +43,9 @@ namespace NCL {
             void PresentFrame() { SwapBuffers(); }
             void SetWireframeMode(bool enabled) override { m_wireframeMode = enabled; }
 
+            /// @brief 窗口尺寸变化时重新分配所有屏幕尺寸相关 FBO 纹理（HDR / SSAO / PP）。
+            void OnWindowResize(int w, int h) override;
+
             // ── ImGui 调试设置器 ─────────────────────────────
             void SetSSAOEnabled(bool v)           { m_ssaoEnabled = v; }
             void SetSSAORadius(float r)           { m_ssaoRadius  = r; }
