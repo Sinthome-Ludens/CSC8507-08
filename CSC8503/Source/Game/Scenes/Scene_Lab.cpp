@@ -17,6 +17,7 @@
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
+#include "Game/Systems/Sys_PlayerCamera.h"
 #include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_EnemyVision.h"
@@ -80,7 +81,8 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_Lab] map entity id=" << entity_map);
 
     systems.Register<ECS::Sys_Input>        ( 10);
-    systems.Register<ECS::Sys_Camera>       ( 50);
+    systems.Register<ECS::Sys_PlayerCamera> (150);
+    systems.Register<ECS::Sys_Camera>       (155);
     systems.Register<ECS::Sys_Physics>      (100);
     systems.Register<ECS::Sys_EnemyVision>  (110);
     systems.Register<ECS::Sys_DeathJudgment>(125);

@@ -989,20 +989,22 @@ void GameTechRenderer::RenderPostProcessChain() {
         UseShader(*m_ssaoShader);
         GLuint pid = m_ssaoShader->GetProgramID();
         glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, m_hdrNormalTex);
-        glUniform1i(glGetUniformLocation(pid, "gNormal"), 0);
+        glUniform1i(glGetUniformLocation(pid, "normalTex"), 0);
         glActiveTexture(GL_TEXTURE1); glBindTexture(GL_TEXTURE_2D, m_hdrDepthTex);
         glUniform1i(glGetUniformLocation(pid, "depthTex"), 1);
         glActiveTexture(GL_TEXTURE2); glBindTexture(GL_TEXTURE_2D, m_ssaoNoiseTex);
         glUniform1i(glGetUniformLocation(pid, "noiseTex"), 2);
         for (int i = 0; i < 64; i++) {
-            char buf[32]; snprintf(buf, sizeof(buf), "samples[%d]", i);
+            char buf[32]; snprintf(buf, sizeof(buf), "ssaoKernel[%d]", i);
             glUniform3fv(glGetUniformLocation(pid, buf), 1, (float*)&m_ssaoKernel[i]);
         }
         Matrix4 projMatrix = gameWorld.GetMainCamera().BuildProjectionMatrix(hostWindow.GetScreenAspect());
+        Matrix4 invProj    = Maths::Matrix::Inverse(projMatrix);
         glUniformMatrix4fv(glGetUniformLocation(pid, "projMatrix"),    1, false, (float*)&projMatrix);
-        glUniform1f(glGetUniformLocation(pid, "radius"), m_ssaoRadius);
-        glUniform1f(glGetUniformLocation(pid, "bias"),   m_ssaoBias);
-        glUniform2f(glGetUniformLocation(pid, "noiseScale"), (float)w / 4.0f, (float)h / 4.0f);
+        glUniformMatrix4fv(glGetUniformLocation(pid, "invProjMatrix"), 1, false, (float*)&invProj);
+        glUniform1f(glGetUniformLocation(pid, "ssaoRadius"), m_ssaoRadius);
+        glUniform1f(glGetUniformLocation(pid, "ssaoBias"),   m_ssaoBias);
+        glUniform2f(glGetUniformLocation(pid, "screenSize"), (float)w, (float)h);
         DrawFullscreenTriangle();
 
         // SSAO Blur
