@@ -14,6 +14,7 @@
 
 #include "Window.h"
 #include "Assets.h"
+#include "Game/Components/Res_Input.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_UIState.h"
@@ -235,17 +236,17 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
     }
 
     // ── Handle direction-key input for replies ─────────────
-    const Keyboard* kb = Window::GetKeyboard();
+    const auto& input = registry.ctx<Res_Input>();
     int8_t confirmedReply = -1;
 
-    if (kb && chat.replyCount > 0 && chat.dirInputActive) {
+    if (chat.replyCount > 0 && chat.dirInputActive) {
         // Detect arrow key press → append to buffer
         DirKey pressed = DirKey::Up;
         bool hasPress = false;
-        if      (kb->KeyPressed(KeyCodes::UP))    { pressed = DirKey::Up;    hasPress = true; }
-        else if (kb->KeyPressed(KeyCodes::DOWN))  { pressed = DirKey::Down;  hasPress = true; }
-        else if (kb->KeyPressed(KeyCodes::LEFT))  { pressed = DirKey::Left;  hasPress = true; }
-        else if (kb->KeyPressed(KeyCodes::RIGHT)) { pressed = DirKey::Right; hasPress = true; }
+        if      (input.keyPressed[KeyCodes::UP])    { pressed = DirKey::Up;    hasPress = true; }
+        else if (input.keyPressed[KeyCodes::DOWN])  { pressed = DirKey::Down;  hasPress = true; }
+        else if (input.keyPressed[KeyCodes::LEFT])  { pressed = DirKey::Left;  hasPress = true; }
+        else if (input.keyPressed[KeyCodes::RIGHT]) { pressed = DirKey::Right; hasPress = true; }
 
         if (hasPress && chat.inputBufferLen < Res_ChatState::kInputBufferSize) {
             chat.inputBuffer[chat.inputBufferLen++] = pressed;

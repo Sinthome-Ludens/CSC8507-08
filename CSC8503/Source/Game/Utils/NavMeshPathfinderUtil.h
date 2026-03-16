@@ -99,6 +99,24 @@ public:
                               std::vector<int>& outIndices) const;
 
     /**
+     * @brief 提取所有三角形的顶点和索引（忽略 area 类型）
+     *
+     * 用于生成完整碰撞网格（碰撞箱与渲染 mesh 不同时使用）。
+     * 坐标为 navmesh 局部空间，已经过 ScaleVertices 处理。
+     *
+     * @param outVerts   输出顶点列表（局部空间）
+     * @param outIndices 输出索引列表（每 3 个为一个三角形）
+     */
+    void GetAllGeometry(std::vector<NCL::Maths::Vector3>& outVerts,
+                         std::vector<int>& outIndices) const;
+
+    /// 获取已加载的顶点数量
+    int GetVertexCount() const { return static_cast<int>(m_Vertices.size()); }
+
+    /// 获取已加载的三角形数量
+    int GetTriangleCount() const { return static_cast<int>(m_Triangles.size()); }
+
+    /**
      * @brief PathfinderUtil 接口：A* 寻路
      *
      * 若 navmesh 未加载，退化为直线追踪（输出单路点 {end}）。
@@ -122,7 +140,13 @@ private:
     /// 计算每个三角形的重心并建立邻接表（仅命名格式需要）
     void BuildAdjacency();
 
-    /// 返回重心距 p 最近的可行走三角形索引
+    /// XZ 平面点是否在三角形内（重心坐标法）
+    bool PointInTriangleXZ(const NCL::Maths::Vector3& p,
+                            const NCL::Maths::Vector3& a,
+                            const NCL::Maths::Vector3& b,
+                            const NCL::Maths::Vector3& c) const;
+
+    /// 返回距 p 最近的可行走三角形索引（优先 XZ 包含，支持多层地图）
     int  FindNearestTriangle(const NCL::Maths::Vector3& p) const;
 
     /// 在三角形图上执行 A* 搜索，outTriPath 为三角形索引序列

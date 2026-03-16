@@ -1,8 +1,10 @@
+/**
+ * @file Sys_Camera.cpp
+ * @brief 摄像机控制系统实现。
+ */
 #include "Sys_Camera.h"
 
 #include "Window.h"
-#include "Keyboard.h"
-#include "Mouse.h"
 #include "GameWorld.h"
 
 #include "Game/Components/C_D_Transform.h"
@@ -11,6 +13,8 @@
 #include "Game/Components/Res_CameraContext.h"
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_Input.h"
+#include "Core/Bridge/ImGuiAdapter.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/Assert.h"
@@ -77,6 +81,7 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
 
     auto* win = Window::GetWindow();
     const bool windowActive = (win != nullptr) && win->IsActiveWindow();
+    const auto& input = registry.ctx<Res_Input>();
 
     // ── 读取 UI 状态（Linyn-UIdesign）────────────────────────────
     bool uiBlocking     = false;
@@ -89,8 +94,16 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
         itemWheelOpen  = ui.itemWheelOpen;
     }
 
-    // F1 键切换由 Sys_UI 统一处理（切换 devMode），相机 Debug 模式由 ImGui 面板控制
-    // 移除此处的 F1 键处理，避免与 Sys_UI 冲突
+    // ImGui 捕获检查：正在拖拽/输入 ImGui 控件时禁用相机
+    // 用 IsAnyItemActive() 而非 WantCaptureMouse：后者在 hover 时就为 true，
+    // 会导致相机锁定模式下光标经过 ImGui 窗口时旋转中断。
+#ifdef USE_IMGUI
+    bool imguiCapturingMouse    = ImGui::IsAnyItemActive() && ImGui::GetIO().WantCaptureMouse;
+    bool imguiCapturingKeyboard = ImGui::GetIO().WantCaptureKeyboard && ImGui::IsAnyItemActive();
+#else
+    bool imguiCapturingMouse    = false;
+    bool imguiCapturingKeyboard = false;
+#endif
 
     bool cursorFree = false;
 
@@ -100,21 +113,18 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
             // ── 同步 Settings 鼠标灵敏度到相机组件 ──────────────────────────
             if (uiSensitivity >= 0.0f) cam.sensitivity = uiSensitivity;
 
-            auto* kb = Window::GetKeyboard();
-
             // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）──
             // 始终可用，不受 Debug 模式限制
-            if (kb && windowActive) {
-                cam.cursor_free = kb->KeyDown(KeyCodes::MENU);
+            if (windowActive) {
+                cam.cursor_free = input.keyStates[KeyCodes::MENU];
             }
 
             // ── Debug 模式：WASD/鼠标自由飞行（默认关闭）────────────────────
             if (m_DebugMode) {
 
-                // ── 鼠标旋转（cursor_free 或 UI 阻塞时禁用）─────────────────
-                auto* mouse = Window::GetMouse();
-                if (mouse && windowActive && !cam.cursor_free && !uiBlocking && !itemWheelOpen) {
-                    const Vector2 delta = mouse->GetRelativePosition();
+                // ── 鼠标旋转（cursor_free 或 UI 阻塞或 ImGui 捕获时禁用）─────
+                if (windowActive && !cam.cursor_free && !uiBlocking && !itemWheelOpen && !imguiCapturingMouse) {
+                    const Vector2 delta = input.mouseDelta;
                     cam.yaw   -= delta.x * cam.sensitivity;
                     cam.pitch -= delta.y * cam.sensitivity;
                     cam.pitch  = std::clamp(cam.pitch, -89.0f, 89.0f);
@@ -122,8 +132,8 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                     if (win) win->WarpCursorToCenter();
                 }
 
-                // ── 键盘平移（WASD + Q/E，UI 阻塞时禁用）────────────────────
-                if (!m_SyncToPlayer && kb && windowActive && !uiBlocking) {
+                // ── 键盘平移（WASD + Q/E，UI 阻塞或 ImGui 捕获键盘时禁用）──
+                if (!m_SyncToPlayer && windowActive && !uiBlocking && !imguiCapturingKeyboard) {
                     const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
                     const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
 
@@ -137,12 +147,12 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                     const Vector3 up(0.0f, 1.0f, 0.0f);
 
                     const float speed = cam.move_speed * dt;
-                    if (kb->KeyDown(KeyCodes::W)) tf.position += forward * speed;
-                    if (kb->KeyDown(KeyCodes::S)) tf.position -= forward * speed;
-                    if (kb->KeyDown(KeyCodes::A)) tf.position -= right   * speed;
-                    if (kb->KeyDown(KeyCodes::D)) tf.position += right   * speed;
-                    if (kb->KeyDown(KeyCodes::Q)) tf.position -= up      * speed;
-                    if (kb->KeyDown(KeyCodes::E)) tf.position += up      * speed;
+                    if (input.keyStates[KeyCodes::W]) tf.position += forward * speed;
+                    if (input.keyStates[KeyCodes::S]) tf.position -= forward * speed;
+                    if (input.keyStates[KeyCodes::A]) tf.position -= right   * speed;
+                    if (input.keyStates[KeyCodes::D]) tf.position += right   * speed;
+                    if (input.keyStates[KeyCodes::Q]) tf.position -= up      * speed;
+                    if (input.keyStates[KeyCodes::E]) tf.position += up      * speed;
                 }
             }
 

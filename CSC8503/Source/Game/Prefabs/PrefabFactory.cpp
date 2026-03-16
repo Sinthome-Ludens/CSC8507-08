@@ -203,6 +203,116 @@ EntityID PrefabFactory::CreateStaticMap(Registry& reg, ECS::MeshHandle mapMesh, 
 }
 
 // ============================================================
+// CreateStaticMapRenderOnly  →  PREFAB_ENV_MAP_RENDER_ONLY
+// ============================================================
+/**
+ * @brief 创建纯渲染地图实体（碰撞由 NavMeshFloor 承担）。
+ *
+ * 不挂载任何物理组件（RigidBody / Collider），碰撞完全由独立的
+ * NavMeshFloor TriMesh 实体提供。实现渲染 mesh 与碰撞 mesh 完全分离。
+ */
+EntityID PrefabFactory::CreateStaticMapRenderOnly(Registry& reg, ECS::MeshHandle mapMesh, float scale)
+{
+    EntityID entity = reg.Create();
+
+    // C_D_Transform（Y=-6*scale 与 NavTest 坐标系对齐）
+    reg.Emplace<C_D_Transform>(entity,
+        Vector3(0.0f, -6.0f * scale, 0.0f),
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(scale, scale, scale)
+    );
+
+    // C_D_MeshRenderer（渲染用，.mtl 由 Assimp 自动加载）
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        mapMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // C_D_Material（默认 BlinnPhong）
+    reg.Emplace<C_D_Material>(entity);
+
+    // 不挂载 C_D_RigidBody / C_D_Collider — 碰撞由 NavMeshFloor 独立提供
+
+    AttachDebugName(reg, entity, "ENTITY_Env_MapRenderOnly");
+
+    LOG_INFO("[PrefabFactory] CreateStaticMapRenderOnly id=" << entity
+             << " scale=" << scale);
+
+    return entity;
+}
+
+// ============================================================
+// CreateFinishZoneMesh  →  PREFAB_ENV_FINISH_ZONE_MESH
+// ============================================================
+/**
+ * @brief 创建可见终点区域（渲染 + TriMesh Trigger 碰撞）。
+ *
+ * 渲染 mesh 与碰撞 mesh 分离：
+ *   - 渲染使用 renderMesh（OBJ 模型）
+ *   - 碰撞使用独立 TriMesh 三角网格（可来自不同 OBJ 或 navmesh 数据）
+ * TriMesh 碰撞设为 Trigger 模式，不产生物理推力，仅触发事件。
+ */
+EntityID PrefabFactory::CreateFinishZoneMesh(
+    Registry&                               reg,
+    ECS::MeshHandle                         renderMesh,
+    const std::vector<NCL::Maths::Vector3>& collisionVerts,
+    const std::vector<int>&                 collisionIndices,
+    Vector3                                 worldOffset,
+    float                                   scale)
+{
+    if (collisionVerts.empty() || collisionIndices.empty() || collisionIndices.size() % 3 != 0) {
+        LOG_WARN("[PrefabFactory] CreateFinishZoneMesh: invalid collision geometry (verts="
+                 << collisionVerts.size() << " idx=" << collisionIndices.size() << "), skipping.");
+        return ECS::Entity::NULL_ENTITY;
+    }
+
+    EntityID entity = reg.Create();
+
+    // C_D_Transform
+    reg.Emplace<C_D_Transform>(entity,
+        worldOffset,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(scale, scale, scale)
+    );
+
+    // C_D_MeshRenderer（可见终点区域）
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        renderMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // C_D_RigidBody（静态体）
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    // C_D_TriMeshCollider（三角网格触发器）
+    C_D_TriMeshCollider tri{};
+    tri.vertices    = collisionVerts;
+    tri.indices     = collisionIndices;
+    tri.friction    = 0.0f;
+    tri.restitution = 0.0f;
+    reg.Emplace<C_D_TriMeshCollider>(entity, std::move(tri));
+
+    // C_T_TriggerZone 标签（供游戏逻辑检测终点到达）
+    reg.Emplace<C_T_TriggerZone>(entity);
+
+    // C_D_Material（红色基础颜色，匹配 TutorialMap_finish.mtl 的 Kd 1 0 0）
+    C_D_Material mat{};
+    mat.baseColour = Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+    reg.Emplace<C_D_Material>(entity, mat);
+
+    AttachDebugName(reg, entity, "ENTITY_Env_FinishZone");
+
+    LOG_INFO("[PrefabFactory] CreateFinishZoneMesh id=" << entity
+             << " verts=" << collisionVerts.size()
+             << " tris=" << (collisionIndices.size() / 3)
+             << " offset=(" << worldOffset.x << "," << worldOffset.y << "," << worldOffset.z << ")");
+
+    return entity;
+}
+
+// ============================================================
 // CreatePlayer  →  PREFAB_PLAYER
 // ============================================================
 EntityID PrefabFactory::CreatePlayer(

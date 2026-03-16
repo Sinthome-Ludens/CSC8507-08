@@ -1,3 +1,7 @@
+/**
+ * @file UI_Lobby.cpp
+ * @brief 多人大厅 UI。
+ */
 #include "UI_Lobby.h"
 #ifdef USE_IMGUI
 
@@ -10,6 +14,7 @@
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/Res_Input.h"
 
 using namespace NCL;
 
@@ -36,6 +41,8 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
 
     if (!registry.has_ctx<Res_LobbyState>()) return;
     auto& lobby = registry.ctx<Res_LobbyState>();
+
+    const auto& input = registry.ctx<Res_Input>();
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
@@ -98,26 +105,24 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
     ImFont* termFont = UITheme::GetFont_Terminal();
 
     // Keyboard navigation
-    const Keyboard* kb = Window::GetKeyboard();
-    if (kb && !lobby.ipInputActive) {
-        if (kb->KeyPressed(KeyCodes::W) || kb->KeyPressed(KeyCodes::UP) ||
-            kb->KeyPressed(KeyCodes::A) || kb->KeyPressed(KeyCodes::LEFT)) {
+    if (!lobby.ipInputActive) {
+        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP] ||
+            input.keyPressed[KeyCodes::A] || input.keyPressed[KeyCodes::LEFT]) {
             ui.lobbySelectedIndex = (ui.lobbySelectedIndex - 1 + kLobbyItemCount) % kLobbyItemCount;
         }
-        if (kb->KeyPressed(KeyCodes::S) || kb->KeyPressed(KeyCodes::DOWN) ||
-            kb->KeyPressed(KeyCodes::D) || kb->KeyPressed(KeyCodes::RIGHT)) {
+        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN] ||
+            input.keyPressed[KeyCodes::D] || input.keyPressed[KeyCodes::RIGHT]) {
             ui.lobbySelectedIndex = (ui.lobbySelectedIndex + 1) % kLobbyItemCount;
         }
     }
 
     // Mouse hover detection for cards
-    const Mouse* mouse = Window::GetMouse();
     ImVec2 mousePos = ImGui::GetMousePos();
 
     // Card 0: HOST
     ImVec2 hostMin(hostCardX, cardsStartY);
     ImVec2 hostMax(hostCardX + cardW, cardsStartY + cardH);
-    if (mouse && mousePos.x >= hostMin.x && mousePos.x <= hostMax.x &&
+    if (mousePos.x >= hostMin.x && mousePos.x <= hostMax.x &&
         mousePos.y >= hostMin.y && mousePos.y <= hostMax.y) {
         ui.lobbySelectedIndex = 0;
     }
@@ -125,7 +130,7 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
     // Card 1: JOIN
     ImVec2 joinMin(joinCardX, cardsStartY);
     ImVec2 joinMax(joinCardX + cardW, cardsStartY + cardH);
-    if (mouse && mousePos.x >= joinMin.x && mousePos.x <= joinMax.x &&
+    if (mousePos.x >= joinMin.x && mousePos.x <= joinMax.x &&
         mousePos.y >= joinMin.y && mousePos.y <= joinMax.y) {
         ui.lobbySelectedIndex = 1;
     }
@@ -239,7 +244,7 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
     ImVec2 backMax(backX + backW, backY + backH);
 
     // Mouse hover for BACK
-    if (mouse && mousePos.x >= backMin.x && mousePos.x <= backMax.x &&
+    if (mousePos.x >= backMin.x && mousePos.x <= backMax.x &&
         mousePos.y >= backMin.y && mousePos.y <= backMax.y) {
         ui.lobbySelectedIndex = 2;
     }
@@ -260,11 +265,11 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
 
     // ── Confirm action ────────────────────────────────────────
     int8_t confirmedIndex = -1;
-    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))
+    if ((input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE])
         && !lobby.ipInputActive) {
         confirmedIndex = ui.lobbySelectedIndex;
     }
-    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
+    if (input.mouseButtonPressed[NCL::MouseButtons::Left]) {
         // Check HOST card
         if (mousePos.x >= hostMin.x && mousePos.x <= hostMax.x &&
             mousePos.y >= hostMin.y && mousePos.y <= hostMax.y) {

@@ -1,3 +1,7 @@
+/**
+ * @file UI_TitleScreen.cpp
+ * @brief 主标题/启动画面 UI。
+ */
 #include "UI_TitleScreen.h"
 #ifdef USE_IMGUI
 
@@ -7,6 +11,7 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/Res_Input.h"
 
 using namespace NCL;
 
@@ -129,19 +134,18 @@ void RenderTitleScreen(Registry& registry, float dt) {
     // Detect any key/mouse → Splash
     if (ui.titleTimer > 0.5f) {
         bool anyInput = false;
-        const Keyboard* kb = Window::GetKeyboard();
-        if (kb) {
+        const auto& input = registry.ctx<Res_Input>();
+        {
             for (int k = (int)KeyCodes::BACK; k < (int)KeyCodes::MAXVALUE; ++k) {
-                if (kb->KeyPressed(static_cast<KeyCodes::Type>(k))) {
+                if (input.keyPressed[static_cast<KeyCodes::Type>(k)]) {
                     anyInput = true;
                     break;
                 }
             }
         }
         if (!anyInput) {
-            const Mouse* mouse = Window::GetMouse();
-            if (mouse && (mouse->ButtonPressed(NCL::MouseButtons::Left) ||
-                          mouse->ButtonPressed(NCL::MouseButtons::Right))) {
+            if (input.mouseButtonPressed[NCL::MouseButtons::Left] ||
+                input.mouseButtonPressed[NCL::MouseButtons::Right]) {
                 anyInput = true;
             }
         }

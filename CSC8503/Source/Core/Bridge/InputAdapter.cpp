@@ -5,6 +5,7 @@
 
 #include "InputAdapter.h"
 #include "Keyboard.h"
+#include "Mouse.h"
 #include "Game/Utils/Assert.h"
 
 using namespace NCL;
@@ -14,30 +15,38 @@ namespace ECS {
 void InputAdapter::Update(Window* window, Res_Input& input) {
     GAME_ASSERT(window != nullptr, "InputAdapter::Update - window is null");
 
-    auto* keyboard = window->GetKeyboard();
+    auto* kb    = window->GetKeyboard();
     auto* mouse = window->GetMouse();
 
-    // 同步鼠标位置和滚轮
-    input.mousePos = mouse->GetAbsolutePosition();
-    input.mouseDelta = mouse->GetRelativePosition();
-    input.scrollWheel = mouse->GetWheelMovement();
-
-    // 同步键盘状态（遍历所有按键）
+    // ── 键盘：边沿检测后覆写 ──
     for (int i = 0; i < 256; ++i) {
-        input.keyStates[i] = keyboard->KeyDown((KeyCodes::Type)i);
+        bool now = kb->KeyDown((KeyCodes::Type)i);
+        input.keyPressed[i] = now && !input.keyStates[i];   // 上升沿
+        input.keyStates[i]  = now;
     }
 
-    // 合成轴输入（WASD）
-    float axisX = 0.0f;
-    float axisY = 0.0f;
+    // ── 鼠标按钮：边沿检测后覆写 ──
+    for (int i = 0; i < MouseButtons::MAX_VAL; ++i) {
+        bool now = mouse->ButtonDown((MouseButtons::Type)i);
+        input.mouseButtonPressed[i] = now && !input.mouseButtons[i];
+        input.mouseButtons[i]       = now;
+    }
 
-    if (input.keyStates[KeyCodes::A]) axisX -= 1.0f; // 向左
-    if (input.keyStates[KeyCodes::D]) axisX += 1.0f; // 向右
-    if (input.keyStates[KeyCodes::S]) axisY -= 1.0f; // 向后/下
-    if (input.keyStates[KeyCodes::W]) axisY += 1.0f; // 向前/上
+    // ── 鼠标位置 & 滚轮 ──
+    input.mousePos    = mouse->GetAbsolutePosition();
+    input.mouseDelta  = mouse->GetRelativePosition();
+    input.scrollWheel = mouse->GetWheelMovement();
 
-    input.axisX = axisX;
-    input.axisY = axisY;
+    // ── 合成轴 ──
+    input.axisX = (input.keyStates[KeyCodes::D] ? 1.f : 0.f)
+                - (input.keyStates[KeyCodes::A] ? 1.f : 0.f);
+    input.axisY = (input.keyStates[KeyCodes::W] ? 1.f : 0.f)
+                - (input.keyStates[KeyCodes::S] ? 1.f : 0.f);
+
+    // ── 系统事件 ──
+    // Alt+F4 退出请求（通过 Res_Input 传递给 Main 循环）
+    input.quitRequested = input.keyStates[KeyCodes::MENU]
+                       && input.keyPressed[KeyCodes::F4];
 }
 
 } // namespace ECS

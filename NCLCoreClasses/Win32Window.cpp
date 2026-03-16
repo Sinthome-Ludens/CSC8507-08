@@ -128,6 +128,7 @@ bool	Win32Window::InternalUpdate() {
 	}
 	else if (!active) {
 		active = true;
+		mouseLeftWindow = false;
 		if (init) {
 			winMouse->Wake();
 			winKeyboard->Wake();
@@ -137,7 +138,7 @@ bool	Win32Window::InternalUpdate() {
 	}
 
 	while(PeekMessage(&msg,windowHandle,0,0,PM_REMOVE)) {
-		CheckMessages(msg); 
+		CheckMessages(msg);
 	}
 
 	return !forceQuit;
@@ -257,6 +258,7 @@ LRESULT CALLBACK Win32Window::WindowProc(HWND hWnd, UINT message, WPARAM wParam,
 			}
 			else {
 				thisWindow->active = true;
+				thisWindow->mouseLeftWindow = false;
 				if(thisWindow->init) {
 					thisWindow->winMouse->Wake();
 					thisWindow->winKeyboard->Wake();
@@ -371,11 +373,17 @@ void	Win32Window::LockMouseToWindow(bool lock)	{
 	}
 
 	if(lock) {
-		RECT		windowRect;
-		GetWindowRect (windowHandle, &windowRect);
-
-		SetCapture(windowHandle);
-		ClipCursor(&windowRect);
+		// 限制光标到客户区（不含标题栏/边框），避免不可见光标
+		// 意外到达非客户区导致标题栏交互异常。
+		// 用户需按 Alt 释放光标或 ESC 暂停后才能操作标题栏。
+		RECT clientRect;
+		GetClientRect(windowHandle, &clientRect);
+		POINT tl = { clientRect.left, clientRect.top };
+		POINT br = { clientRect.right, clientRect.bottom };
+		ClientToScreen(windowHandle, &tl);
+		ClientToScreen(windowHandle, &br);
+		RECT screenRect = { tl.x, tl.y, br.x, br.y };
+		ClipCursor(&screenRect);
 	}
 	else{
 		ReleaseCapture();

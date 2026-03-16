@@ -1,3 +1,7 @@
+/**
+ * @file UI_Loadout.cpp
+ * @brief 武器/装备选择 UI。
+ */
 #include "UI_Loadout.h"
 #ifdef USE_IMGUI
 
@@ -12,6 +16,7 @@
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_Toast.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/Res_Input.h"
 
 using namespace NCL;
 
@@ -89,12 +94,12 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
         IM_COL32(200, 200, 200, 100), 1.0f);
 
     // Keyboard navigation
-    const Keyboard* kb = Window::GetKeyboard();
-    if (kb) {
-        if (kb->KeyPressed(KeyCodes::W) || kb->KeyPressed(KeyCodes::UP)) {
+    const auto& input = registry.ctx<Res_Input>();
+    {
+        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP]) {
             ui.loadoutSelectedIndex = (ui.loadoutSelectedIndex - 1 + kTotalEntries) % kTotalEntries;
         }
-        if (kb->KeyPressed(KeyCodes::S) || kb->KeyPressed(KeyCodes::DOWN)) {
+        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN]) {
             ui.loadoutSelectedIndex = (ui.loadoutSelectedIndex + 1) % kTotalEntries;
         }
     }
@@ -138,7 +143,6 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
     };
 
     // Mouse hover + click
-    const Mouse* mouse = Window::GetMouse();
     int8_t confirmedIndex = -1;
 
     auto drawColumn = [&](const LoadoutEntry* entries, int count, int indexOffset,
@@ -153,7 +157,7 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
             ImVec2 itemMax(colX + colWidth, itemY + entryH - 8.0f);
 
             // Mouse hover
-            if (mouse) {
+            {
                 ImVec2 mousePos = ImGui::GetMousePos();
                 if (mousePos.x >= itemMin.x && mousePos.x <= itemMax.x &&
                     mousePos.y >= itemMin.y && mousePos.y <= itemMax.y) {
@@ -202,10 +206,10 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
     drawColumn(kWeapons, kWeaponCount, kItemCount, rightX, colW, true);
 
     // Confirm with ENTER/SPACE — toggle equip
-    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
+    if (input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE]) {
         confirmedIndex = ui.loadoutSelectedIndex;
     }
-    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
+    if (input.mouseButtonPressed[NCL::MouseButtons::Left]) {
         ImVec2 mp = ImGui::GetMousePos();
         auto hitTest = [&](int count, int indexOffset, float colX, float colWidth) -> bool {
             for (int i = 0; i < count; ++i) {
@@ -278,7 +282,7 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
 
     // Check hover
     bool btnHovered = false;
-    if (mouse) {
+    {
         ImVec2 mp = ImGui::GetMousePos();
         btnHovered = (mp.x >= btnMin.x && mp.x <= btnMax.x &&
                       mp.y >= btnMin.y && mp.y <= btnMax.y);
@@ -299,10 +303,10 @@ void RenderLoadoutScreen(Registry& registry, float /*dt*/) {
 
     // Confirm button click (mouse or C key)
     bool btnClicked = false;
-    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left) && btnHovered) {
+    if (input.mouseButtonPressed[NCL::MouseButtons::Left] && btnHovered) {
         btnClicked = true;
     }
-    if (kb && kb->KeyPressed(KeyCodes::C)) {
+    if (input.keyPressed[KeyCodes::C]) {
         btnClicked = true;
     }
 

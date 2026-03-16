@@ -39,8 +39,7 @@ MinSizeRel/
 *.so
 *.dylib
 
-# Object files
-*.obj
+# Object files（仅排除编译产物，不影响 Assets 下的 .obj 3D 模型）
 *.o
 *.lo
 *.slo
@@ -81,16 +80,21 @@ _deps/
 *.vcxproj
 *.vcxproj.filters
 
+# CMake 编译产生的 .obj 目标文件（按目录排除，避免误杀 Assets 下的 .obj 模型）
+cmake-build-*/
+CMakeFiles/**/*.obj
+
 ################################################################################
 # External Libraries (需要手动下载，见 README.md)
 ################################################################################
 External/*
+
 ################################################################################
-# Assets (Optional - uncomment if you don't want to track large assets)
+# Assets — 确保全部内容被追踪
 ################################################################################
-# Assets/Models/*.fbx
-# Assets/Models/*.blend
-# Assets/Textures/*.psd
+# 强制包含 Assets 目录下的所有文件（覆盖上方的通配符规则）
+!Assets/
+!Assets/**
 
 ################################################################################
 # Save Files
@@ -116,6 +120,7 @@ Docs/
 # Keep root README trackable
 *.md
 !README.md
+!Assets/**/*.md
 !.github/copilot-instructions.md
 !.github/instructions/
 !.github/instructions/**/*.instructions.md

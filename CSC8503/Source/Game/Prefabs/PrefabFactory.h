@@ -96,6 +96,50 @@ public:
         float           scale = 1.0f
     );
 
+    /**
+     * @brief 创建纯渲染地图实体（无 Box 碰撞体，碰撞由 NavMeshFloor 提供）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_D_DebugName
+     * 不挂载 C_D_RigidBody 和 C_D_Collider — 碰撞完全由 NavMeshFloor TriMesh 承担。
+     * 适用于碰撞箱与渲染 mesh 完全分离的场景。
+     *
+     * @param reg     ECS Registry
+     * @param mapMesh 地图网格句柄
+     * @param scale   地图缩放系数
+     * @return 地图实体 ID
+     */
+    static ECS::EntityID CreateStaticMapRenderOnly(
+        ECS::Registry&  reg,
+        ECS::MeshHandle mapMesh,
+        float           scale = 1.0f
+    );
+
+    /**
+     * @brief 创建可见终点区域实体（渲染 + TriMesh Trigger 碰撞）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody(Static),
+     *       C_D_TriMeshCollider(is_trigger), C_T_TriggerZone, C_D_DebugName
+     *
+     * 碰撞体使用 TriMesh 三角网格，形状与渲染 mesh 完全一致或来自独立碰撞数据。
+     * 适用于终点区域等需要精确碰撞触发的场景。
+     *
+     * @param reg       ECS Registry
+     * @param renderMesh  渲染用网格句柄
+     * @param collisionVerts  碰撞三角网格顶点
+     * @param collisionIndices  碰撞三角网格索引
+     * @param worldOffset  世界空间偏移
+     * @param scale  缩放系数
+     * @return 终点区域实体 ID
+     */
+    static ECS::EntityID CreateFinishZoneMesh(
+        ECS::Registry&                          reg,
+        ECS::MeshHandle                         renderMesh,
+        const std::vector<NCL::Maths::Vector3>& collisionVerts,
+        const std::vector<int>&                 collisionIndices,
+        NCL::Maths::Vector3                     worldOffset,
+        float                                   scale = 1.0f
+    );
+
     // ============================================================
     // 玩家
     // ============================================================

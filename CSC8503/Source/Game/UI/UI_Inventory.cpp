@@ -1,3 +1,7 @@
+/**
+ * @file UI_Inventory.cpp
+ * @brief ImGui 物品栏 UI 渲染。
+ */
 #include "UI_Inventory.h"
 #ifdef USE_IMGUI
 
@@ -9,6 +13,7 @@
 #include "Game/Components/Res_InventoryState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/Res_Input.h"
 
 using namespace NCL;
 
@@ -75,29 +80,26 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
     ImFont* smallFont = UITheme::GetFont_Small();
 
     // Keyboard navigation
-    const Keyboard* kb = Window::GetKeyboard();
-    if (kb) {
+    const auto& input = registry.ctx<Res_Input>();
+    {
         int sel = ui.inventorySelectedSlot;
         int row = sel / Res_InventoryState::kCols;
         int col = sel % Res_InventoryState::kCols;
 
-        if (kb->KeyPressed(KeyCodes::W) || kb->KeyPressed(KeyCodes::UP)) {
+        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP]) {
             row = (row - 1 + Res_InventoryState::kRows) % Res_InventoryState::kRows;
         }
-        if (kb->KeyPressed(KeyCodes::S) || kb->KeyPressed(KeyCodes::DOWN)) {
+        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN]) {
             row = (row + 1) % Res_InventoryState::kRows;
         }
-        if (kb->KeyPressed(KeyCodes::A) || kb->KeyPressed(KeyCodes::LEFT)) {
+        if (input.keyPressed[KeyCodes::A] || input.keyPressed[KeyCodes::LEFT]) {
             col = (col - 1 + Res_InventoryState::kCols) % Res_InventoryState::kCols;
         }
-        if (kb->KeyPressed(KeyCodes::D) || kb->KeyPressed(KeyCodes::RIGHT)) {
+        if (input.keyPressed[KeyCodes::D] || input.keyPressed[KeyCodes::RIGHT]) {
             col = (col + 1) % Res_InventoryState::kCols;
         }
         ui.inventorySelectedSlot = static_cast<int8_t>(row * Res_InventoryState::kCols + col);
     }
-
-    // Mouse hover
-    const Mouse* mouse = Window::GetMouse();
 
     // Draw grid cards
     for (int r = 0; r < Res_InventoryState::kRows; ++r) {
@@ -112,7 +114,7 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
             bool isSelected = (idx == ui.inventorySelectedSlot);
 
             // Mouse hover detection
-            if (mouse) {
+            {
                 ImVec2 mousePos = ImGui::GetMousePos();
                 if (mousePos.x >= cardMin.x && mousePos.x <= cardMax.x &&
                     mousePos.y >= cardMin.y && mousePos.y <= cardMax.y) {

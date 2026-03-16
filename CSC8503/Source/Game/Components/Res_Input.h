@@ -93,15 +93,24 @@ namespace ECS {
  * 由 `InputAdapter` 在每帧开始时更新，所有 System 只读访问。
  */
 struct Res_Input {
+    // ── 鼠标 ──
     NCL::Maths::Vector2 mousePos{0.0f, 0.0f};   ///< 鼠标窗口坐标（像素）
     NCL::Maths::Vector2 mouseDelta{0.0f, 0.0f}; ///< 鼠标移动增量（本帧 - 上帧）
+    bool mouseButtons[5] = {};                    ///< 鼠标按钮持续状态（ButtonDown）
+    bool mouseButtonPressed[5] = {};              ///< 鼠标按钮边沿（本帧刚按下）
 
-    bool keyStates[256] = {false}; ///< 键盘按键状态数组（true = 按下）
+    // ── 键盘 ──
+    bool keyStates[256] = {};    ///< 键盘按键持续状态（KeyDown）
+    bool keyPressed[256] = {};   ///< 键盘按键边沿（本帧刚按下）
 
+    // ── 合成轴 ──
     float axisX = 0.0f; ///< 水平轴输入（A/左 = -1，D/右 = +1，不按 = 0）
     float axisY = 0.0f; ///< 垂直轴输入（S/下 = -1，W/上 = +1，不按 = 0）
 
     int scrollWheel = 0; ///< 鼠标滚轮增量（正=上滚，负=下滚，0=无滚动）
+
+    // ── 系统事件 ──
+    bool quitRequested = false; ///< Alt+F4 退出请求
 };
 
 } // namespace ECS

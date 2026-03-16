@@ -122,6 +122,23 @@ public:
      */
     static std::vector<NCL::Rendering::OGLMesh*> LoadScene(const std::string& path);
 
+    /**
+     * @brief 从模型文件提取碰撞用三角网格数据（不上传 GPU）
+     *
+     * 加载 OBJ/FBX 等文件，仅提取顶点位置和三角形索引，用于创建
+     * 独立于渲染 mesh 的碰撞体（碰撞箱与 mesh 不相等）。
+     *
+     * @param path           模型文件路径
+     * @param outVertices    输出顶点坐标列表
+     * @param outIndices     输出三角形索引列表（int 类型，每 3 个为一个三角形）
+     * @return true 成功，false 文件不存在或格式错误
+     */
+    static bool LoadCollisionGeometry(
+        const std::string& path,
+        std::vector<NCL::Maths::Vector3>& outVertices,
+        std::vector<int>& outIndices
+    );
+
 private:
     AssimpLoader() = delete; // 禁止实例化
     ~AssimpLoader() = delete;

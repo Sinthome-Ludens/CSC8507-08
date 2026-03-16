@@ -1,31 +1,45 @@
+/**
+ * @file ImGuiAdapter.cpp
+ * @brief ImGui Win32/OpenGL3 后端实现。
+ */
 #include "ImGuiAdapter.h"
 #ifdef USE_IMGUI
 
 #include "Window.h"
 #include "Win32Window.h"
+#include "Mouse.h"
 #include "OGLRenderer.h"
 #include "glad/gl.h"
 #include "Game/Utils/WindowHelper.h"
+#include "Game/Utils/Log.h"
+#include <commctrl.h>
+#pragma comment(lib, "comctl32.lib")
 #include <iostream>
 
 using namespace NCL;
 using namespace NCL::Win32Code;
 
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
+    HWND, UINT, WPARAM, LPARAM);
+
 namespace ECS {
 
 bool ImGuiAdapter::s_Initialized = false;
-HHOOK ImGuiAdapter::s_MessageHook = nullptr;
 HWND  ImGuiAdapter::s_TargetHWND  = nullptr;
+NCL::Window* ImGuiAdapter::s_Window = nullptr;
 
-LRESULT CALLBACK ImGuiAdapter::MessageHookProc(int nCode, WPARAM wParam, LPARAM lParam) {
-    if (nCode >= 0 && s_Initialized) {
-        MSG* pMsg = reinterpret_cast<MSG*>(lParam);
-        if (pMsg->hwnd == s_TargetHWND && !WindowHelper::IsInSizeMove()) {
-            extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
-            ImGui_ImplWin32_WndProcHandler(pMsg->hwnd, pMsg->message, pMsg->wParam, pMsg->lParam);
-        }
+static const UINT_PTR kImGuiSubclassId = 2; // WindowHelper uses 1
+
+static LRESULT CALLBACK ImGuiSubclassProc(
+    HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
+    UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    // subclass 仍然转发非鼠标消息（WM_CHAR、WM_MOUSEWHEEL 等）给 ImGui
+    if (ImGuiAdapter::s_Initialized && !WindowHelper::IsInSizeMove()) {
+        if (::ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+            return 0;   // ImGui 已消费该消息，不再 forward
     }
-    return CallNextHookEx(s_MessageHook, nCode, wParam, lParam);
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
 HWND ImGuiAdapter::GetHWND(Window* window) {
@@ -62,17 +76,15 @@ bool ImGuiAdapter::Init(Window* window, Rendering::OGLRenderer* renderer) {
         return false;
     }
 
-    DWORD threadId = GetWindowThreadProcessId(s_TargetHWND, nullptr);
-    s_MessageHook = SetWindowsHookEx(WH_GETMESSAGE, MessageHookProc, nullptr, threadId);
-
-    if (!s_MessageHook) {
-        std::cerr << "[ImGuiAdapter] SetWindowsHookEx failed (error: " << GetLastError() << ")" << std::endl;
+    if (!SetWindowSubclass(s_TargetHWND, ImGuiSubclassProc, kImGuiSubclassId, 0)) {
+        std::cerr << "[ImGuiAdapter] SetWindowSubclass failed" << std::endl;
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
         return false;
     }
 
+    s_Window = window;
     s_Initialized = true;
     std::cout << "[ImGuiAdapter] Initialized (No-Intrusive Mode, Docking enabled)" << std::endl;
     return true;
@@ -80,13 +92,11 @@ bool ImGuiAdapter::Init(Window* window, Rendering::OGLRenderer* renderer) {
 
 void ImGuiAdapter::Shutdown() {
     if (!s_Initialized) return;
-    if (s_MessageHook) {
-        UnhookWindowsHookEx(s_MessageHook);
-        s_MessageHook = nullptr;
-    }
+    RemoveWindowSubclass(s_TargetHWND, ImGuiSubclassProc, kImGuiSubclassId);
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+    s_Window = nullptr;
     s_Initialized = false;
     std::cout << "[ImGuiAdapter] Shutdown complete" << std::endl;
 }
@@ -95,6 +105,25 @@ void ImGuiAdapter::NewFrame() {
     if (!s_Initialized) return;
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplWin32_NewFrame();
+
+    // 从 NCL Mouse 轮询鼠标状态，绕过 ImGui Win32 后端的 MouseTrackedArea 守卫。
+    // 当 WM_MOUSEMOVE 消息不可靠到达时（场景切换后间歇性发生），
+    // MouseTrackedArea 卡在非零值，阻止 GetCursorPos 回退，导致鼠标位置冻结。
+    // 通过 NCL Mouse 轮询保证每帧都有正确的鼠标数据，且与游戏输入源统一。
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        if (s_Window) {
+            const auto* mouse = s_Window->GetMouse();
+            if (mouse) {
+                Maths::Vector2 pos = mouse->GetAbsolutePosition();
+                io.AddMousePosEvent(pos.x, pos.y);
+                io.AddMouseButtonEvent(0, mouse->ButtonDown(MouseButtons::Left));
+                io.AddMouseButtonEvent(1, mouse->ButtonDown(MouseButtons::Right));
+                io.AddMouseButtonEvent(2, mouse->ButtonDown(MouseButtons::Middle));
+            }
+        }
+    }
+
     ImGui::NewFrame();
 }
 

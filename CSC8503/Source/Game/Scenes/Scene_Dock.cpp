@@ -17,12 +17,14 @@
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
+#include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_EnemyVision.h"
 #include "Game/Systems/Sys_Navigation.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Utils/Log.h"
+#include "Game/Utils/MapPointsLoader.h"
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
@@ -76,6 +78,7 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     ECS::EntityID entity_map = PrefabFactory::CreateStaticMap(registry, mapMesh, kMapScale);
     LOG_INFO("[Scene_Dock] map entity id=" << entity_map);
 
+    systems.Register<ECS::Sys_Input>        ( 10);
     systems.Register<ECS::Sys_Camera>       ( 50);
     systems.Register<ECS::Sys_Physics>      (100);
     systems.Register<ECS::Sys_EnemyVision>  (110);
@@ -127,6 +130,19 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
 
         LOG_INFO("[Scene_Dock] Generated " << wallIdx
                  << " wall colliders from navmesh boundary edges.");
+    }
+
+    // ── 玩家生成（从 .points 文件读取起始点）────────────────────────────
+    {
+        auto points = ECS::LoadMapPoints(NCL::Assets::MESHDIR + "Dock.points");
+        if (points.loaded && !points.startPoints.empty()) {
+            const auto& sp = points.startPoints[0];
+            NCL::Maths::Vector3 spawnPos(
+                sp.x * kMapScale,
+                sp.y * kMapScale + (-6.0f * kMapScale) + 1.5f,
+                sp.z * kMapScale);
+            PrefabFactory::CreatePlayer(registry, cubeMesh, spawnPos);
+        }
     }
 
     systems.Register<ECS::Sys_Render>   (200);

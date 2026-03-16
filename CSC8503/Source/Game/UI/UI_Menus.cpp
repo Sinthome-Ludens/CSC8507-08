@@ -1,3 +1,7 @@
+/**
+ * @file UI_Menus.cpp
+ * @brief 通用菜单 UI 系统。
+ */
 #include "UI_Menus.h"
 #ifdef USE_IMGUI
 
@@ -8,6 +12,7 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/Res_Input.h"
 
 using namespace NCL;
 
@@ -233,11 +238,10 @@ void RenderSplashScreen(Registry& registry, float dt) {
     if (ui.splashTimer > 0.5f) {
         bool anyInput = false;
 
-        const Keyboard* kb = Window::GetKeyboard();
-        if (kb) {
-            // 从 BACK(0x08) 开始扫描，跳过 0x00-0x07 的鼠标虚拟键码
+        const auto& input = registry.ctx<Res_Input>();
+        {
             for (int k = (int)KeyCodes::BACK; k < (int)KeyCodes::MAXVALUE; ++k) {
-                if (kb->KeyPressed(static_cast<KeyCodes::Type>(k))) {
+                if (input.keyPressed[static_cast<KeyCodes::Type>(k)]) {
                     anyInput = true;
                     break;
                 }
@@ -245,9 +249,8 @@ void RenderSplashScreen(Registry& registry, float dt) {
         }
 
         if (!anyInput) {
-            const Mouse* mouse = Window::GetMouse();
-            if (mouse && (mouse->ButtonPressed(NCL::MouseButtons::Left) ||
-                          mouse->ButtonPressed(NCL::MouseButtons::Right))) {
+            if (input.mouseButtonPressed[NCL::MouseButtons::Left] ||
+                input.mouseButtonPressed[NCL::MouseButtons::Right]) {
                 anyInput = true;
             }
         }
@@ -340,22 +343,21 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
     float menuItemH  = 34.0f;
 
     // Keyboard navigation
-    const Keyboard* kb = Window::GetKeyboard();
-    if (kb) {
-        if (kb->KeyPressed(KeyCodes::W) || kb->KeyPressed(KeyCodes::UP)) {
+    const auto& input = registry.ctx<Res_Input>();
+    {
+        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP]) {
             ui.menuSelectedIndex = (ui.menuSelectedIndex - 1 + kMenuItemCount) % kMenuItemCount;
         }
-        if (kb->KeyPressed(KeyCodes::S) || kb->KeyPressed(KeyCodes::DOWN)) {
+        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN]) {
             ui.menuSelectedIndex = (ui.menuSelectedIndex + 1) % kMenuItemCount;
         }
     }
 
     // Mouse hover
-    const Mouse* mouse = Window::GetMouse();
     for (int i = 0; i < kMenuItemCount; ++i) {
         ImVec2 itemMin(vpPos.x + panelPadX - 5.0f, menuStartY + i * menuItemH - 2.0f);
         ImVec2 itemMax(vpPos.x + leftPanelW - 10.0f, menuStartY + i * menuItemH + menuItemH - 6.0f);
-        if (mouse) {
+        {
             ImVec2 mousePos = ImGui::GetMousePos();
             if (mousePos.x >= itemMin.x && mousePos.x <= itemMax.x &&
                 mousePos.y >= itemMin.y && mousePos.y <= itemMax.y) {
@@ -366,10 +368,10 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
 
     // Confirm detection
     int8_t confirmedIndex = -1;
-    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
+    if (input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE]) {
         confirmedIndex = ui.menuSelectedIndex;
     }
-    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
+    if (input.mouseButtonPressed[NCL::MouseButtons::Left]) {
         ImVec2 mousePos = ImGui::GetMousePos();
         for (int i = 0; i < kMenuItemCount; ++i) {
             ImVec2 itemMin(vpPos.x + panelPadX - 5.0f, menuStartY + i * menuItemH - 2.0f);
@@ -716,22 +718,21 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
     float menuItemH  = 38.0f;
 
     // Keyboard navigation
-    const Keyboard* kb = Window::GetKeyboard();
-    if (kb) {
-        if (kb->KeyPressed(KeyCodes::W) || kb->KeyPressed(KeyCodes::UP)) {
+    const auto& input = registry.ctx<Res_Input>();
+    {
+        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP]) {
             ui.pauseSelectedIndex = (ui.pauseSelectedIndex - 1 + kPauseItemCount) % kPauseItemCount;
         }
-        if (kb->KeyPressed(KeyCodes::S) || kb->KeyPressed(KeyCodes::DOWN)) {
+        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN]) {
             ui.pauseSelectedIndex = (ui.pauseSelectedIndex + 1) % kPauseItemCount;
         }
     }
 
     // Mouse hover
-    const Mouse* mouse = Window::GetMouse();
     for (int i = 0; i < kPauseItemCount; ++i) {
         ImVec2 itemMin(panelX + 30.0f, menuStartY + i * menuItemH - 2.0f);
         ImVec2 itemMax(panelX + panelW - 30.0f, menuStartY + i * menuItemH + menuItemH - 6.0f);
-        if (mouse) {
+        {
             ImVec2 mousePos = ImGui::GetMousePos();
             if (mousePos.x >= itemMin.x && mousePos.x <= itemMax.x &&
                 mousePos.y >= itemMin.y && mousePos.y <= itemMax.y) {
@@ -742,10 +743,10 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
 
     // Confirm detection
     int8_t confirmedIndex = -1;
-    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
+    if (input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE]) {
         confirmedIndex = ui.pauseSelectedIndex;
     }
-    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
+    if (input.mouseButtonPressed[NCL::MouseButtons::Left]) {
         ImVec2 mousePos = ImGui::GetMousePos();
         for (int i = 0; i < kPauseItemCount; ++i) {
             ImVec2 itemMin(panelX + 30.0f, menuStartY + i * menuItemH - 2.0f);

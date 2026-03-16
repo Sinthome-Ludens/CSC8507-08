@@ -397,6 +397,10 @@ void NavMeshPathfinderUtil::BuildAdjacency()
     // eps²：顶点坐标差的平方和阈值（容差 0.01m）
     constexpr float kEps2 = 0.01f * 0.01f;
 
+    // 多层地图保护：若两个三角形重心 Y 差超过此阈值，即使共享顶点也不视为相邻。
+    // 防止上下层三角形因顶点数值巧合而误连接。斜坡连续三角形的 Y 差通常 < 2m。
+    constexpr float kMaxLayerYDiff = 3.0f;
+
     auto vertexEqual = [&](int vi, int vj) -> bool {
         const NCL::Maths::Vector3& a = m_Vertices[vi];
         const NCL::Maths::Vector3& b = m_Vertices[vj];
@@ -406,6 +410,10 @@ void NavMeshPathfinderUtil::BuildAdjacency()
 
     for (int i = 0; i < N; ++i) {
         for (int j = i + 1; j < N; ++j) {
+            // 多层地图保护：跳过 Y 距离过大的三角形对
+            float centroidYDiff = fabsf(m_Triangles[i].centroid.y - m_Triangles[j].centroid.y);
+            if (centroidYDiff > kMaxLayerYDiff) continue;
+
             int shared = 0;
             for (int a = 0; a < 3 && shared < 2; ++a)
                 for (int b = 0; b < 3; ++b)
@@ -433,31 +441,79 @@ void NavMeshPathfinderUtil::BuildAdjacency()
 }
 
 // ============================================================
-// FindNearestTriangle — 返回 3D 距离最近的可行走三角形（Y 权重 2×）
-// Y 权重加倍可防止多层地图中选到错误楼层（垂直分离优先于水平接近）。
-// 跳过 area != 0 的不可通行三角形。
+// PointInTriangleXZ — 判断点 p 的 XZ 投影是否在三角形 abc 内（重心坐标法）
+// 用于多层地图精确定位：先确定 XZ 包含关系，再比较 Y 距离。
 // ============================================================
-/** @brief 查找离给定点最近的可行走三角形，Y 方向权重 4×（平方后）。 */
+/** @brief XZ 平面点是否在三角形内（忽略 Y），用于多层地图精确查找。 */
+bool NavMeshPathfinderUtil::PointInTriangleXZ(
+    const NCL::Maths::Vector3& p,
+    const NCL::Maths::Vector3& a,
+    const NCL::Maths::Vector3& b,
+    const NCL::Maths::Vector3& c) const
+{
+    // 使用叉积符号判断：点是否在三条边的同一侧
+    float d1 = (p.x - b.x) * (a.z - b.z) - (a.x - b.x) * (p.z - b.z);
+    float d2 = (p.x - c.x) * (b.z - c.z) - (b.x - c.x) * (p.z - c.z);
+    float d3 = (p.x - a.x) * (c.z - a.z) - (c.x - a.x) * (p.z - a.z);
+
+    bool hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+    bool hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+
+    return !(hasNeg && hasPos);
+}
+
+// ============================================================
+// FindNearestTriangle — 多层地图精确查找
+//
+// 策略（两轮搜索）：
+//   第 1 轮：XZ 包含测试 — 找到所有在 XZ 平面上包含该点的可行走三角形，
+//            选取 Y 距离最近的。这确保多层地图中选到正确楼层。
+//   第 2 轮：仅当第 1 轮无结果（点在所有三角形 XZ 范围外）时退化为
+//            加权距离最近（Y 权重 8×），兼容边界外查找。
+// ============================================================
+/** @brief 查找离给定点最近的可行走三角形，支持多层地图和斜坡。 */
 int NavMeshPathfinderUtil::FindNearestTriangle(const NCL::Maths::Vector3& p) const
 {
-    int   best  = -1;
-    float bestD = 1e30f;
+    int   bestContained  = -1;
+    float bestContainedY = 1e30f;
+
+    int   bestFallback   = -1;
+    float bestFallbackD  = 1e30f;
 
     for (int i = 0; i < static_cast<int>(m_Triangles.size()); ++i) {
         if (m_Triangles[i].area != 0) continue;   // 跳过不可通行区域
 
-        const NCL::Maths::Vector3& c = m_Triangles[i].centroid;
+        const auto& tri = m_Triangles[i];
+        const NCL::Maths::Vector3& va = m_Vertices[tri.v[0]];
+        const NCL::Maths::Vector3& vb = m_Vertices[tri.v[1]];
+        const NCL::Maths::Vector3& vc = m_Vertices[tri.v[2]];
+
+        // 第 1 轮：XZ 包含测试
+        if (PointInTriangleXZ(p, va, vb, vc)) {
+            // 计算该三角形平面上 p 对应的 Y 值（插值）
+            // 简化：使用重心的 Y 作为近似（斜坡上足够精确）
+            float triY = tri.centroid.y;
+            float yDist = fabsf(p.y - triY);
+            if (yDist < bestContainedY) {
+                bestContainedY = yDist;
+                bestContained  = i;
+            }
+        }
+
+        // 第 2 轮备选：加权距离（Y 权重 8× 以强力区分楼层）
+        const NCL::Maths::Vector3& c = tri.centroid;
         float dx = p.x - c.x;
         float dy = p.y - c.y;
         float dz = p.z - c.z;
-        float d  = dx*dx + (dy*dy)*4.0f + dz*dz;  // Y 权重 2×（平方后 4×）
-        if (d < bestD) {
-            bestD = d;
-            best  = i;
+        float d  = dx*dx + (dy*dy)*8.0f + dz*dz;
+        if (d < bestFallbackD) {
+            bestFallbackD = d;
+            bestFallback  = i;
         }
     }
 
-    return best;
+    // 优先返回 XZ 包含结果（精确楼层匹配）
+    return (bestContained >= 0) ? bestContained : bestFallback;
 }
 
 // ============================================================
@@ -664,9 +720,30 @@ void NavMeshPathfinderUtil::GetWalkableGeometry(
 
     // 直接输出全部顶点（Jolt 仅使用索引引用的顶点）
     outVerts = m_Vertices;
+    outIndices.clear();
 
     for (const auto& tri : m_Triangles) {
         if (tri.area != static_cast<int>(NavArea::Walkable)) continue;
+        outIndices.push_back(tri.v[0]);
+        outIndices.push_back(tri.v[1]);
+        outIndices.push_back(tri.v[2]);
+    }
+}
+
+// ============================================================
+// GetAllGeometry — 导出所有三角形（供碰撞体生成，不区分 area）
+// ============================================================
+/** @brief 导出全部三角形的顶点和索引，用于碰撞箱与渲染 mesh 分离。 */
+void NavMeshPathfinderUtil::GetAllGeometry(
+    std::vector<NCL::Maths::Vector3>& outVerts,
+    std::vector<int>& outIndices) const
+{
+    if (!m_Loaded) return;
+
+    outVerts = m_Vertices;
+    outIndices.clear();
+
+    for (const auto& tri : m_Triangles) {
         outIndices.push_back(tri.v[0]);
         outIndices.push_back(tri.v[1]);
         outIndices.push_back(tri.v[2]);

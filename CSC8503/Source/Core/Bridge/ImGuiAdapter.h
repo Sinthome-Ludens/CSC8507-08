@@ -1,3 +1,7 @@
+/**
+ * @file ImGuiAdapter.h
+ * @brief ImGui 初始化与窗口适配器声明。
+ */
 #pragma once
 #ifdef USE_IMGUI
 
@@ -22,12 +26,14 @@ public:
     static bool IsCapturingInput();
 
 private:
-    static LRESULT CALLBACK MessageHookProc(int nCode, WPARAM wParam, LPARAM lParam);
     static HWND GetHWND(NCL::Window* window);
 
     static bool  s_Initialized;
-    static HHOOK s_MessageHook;
     static HWND  s_TargetHWND;
+    static NCL::Window* s_Window;
+
+    friend LRESULT CALLBACK ImGuiSubclassProc(
+        HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
 };
 
 } // namespace ECS
