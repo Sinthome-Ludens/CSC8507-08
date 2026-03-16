@@ -364,6 +364,38 @@ Texture* GameTechRenderer::LoadTexture(const std::string& name) {
 }
 
 // ============================================================
+// OnWindowResize — 重新分配所有屏幕尺寸 FBO 纹理
+// ============================================================
+
+void GameTechRenderer::OnWindowResize(int w, int h) {
+    OGLRenderer::OnWindowResize(w, h);
+
+    if (w <= 0 || h <= 0) return;
+
+    glBindTexture(GL_TEXTURE_2D, m_hdrColorTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
+
+    glBindTexture(GL_TEXTURE_2D, m_hdrNormalTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, w, h, 0, GL_RGB, GL_FLOAT, nullptr);
+
+    glBindTexture(GL_TEXTURE_2D, m_hdrDepthTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, w, h, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+
+    glBindTexture(GL_TEXTURE_2D, m_ssaoTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+
+    glBindTexture(GL_TEXTURE_2D, m_ssaoBlurTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, nullptr);
+
+    for (int i = 0; i < 2; i++) {
+        glBindTexture(GL_TEXTURE_2D, m_ppTex[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, w, h, 0, GL_RGBA, GL_FLOAT, nullptr);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+// ============================================================
 // DrawFullscreenTriangle
 // ============================================================
 
