@@ -32,6 +32,7 @@
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/Components/Res_DialogueData.h"
 #include "Game/UI/UI_Toast.h"
+#include "Game/Systems/Sys_ImGuiRenderDebug.h"
 #endif
 
 #include "Game/Components/C_D_NetworkIdentity.h"
@@ -110,6 +111,7 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>           (300);
     systems.Register<ECS::Sys_ImGuiEntityDebug>(310);
+    systems.Register<ECS::Sys_ImGuiRenderDebug>(445);   // 渲染参数调试面板
     systems.Register<ECS::Sys_Chat>            (450);
     systems.Register<ECS::Sys_UI>              (500);
 #endif

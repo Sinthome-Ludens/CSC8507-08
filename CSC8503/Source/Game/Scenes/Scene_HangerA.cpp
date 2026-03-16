@@ -29,6 +29,7 @@
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
 #include "Game/Systems/Sys_ImGuiNavTest.h"
+#include "Game/Systems/Sys_ImGuiRenderDebug.h"
 #endif
 
 // ============================================================
@@ -158,8 +159,9 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_EnemyAI>  (250);
 
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>        (300);
-    systems.Register<ECS::Sys_ImGuiNavTest> (310);
+    systems.Register<ECS::Sys_ImGui>             (300);
+    systems.Register<ECS::Sys_ImGuiNavTest>      (310);
+    systems.Register<ECS::Sys_ImGuiRenderDebug>  (450);
 #endif
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────

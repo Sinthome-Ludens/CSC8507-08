@@ -506,9 +506,9 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
         maxLS.x = minLS.x + (float)m_shadowRes[c] * texelSize;
         maxLS.y = minLS.y + (float)m_shadowRes[c] * texelSize;
 
-        m_lightProjMat[c] = Matrix::Orthographic(minLS.z - 500.0f, maxLS.z + 10.0f,
-                                                  maxLS.x, minLS.x,
-                                                  maxLS.y, minLS.y);
+        m_lightProjMat[c] = Matrix::Orthographic(minLS.x, maxLS.x,
+                                                  minLS.y, maxLS.y,
+                                                  minLS.z - 500.0f, maxLS.z + 10.0f);
         m_shadowMatrix[c] = biasMatrix * m_lightProjMat[c] * m_lightViewMat;
 
         nearPrev = farDist;
@@ -743,7 +743,7 @@ static void BindCommonSceneUniforms(
     glUniformMatrix4fv(ul("shadowMatrix1"), 1, false, (float*)&shadowMat1);
     glUniformMatrix4fv(ul("shadowMatrix2"), 1, false, (float*)&shadowMat2);
     glUniform1fv(ul("cascadeSplits"), 3, cascadeSplits);
-    glUniform1f(ul("lightSize"),  pcssLightSize);
+    glUniform1f(ul("pcssLightSize"),  pcssLightSize);
 
     // IBL (units 8, 9, 10)
     glActiveTexture(GL_TEXTURE8); glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap);

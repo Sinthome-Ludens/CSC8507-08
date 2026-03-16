@@ -141,7 +141,7 @@ void main() {
     }
 
     // ── 颜色组合 ─────────────────────────────────────────────
-    albedo.rgb = pow(albedo.rgb, vec3(2.2)); // sRGB → Linear
+    albedo.rgb = pow(albedo.rgb, vec3(2.2)); // sRGB → Linear（HDR FBO 存线性值）
 
     fragColor.rgb  = albedo.rgb * 0.05;
     fragColor.rgb += albedo.rgb * sunColour * lambert * shadow;
@@ -154,7 +154,7 @@ void main() {
         fragColor.rgb += rimColour * rim;
     }
 
-    fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / 2.2)); // Linear → sRGB
+    // 不在此处做 gamma（HDR FBO 是线性空间，tonemap.frag 统一处理 ACES+gamma）
     fragColor.a   = albedo.a;
 
     // ── G-Buffer 法线（视空间，供 SSAO）───────────────────────
