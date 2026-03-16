@@ -26,6 +26,7 @@ private:
 
     static bool  s_Initialized;
     static HWND  s_TargetHWND;
+    static NCL::Window* s_Window;
 
     friend LRESULT CALLBACK ImGuiSubclassProc(
         HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);

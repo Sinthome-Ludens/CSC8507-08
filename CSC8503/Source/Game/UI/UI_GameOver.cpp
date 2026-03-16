@@ -5,11 +5,13 @@
 #include <cmath>
 #include <cstdio>
 #include <algorithm>
-#include "Window.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
+#include "Game/Components/Res_Input.h"
+#include "Keyboard.h"
+#include "Mouse.h"
 
 using namespace NCL;
 
@@ -28,6 +30,7 @@ static constexpr int kGameOverItemCount = 2;
 void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
+    const auto& input = registry.ctx<Res_Input>();
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
@@ -173,24 +176,22 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float menuStartY = sepY + 20.0f;
     float menuItemH  = 38.0f;
 
-    const Keyboard* kb = Window::GetKeyboard();
-    if (kb) {
-        if (kb->KeyPressed(KeyCodes::W) || kb->KeyPressed(KeyCodes::UP)) {
+    {
+        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP]) {
             ui.gameOverSelectedIndex = (ui.gameOverSelectedIndex - 1 + kGameOverItemCount) % kGameOverItemCount;
         }
-        if (kb->KeyPressed(KeyCodes::S) || kb->KeyPressed(KeyCodes::DOWN)) {
+        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN]) {
             ui.gameOverSelectedIndex = (ui.gameOverSelectedIndex + 1) % kGameOverItemCount;
         }
     }
 
-    const Mouse* mouse = Window::GetMouse();
     float itemW = 240.0f;
     float itemStartX = cx - itemW * 0.5f;
 
     for (int i = 0; i < kGameOverItemCount; ++i) {
         ImVec2 itemMin(itemStartX, menuStartY + i * menuItemH - 2.0f);
         ImVec2 itemMax(itemStartX + itemW, menuStartY + i * menuItemH + menuItemH - 6.0f);
-        if (mouse) {
+        {
             ImVec2 mousePos = ImGui::GetMousePos();
             if (mousePos.x >= itemMin.x && mousePos.x <= itemMax.x &&
                 mousePos.y >= itemMin.y && mousePos.y <= itemMax.y) {
@@ -200,10 +201,10 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     }
 
     int8_t confirmedIndex = -1;
-    if (kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE))) {
+    if (input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE]) {
         confirmedIndex = ui.gameOverSelectedIndex;
     }
-    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left)) {
+    if (input.mouseButtonPressed[NCL::MouseButtons::Left]) {
         ImVec2 mousePos = ImGui::GetMousePos();
         for (int i = 0; i < kGameOverItemCount; ++i) {
             ImVec2 itemMin(itemStartX, menuStartY + i * menuItemH - 2.0f);

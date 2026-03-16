@@ -38,7 +38,16 @@ struct MapPointsData {
  * x y z  × M
  * @endcode
  *
- * @param filePath .points 文件绝对路径
+ * 也兼容 .startpoints 格式：
+ * @code
+ * # 注释行
+ * count N
+ *
+ * startPoints
+ * x y z  × N
+ * @endcode
+ *
+ * @param filePath .points 或 .startpoints 文件绝对路径
  * @return 解析结果；文件不存在时返回 loaded=false（不报错）
  */
 MapPointsData LoadMapPoints(const std::string& filePath);

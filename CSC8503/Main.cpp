@@ -59,6 +59,7 @@
 #include "Game/Scenes/Scene_MainMenu.h"
 #include "Game/Scenes/Scene_NavTest.h"
 #include "Game/Scenes/Scene_NetworkGame.h"
+#include "Game/Components/Res_Input.h"
 #include "Game/Utils/WindowHelper.h"
 #include "Game/Utils/Log.h"
 
@@ -98,9 +99,15 @@ static void UpdateWindowTitle(Window* w, float dt) {
     w->SetTitle("NEUROMANCER - " + std::to_string(1000.0f * dt) + " ms");
 }
 
-/// 处理所有 UI 请求（场景切换、分辨率、全屏、光标）
+/// 处理所有 UI 请求（场景切换、分辨率、全屏、光标、退出）
 static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& running) {
     auto& reg = sceneManager.GetRegistry();
+
+    // 0. Alt+F4 退出（通过 Res_Input 统一检测）
+    if (reg.has_ctx<ECS::Res_Input>() && reg.ctx<ECS::Res_Input>().quitRequested) {
+        running = false;
+        return;
+    }
 
     // 1. Debug 场景切换（优先级最高）
     if (reg.has_ctx<Res_UIFlags>()) {

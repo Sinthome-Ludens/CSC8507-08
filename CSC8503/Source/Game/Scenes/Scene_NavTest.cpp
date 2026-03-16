@@ -17,6 +17,7 @@
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
+#include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_EnemyVision.h"
 #include "Game/Systems/Sys_Navigation.h"
@@ -91,6 +92,7 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     //    执行顺序：Camera(50) → Physics(100) → EnemyVision(110)
     //              → DeathJudgment(125) → DeathEffect(126) → Navigation(130)
     //              → Render(200) → EnemyAI(250) → ImGui(300) → NavTest(310)
+    systems.Register<ECS::Sys_Input>        ( 10);
     systems.Register<ECS::Sys_Camera>       ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>      (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyVision>  (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）

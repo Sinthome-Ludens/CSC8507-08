@@ -17,6 +17,7 @@
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
+#include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_EnemyVision.h"
 #include "Game/Systems/Sys_Navigation.h"
@@ -85,6 +86,7 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
     LOG_INFO("[Scene_HangerA] map entity id=" << entity_map);
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
+    systems.Register<ECS::Sys_Input>        ( 10);
     systems.Register<ECS::Sys_Camera>       ( 50);
     systems.Register<ECS::Sys_Physics>      (100);
     systems.Register<ECS::Sys_EnemyVision>  (110);

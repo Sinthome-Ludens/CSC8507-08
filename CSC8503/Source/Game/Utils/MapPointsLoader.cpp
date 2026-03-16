@@ -24,6 +24,7 @@ MapPointsData LoadMapPoints(const std::string& filePath)
     int finishCount = 0;
 
     // ── 1. 解析头部：读取 startPointCount / finishPointCount ──────────
+    //    兼容 .startpoints 格式：`count N` 等价于 `startPointCount N`
     std::string line;
     while (std::getline(file, line)) {
         if (line.empty() || line[0] == '#') continue;
@@ -32,6 +33,7 @@ MapPointsData LoadMapPoints(const std::string& filePath)
         ss >> token;
         if      (token == "startPointCount")  ss >> startCount;
         else if (token == "finishPointCount") ss >> finishCount;
+        else if (token == "count")            ss >> startCount;  // .startpoints 格式
         else if (token == "startPoints")      break;
     }
 
@@ -55,20 +57,22 @@ MapPointsData LoadMapPoints(const std::string& filePath)
         }
     }
 
-    // ── 3. 读取 finishPoints ─────────────────────────────────────────
-    while (std::getline(file, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        if (line.find("finishPoints") != std::string::npos) break;
-    }
+    // ── 3. 读取 finishPoints（可选，.startpoints 格式无此节）─────────
+    if (finishCount > 0) {
+        while (std::getline(file, line)) {
+            if (line.empty() || line[0] == '#') continue;
+            if (line.find("finishPoints") != std::string::npos) break;
+        }
 
-    int fRead = 0;
-    while (fRead < finishCount && std::getline(file, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        std::istringstream ss(line);
-        float x, y, z;
-        if (ss >> x >> y >> z) {
-            data.finishPoints.emplace_back(x, y, z);
-            ++fRead;
+        int fRead = 0;
+        while (fRead < finishCount && std::getline(file, line)) {
+            if (line.empty() || line[0] == '#') continue;
+            std::istringstream ss(line);
+            float x, y, z;
+            if (ss >> x >> y >> z) {
+                data.finishPoints.emplace_back(x, y, z);
+                ++fRead;
+            }
         }
     }
 

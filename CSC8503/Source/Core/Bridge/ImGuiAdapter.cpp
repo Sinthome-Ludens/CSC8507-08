@@ -3,6 +3,7 @@
 
 #include "Window.h"
 #include "Win32Window.h"
+#include "Mouse.h"
 #include "OGLRenderer.h"
 #include "glad/gl.h"
 #include "Game/Utils/WindowHelper.h"
@@ -21,6 +22,7 @@ namespace ECS {
 
 bool ImGuiAdapter::s_Initialized = false;
 HWND  ImGuiAdapter::s_TargetHWND  = nullptr;
+NCL::Window* ImGuiAdapter::s_Window = nullptr;
 
 static const UINT_PTR kImGuiSubclassId = 2; // WindowHelper uses 1
 
@@ -77,6 +79,7 @@ bool ImGuiAdapter::Init(Window* window, Rendering::OGLRenderer* renderer) {
         return false;
     }
 
+    s_Window = window;
     s_Initialized = true;
     std::cout << "[ImGuiAdapter] Initialized (No-Intrusive Mode, Docking enabled)" << std::endl;
     return true;
@@ -88,6 +91,7 @@ void ImGuiAdapter::Shutdown() {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+    s_Window = nullptr;
     s_Initialized = false;
     std::cout << "[ImGuiAdapter] Shutdown complete" << std::endl;
 }
@@ -97,19 +101,22 @@ void ImGuiAdapter::NewFrame() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplWin32_NewFrame();
 
-    // 强制轮询鼠标状态，绕过 ImGui Win32 后端的 MouseTrackedArea 守卫。
+    // 从 NCL Mouse 轮询鼠标状态，绕过 ImGui Win32 后端的 MouseTrackedArea 守卫。
     // 当 WM_MOUSEMOVE 消息不可靠到达时（场景切换后间歇性发生），
     // MouseTrackedArea 卡在非零值，阻止 GetCursorPos 回退，导致鼠标位置冻结。
-    // 直接轮询保证每帧都有正确的鼠标数据。
+    // 通过 NCL Mouse 轮询保证每帧都有正确的鼠标数据，且与游戏输入源统一。
     {
         ImGuiIO& io = ImGui::GetIO();
-        POINT pt;
-        if (::GetCursorPos(&pt) && ::ScreenToClient(s_TargetHWND, &pt)) {
-            io.AddMousePosEvent((float)pt.x, (float)pt.y);
+        if (s_Window) {
+            const auto* mouse = s_Window->GetMouse();
+            if (mouse) {
+                Maths::Vector2 pos = mouse->GetAbsolutePosition();
+                io.AddMousePosEvent(pos.x, pos.y);
+                io.AddMouseButtonEvent(0, mouse->ButtonDown(MouseButtons::Left));
+                io.AddMouseButtonEvent(1, mouse->ButtonDown(MouseButtons::Right));
+                io.AddMouseButtonEvent(2, mouse->ButtonDown(MouseButtons::Middle));
+            }
         }
-        io.AddMouseButtonEvent(0, (::GetAsyncKeyState(VK_LBUTTON)  & 0x8000) != 0);
-        io.AddMouseButtonEvent(1, (::GetAsyncKeyState(VK_RBUTTON)  & 0x8000) != 0);
-        io.AddMouseButtonEvent(2, (::GetAsyncKeyState(VK_MBUTTON)  & 0x8000) != 0);
     }
 
     ImGui::NewFrame();

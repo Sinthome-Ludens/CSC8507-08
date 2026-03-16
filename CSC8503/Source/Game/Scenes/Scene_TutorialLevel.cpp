@@ -17,6 +17,7 @@
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
+#include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_EnemyVision.h"
 #include "Game/Systems/Sys_Navigation.h"
@@ -24,6 +25,7 @@
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/MapPointsLoader.h"
+#include "Core/Bridge/AssimpLoader.h"
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
@@ -86,13 +88,15 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     // 缩放系数：修改此值可等比例缩放整个 TutorialLevel（视觉 + 物理 + 寻路同步）
     constexpr float kMapScale = 2.0f;
 
-    ECS::EntityID entity_map = PrefabFactory::CreateStaticMap(registry, mapMesh, kMapScale);
+    // 渲染与碰撞分离：地图仅渲染，碰撞由 NavMeshFloor TriMesh 提供
+    ECS::EntityID entity_map = PrefabFactory::CreateStaticMapRenderOnly(registry, mapMesh, kMapScale);
     LOG_INFO("[Scene_TutorialLevel] map entity id=" << entity_map);
 
     // ── 4. 注册系统（优先级升序 = 先执行）──────────────────────────────
     //    执行顺序：Camera(50) → Physics(100) → EnemyVision(110)
     //              → DeathJudgment(125) → Navigation(130) → Render(200)
     //              → EnemyAI(250) → ImGui(300) → NavTest(310)
+    systems.Register<ECS::Sys_Input>        ( 10);
     systems.Register<ECS::Sys_Camera>       ( 50);   // 相机实体创建 + WASD/鼠标 + NCL Bridge
     systems.Register<ECS::Sys_Physics>      (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyVision>  (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
@@ -161,9 +165,38 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
                  << " wall colliders from navmesh boundary edges.");
     }
 
-    // ── 玩家生成（从 .points 文件读取起始点）────────────────────────────
+    // ── 终点区域生成（TutorialMap_finish.obj — 碰撞 mesh 与渲染 mesh 分离示例）──
     {
+        std::string finishObjPath = NCL::Assets::MESHDIR + "TutorialMap_finish.obj";
+
+        // 渲染用 mesh
+        ECS::MeshHandle finishRenderMesh = ECS::AssetManager::Instance().LoadMesh(finishObjPath);
+
+        // 碰撞用三角网格（从同一 OBJ 提取，但可指向不同的简化碰撞模型）
+        std::vector<NCL::Maths::Vector3> finishCollVerts;
+        std::vector<int>                 finishCollIndices;
+        bool finishLoaded = ECS::AssimpLoader::LoadCollisionGeometry(
+            finishObjPath, finishCollVerts, finishCollIndices);
+
+        if (finishLoaded && !finishCollVerts.empty()) {
+            PrefabFactory::CreateFinishZoneMesh(
+                registry, finishRenderMesh,
+                finishCollVerts, finishCollIndices,
+                NCL::Maths::Vector3(0.0f, -6.0f * kMapScale, 0.0f),
+                kMapScale);
+            LOG_INFO("[Scene_TutorialLevel] Finish zone loaded from TutorialMap_finish.obj");
+        } else {
+            LOG_WARN("[Scene_TutorialLevel] TutorialMap_finish.obj not found, skipping finish zone.");
+        }
+    }
+
+    // ── 玩家生成（从 .points 或 .startpoints 文件读取起始点）─────────────
+    {
+        // 优先加载 .points（包含 start + finish），若不存在则尝试 .startpoints
         auto points = ECS::LoadMapPoints(NCL::Assets::MESHDIR + "TutorialMap.points");
+        if (!points.loaded) {
+            points = ECS::LoadMapPoints(NCL::Assets::MESHDIR + "TutorialMap.startpoints");
+        }
         if (points.loaded && !points.startPoints.empty()) {
             const auto& sp = points.startPoints[0];
             NCL::Maths::Vector3 spawnPos(

@@ -8,6 +8,8 @@
 #include "Core/ECS/SystemManager.h"
 #include "Game/Utils/Log.h"
 
+#include "Game/Systems/Sys_Input.h"
+
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
 #include "Game/Systems/Sys_ImGuiEntityDebug.h"
@@ -83,6 +85,7 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_UIFlags>();
     }
 
+    systems.Register<ECS::Sys_Input>            ( 10);
     systems.Register<ECS::Sys_ImGui>           (300);
     systems.Register<ECS::Sys_ImGuiEntityDebug>(310);
     systems.Register<ECS::Sys_UI>              (500);

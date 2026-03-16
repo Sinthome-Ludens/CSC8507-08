@@ -144,6 +144,65 @@ std::vector<OGLMesh*> AssimpLoader::LoadScene(const std::string& path) {
 }
 
 // =============================================================================
+// LoadCollisionGeometry — 仅提取碰撞用三角网格（不上传 GPU）
+// =============================================================================
+bool AssimpLoader::LoadCollisionGeometry(
+    const std::string& path,
+    std::vector<NCL::Maths::Vector3>& outVertices,
+    std::vector<int>& outIndices)
+{
+    Assimp::Importer importer;
+
+    // 碰撞数据只需三角化和合并重复顶点，不需要法线/UV/切线
+    unsigned int flags =
+        aiProcess_Triangulate |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_OptimizeMeshes;
+
+    const aiScene* scene = importer.ReadFile(path, flags);
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        LOG_WARN("[AssimpLoader] LoadCollisionGeometry failed: " << importer.GetErrorString());
+        return false;
+    }
+
+    if (scene->mNumMeshes == 0) {
+        LOG_WARN("[AssimpLoader] No meshes found in " << path);
+        return false;
+    }
+
+    outVertices.clear();
+    outIndices.clear();
+
+    // 合并所有子网格到一个碰撞体
+    int vertexOffset = 0;
+    for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
+        const aiMesh* aiM = scene->mMeshes[m];
+
+        for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
+            outVertices.emplace_back(aiM->mVertices[i].x,
+                                     aiM->mVertices[i].y,
+                                     aiM->mVertices[i].z);
+        }
+
+        for (unsigned int i = 0; i < aiM->mNumFaces; ++i) {
+            const aiFace& face = aiM->mFaces[i];
+            if (face.mNumIndices == 3) {
+                outIndices.push_back(static_cast<int>(face.mIndices[0]) + vertexOffset);
+                outIndices.push_back(static_cast<int>(face.mIndices[1]) + vertexOffset);
+                outIndices.push_back(static_cast<int>(face.mIndices[2]) + vertexOffset);
+            }
+        }
+
+        vertexOffset += static_cast<int>(aiM->mNumVertices);
+    }
+
+    LOG_INFO("[AssimpLoader] LoadCollisionGeometry: " << path
+             << " (" << outVertices.size() << " verts, "
+             << outIndices.size() / 3 << " tris)");
+    return true;
+}
+
+// =============================================================================
 // 私有辅助函数实现
 // =============================================================================
 

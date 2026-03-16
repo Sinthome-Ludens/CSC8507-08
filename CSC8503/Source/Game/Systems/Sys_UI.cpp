@@ -12,6 +12,7 @@
 #ifdef USE_IMGUI
 
 #include "Window.h"
+#include "Game/Components/Res_Input.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_ToastState.h"
 #include "Game/Components/Res_InventoryState.h"
@@ -109,18 +110,18 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     // titleTimer 由 UI_TitleScreen::RenderTitleScreen 自行递增，此处不再重复
 
     // F1: toggle devMode
-    const Keyboard* kb = Window::GetKeyboard();
-    if (kb && kb->KeyPressed(KeyCodes::F1)) {
+    const auto& input = registry.ctx<Res_Input>();
+    if (input.keyPressed[KeyCodes::F1]) {
         ui.devMode = !ui.devMode;
         LOG_INFO("[Sys_UI] DevMode: " << (ui.devMode ? "ON" : "OFF"));
     }
 
     // ── DevMode debug hotkeys (F2-F9) ────────────────────
-    if (ui.devMode && kb && registry.has_ctx<Res_GameState>()) {
+    if (ui.devMode && registry.has_ctx<Res_GameState>()) {
         auto& gs = registry.ctx<Res_GameState>();
 
         // F2: Cycle alertLevel (0/25/50/75/100) — derive next from current value
-        if (kb->KeyPressed(KeyCodes::F2)) {
+        if (input.keyPressed[KeyCodes::F2]) {
             static const float kAlertCycle[] = { 0.0f, 25.0f, 50.0f, 75.0f, 100.0f };
             float next = kAlertCycle[0];
             for (int i = 0; i < 5; ++i) {
@@ -131,14 +132,14 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F3: Toggle countdownActive
-        if (kb->KeyPressed(KeyCodes::F3)) {
+        if (input.keyPressed[KeyCodes::F3]) {
             gs.countdownActive = !gs.countdownActive;
             if (gs.countdownActive) gs.countdownTimer = gs.countdownMax;
             LOG_INFO("[DevMode] F3 countdownActive=" << gs.countdownActive);
         }
 
         // F5: Preview GameOver (cycle reason 1/2/3) — derive from current
-        if (kb->KeyPressed(KeyCodes::F5)) {
+        if (input.keyPressed[KeyCodes::F5]) {
             gs.gameOverReason = (gs.gameOverReason % 3) + 1;
             gs.isGameOver = true;
             gs.gameOverTime = gs.playTime;
@@ -148,7 +149,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F6: Cycle noiseLevel (0/0.3/0.6/1.0) — derive from current value
-        if (kb->KeyPressed(KeyCodes::F6)) {
+        if (input.keyPressed[KeyCodes::F6]) {
             static const float kNoiseCycle[] = { 0.0f, 0.3f, 0.6f, 1.0f };
             float next = kNoiseCycle[0];
             for (int i = 0; i < 4; ++i) {
@@ -159,7 +160,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F7: Trigger CRT transition
-        if (kb->KeyPressed(KeyCodes::F7)) {
+        if (input.keyPressed[KeyCodes::F7]) {
             ui.transitionActive   = true;
             ui.transitionTimer    = 0.0f;
             ui.transitionDuration = 0.5f;
@@ -168,7 +169,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F8: Push test Toast (Info/Warning/Danger/Success cycle)
-        if (kb->KeyPressed(KeyCodes::F8)) {
+        if (input.keyPressed[KeyCodes::F8]) {
             const char* toastTexts[] = { "TEST INFO", "TEST WARNING", "TEST DANGER", "TEST SUCCESS" };
             ToastType toastTypes[] = { ToastType::Info, ToastType::Warning, ToastType::Danger, ToastType::Success };
             UI::PushToast(registry, toastTexts[ui.devToastCycle], toastTypes[ui.devToastCycle]);
@@ -177,7 +178,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F9: Toggle all C_D_Interactable.isEnabled — read first entity's value, then invert
-        if (kb->KeyPressed(KeyCodes::F9)) {
+        if (input.keyPressed[KeyCodes::F9]) {
             bool newVal = true;
             auto view = registry.view<C_D_Interactable>();
             bool first = true;
@@ -190,7 +191,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     }
 
     // ESC navigation
-    if (kb && kb->KeyPressed(KeyCodes::ESCAPE)) {
+    if (input.keyPressed[KeyCodes::ESCAPE]) {
         switch (ui.activeScreen) {
             case UIScreen::Settings:
                 UI::NavigateBackFromSettings(ui);
@@ -257,7 +258,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     }
 
     // I key: toggle HUD <-> Inventory (only when in HUD or Inventory)
-    if (kb && kb->KeyPressed(KeyCodes::I)) {
+    if (input.keyPressed[KeyCodes::I]) {
         if (ui.activeScreen == UIScreen::HUD) {
             ui.activeScreen = UIScreen::Inventory;
             ui.inventorySelectedSlot = 0;
@@ -269,8 +270,8 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     }
 
     // TAB key: hold mode for ItemWheel (only when in HUD)
-    if (kb && ui.activeScreen == UIScreen::HUD) {
-        bool tabDown = kb->KeyDown(KeyCodes::TAB);
+    if (ui.activeScreen == UIScreen::HUD) {
+        bool tabDown = input.keyStates[KeyCodes::TAB];
         if (tabDown && !ui.itemWheelOpen) {
             // TAB pressed — open wheel
             ui.itemWheelOpen = true;

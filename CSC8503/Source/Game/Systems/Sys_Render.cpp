@@ -114,11 +114,18 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
 
     // 同步 ECS 材质参数（如果有 C_D_Material 组件）
     if (reg.Has<C_D_Material>(id)) {
-        SyncMaterial(mat, reg.Get<C_D_Material>(id));
+        const auto& ecsMat = reg.Get<C_D_Material>(id);
+        SyncMaterial(mat, ecsMat);
     }
 
-    proxy->SetRenderObject(
-        new NCL::CSC8503::RenderObject(proxy->GetTransform(), mesh, mat));
+    auto* ro = new NCL::CSC8503::RenderObject(proxy->GetTransform(), mesh, mat);
+
+    // 同步 baseColour 到 RenderObject（objectColour uniform）
+    if (reg.Has<C_D_Material>(id)) {
+        ro->SetColour(reg.Get<C_D_Material>(id).baseColour);
+    }
+
+    proxy->SetRenderObject(ro);
 
     m_GameWorld->AddGameObject(proxy);
     m_ProxyObjects[id] = proxy;
@@ -145,7 +152,9 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
     if (reg.Has<C_D_Material>(id)) {
         auto* ro = proxy->GetRenderObject();
         if (ro) {
-            SyncMaterial(ro->GetMaterial(), reg.Get<C_D_Material>(id));
+            const auto& ecsMat = reg.Get<C_D_Material>(id);
+            SyncMaterial(ro->GetMaterial(), ecsMat);
+            ro->SetColour(ecsMat.baseColour);
         }
     }
 

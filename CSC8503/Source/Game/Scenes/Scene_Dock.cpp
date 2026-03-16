@@ -17,6 +17,7 @@
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
+#include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_EnemyAI.h"
 #include "Game/Systems/Sys_EnemyVision.h"
 #include "Game/Systems/Sys_Navigation.h"
@@ -77,6 +78,7 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     ECS::EntityID entity_map = PrefabFactory::CreateStaticMap(registry, mapMesh, kMapScale);
     LOG_INFO("[Scene_Dock] map entity id=" << entity_map);
 
+    systems.Register<ECS::Sys_Input>        ( 10);
     systems.Register<ECS::Sys_Camera>       ( 50);
     systems.Register<ECS::Sys_Physics>      (100);
     systems.Register<ECS::Sys_EnemyVision>  (110);

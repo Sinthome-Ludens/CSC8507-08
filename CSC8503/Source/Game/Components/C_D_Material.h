@@ -14,6 +14,11 @@ enum class ShadingModel : int {
 struct C_D_Material {
     ShadingModel shadingModel = ShadingModel::BlinnPhong;
 
+    // ── 基础颜色（所有着色模型通用）────────────────────────
+    // 作为 objectColour uniform 传给 shader，乘以纹理/顶点色。
+    // 默认白色 (1,1,1,1) = 不修改原始颜色。
+    NCL::Maths::Vector4 baseColour = {1.0f, 1.0f, 1.0f, 1.0f};
+
     // ── PBR 参数 (shadingModel == PBR) ──────────────────────
     float metallic  = 0.0f;
     float roughness = 0.5f;
