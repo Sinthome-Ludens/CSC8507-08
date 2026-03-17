@@ -37,6 +37,7 @@
 #include "Game/UI/UI_Loading.h"
 #include "Game/UI/UI_Lobby.h"
 #include "Game/UI/UI_MissionSelect.h"
+#include "Game/UI/UI_Victory.h"
 #include "Game/UI/UI_ActionNotify.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/SaveManager.h"
@@ -263,7 +264,8 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                 LOG_INFO("[Sys_UI] Lobby -> MainMenu (ESC)");
                 break;
             case UIScreen::GameOver:
-                // GameOver has its own menu; ESC does nothing
+            case UIScreen::Victory:
+                // GameOver/Victory have their own menus; ESC does nothing
                 break;
             default:
                 break;
@@ -348,6 +350,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         case UIScreen::Team:        UI::RenderTeamScreen(registry, dt);      break;
         case UIScreen::Loading:     UI::RenderLoadingScreen(registry, dt);   break;
         case UIScreen::Lobby:       UI::RenderLobbyScreen(registry, dt);     break;
+        case UIScreen::Victory:    UI::RenderVictoryScreen(registry, dt);  break;
         case UIScreen::None:
         default:
             break;
