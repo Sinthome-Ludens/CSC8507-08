@@ -672,7 +672,6 @@ bool NavMeshPathfinderUtil::FindPath(const NCL::Maths::Vector3& start,
 
     std::vector<int> triPath;
     if (!AStarSearch(startTri, endTri, triPath)) {
-        // A* 无解：退化为直线追踪
         LOG_WARN("[NavMeshPathfinderUtil] A* failed, falling back to straight line.");
         outPath.clear();
         outPath.push_back(end);

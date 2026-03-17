@@ -2,27 +2,26 @@
  * @file Sys_EnemyAI.h
  * @brief 敌人 AI 逻辑系统声明（ECS 系统，优先级 120）。
  *
- * @see Sys_EnemyAI.cpp
+ * 职责：管理感知警戒度（detection_value）增减及四状态（Safe/Search/Alert/Hunt）切换。
+ * 订阅 Evt_Player_Noise 事件实现听觉感知（按距离衰减 boost detection_value）。
  */
 #pragma once
 #include "Core/ECS/BaseSystem.h"
+#include "Core/ECS/EventBus.h"
 
 namespace ECS {
-    /**
-     * @brief 敌人 AI 逻辑系统
-     * 职责：管理感知警戒度（detection_value）增减及四状态（Safe/Search/Alert/Hunt）切换
-     * 执行优先级：120（晚于 Sys_Physics，早于 Sys_Render）
-     */
-    class Sys_EnemyAI : public ISystem {
-    public:
-        Sys_EnemyAI() = default;
 
-        /**
-         * @brief 每帧更新所有敌人的 AI 状态：警戒度增减与四状态切换。
-         * @param registry ECS 注册表
-         * @param dt       帧时间（秒）
-         */
-        void OnUpdate(Registry& registry, float dt) override;
+class Sys_EnemyAI : public ISystem {
+public:
+    Sys_EnemyAI() = default;
 
-    };
-}
+    void OnAwake  (Registry& registry) override;
+    void OnUpdate (Registry& registry, float dt) override;
+    void OnDestroy(Registry& registry) override;
+
+private:
+    SubscriptionID m_NoiseSubId = 0;
+    SubscriptionID m_AlertSubId = 0;
+};
+
+} // namespace ECS
