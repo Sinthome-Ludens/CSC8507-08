@@ -1,5 +1,5 @@
 /**
- * @file C_D_MapConfig.h
+ * @file MapLoadConfig.h
  * @brief Map loading configuration struct: stores resource paths and parameters for MapLoader.
  */
 #pragma once

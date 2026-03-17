@@ -42,6 +42,8 @@ enum class ItemID : uint8_t {
 
 /**
  * @brief 道具数据组件
+ * @deprecated 此结构体目前未被任何实体挂载，库存管理已迁移至 Res_ItemInventory2。
+ *             保留仅供未来多人模式中每实体道具追踪扩展。
  *
  * 每个 ItemID 对应一条独立的 C_D_Item 记录，挂载在道具拾取实体上，
  * 或在玩家实体上通过携带数量追踪。
