@@ -52,6 +52,7 @@ enum class SceneRequest : uint8_t {
     HostGame,
     JoinGame,
     StartTutorial,
+    NextLevel,       ///< 战役推进到下一张地图
 };
 
 struct Res_UIState {

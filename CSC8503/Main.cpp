@@ -59,6 +59,8 @@
 #include "Game/Scenes/Scene_MainMenu.h"
 #include "Game/Scenes/Scene_NavTest.h"
 #include "Game/Scenes/Scene_NetworkGame.h"
+#include "Game/Scenes/Scene_CampaignLevel.h"
+#include "Game/Components/Res_CampaignState.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/Utils/WindowHelper.h"
 #include "Game/Utils/Log.h"
@@ -72,6 +74,8 @@ using namespace CSC8503;
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
+#include <ctime>
 #include <thread>
 #include <sstream>
 
@@ -142,11 +146,52 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
 
         if (ui.pendingSceneRequest != ECS::SceneRequest::None) {
             switch (ui.pendingSceneRequest) {
-                case ECS::SceneRequest::StartGame:
-                case ECS::SceneRequest::RestartLevel:
-                    sceneManager.RequestSceneChange(new Scene_PhysicsTest());
+                case ECS::SceneRequest::StartGame: {
+                    // Initialize campaign: random 5-choose-3 map sequence
+                    auto& campaign = reg.has_ctx<ECS::Res_CampaignState>()
+                        ? reg.ctx<ECS::Res_CampaignState>()
+                        : reg.ctx_emplace<ECS::Res_CampaignState>();
+
+                    int pool[] = {0, 1, 2, 3, 4};
+                    std::srand(static_cast<unsigned>(std::time(nullptr)));
+                    for (int i = 4; i > 0; --i) {
+                        int j = std::rand() % (i + 1);
+                        std::swap(pool[i], pool[j]);
+                    }
+                    campaign.mapSequence[0] = static_cast<int8_t>(pool[0]);
+                    campaign.mapSequence[1] = static_cast<int8_t>(pool[1]);
+                    campaign.mapSequence[2] = static_cast<int8_t>(pool[2]);
+                    campaign.currentRound   = 0;
+                    campaign.active         = true;
+                    campaign.totalPlayTime  = 0.0f;
+
+                    LOG_INFO("[Main] Campaign start: maps ["
+                             << pool[0] << "," << pool[1] << "," << pool[2] << "]");
+                    sceneManager.RequestSceneChange(
+                        new Scene_CampaignLevel(campaign.mapSequence[0]));
                     break;
+                }
+                case ECS::SceneRequest::RestartLevel:
+                    if (reg.has_ctx<ECS::Res_CampaignState>()
+                        && reg.ctx<ECS::Res_CampaignState>().active) {
+                        auto& c = reg.ctx<ECS::Res_CampaignState>();
+                        sceneManager.RequestSceneChange(
+                            new Scene_CampaignLevel(c.mapSequence[c.currentRound]));
+                    } else {
+                        sceneManager.RequestSceneChange(new Scene_PhysicsTest());
+                    }
+                    break;
+                case ECS::SceneRequest::NextLevel: {
+                    auto& campaign = reg.ctx<ECS::Res_CampaignState>();
+                    int mapIdx = campaign.mapSequence[campaign.currentRound];
+                    LOG_INFO("[Main] NextLevel: round " << (int)campaign.currentRound
+                             << " map " << mapIdx);
+                    sceneManager.RequestSceneChange(new Scene_CampaignLevel(mapIdx));
+                    break;
+                }
                 case ECS::SceneRequest::ReturnToMenu:
+                    if (reg.has_ctx<ECS::Res_CampaignState>())
+                        reg.ctx<ECS::Res_CampaignState>().active = false;
                     sceneManager.RequestSceneChange(new Scene_MainMenu());
                     break;
                 case ECS::SceneRequest::HostGame:
