@@ -30,18 +30,14 @@ using namespace NCL;
 namespace ECS::UI {
 
 // ============================================================
-// 关卡占位数据
+// 关卡描述（顺序匹配 Res_UIState.h 的 kMapDisplayNames: 0=HangerA,1=HangerB,2=Helipad,3=Lab,4=Dock）
 // ============================================================
-static constexpr int kMapCount = 5;
-static const char* kMapNames[] = {
-    "DOCK", "HANGER A", "HANGER B", "HELIPAD", "LAB"
-};
 static const char* kMapDescs[] = {
-    "Dock Area",
     "Hanger A",
     "Hanger B",
     "Helipad",
     "Underground Lab",
+    "Dock Area",
 };
 
 // ============================================================
@@ -308,8 +304,8 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
         }
     };
 
-    // Col 0: Maps
-    drawEntries(0, col0X, kMapCount, kMapNames, kMapDescs, false, false, nullptr);
+    // Col 0: Maps (use kMapDisplayNames from Res_UIState.h)
+    drawEntries(0, col0X, kMapCount, kMapDisplayNames, kMapDescs, false, false, nullptr);
 
     // Col 1: Gadgets
     {

@@ -18,10 +18,14 @@ using namespace NCL;
 
 namespace ECS::UI {
 
-// ============================================================
-// RenderVictoryScreen
-// ============================================================
-
+/**
+ * @brief 渲染全屏 Victory 画面。
+ *
+ * @details
+ * 读取 `Res_UIState` 获取 `totalPlayTime` 和 `mapSequence` 已通关地图名，
+ * 渲染时间统计和地图列表。玩家点击 "RETURN TO MENU" 或按 Enter/Space 时
+ * 设置 `SceneRequest::ReturnToMenu` 触发场景切换。
+ */
 void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();

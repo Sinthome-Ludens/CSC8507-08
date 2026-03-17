@@ -1,3 +1,11 @@
+/**
+ * @file Sys_Countdown.cpp
+ * @brief 倒计时系统实现：管理关卡倒计时并在超时后触发 GameOver。
+ *
+ * @details
+ * 每帧减少 `Res_GameState::countdownTimer`，到零时设置 `gameOverReason=1`。
+ * 暂停时通过 PauseGuard 跳过更新。
+ */
 #include "Sys_Countdown.h"
 #include "Game/Utils/PauseGuard.h"
 
@@ -7,6 +15,12 @@
 
 namespace ECS {
 
+/**
+ * @brief 每帧更新倒计时并判定超时。
+ *
+ * 当 `countdownActive` 为 true 时递减 `countdownTimer`，
+ * 到零后设置 `isGameOver=true` + `gameOverReason=1`（倒计时耗尽）。
+ */
 void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
     PAUSE_GUARD(registry);
     if (!registry.has_ctx<Res_GameState>()) return;
