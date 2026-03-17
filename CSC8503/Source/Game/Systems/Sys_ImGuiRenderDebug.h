@@ -98,7 +98,10 @@ private:
     float m_exposure         = 1.0f;
     float m_vignetteStrength = 0.3f;
 
-    void* m_renderer = nullptr; ///< GameTechRenderer*，在 OnAwake 中从 Res_NCL_Pointers 获取
+    float m_sunPos[3] = { -200.0f, 60.0f, -200.0f }; ///< 太阳位置（镜像 GameWorld::sunPosition）
+
+    void* m_renderer  = nullptr; ///< GameTechRenderer*，在 OnAwake 中从 Res_NCL_Pointers 获取
+    void* m_gameWorld = nullptr; ///< GameWorld*，用于 ImGui 调整太阳方向
 };
 
 } // namespace ECS
