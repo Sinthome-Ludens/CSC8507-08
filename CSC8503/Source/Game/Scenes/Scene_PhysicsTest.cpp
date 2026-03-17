@@ -251,9 +251,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     }
 
     // 装备同步：从 Res_UIState 读 MissionSelect 选择，写入 Res_GameState
-#ifdef USE_IMGUI
     ECS::SyncEquipmentToGameState(registry);
-#endif
 
     LOG_INFO("[Scene_PhysicsTest] OnEnter complete. "
              << systems.Count() << " systems awake.");

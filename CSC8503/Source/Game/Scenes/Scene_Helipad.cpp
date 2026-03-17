@@ -175,9 +175,7 @@ void Scene_Helipad::OnEnter(ECS::Registry&          registry,
         }
     }
 
-#ifdef USE_IMGUI
     ECS::SyncEquipmentToGameState(registry);
-#endif
 
     LOG_INFO("[Scene_Helipad] OnEnter complete. "
              << systems.Count() << " systems awake.");

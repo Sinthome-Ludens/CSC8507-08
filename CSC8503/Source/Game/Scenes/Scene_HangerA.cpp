@@ -186,9 +186,7 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
         }
     }
 
-#ifdef USE_IMGUI
     ECS::SyncEquipmentToGameState(registry);
-#endif
 
     LOG_INFO("[Scene_HangerA] OnEnter complete. "
              << systems.Count() << " systems awake.");

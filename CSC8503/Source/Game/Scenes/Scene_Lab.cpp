@@ -175,9 +175,7 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
         }
     }
 
-#ifdef USE_IMGUI
     ECS::SyncEquipmentToGameState(registry);
-#endif
 
     LOG_INFO("[Scene_Lab] OnEnter complete. "
              << systems.Count() << " systems awake.");

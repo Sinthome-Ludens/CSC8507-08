@@ -175,9 +175,7 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
         }
     }
 
-#ifdef USE_IMGUI
     ECS::SyncEquipmentToGameState(registry);
-#endif
 
     LOG_INFO("[Scene_TutorialLevel] OnEnter complete. "
              << systems.Count() << " systems awake.");
