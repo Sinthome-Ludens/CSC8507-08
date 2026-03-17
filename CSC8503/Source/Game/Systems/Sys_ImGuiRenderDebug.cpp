@@ -14,6 +14,7 @@
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Utils/Log.h"
 #include "GameTechRenderer.h"
+#include "GameWorld.h"
 
 using namespace NCL::CSC8503;
 
@@ -33,6 +34,12 @@ void Sys_ImGuiRenderDebug::OnAwake(Registry& registry) {
         LOG_WARN("[Sys_ImGuiRenderDebug] Renderer is not a GameTechRenderer — debug panel will be inactive.");
     } else {
         LOG_INFO("[Sys_ImGuiRenderDebug] OnAwake — renderer debug panel ready.");
+    }
+
+    m_gameWorld = registry.ctx<Res_NCL_Pointers>().world;
+    if (m_gameWorld) {
+        auto pos = static_cast<NCL::CSC8503::GameWorld*>(m_gameWorld)->GetSunPosition();
+        m_sunPos[0] = pos.x; m_sunPos[1] = pos.y; m_sunPos[2] = pos.z;
     }
 }
 
@@ -63,7 +70,8 @@ void Sys_ImGuiRenderDebug::OnUpdate(Registry& /*registry*/, float /*dt*/) {
 // OnDestroy
 // ============================================================
 void Sys_ImGuiRenderDebug::OnDestroy(Registry& /*registry*/) {
-    m_renderer = nullptr;
+    m_renderer  = nullptr;
+    m_gameWorld = nullptr;
 }
 
 // ============================================================
@@ -84,6 +92,19 @@ void Sys_ImGuiRenderDebug::DrawGeometrySection(void* rendererPtr) {
 void Sys_ImGuiRenderDebug::DrawShadowSection(void* rendererPtr) {
     auto* r = static_cast<GameTechRenderer*>(rendererPtr);
     if (!ImGui::CollapsingHeader("Shadows (CSM + PCSS)", ImGuiTreeNodeFlags_DefaultOpen)) return;
+
+    if (m_gameWorld) {
+        ImGui::TextDisabled("Sun Direction");
+        bool sunChanged = false;
+        sunChanged |= ImGui::SliderFloat("Sun X", &m_sunPos[0], -500.0f, 500.0f);
+        sunChanged |= ImGui::SliderFloat("Sun Y", &m_sunPos[1],    0.1f, 500.0f);
+        sunChanged |= ImGui::SliderFloat("Sun Z", &m_sunPos[2], -500.0f, 500.0f);
+        if (sunChanged) {
+            auto* gw = static_cast<NCL::CSC8503::GameWorld*>(m_gameWorld);
+            gw->SetSunPosition(NCL::Maths::Vector3(m_sunPos[0], m_sunPos[1], m_sunPos[2]));
+        }
+        ImGui::Spacing();
+    }
 
     bool splitChanged = false;
     splitChanged |= ImGui::SliderFloat("Near Split",   &m_cascadeSplits[0],  5.0f,  150.0f);
@@ -108,6 +129,24 @@ void Sys_ImGuiRenderDebug::DrawShadowSection(void* rendererPtr) {
 
     if (ImGui::Checkbox("Debug Cascades", &m_debugCascades)) {
         r->SetDebugCascades(m_debugCascades);
+    }
+
+    ImGui::Checkbox("Show Shadow Maps", &m_showShadowMaps);
+    if (m_showShadowMaps) {
+        int numCascades = GameTechRenderer::GetNumCascades();
+        for (int c = 0; c < numCascades; c++) {
+            ImGui::Text("Cascade %d (%dx%d)", c, r->GetShadowRes(c), r->GetShadowRes(c));
+
+            // Shadow map depth preview
+            ImTextureID texId = (ImTextureID)(intptr_t)r->GetShadowTex(c);
+            ImGui::Image(texId, ImVec2(192, 192), ImVec2(0,1), ImVec2(1,0));
+
+            // Light projection near/far readout
+            const auto& proj = r->GetLightProjMat(c);
+            float projNear = proj.array[3][2] / (proj.array[2][2] - 1.0f);
+            float projFar  = proj.array[3][2] / (proj.array[2][2] + 1.0f);
+            ImGui::Text("  near=%.1f  far=%.1f", projNear, projFar);
+        }
     }
 }
 

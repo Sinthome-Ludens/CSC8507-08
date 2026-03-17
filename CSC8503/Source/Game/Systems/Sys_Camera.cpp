@@ -56,7 +56,7 @@ void Sys_Camera::OnAwake(Registry& registry) {
     }
 
     // ── 初始化场景光照（Bridge：写入 NCL GameWorld）──────────────
-    m_GameWorld->SetSunPosition(Vector3(-200.0f, 60.0f, -200.0f));
+    m_GameWorld->SetSunPosition(Vector3(-100.0f, 350.0f, -100.0f));
     m_GameWorld->SetSunColour(Vector3(0.8f, 0.8f, 0.5f));
 
     // ── 首帧同步：将相机实体状态推送到 NCL ────────────────────────

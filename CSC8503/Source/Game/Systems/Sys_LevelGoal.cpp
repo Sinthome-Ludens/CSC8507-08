@@ -68,18 +68,42 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                          << (int)finishId << " distXZ=" << std::sqrt(distXZSq)
                          << " dY=" << dy);
 
-                if (registry.has_ctx<Res_GameState>()) {
-                    auto& gs = registry.ctx<Res_GameState>();
-                    gs.isGameOver     = true;
-                    gs.gameOverReason = 3;  // 任务成功
-                }
-
 #ifdef USE_IMGUI
                 if (registry.has_ctx<Res_UIState>()) {
                     auto& ui = registry.ctx<Res_UIState>();
-                    ui.activeScreen = UIScreen::GameOver;
+
+                    // 判断是否为序列中的最后一张地图
+                    bool isFinalMap = !ui.mapSequenceGenerated
+                                   || ui.mapSequenceIndex >= Res_UIState::MAP_SEQUENCE_LENGTH - 1;
+
+                    if (!isFinalMap) {
+                        // ── 非最终关：冻结游戏，触发 NextLevel 加载下一张 ──
+                        if (registry.has_ctx<Res_GameState>()) {
+                            registry.ctx<Res_GameState>().isGameOver = true;
+                        }
+                        ui.pendingSceneRequest = SceneRequest::NextLevel;
+                        UI::PushToast(registry, "AREA CLEAR - MOVING OUT",
+                                      ToastType::Success, 2.0f);
+                        LOG_INFO("[Sys_LevelGoal] Mid-sequence -> NextLevel (index="
+                                 << (int)ui.mapSequenceIndex << ")");
+                    } else {
+                        // ── 最终关：任务成功 → GameOver 结算画面 ──
+                        if (registry.has_ctx<Res_GameState>()) {
+                            auto& gs = registry.ctx<Res_GameState>();
+                            gs.isGameOver     = true;
+                            gs.gameOverReason = 3;
+                        }
+                        ui.activeScreen = UIScreen::GameOver;
+                        UI::PushToast(registry, "MISSION COMPLETE",
+                                      ToastType::Success, 3.0f);
+                    }
                 }
-                UI::PushToast(registry, "MISSION COMPLETE", ToastType::Success, 3.0f);
+#else
+                if (registry.has_ctx<Res_GameState>()) {
+                    auto& gs = registry.ctx<Res_GameState>();
+                    gs.isGameOver     = true;
+                    gs.gameOverReason = 3;
+                }
 #endif
             }
         });

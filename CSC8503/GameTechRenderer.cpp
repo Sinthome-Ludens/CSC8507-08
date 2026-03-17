@@ -492,9 +492,12 @@ void GameTechRenderer::GenerateIBL() {
 
 void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const Matrix4& projMatrix) {
     Vector3 sunPos = gameWorld.GetSunPosition();
-    m_lightViewMat = Matrix::View(sunPos, Vector3(0, 0, 0), Vector3(0, 1, 0));
+    Vector3 lightDir(-sunPos.x, -sunPos.y, -sunPos.z);
+    float dirLen = sqrtf(lightDir.x * lightDir.x + lightDir.y * lightDir.y + lightDir.z * lightDir.z);
+    if (dirLen > 0.001f) { lightDir.x /= dirLen; lightDir.y /= dirLen; lightDir.z /= dirLen; }
+    Vector3 lightUp(0, 1, 0);
+    if (fabsf(lightDir.y) > 0.99f) lightUp = Vector3(0, 0, 1);
 
-    // projMatrix.array[1][1] = 1/tan(halfFovV) — 对行列主序均成立（对角线元素）
     float tanFovV = 1.0f / projMatrix.array[1][1];
     float aspect  = hostWindow.GetScreenAspect();
     float tanFovH = tanFovV * aspect;
@@ -508,7 +511,6 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
         Vector3 camRight = Vector3( viewMatrix.array[0][0],  viewMatrix.array[1][0],  viewMatrix.array[2][0]);
         Vector3 camUp    = Vector3( viewMatrix.array[0][1],  viewMatrix.array[1][1],  viewMatrix.array[2][1]);
 
-        // 正确的视锥角点：halfW/H = distance * tan(halfFov)，XY 分量独立
         float nearW = nearPrev * tanFovH, nearH = nearPrev * tanFovV;
         float farW  = farDist  * tanFovH, farH  = farDist  * tanFovV;
 
@@ -522,25 +524,37 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
         corners[6] = camPos + camFwd * farDist  - camRight * farW  + camUp * farH;
         corners[7] = camPos + camFwd * farDist  + camRight * farW  + camUp * farH;
 
+        Vector3 frustumCenter(0, 0, 0);
+        for (int i = 0; i < 8; i++) {
+            frustumCenter.x += corners[i].x;
+            frustumCenter.y += corners[i].y;
+            frustumCenter.z += corners[i].z;
+        }
+        frustumCenter.x /= 8.0f;
+        frustumCenter.y /= 8.0f;
+        frustumCenter.z /= 8.0f;
+
+        float pullBack = farDist + 200.0f;
+        Vector3 lightEye(
+            frustumCenter.x - lightDir.x * pullBack,
+            frustumCenter.y - lightDir.y * pullBack,
+            frustumCenter.z - lightDir.z * pullBack);
+        m_lightViewMat[c] = Matrix::View(lightEye, frustumCenter, lightUp);
+
         Vector3 minLS(1e9f, 1e9f, 1e9f), maxLS(-1e9f, -1e9f, -1e9f);
         for (int i = 0; i < 8; i++) {
-            // 变换到光照空间（4×4 乘法）
-            Vector4 lsPos = m_lightViewMat * Vector4(corners[i].x, corners[i].y, corners[i].z, 1.0f);
+            Vector4 lsPos = m_lightViewMat[c] * Vector4(corners[i].x, corners[i].y, corners[i].z, 1.0f);
             Vector3 ls(lsPos.x, lsPos.y, lsPos.z);
             minLS.x = std::min(minLS.x, ls.x); minLS.y = std::min(minLS.y, ls.y); minLS.z = std::min(minLS.z, ls.z);
             maxLS.x = std::max(maxLS.x, ls.x); maxLS.y = std::max(maxLS.y, ls.y); maxLS.z = std::max(maxLS.z, ls.z);
         }
 
-        // 级联稳定化：使用正方形 frustum + 中心对齐到 texel 边界
-        // 必须用 max(rangeX, rangeY) 作为边长，否则窄轴被截短导致旋转裁切
         float rangeX   = maxLS.x - minLS.x;
         float rangeY   = maxLS.y - minLS.y;
         float maxRange = std::max(rangeX, rangeY);
         float texelSize = maxRange / (float)m_shadowRes[c];
-        // 存储 Normal Offset Bias（0.5 texel），供 shadow pass 消除接触阴影 light bleeding
         m_shadowNormalOffset[c] = texelSize * 0.5f;
 
-        // 将中心点对齐到 texel 网格（消除 shadow swimming）
         float centerX = std::round(((minLS.x + maxLS.x) * 0.5f) / texelSize) * texelSize;
         float centerY = std::round(((minLS.y + maxLS.y) * 0.5f) / texelSize) * texelSize;
         float halfExt = maxRange * 0.5f;
@@ -549,17 +563,13 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
         minLS.y = centerY - halfExt;
         maxLS.y = centerY + halfExt;
 
-        // Matrix::Orthographic 要求正的 near/far 距离。
-        // 光照空间 z 对于位于光源前方的物体为负值，需要取反转换。
-        // near = -maxLS.z（离光源最近的视锥角点）减 10 单位余量
-        // far  = -minLS.z（离光源最远）加 500 单位以捕获摄像机背后的投影物
-        float shadowNear = std::max(0.1f, -(maxLS.z + 10.0f));
+        float shadowNear = std::max(0.1f, -(maxLS.z + 500.0f));
         float shadowFar  = -(minLS.z - 100.0f);
         if (shadowFar <= shadowNear) shadowFar = shadowNear + 100.0f;
         m_lightProjMat[c] = Matrix::Orthographic(minLS.x, maxLS.x,
                                                   minLS.y, maxLS.y,
                                                   shadowNear, shadowFar);
-        m_shadowMatrix[c] = biasMatrix * m_lightProjMat[c] * m_lightViewMat;
+        m_shadowMatrix[c] = biasMatrix * m_lightProjMat[c] * m_lightViewMat[c];
 
         nearPrev = farDist;
     }
@@ -679,7 +689,7 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
-    glCullFace(GL_BACK);   // 存前向面深度：接触点 shadow 精确，自阴影由 fragment 斜率偏置防护
+    glCullFace(GL_FRONT);  // 渲染背面到 shadow map：消除自阴影 acne（标准 CSM 技术）
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
     UseShader(*shadowShader);
@@ -690,7 +700,7 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
         glViewport(0, 0, m_shadowRes[c], m_shadowRes[c]);
         glClear(GL_DEPTH_BUFFER_BIT);
 
-        Matrix4 lvp = m_lightProjMat[c] * m_lightViewMat;
+        Matrix4 lvp = m_lightProjMat[c] * m_lightViewMat[c];
 
         for (const auto& i : list) {
             const RenderObject* o = i.object;

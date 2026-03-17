@@ -1,5 +1,7 @@
 #pragma once
 #include <cstdint>
+#include <vector>
+#include "Vector.h"
 
 /**
  * @brief 碰撞体形状类型
@@ -8,6 +10,7 @@ enum class ColliderType : uint8_t {
     Box     = 0,   ///< 轴对齐包围盒（AABB / OBB）
     Sphere  = 1,   ///< 球体
     Capsule = 2,   ///< 胶囊体（适合人形角色）
+    TriMesh = 3,   ///< 三角网格（仅用于静态体）
 };
 
 /**
@@ -17,7 +20,6 @@ enum class ColliderType : uint8_t {
  * 必须与 C_D_RigidBody 配合使用，由 Sys_Physics 构建对应的 Jolt Shape。
  *
  * @note 尺寸参数的含义因 ColliderType 不同而不同（详见各字段注释）。
- *       POD 结构体，不含任何 Jolt 类型。
  */
 struct C_D_Collider {
     ColliderType type         = ColliderType::Box;
@@ -36,4 +38,8 @@ struct C_D_Collider {
 
     // --- 触发器模式 ---
     bool  is_trigger  = false;  ///< true = Trigger（只检测重叠，不产生物理响应）
+
+    // --- TriMesh 专用（type == TriMesh 时有效）---
+    std::vector<NCL::Maths::Vector3> triVerts;    ///< 顶点坐标（体局部空间）
+    std::vector<int>                 triIndices;  ///< 三角形索引，每 3 个为一个三角形
 };
