@@ -68,6 +68,13 @@ namespace NCL {
             /// @brief 设置 constant shadow bias，防止 shadow acne（单位：光照空间深度偏移量）
             void SetShadowBiasConstant(float v)   { m_shadowBiasConstant = v; }
 
+            // ── Shadow debug getters ────────────────────────────
+            static constexpr int GetNumCascades()       { return NUM_CASCADES; }
+            GLuint GetShadowTex(int c) const            { return m_shadowTex[c]; }
+            int    GetShadowRes(int c) const            { return m_shadowRes[c]; }
+            const Matrix4& GetLightViewMat(int c) const { return m_lightViewMat[c]; }
+            const Matrix4& GetLightProjMat(int c) const { return m_lightProjMat[c]; }
+
         protected:
             struct ObjectSortState {
                 const RenderObject* object;
@@ -110,7 +117,7 @@ namespace NCL {
             static constexpr int NUM_CASCADES = 3;
             GLuint  m_shadowTex[NUM_CASCADES] = {};
             GLuint  m_shadowFBO[NUM_CASCADES] = {};
-            Matrix4 m_lightViewMat;
+            Matrix4 m_lightViewMat[NUM_CASCADES];
             Matrix4 m_lightProjMat[NUM_CASCADES];
             Matrix4 m_shadowMatrix[NUM_CASCADES];       ///< bias * proj[i] * lightView
             float   m_cascadeSplits[NUM_CASCADES]       = { 50.0f, 180.0f, 600.0f };

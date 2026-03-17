@@ -31,6 +31,7 @@
 #include "Game/Components/Res_RadarState.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #include "Game/Events/Evt_Item_Use.h"
+#include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
 #include "Core/ECS/EntityID.h"
@@ -135,29 +136,8 @@ EntityID Sys_ItemEffects::FindNearestEnemy(Registry& registry, const Vector3& or
 // ============================================================
 // EffectHoloBait — 在目标位置创建诱饵实体并吸引附近安全状态敌人
 // ============================================================
-/**
- * @brief Prefab-style helper to construct a holo bait entity with default components.
- */
-static EntityID CreateHoloBaitPrefab(Registry& registry, const Vector3& worldPos) {
-    EntityID baitEntity = registry.Create();
-
-    auto& tf = registry.Emplace<C_D_Transform>(baitEntity);
-    tf.position = worldPos;
-    tf.scale    = Vector3(0.5f, 0.5f, 0.5f);
-
-    auto& bait = registry.Emplace<C_D_HoloBaitState>(baitEntity);
-    bait.worldPos      = worldPos;
-    bait.remainingTime = 3.0f;
-    bait.active        = true;
-
-    auto& dn = registry.Emplace<C_D_DebugName>(baitEntity);
-    strncpy_s(dn.name, sizeof(dn.name), "ENTITY_HoloBait", _TRUNCATE);
-
-    return baitEntity;
-}
-
 void Sys_ItemEffects::EffectHoloBait(Registry& registry, const Evt_Item_Use& evt) {
-    EntityID baitEntity = CreateHoloBaitPrefab(registry, evt.targetPos);
+    EntityID baitEntity = PrefabFactory::CreateHoloBait(registry, evt.targetPos);
 
     auto& bait = registry.Get<C_D_HoloBaitState>(baitEntity);
 
@@ -244,43 +224,11 @@ void Sys_ItemEffects::EffectDDoS(Registry& registry, const Evt_Item_Use& evt) {
 // ============================================================
 // RoamAI prefab helper
 // ============================================================
-/**
- * @brief Prefab helper to create and initialize a RoamAI entity at the given target position.
- *
- * This helper is responsible for calling registry.Create() and wiring up all
- * components required by the RoamAI entity.
- *
- * @param registry ECS registry used to create and configure the entity.
- * @param targetPos World-space position used as the RoamAI target and spawn reference.
- * @return EntityID Identifier of the newly created RoamAI entity.
- */
-static EntityID Prefab_CreateRoamAI(Registry& registry, const Vector3& targetPos) {
-    EntityID roamId = registry.Create();
-
-    auto& tf = registry.Emplace<C_D_Transform>(roamId);
-    tf.position = targetPos + Vector3(0.0f, 0.5f, 0.0f);
-    tf.scale    = Vector3(0.4f, 0.4f, 0.4f);
-
-    registry.Emplace<C_T_RoamAI>(roamId);
-
-    auto& roam = registry.Emplace<C_D_RoamAI>(roamId);
-    roam.targetPos        = targetPos;
-    roam.roamSpeed        = 6.0f;
-    roam.waypointInterval = 2.0f;
-    roam.detectRadius     = 1.5f;
-    roam.active           = true;
-
-    auto& dn = registry.Emplace<C_D_DebugName>(roamId);
-    strncpy_s(dn.name, sizeof(dn.name), "ENTITY_RoamAI", _TRUNCATE);
-
-    return roamId;
-}
-
 // ============================================================
 // EffectRoamAI — 在玩家位置创建流窜 AI 实体
 // ============================================================
 void Sys_ItemEffects::EffectRoamAI(Registry& registry, const Evt_Item_Use& evt) {
-    EntityID roamId = Prefab_CreateRoamAI(registry, evt.targetPos);
+    EntityID roamId = PrefabFactory::CreateRoamAI(registry, evt.targetPos);
 
     LOG_INFO("[Sys_ItemEffects] RoamAI spawned at ("
              << evt.targetPos.x << "," << evt.targetPos.z << ").");

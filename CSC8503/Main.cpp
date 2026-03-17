@@ -73,9 +73,7 @@ using namespace NCL;
 using namespace CSC8503;
 
 #include <algorithm>
-#include <chrono>
-#include <cstdlib>
-#include <ctime>
+#include <random>
 #include <thread>
 #include <sstream>
 
@@ -101,6 +99,51 @@ static void HandleKeyboardShortcuts(Window* w) {
 /// 更新窗口标题
 static void UpdateWindowTitle(Window* w, float dt) {
     w->SetTitle("NEUROMANCER - " + std::to_string(1000.0f * dt) + " ms");
+}
+
+/// 根据地图 ID 创建对应场景实例
+/// Map IDs: 0=HangerA, 1=HangerB, 2=Helipad, 3=Lab, 4=Dock
+static IScene* CreateMapScene(uint8_t mapId) {
+    switch (mapId) {
+        case 0: return new Scene_HangerA();
+        case 1: return new Scene_HangerB();
+        case 2: return new Scene_Helipad();
+        case 3: return new Scene_Lab();
+        case 4: return new Scene_Dock();
+        default: return new Scene_HangerA();
+    }
+}
+
+/// 地图名称（调试用）
+static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock" };
+
+/// 使用 std::random_device 获取种子（硬件熵源优先，回退到系统时钟）
+static uint32_t TimeBasedSeed() {
+    std::random_device rd;
+    return rd();
+}
+
+/// 随机从 5 张地图中抽 3 张（不排序，打乱顺序直接打），重置 index
+static void GenerateMapSequence(ECS::Res_UIState& ui) {
+    uint32_t seed = TimeBasedSeed();
+    uint8_t pool[] = {0, 1, 2, 3, 4};
+    std::mt19937 gen(seed);
+    std::shuffle(pool, pool + 5, gen);
+    // 取前 3 个，保持 shuffle 后的随机顺序（不排序）
+    ui.mapSequence[0] = pool[0];
+    ui.mapSequence[1] = pool[1];
+    ui.mapSequence[2] = pool[2];
+    ui.mapSequenceIndex    = 0;
+    ui.mapSequenceGenerated = true;
+
+    std::cout << "[MapSequence] seed=" << seed
+              << "  sequence: " << kMapNames[ui.mapSequence[0]]
+              << " -> " << kMapNames[ui.mapSequence[1]]
+              << " -> " << kMapNames[ui.mapSequence[2]] << std::endl;
+    LOG_INFO("[Main] Map sequence generated (seed=" << seed << "): "
+             << (int)ui.mapSequence[0] << " -> "
+             << (int)ui.mapSequence[1] << " -> "
+             << (int)ui.mapSequence[2]);
 }
 
 /// 处理所有 UI 请求（场景切换、分辨率、全屏、光标、退出）
@@ -146,29 +189,23 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
 
         if (ui.pendingSceneRequest != ECS::SceneRequest::None) {
             switch (ui.pendingSceneRequest) {
-                case ECS::SceneRequest::StartGame: {
-                    // Initialize campaign: random 5-choose-3 map sequence
-                    auto& campaign = reg.has_ctx<ECS::Res_CampaignState>()
-                        ? reg.ctx<ECS::Res_CampaignState>()
-                        : reg.ctx_emplace<ECS::Res_CampaignState>();
-
-                    int pool[] = {0, 1, 2, 3, 4};
-                    std::srand(static_cast<unsigned>(std::time(nullptr)));
-                    for (int i = 4; i > 0; --i) {
-                        int j = std::rand() % (i + 1);
-                        std::swap(pool[i], pool[j]);
-                    }
-                    campaign.mapSequence[0] = static_cast<int8_t>(pool[0]);
-                    campaign.mapSequence[1] = static_cast<int8_t>(pool[1]);
-                    campaign.mapSequence[2] = static_cast<int8_t>(pool[2]);
-                    campaign.currentRound   = 0;
-                    campaign.active         = true;
-                    campaign.totalPlayTime  = 0.0f;
-
-                    LOG_INFO("[Main] Campaign start: maps ["
-                             << pool[0] << "," << pool[1] << "," << pool[2] << "]");
+                case ECS::SceneRequest::StartGame:
+                case ECS::SceneRequest::RestartLevel:
+                    // 每次开始 / 重试都重新随机 5 抽 3 序列
+                    GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
-                        new Scene_CampaignLevel(campaign.mapSequence[0]));
+                        CreateMapScene(ui.mapSequence[0]));
+                    break;
+                case ECS::SceneRequest::NextLevel:
+                    // 序列内前进到下一张地图
+                    ui.mapSequenceIndex++;
+                    if (ui.mapSequenceIndex < ECS::Res_UIState::MAP_SEQUENCE_LENGTH) {
+                        sceneManager.RequestSceneChange(
+                            CreateMapScene(ui.mapSequence[ui.mapSequenceIndex]));
+                    } else {
+                        // 安全兜底：不应到达这里
+                        sceneManager.RequestSceneChange(new Scene_MainMenu());
+                    }
                     break;
                 }
                 case ECS::SceneRequest::RestartLevel:

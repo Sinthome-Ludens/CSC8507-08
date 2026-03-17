@@ -52,25 +52,25 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
         });
     if (!hasPlayer) return;
 
-    // 检测玩家与所有终点区域的 XZ 距离
-    constexpr float kFinishRadiusSq = 4.0f * 4.0f;  // 4m 触发半径
+    // 检测玩家与所有终点区域的 3D 距离（支持多层垂直地图）
+    constexpr float kFinishRadiusXZ = 4.0f;   // XZ 平面触发半径
+    constexpr float kFinishHeightMax = 3.0f;   // Y 最大高度差（防止上下层误触发）
 
     registry.view<C_T_FinishZone, C_D_Transform>().each(
         [&](EntityID finishId, C_T_FinishZone&, C_D_Transform& ftf) {
             if (m_FinishTriggered) return;
 
             float dx = playerPos.x - ftf.position.x;
+            float dy = playerPos.y - ftf.position.y;
             float dz = playerPos.z - ftf.position.z;
-            float distSq = dx * dx + dz * dz;
+            float distXZSq = dx * dx + dz * dz;
 
-            if (distSq < kFinishRadiusSq) {
+            if (distXZSq < kFinishRadiusXZ * kFinishRadiusXZ
+                && std::fabs(dy) < kFinishHeightMax) {
                 m_FinishTriggered = true;
                 LOG_INFO("[Sys_LevelGoal] Player reached finish zone "
-                         << (int)finishId << " dist=" << std::sqrt(distSq));
-
-                // === Campaign mode branch ===
-                bool isCampaign = registry.has_ctx<Res_CampaignState>()
-                               && registry.ctx<Res_CampaignState>().active;
+                         << (int)finishId << " distXZ=" << std::sqrt(distXZSq)
+                         << " dY=" << dy);
 
                 if (isCampaign) {
                     auto& campaign = registry.ctx<Res_CampaignState>();
@@ -88,13 +88,41 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                         if (registry.has_ctx<Res_GameState>())
                             registry.ctx<Res_GameState>().isPaused = true;
 #ifdef USE_IMGUI
-                        if (registry.has_ctx<Res_UIState>()) {
-                            registry.ctx<Res_UIState>().pendingSceneRequest = SceneRequest::NextLevel;
+                if (registry.has_ctx<Res_UIState>()) {
+                    auto& ui = registry.ctx<Res_UIState>();
+
+                    // 判断是否为序列中的最后一张地图
+                    bool isFinalMap = !ui.mapSequenceGenerated
+                                   || ui.mapSequenceIndex >= Res_UIState::MAP_SEQUENCE_LENGTH - 1;
+
+                    if (!isFinalMap) {
+                        // ── 非最终关：冻结游戏，触发 NextLevel 加载下一张 ──
+                        if (registry.has_ctx<Res_GameState>()) {
+                            registry.ctx<Res_GameState>().isGameOver = true;
                         }
-                        char msg[64];
-                        snprintf(msg, sizeof(msg), "MAP %d/%d COMPLETE",
-                                 campaign.currentRound, kCampaignRounds);
-                        UI::PushToast(registry, msg, ToastType::Success, 2.0f);
+                        ui.pendingSceneRequest = SceneRequest::NextLevel;
+                        UI::PushToast(registry, "AREA CLEAR - MOVING OUT",
+                                      ToastType::Success, 2.0f);
+                        LOG_INFO("[Sys_LevelGoal] Mid-sequence -> NextLevel (index="
+                                 << (int)ui.mapSequenceIndex << ")");
+                    } else {
+                        // ── 最终关：任务成功 → GameOver 结算画面 ──
+                        if (registry.has_ctx<Res_GameState>()) {
+                            auto& gs = registry.ctx<Res_GameState>();
+                            gs.isGameOver     = true;
+                            gs.gameOverReason = 3;
+                        }
+                        ui.activeScreen = UIScreen::GameOver;
+                        UI::PushToast(registry, "MISSION COMPLETE",
+                                      ToastType::Success, 3.0f);
+                    }
+                }
+#else
+                if (registry.has_ctx<Res_GameState>()) {
+                    auto& gs = registry.ctx<Res_GameState>();
+                    gs.isGameOver     = true;
+                    gs.gameOverReason = 3;
+                }
 #endif
                         LOG_INFO("[Sys_LevelGoal] Campaign round " << (int)campaign.currentRound
                                  << "/" << kCampaignRounds << " advancing to next map");
