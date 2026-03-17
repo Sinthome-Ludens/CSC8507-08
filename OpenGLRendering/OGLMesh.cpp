@@ -124,7 +124,7 @@ void OGLMesh::UpdateGPUBuffers(unsigned int startVertex, unsigned int vertexCoun
 	}
 
 	if (!GetSkinIndexData().empty()) {	//Skeleton joint indices
-		glBindBuffer(GL_ARRAY_BUFFER, attributeBuffers[VertexAttribute::TextureCoords]);
+		glBindBuffer(GL_ARRAY_BUFFER, attributeBuffers[VertexAttribute::JointIndices]);
 		glBufferSubData(GL_ARRAY_BUFFER, startVertex * sizeof(Vector4i), vertexCount * sizeof(Vector4i), (char*)&GetSkinIndexData()[startVertex]);
 	}
 	glBindBuffer(GL_ARRAY_BUFFER, 0);

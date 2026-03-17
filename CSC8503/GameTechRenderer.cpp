@@ -873,6 +873,7 @@ void GameTechRenderer::DrawObject(OGLShader* shader,
 
     // 双面渲染
     if (mat.doubleSided) glDisable(GL_CULL_FACE);
+    glUniform1i(ul("doubleSided"), mat.doubleSided ? 1 : 0);
 
     // 骨骼蒙皮
     glUniform1i(ul("useSkinning"), o->useSkinning ? 1 : 0);
@@ -1021,8 +1022,10 @@ void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list)
             glCullFace(GL_FRONT);
             DrawObject(shader, o, viewMatrix);
             glCullFace(GL_BACK);
+            DrawObject(shader, o, viewMatrix);
+        } else {
+            DrawObject(shader, o, viewMatrix);
         }
-        DrawObject(shader, o, viewMatrix);
     }
 
     glDepthMask(GL_TRUE);
