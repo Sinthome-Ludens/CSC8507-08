@@ -49,6 +49,7 @@
 #include "Game/Components/C_T_RoamAI.h"
 #include "Game/Components/C_D_RoamAI.h"
 #include "Game/Utils/Log.h"
+#include "Game/Utils/PrefabLoader.h"
 
 #include <cstring>
 #include <cstdio>
@@ -74,24 +75,24 @@ EntityID PrefabFactory::CreateCameraMain(
     float       pitch,
     float       yaw)
 {
+    /*
+     * Load JSON defaults from Prefab_Camera_Main.json.
+     * Function parameters (position, pitch, yaw) override the loaded defaults.
+     */
+    PrefabLoader::PrefabCameraDefaults defs;
+    PrefabLoader::LoadCameraDefaults(defs);
+
     EntityID entity = reg.Create();
 
-    // C_D_Transform（位置由参数覆盖；旋转/缩放使用默认值）
     reg.Emplace<C_D_Transform>(entity,
         position,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
         Vector3(1.0f, 1.0f, 1.0f)
     );
 
-    // C_D_Camera（投影参数 + 视角控制，匹配 Prefab_Camera_Main.json）
-    C_D_Camera cam{};
-    cam.fov         = 45.0f;
-    cam.near_z      = 1.0f;
-    cam.far_z       = 1000.0f;
+    C_D_Camera cam  = defs.camera;
     cam.pitch       = pitch;
     cam.yaw         = yaw;
-    cam.move_speed  = 20.0f;
-    cam.sensitivity = 0.5f;
     reg.Emplace<C_D_Camera>(entity, cam);
 
     // C_T_MainCamera（标签：标记为主相机，场景中唯一）
@@ -112,34 +113,29 @@ EntityID PrefabFactory::CreateCameraMain(
 // ============================================================
 EntityID PrefabFactory::CreateFloor(Registry& reg, ECS::MeshHandle cubeMesh)
 {
+    /*
+     * Load JSON defaults from Prefab_Env_Floor.json.
+     * Position, scale, RigidBody, and Collider all come from the loaded defaults.
+     */
+    PrefabLoader::PrefabFloorDefaults defs;
+    PrefabLoader::LoadFloorDefaults(defs);
+
     EntityID entity = reg.Create();
 
-    // C_D_Transform（大平面，低于原点，匹配 Prefab_Env_Floor.json）
     reg.Emplace<C_D_Transform>(entity,
-        Vector3(0.0f, -6.0f, 0.0f),
+        defs.position,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(50.0f, 1.0f, 50.0f)
+        defs.scale
     );
 
-    // C_D_MeshRenderer
     reg.Emplace<C_D_MeshRenderer>(entity,
         cubeMesh,
         static_cast<uint32_t>(0)
     );
 
-    // C_D_RigidBody（静态体）
-    C_D_RigidBody rb{};
-    rb.is_static = true;
-    reg.Emplace<C_D_RigidBody>(entity, rb);
+    reg.Emplace<C_D_RigidBody>(entity, defs.rb);
 
-    // C_D_Collider（Box，半尺寸 = mesh顶点范围±1 × scale）
-    // cube.obj 顶点 ±1.0，scale (50,1,50) → 世界半尺寸 (50, 1, 50)
-    C_D_Collider col{};
-    col.type   = ColliderType::Box;
-    col.half_x = 50.0f;
-    col.half_y = 1.0f;
-    col.half_z = 50.0f;
-    reg.Emplace<C_D_Collider>(entity, col);
+    reg.Emplace<C_D_Collider>(entity, defs.col);
 
     // C_D_Material（默认 BlinnPhong）
     reg.Emplace<C_D_Material>(entity);
@@ -453,57 +449,44 @@ EntityID PrefabFactory::CreatePlayer(
     ECS::MeshHandle cubeMesh,
     Vector3         spawnPos)
 {
+    /*
+     * Load JSON defaults from Prefab_Player.json.
+     * spawnPos from function parameter overrides transform position.
+     * RigidBody, Collider, and Health values come from the loaded defaults.
+     */
+    PrefabLoader::PrefabPlayerDefaults defs;
+    PrefabLoader::LoadPlayerDefaults(defs);
+
     EntityID entity = reg.Create();
 
-    // C_D_Transform
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
         Vector3(1.0f, 1.0f, 1.0f)
     );
 
-    // C_D_MeshRenderer（暂用 cube，后续替换为角色模型）
     reg.Emplace<ECS::C_D_MeshRenderer>(entity,
         cubeMesh,
         static_cast<uint32_t>(0)
     );
 
-    // C_D_RigidBody（动态体，高线性阻尼辅助限速，锁定全轴旋转防翻滚）
-    C_D_RigidBody rb{};
-    rb.mass            = 5.0f;
-    rb.gravity_factor  = 1.0f;
-    rb.linear_damping  = 0.5f;
-    rb.angular_damping = 0.05f;
-    rb.lock_rotation_x = true;
-    rb.lock_rotation_y = true;
-    rb.lock_rotation_z = true;
-    reg.Emplace<C_D_RigidBody>(entity, rb);
+    reg.Emplace<C_D_RigidBody>(entity, defs.rb);
 
-    // C_D_Collider（Capsule：半径 0.5，半高 1.0）
-    C_D_Collider col{};
-    col.type        = ColliderType::Capsule;
-    col.half_x      = 0.5f;   // radius
-    col.half_y      = 1.0f;   // half height
-    col.friction    = 0.5f;
-    col.restitution = 0.0f;
-    reg.Emplace<C_D_Collider>(entity, col);
+    reg.Emplace<C_D_Collider>(entity, defs.col);
 
-    // C_T_Player 标签
     reg.Emplace<ECS::C_T_Player>(entity);
 
-    // C_D_PlayerState（MGS 风格潜行状态）
     reg.Emplace<ECS::C_D_PlayerState>(entity, ECS::C_D_PlayerState{});
 
-    // C_D_Input（输入数据，由 Sys_InputDispatch 每帧写入）
     reg.Emplace<ECS::C_D_Input>(entity, ECS::C_D_Input{});
 
-    // C_D_CQCState（CQC 近身制服状态）
     reg.Emplace<ECS::C_D_CQCState>(entity, ECS::C_D_CQCState{});
 
-    // C_D_Health（生命值）
-    reg.Emplace<ECS::C_D_Health>(entity, ECS::C_D_Health{});
+    ECS::C_D_Health health{};
+    health.hp    = defs.hp;
+    health.maxHp = defs.maxHp;
+    reg.Emplace<ECS::C_D_Health>(entity, health);
 
-    // C_T_NavTarget（导航目标标签，使 Sys_Navigation 能定位玩家）
     reg.Emplace<C_T_NavTarget>(entity);
 
     // C_D_DebugName
@@ -525,28 +508,30 @@ EntityID PrefabFactory::CreateInvisibleWall(
     Vector3     halfExtents,
     Quaternion  rotation)
 {
+    /*
+     * Load JSON defaults from Prefab_InvisibleWall.json.
+     * Position, halfExtents, rotation come from function parameters.
+     * Friction and restitution come from the loaded defaults.
+     */
+    PrefabLoader::PrefabInvisibleWallDefaults defs;
+    PrefabLoader::LoadInvisibleWallDefaults(defs);
+
     EntityID entity = reg.Create();
 
-    // C_D_Transform（位置/旋转由参数指定，scale 固定 1）
     reg.Emplace<C_D_Transform>(entity,
         position,
         rotation,
         Vector3(1.0f, 1.0f, 1.0f)
     );
 
-    // C_D_RigidBody（静态体）
     C_D_RigidBody rb{};
     rb.is_static = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    // C_D_Collider（Box，无摩擦无弹性 → 纯阻挡）
-    C_D_Collider col{};
-    col.type        = ColliderType::Box;
-    col.half_x      = halfExtents.x;
-    col.half_y      = halfExtents.y;
-    col.half_z      = halfExtents.z;
-    col.friction    = 0.0f;
-    col.restitution = 0.0f;
+    C_D_Collider col   = defs.col;
+    col.half_x         = halfExtents.x;
+    col.half_y         = halfExtents.y;
+    col.half_z         = halfExtents.z;
     reg.Emplace<C_D_Collider>(entity, col);
 
     // C_T_InvisibleWall 标签
@@ -582,6 +567,14 @@ EntityID PrefabFactory::CreateTriggerZone(
     Vector3     position,
     Vector3     halfExtents)
 {
+    /*
+     * Load JSON defaults from Prefab_TriggerZone.json.
+     * Position and halfExtents come from function parameters.
+     * is_trigger flag comes from the loaded defaults.
+     */
+    PrefabLoader::PrefabTriggerZoneDefaults defs;
+    PrefabLoader::LoadTriggerZoneDefaults(defs);
+
     EntityID entity = reg.Create();
 
     reg.Emplace<C_D_Transform>(entity,
@@ -594,12 +587,10 @@ EntityID PrefabFactory::CreateTriggerZone(
     rb.is_static = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    C_D_Collider col{};
-    col.type       = ColliderType::Box;
-    col.half_x     = halfExtents.x;
-    col.half_y     = halfExtents.y;
-    col.half_z     = halfExtents.z;
-    col.is_trigger = true;
+    C_D_Collider col = defs.col;
+    col.half_x       = halfExtents.x;
+    col.half_y       = halfExtents.y;
+    col.half_z       = halfExtents.z;
     reg.Emplace<C_D_Collider>(entity, col);
 
     reg.Emplace<C_T_TriggerZone>(entity);
@@ -621,38 +612,30 @@ EntityID PrefabFactory::CreatePhysicsCube(
     int             spawnIndex,
     Vector3         spawnPos)
 {
+    /*
+     * Load JSON defaults from Prefab_Physics_Cube.json.
+     * spawnPos from function parameter overrides transform position.
+     * RigidBody and Collider come from the loaded defaults.
+     */
+    PrefabLoader::PrefabPhysicsCubeDefaults defs;
+    PrefabLoader::LoadPhysicsCubeDefaults(defs);
+
     EntityID entity = reg.Create();
 
-    // C_D_Transform（使用调用方传入的世界坐标）
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
         Vector3(1.0f, 1.0f, 1.0f)
     );
 
-    // C_D_MeshRenderer
     reg.Emplace<C_D_MeshRenderer>(entity,
         cubeMesh,
         static_cast<uint32_t>(0)
     );
 
-    // C_D_RigidBody（动态体，匹配 Prefab_Physics_Cube.json）
-    C_D_RigidBody rb{};
-    rb.mass             = 1.0f;
-    rb.gravity_factor   = 1.0f;
-    rb.linear_damping   = 0.05f;
-    rb.angular_damping  = 0.05f;
-    reg.Emplace<C_D_RigidBody>(entity, rb);
+    reg.Emplace<C_D_RigidBody>(entity, defs.rb);
 
-    // C_D_Collider（Box 1×1×1，cube.obj 顶点 ±1.0，scale (1,1,1) → 世界半尺寸 (1,1,1)）
-    C_D_Collider col{};
-    col.type        = ColliderType::Box;
-    col.half_x      = 1.0f;
-    col.half_y      = 1.0f;
-    col.half_z      = 1.0f;
-    col.friction    = 0.5f;
-    col.restitution = 0.1f;
-    reg.Emplace<C_D_Collider>(entity, col);
+    reg.Emplace<C_D_Collider>(entity, defs.col);
 
     // C_D_Material（默认 BlinnPhong）
     reg.Emplace<C_D_Material>(entity);
@@ -678,6 +661,14 @@ EntityID PrefabFactory::CreatePhysicsEnemy(
     int             spawnIndex,
     Vector3         spawnPos)
 {
+    /*
+     * Load JSON defaults from Prefab_Physics_Enemy.json.
+     * spawnPos from function parameter overrides transform position.
+     * RigidBody, Collider, and perception rates come from the loaded defaults.
+     */
+    PrefabLoader::PrefabEnemyDefaults defs;
+    PrefabLoader::LoadPhysicsEnemyDefaults(defs);
+
     EntityID entity = reg.Create();
 
     reg.Emplace<C_D_Transform>(entity,
@@ -691,28 +682,18 @@ EntityID PrefabFactory::CreatePhysicsEnemy(
         static_cast<uint32_t>(0)
     );
 
-    C_D_RigidBody rb{};
-    rb.mass            = 1.0f;
-    rb.gravity_factor  = 1.0f;
-    rb.lock_rotation_x = true;  // 防止胶囊体前后翻转
-    rb.lock_rotation_z = true;  // 防止胶囊体左右翻转
-    reg.Emplace<C_D_RigidBody>(entity, rb);
+    reg.Emplace<C_D_RigidBody>(entity, defs.rb);
 
-    C_D_Collider col{};
-    col.type   = ColliderType::Capsule;
-    col.half_x = 0.5f;  // radius
-    col.half_y = 1.0f;  // half_height
-    reg.Emplace<C_D_Collider>(entity, col);
+    reg.Emplace<C_D_Collider>(entity, defs.col);
 
-    // EnemyAI 核心组件
     reg.Emplace<C_T_Enemy>(entity);
     reg.Emplace<C_D_AIState>(entity);
     reg.Emplace<C_D_EnemyDormant>(entity, C_D_EnemyDormant{});
 
     auto& detect = reg.Emplace<C_D_AIPerception>(entity);
     detect.detection_value              = 0.0f;
-    detect.detection_value_increase     = 15.0f;
-    detect.detection_value_decrease     = 5.0f;
+    detect.detection_value_increase     = defs.detection_increase;
+    detect.detection_value_decrease     = defs.detection_decrease;
 
     char debugName[64];
     std::snprintf(debugName, sizeof(debugName), "ENTITY_Enemy_%02d", spawnIndex);
@@ -751,6 +732,14 @@ EntityID PrefabFactory::CreateNavEnemy(
     int             spawnIndex,
     Vector3         spawnPos)
 {
+    /*
+     * Load JSON defaults from Prefab_Nav_Enemy.json.
+     * spawnPos from function parameter overrides transform position.
+     * RigidBody, Collider, and perception rates come from the loaded defaults.
+     */
+    PrefabLoader::PrefabEnemyDefaults defs;
+    PrefabLoader::LoadNavEnemyDefaults(defs);
+
     EntityID entity = reg.Create();
 
     reg.Emplace<C_D_Transform>(entity,
@@ -764,29 +753,18 @@ EntityID PrefabFactory::CreateNavEnemy(
         static_cast<uint32_t>(0)
     );
 
-    C_D_RigidBody rb{};
-    rb.mass            = 1.0f;
-    rb.gravity_factor  = 1.0f;
-    rb.lock_rotation_x = true;
-    rb.lock_rotation_z = true;
-    reg.Emplace<C_D_RigidBody>(entity, rb);
+    reg.Emplace<C_D_RigidBody>(entity, defs.rb);
 
-    C_D_Collider col{};
-    col.type   = ColliderType::Box;
-    col.half_x = 1.0f;
-    col.half_y = 1.0f;
-    col.half_z = 1.0f;
-    reg.Emplace<C_D_Collider>(entity, col);
+    reg.Emplace<C_D_Collider>(entity, defs.col);
 
-    // EnemyAI 核心组件（状态机）
     reg.Emplace<C_T_Enemy>(entity);
     reg.Emplace<C_D_AIState>(entity);
     reg.Emplace<C_D_EnemyDormant>(entity, C_D_EnemyDormant{});
 
     auto& detect = reg.Emplace<C_D_AIPerception>(entity);
     detect.detection_value          = 0.0f;
-    detect.detection_value_increase = 15.0f;
-    detect.detection_value_decrease = 5.0f;
+    detect.detection_value_increase = defs.detection_increase;
+    detect.detection_value_decrease = defs.detection_decrease;
 
     // NavAgent 导航组件
     reg.Emplace<C_D_NavAgent>(entity);      // 使用默认参数（speed=5, search_tag="Player"）
@@ -812,12 +790,20 @@ EntityID PrefabFactory::CreateNavTarget(
     int             spawnIndex,
     Vector3         spawnPos)
 {
+    /*
+     * Load JSON defaults from Prefab_Nav_Target.json.
+     * spawnPos from function parameter overrides transform position.
+     * Scale and Collider come from the loaded defaults.
+     */
+    PrefabLoader::PrefabNavTargetDefaults defs;
+    PrefabLoader::LoadNavTargetDefaults(defs);
+
     EntityID entity = reg.Create();
 
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(0.5f, 0.5f, 0.5f)  // 较小的目标方块
+        defs.scale
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
@@ -825,17 +811,11 @@ EntityID PrefabFactory::CreateNavTarget(
         static_cast<uint32_t>(0)
     );
 
-    // 静态体（不会被物理推动）
     C_D_RigidBody rb{};
     rb.is_static = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    C_D_Collider col{};
-    col.type   = ColliderType::Box;
-    col.half_x = 0.5f;
-    col.half_y = 0.5f;
-    col.half_z = 0.5f;
-    reg.Emplace<C_D_Collider>(entity, col);
+    reg.Emplace<C_D_Collider>(entity, defs.col);
 
     // NavTarget 标签（searchTag="Player" 默认匹配）
     auto& target = reg.Emplace<C_T_NavTarget>(entity);
@@ -898,29 +878,30 @@ EntityID PrefabFactory::CreateDeathZone(
     Vector3     position,
     Vector3     halfExtents)
 {
+    /*
+     * Load JSON defaults from Prefab_DeathZone.json.
+     * Position and halfExtents come from function parameters.
+     * Friction, restitution, and is_trigger come from the loaded defaults.
+     */
+    PrefabLoader::PrefabDeathZoneDefaults defs;
+    PrefabLoader::LoadDeathZoneDefaults(defs);
+
     EntityID entity = reg.Create();
 
-    // C_D_Transform（位置由参数指定，scale 固定 1）
     reg.Emplace<C_D_Transform>(entity,
         position,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
         Vector3(1.0f, 1.0f, 1.0f)
     );
 
-    // C_D_RigidBody（静态体）
     C_D_RigidBody rb{};
     rb.is_static = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    // C_D_Collider（Box 触发器，不产生物理响应）
-    C_D_Collider col{};
-    col.type        = ColliderType::Box;
-    col.half_x      = halfExtents.x;
-    col.half_y      = halfExtents.y;
-    col.half_z      = halfExtents.z;
-    col.friction    = 0.0f;
-    col.restitution = 0.0f;
-    col.is_trigger  = true;
+    C_D_Collider col = defs.col;
+    col.half_x       = halfExtents.x;
+    col.half_y       = halfExtents.y;
+    col.half_z       = halfExtents.z;
     reg.Emplace<C_D_Collider>(entity, col);
 
     // C_T_DeathZone 标签
@@ -967,15 +948,20 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
     int             spawnIndex,
     Vector3         spawnPos)
 {
+    /*
+     * Load JSON defaults from Prefab_Physics_Capsule.json.
+     * spawnPos from function parameter overrides transform position.
+     * Scale, RigidBody, and Collider come from the loaded defaults.
+     */
+    PrefabLoader::PrefabPhysicsCapsuleDefaults defs;
+    PrefabLoader::LoadPhysicsCapsuleDefaults(defs);
+
     EntityID entity = reg.Create();
 
-    // 缩放推导见文件头注释与函数 Doxygen
-    // scale_XZ = phys_radius(0.5) / mesh_radius(1.1835) ≈ 0.4225
-    // scale_Y  = phys_total_h(2.0) / mesh_total_h(4.2514) ≈ 0.4704
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(0.4225f, 0.4704f, 0.4225f)
+        defs.scale
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
@@ -983,23 +969,9 @@ EntityID PrefabFactory::CreatePhysicsCapsule(
         static_cast<uint32_t>(0)
     );
 
-    C_D_RigidBody rb{};
-    rb.mass            = 1.0f;
-    rb.gravity_factor  = 1.0f;
-    rb.linear_damping  = 0.05f;
-    rb.angular_damping = 0.05f;
-    rb.lock_rotation_x = true;
-    rb.lock_rotation_z = true;
-    reg.Emplace<C_D_RigidBody>(entity, rb);
+    reg.Emplace<C_D_RigidBody>(entity, defs.rb);
 
-    // 物理胶囊总高度 2.0：2 * half_height(0.5) + 2 * radius(0.5) = 2.0
-    C_D_Collider col{};
-    col.type        = ColliderType::Capsule;
-    col.half_x      = 0.5f;   // radius
-    col.half_y      = 0.5f;   // half_height（不含半球部分）
-    col.friction    = 0.5f;
-    col.restitution = 0.0f;
-    reg.Emplace<C_D_Collider>(entity, col);
+    reg.Emplace<C_D_Collider>(entity, defs.col);
 
     char debugName[64];
     std::snprintf(debugName, sizeof(debugName), "ENTITY_Physics_Capsule_%02d", spawnIndex);
@@ -1082,15 +1054,23 @@ EntityID PrefabFactory::CreateHoloBait(
     Registry& reg,
     Vector3   worldPos)
 {
+    /*
+     * Load JSON defaults from Prefab_HoloBait.json.
+     * worldPos from function parameter overrides transform position.
+     * Scale and remainingTime come from the loaded defaults.
+     */
+    PrefabLoader::PrefabHoloBaitDefaults defs;
+    PrefabLoader::LoadHoloBaitDefaults(defs);
+
     EntityID entity = reg.Create();
 
     auto& tf = reg.Emplace<C_D_Transform>(entity);
     tf.position = worldPos;
-    tf.scale    = Vector3(0.5f, 0.5f, 0.5f);
+    tf.scale    = defs.scale;
 
     auto& bait = reg.Emplace<C_D_HoloBaitState>(entity);
     bait.worldPos      = worldPos;
-    bait.remainingTime = 3.0f;
+    bait.remainingTime = defs.remainingTime;
     bait.active        = true;
 
     AttachDebugName(reg, entity, "ENTITY_HoloBait");
@@ -1109,19 +1089,27 @@ EntityID PrefabFactory::CreateRoamAI(
     Registry& reg,
     Vector3   targetPos)
 {
+    /*
+     * Load JSON defaults from Prefab_RoamAI.json.
+     * targetPos from function parameter overrides transform position.
+     * Scale, roamSpeed, waypointInterval, and detectRadius come from the loaded defaults.
+     */
+    PrefabLoader::PrefabRoamAIDefaults defs;
+    PrefabLoader::LoadRoamAIDefaults(defs);
+
     EntityID entity = reg.Create();
 
     auto& tf = reg.Emplace<C_D_Transform>(entity);
     tf.position = targetPos + Vector3(0.0f, 0.5f, 0.0f);
-    tf.scale    = Vector3(0.4f, 0.4f, 0.4f);
+    tf.scale    = defs.scale;
 
     reg.Emplace<C_T_RoamAI>(entity);
 
     auto& roam = reg.Emplace<C_D_RoamAI>(entity);
     roam.targetPos        = targetPos;
-    roam.roamSpeed        = 6.0f;
-    roam.waypointInterval = 2.0f;
-    roam.detectRadius     = 1.5f;
+    roam.roamSpeed        = defs.roamSpeed;
+    roam.waypointInterval = defs.waypointInterval;
+    roam.detectRadius     = defs.detectRadius;
     roam.active           = true;
 
     AttachDebugName(reg, entity, "ENTITY_RoamAI");

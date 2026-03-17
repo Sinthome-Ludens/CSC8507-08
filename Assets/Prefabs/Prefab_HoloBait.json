@@ -1,0 +1,16 @@
+{
+  "PrefabID": "PREFAB_HOLO_BAIT",
+  "Name": "HoloBait",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [0.5, 0.5, 0.5]
+    },
+    "C_D_HoloBaitState": {
+      "remainingTime": 3.0,
+      "active":        true
+    },
+    "C_D_DebugName": { "name": "ENTITY_HoloBait" }
+  }
+}

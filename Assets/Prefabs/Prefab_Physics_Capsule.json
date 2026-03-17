@@ -5,7 +5,7 @@
     "C_D_Transform": {
       "position": [0.0, 8.0, 0.0],
       "rotation": [0.0, 0.0, 0.0, 1.0],
-      "scale":    [1.0, 1.0, 1.0]
+      "scale":    [0.4225, 0.4704, 0.4225]
     },
     "C_D_MeshRenderer": {
       "meshHandle":     "Capsule.obj",
@@ -16,7 +16,9 @@
       "gravity_factor":  1.0,
       "linear_damping":  0.05,
       "angular_damping": 0.05,
-      "is_static":       false
+      "is_static":       false,
+      "lock_rotation_x": true,
+      "lock_rotation_z": true
     },
     "C_D_Collider": {
       "type":        "Capsule",
