@@ -29,9 +29,17 @@
 #include "Game/Events/Evt_Item_Use.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Network.h"
+#include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_InventoryState.h"
 #include "Core/ECS/EventBus.h"
 #include "Core/ECS/EntityID.h"
 
+#ifdef USE_IMGUI
+#include "Game/UI/UI_ActionNotify.h"
+#include "Game/Components/Res_ActionNotifyState.h"
+#endif
+
+#include <cstring>
 #include <vector>
 
 using namespace NCL::Maths;
@@ -64,10 +72,12 @@ void Sys_Item::OnAwake(Registry& registry) {
 // ============================================================
 // OnUpdate
 // ============================================================
-void Sys_Item::OnUpdate(Registry& registry, float /*dt*/) {
+void Sys_Item::OnUpdate(Registry& registry, float dt) {
     PAUSE_GUARD(registry);
     DetectPickup(registry);
     ProcessItemUseInput(registry);
+    SyncDisplaySlots(registry, dt);
+    SyncInventoryState(registry);
 }
 
 // ============================================================
@@ -83,8 +93,12 @@ void Sys_Item::OnDestroy(Registry& registry) {
     }
 
     if (registry.has_ctx<Res_ItemInventory2>()) {
-        registry.ctx<Res_ItemInventory2>().OnRoundEnd();
-        LOG_INFO("[Sys_Item] OnDestroy: round end settled.");
+        bool isVictory = false;
+        if (registry.has_ctx<Res_GameState>()) {
+            isVictory = (registry.ctx<Res_GameState>().gameOverReason == 3);
+        }
+        registry.ctx<Res_ItemInventory2>().OnRoundEnd(isVictory);
+        LOG_INFO("[Sys_Item] OnDestroy: round end (victory=" << isVictory << ").");
     }
 }
 
@@ -167,6 +181,57 @@ void Sys_Item::OnPickup(Registry& registry, const Evt_Item_Pickup& evt) {
         LOG_INFO("[Sys_Item] Player " << evt.pickerEntity
                  << " picked up " << picked << "x item " << static_cast<int>(evt.itemId)
                  << " -> carried=" << (int)slot.carriedCount);
+
+        // First pickup of a weapon → permanently unlock it + full carry
+        if (slot.itemType == ItemType::Weapon && !slot.unlocked) {
+            slot.unlocked = true;
+            slot.carriedCount = slot.maxCarry;
+            LOG_INFO("[Sys_Item] WEAPON UNLOCKED: " << slot.name
+                     << " carry=" << (int)slot.maxCarry);
+#ifdef USE_IMGUI
+            if (registry.has_ctx<Res_ActionNotifyState>()) {
+                ECS::UI::PushActionNotify(registry, "UNLOCKED", slot.name,
+                                          0, ActionNotifyType::Weapon, 3.0f);
+            }
+#endif
+        }
+
+#ifdef USE_IMGUI
+        // Pickup notification: target field is color-highlighted in HUD
+        if (registry.has_ctx<Res_ActionNotifyState>()) {
+            char targetBuf[48];
+            snprintf(targetBuf, sizeof(targetBuf), "%s x%d", slot.name, picked);
+            ECS::UI::PushActionNotify(registry, "PICKED UP", targetBuf,
+                                      0, ActionNotifyType::ItemPickup);
+        }
+#endif
+
+        // Auto-fill empty HUD display slot with newly picked-up item
+        if (registry.has_ctx<Res_GameState>()) {
+            auto& gs = registry.ctx<Res_GameState>();
+            bool isWeapon = (slot.itemType == ItemType::Weapon);
+            SlotDisplay* displaySlots = isWeapon ? gs.weaponSlots : gs.itemSlots;
+
+            bool alreadyDisplayed = false;
+            for (int s = 0; s < 2; ++s) {
+                if (displaySlots[s].itemId == static_cast<int>(evt.itemId)) {
+                    alreadyDisplayed = true;
+                    break;
+                }
+            }
+            if (!alreadyDisplayed) {
+                for (int s = 0; s < 2; ++s) {
+                    if (displaySlots[s].name[0] == '\0') {
+                        strncpy_s(displaySlots[s].name, sizeof(displaySlots[s].name),
+                                  slot.name, sizeof(displaySlots[s].name) - 1);
+                        displaySlots[s].itemId   = static_cast<uint8_t>(evt.itemId);
+                        displaySlots[s].count    = slot.carriedCount;
+                        displaySlots[s].cooldown = 0.0f;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     if (pickup.quantity <= 0 && registry.Valid(evt.pickupEntity)) {
@@ -196,10 +261,36 @@ void Sys_Item::ProcessItemUseInput(Registry& registry) {
             else if (input.item4JustPressed) slotPressed = 3;
             else if (input.item5JustPressed) slotPressed = 4;
 
+            // Q: use active gadget slot
+            if (slotPressed < 0 && input.gadgetUseJustPressed && registry.has_ctx<Res_GameState>()) {
+                auto& gs = registry.ctx<Res_GameState>();
+                auto& display = gs.itemSlots[gs.activeItemSlot];
+                if (display.name[0] != '\0')
+                    slotPressed = display.itemId;
+            }
+            // E: use active weapon slot
+            if (slotPressed < 0 && input.weaponUseJustPressed && registry.has_ctx<Res_GameState>()) {
+                auto& gs = registry.ctx<Res_GameState>();
+                auto& display = gs.weaponSlots[gs.activeWeaponSlot];
+                if (display.name[0] != '\0')
+                    slotPressed = display.itemId;
+            }
+
             if (slotPressed < 0) return;
 
             ItemID id   = static_cast<ItemID>(slotPressed);
             auto&  slot = inv.Get(id);
+
+            // Cooldown check: find display slot and check if cooling down
+            if (registry.has_ctx<Res_GameState>()) {
+                auto& gs = registry.ctx<Res_GameState>();
+                for (int s = 0; s < 2; ++s) {
+                    if (gs.itemSlots[s].itemId == slotPressed && gs.itemSlots[s].cooldown > 0.01f)
+                        return;
+                    if (gs.weaponSlots[s].itemId == slotPressed && gs.weaponSlots[s].cooldown > 0.01f)
+                        return;
+                }
+            }
 
             if (!slot.CanUse()) {
                 LOG_INFO("[Sys_Item] Player " << playerId
@@ -212,6 +303,24 @@ void Sys_Item::ProcessItemUseInput(Registry& registry) {
                      << " used item " << slotPressed
                      << " -> remaining=" << (int)slot.carriedCount);
 
+            // Set cooldown on the display slot + flash timer
+            if (registry.has_ctx<Res_GameState>() && slot.cooldownDuration > 0.0f) {
+                auto& gs = registry.ctx<Res_GameState>();
+                // Normalize cooldown: store as ratio (0..1) for HUD bar
+                for (int s = 0; s < 2; ++s) {
+                    if (gs.itemSlots[s].itemId == slotPressed) {
+                        gs.itemSlots[s].cooldown = 1.0f;
+                        gs.itemUseFlashTimer = 0.3f;
+                        gs.itemUseFlashSlotType = 0;
+                    }
+                    if (gs.weaponSlots[s].itemId == slotPressed) {
+                        gs.weaponSlots[s].cooldown = 1.0f;
+                        gs.itemUseFlashTimer = 0.3f;
+                        gs.itemUseFlashSlotType = 1;
+                    }
+                }
+            }
+
             Evt_Item_Use useEvt;
             useEvt.userEntity   = playerId;
             useEvt.targetEntity = Entity::NULL_ENTITY;
@@ -221,6 +330,71 @@ void Sys_Item::ProcessItemUseInput(Registry& registry) {
             bus->publish_deferred(useEvt);
         }
     );
+}
+
+// ============================================================
+// SyncDisplaySlots — 每帧同步 Res_ItemInventory2 → Res_GameState 显示槽
+// ============================================================
+void Sys_Item::SyncDisplaySlots(Registry& registry, float dt) {
+    if (!registry.has_ctx<Res_GameState>()) return;
+    if (!registry.has_ctx<Res_ItemInventory2>()) return;
+    auto& gs  = registry.ctx<Res_GameState>();
+    auto& inv = registry.ctx<Res_ItemInventory2>();
+
+    // Sync carried count from inventory to display slots + decay cooldown
+    auto decayCooldown = [&](SlotDisplay& slot) {
+        if (slot.name[0] == '\0') return;
+        int id = slot.itemId;
+        if (id >= 0 && id < Res_ItemInventory2::kItemCount) {
+            slot.count = inv.slots[id].carriedCount;
+            // Decay cooldown based on item's cooldownDuration
+            if (slot.cooldown > 0.0f) {
+                float dur = inv.slots[id].cooldownDuration;
+                float rate = (dur > 0.001f) ? (dt / dur) : dt;
+                slot.cooldown -= rate;
+                if (slot.cooldown < 0.0f) slot.cooldown = 0.0f;
+            }
+        }
+    };
+    for (int s = 0; s < 2; ++s) decayCooldown(gs.itemSlots[s]);
+    for (int s = 0; s < 2; ++s) decayCooldown(gs.weaponSlots[s]);
+
+    // Decay flash timer
+    if (gs.itemUseFlashTimer > 0.0f) {
+        gs.itemUseFlashTimer -= dt;
+        if (gs.itemUseFlashTimer < 0.0f)
+            gs.itemUseFlashTimer = 0.0f;
+    }
+}
+
+// ============================================================
+// SyncInventoryState — 每帧同步 Res_ItemInventory2 → Res_InventoryState
+// ============================================================
+void Sys_Item::SyncInventoryState(Registry& registry) {
+    if (!registry.has_ctx<Res_InventoryState>()) return;
+    if (!registry.has_ctx<Res_ItemInventory2>()) return;
+    auto& invState = registry.ctx<Res_InventoryState>();
+    auto& inv      = registry.ctx<Res_ItemInventory2>();
+
+    // Fill first 5 slots from inventory, rest stays empty
+    for (int i = 0; i < Res_ItemInventory2::kItemCount && i < Res_InventoryState::kSlotCount; ++i) {
+        auto& src = inv.slots[i];
+        auto& dst = invState.slots[i];
+        size_t nLen = strlen(src.name);
+        if (nLen > sizeof(dst.name) - 1) nLen = sizeof(dst.name) - 1;
+        memcpy(dst.name, src.name, nLen);
+        dst.name[nLen] = '\0';
+        size_t dLen = strlen(src.desc);
+        if (dLen > sizeof(dst.description) - 1) dLen = sizeof(dst.description) - 1;
+        memcpy(dst.description, src.desc, dLen);
+        dst.description[dLen] = '\0';
+        dst.itemId   = static_cast<uint8_t>(src.itemId);
+        dst.quantity = src.carriedCount;
+        dst.isEmpty  = (src.carriedCount == 0 && src.storeCount == 0);
+    }
+    for (int i = Res_ItemInventory2::kItemCount; i < Res_InventoryState::kSlotCount; ++i) {
+        invState.slots[i] = {};
+    }
 }
 
 } // namespace ECS
