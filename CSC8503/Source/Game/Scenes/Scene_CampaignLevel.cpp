@@ -100,9 +100,6 @@ void Scene_CampaignLevel::OnEnter(ECS::Registry&          registry,
     ECS::MeshHandle cubeMesh = ECS::AssetManager::Instance().LoadMesh(
         NCL::Assets::MESHDIR + "cube.obj");
 
-    ECS::MeshHandle capsuleMesh = ECS::AssetManager::Instance().LoadMesh(
-        NCL::Assets::MESHDIR + "Capsule.msh");
-
     // ── 2. Context resources ──────────────────────────────────
     if (!registry.has_ctx<Res_UIFlags>())
         registry.ctx_emplace<Res_UIFlags>();
@@ -341,15 +338,6 @@ void Scene_CampaignLevel::OnEnter(ECS::Registry&          registry,
     // ── 9. Game state ─────────────────────────────────────────
     if (!registry.has_ctx<ECS::Res_GameState>()) {
         registry.ctx_emplace<ECS::Res_GameState>();
-    } else {
-        // Reset game state for new round
-        auto& gs = registry.ctx<ECS::Res_GameState>();
-        gs.isGameOver      = false;
-        gs.gameOverReason  = 0;
-        gs.isPaused        = false;
-        gs.playTime        = 0.0f;
-        gs.alertLevel      = 0.0f;
-        gs.countdownActive = false;
     }
 
     // ── 10. Awake all systems ─────────────────────────────────

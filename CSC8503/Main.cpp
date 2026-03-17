@@ -182,6 +182,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     }
                     break;
                 case ECS::SceneRequest::NextLevel: {
+                    if (!reg.has_ctx<ECS::Res_CampaignState>()) break;
                     auto& campaign = reg.ctx<ECS::Res_CampaignState>();
                     int mapIdx = campaign.mapSequence[campaign.currentRound];
                     LOG_INFO("[Main] NextLevel: round " << (int)campaign.currentRound
