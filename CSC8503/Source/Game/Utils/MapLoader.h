@@ -25,13 +25,14 @@ struct MapLoadResult {
     EntityID              finishDetect = Entity::NULL_ENTITY;
     EntityID              playerEntity = Entity::NULL_ENTITY;
     std::vector<EntityID> enemies;
+    std::vector<EntityID> itemPickups;
     std::string           navmeshPath;
 };
 
 /**
  * @brief Load a complete map from a MapLoadConfig.
  *
- * Performs the 7-step loading sequence:
+ * Performs the 8-step loading sequence:
  *  1. Load render mesh (*.obj)
  *  2. Load collision geometry (*_collision.obj, fallback to render mesh)
  *  3. Scale vertices + flip winding
@@ -39,6 +40,7 @@ struct MapLoadResult {
  *  5. Create finish zone (render + detect)
  *  6. Create player from .startpoints
  *  7. Create enemies from .enemyspawns with patrol routes
+ *  8. Create item pickups from .itemspawns
  *
  * @param reg       ECS Registry
  * @param config    Map configuration

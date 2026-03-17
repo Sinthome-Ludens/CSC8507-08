@@ -29,7 +29,6 @@
 #include "Game/UI/UI_HUD.h"
 #include "Game/UI/UI_GameOver.h"
 #include "Game/UI/UI_Team.h"
-#include "Game/UI/UI_Loadout.h"
 #include "Game/UI/UI_Inventory.h"
 #include "Game/UI/UI_Chat.h"
 #include "Game/UI/UI_ItemWheel.h"
@@ -239,12 +238,6 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                 ui.activeScreen = UIScreen::HUD;
                 LOG_INFO("[Sys_UI] Inventory -> HUD (ESC)");
                 break;
-            case UIScreen::Loadout:
-                ui.previousScreen = ui.activeScreen;
-                ui.activeScreen = UIScreen::MainMenu;
-                ui.menuSelectedIndex = 0;
-                LOG_INFO("[Sys_UI] Loadout -> MainMenu (ESC)");
-                break;
             case UIScreen::MissionSelect:
                 ui.previousScreen = ui.activeScreen;
                 ui.activeScreen = UIScreen::MainMenu;
@@ -345,7 +338,6 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         case UIScreen::HUD:         UI::RenderHUD(registry, dt);             break;
         case UIScreen::GameOver:    UI::RenderGameOverScreen(registry, dt);  break;
         case UIScreen::Inventory:   UI::RenderInventoryScreen(registry, dt); break;
-        case UIScreen::Loadout:        UI::RenderLoadoutScreen(registry, dt);   break;
         case UIScreen::MissionSelect: UI::RenderMissionSelect(registry, dt);  break;
         case UIScreen::Team:        UI::RenderTeamScreen(registry, dt);      break;
         case UIScreen::Loading:     UI::RenderLoadingScreen(registry, dt);   break;

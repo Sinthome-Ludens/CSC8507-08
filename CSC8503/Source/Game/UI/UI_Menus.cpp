@@ -38,12 +38,11 @@ static const char* kMenuItems[] = {
     "START OPERATION",
     "TUTORIAL",
     "MULTIPLAYER",
-    "LOADOUT",
     "SETTINGS",
     "TEAM",
     "EXIT",
 };
-static constexpr int kMenuItemCount = 7;
+static constexpr int kMenuItemCount = 6;
 
 static const char* kPauseItems[] = {
     "RESUME",
@@ -441,24 +440,18 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
                 ui.lobbySelectedIndex = 0;
                 LOG_INFO("[UI_Menus] MainMenu -> Lobby");
                 break;
-            case 3: // LOADOUT
-                ui.previousScreen = ui.activeScreen;
-                ui.activeScreen = UIScreen::Loadout;
-                ui.loadoutSelectedIndex = 0;
-                LOG_INFO("[UI_Menus] MainMenu -> Loadout");
-                break;
-            case 4: // SETTINGS
+            case 3: // SETTINGS
                 ui.previousScreen = ui.activeScreen;
                 ui.activeScreen = UIScreen::Settings;
                 LOG_INFO("[UI_Menus] MainMenu -> Settings");
                 break;
-            case 5: // TEAM
+            case 4: // TEAM
                 ui.previousScreen = ui.activeScreen;
                 ui.activeScreen = UIScreen::Team;
                 ui.teamStartTime = 0.0f;
                 LOG_INFO("[UI_Menus] MainMenu -> Team");
                 break;
-            case 6: // EXIT
+            case 5: // EXIT
                 ui.pendingSceneRequest = SceneRequest::QuitApp;
                 LOG_INFO("[UI_Menus] MainMenu -> QuitApp");
                 break;

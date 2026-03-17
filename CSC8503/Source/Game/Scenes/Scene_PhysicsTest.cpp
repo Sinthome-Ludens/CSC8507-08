@@ -38,6 +38,7 @@
 #include "Game/Systems/Sys_ItemEffects.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/SaveManager.h"
+#include "Game/Utils/ItemEquipSync.h"
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
@@ -251,69 +252,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 
     // 装备同步：从 Res_UIState 读 MissionSelect 选择，写入 Res_GameState
 #ifdef USE_IMGUI
-    if (registry.has_ctx<ECS::Res_UIState>()
-     && registry.has_ctx<ECS::Res_GameState>()
-     && registry.has_ctx<ECS::Res_ItemInventory2>()) {
-        auto& ui  = registry.ctx<ECS::Res_UIState>();
-        auto& gs  = registry.ctx<ECS::Res_GameState>();
-        auto& inv = registry.ctx<ECS::Res_ItemInventory2>();
-
-        // 建立 gadget/weapon 索引映射（与 MissionSelect 一致）
-        int gadgetIndices[5] = {};
-        int gadgetCount = 0;
-        int weaponIndices[5] = {};
-        int weaponCount = 0;
-        for (int i = 0; i < inv.kItemCount; ++i) {
-            if (inv.slots[i].itemType == ECS::ItemType::Gadget) {
-                if (gadgetCount < 5) gadgetIndices[gadgetCount++] = i;
-            } else {
-                if (weaponCount < 5) weaponIndices[weaponCount++] = i;
-            }
-        }
-
-        // 写入 itemSlots
-        for (int s = 0; s < 2; ++s) {
-            int idx = ui.missionEquippedItems[s];
-            if (idx >= 0 && idx < gadgetCount) {
-                int invIdx = gadgetIndices[idx];
-                auto& slot = inv.slots[invIdx];
-                size_t len = strlen(slot.name);
-                if (len > sizeof(gs.itemSlots[s].name) - 1)
-                    len = sizeof(gs.itemSlots[s].name) - 1;
-                memcpy(gs.itemSlots[s].name, slot.name, len);
-                gs.itemSlots[s].name[len] = '\0';
-                gs.itemSlots[s].itemId  = static_cast<uint8_t>(slot.itemId);
-                gs.itemSlots[s].count   = slot.carriedCount;
-                gs.itemSlots[s].cooldown = 0.0f;
-            } else {
-                gs.itemSlots[s] = {};
-            }
-        }
-
-        // 写入 weaponSlots
-        for (int s = 0; s < 2; ++s) {
-            int idx = ui.missionEquippedWeapons[s];
-            if (idx >= 0 && idx < weaponCount) {
-                int invIdx = weaponIndices[idx];
-                auto& slot = inv.slots[invIdx];
-                size_t len = strlen(slot.name);
-                if (len > sizeof(gs.weaponSlots[s].name) - 1)
-                    len = sizeof(gs.weaponSlots[s].name) - 1;
-                memcpy(gs.weaponSlots[s].name, slot.name, len);
-                gs.weaponSlots[s].name[len] = '\0';
-                gs.weaponSlots[s].itemId  = static_cast<uint8_t>(slot.itemId);
-                gs.weaponSlots[s].count   = slot.carriedCount;
-                gs.weaponSlots[s].cooldown = 0.0f;
-            } else {
-                gs.weaponSlots[s] = {};
-            }
-        }
-
-        LOG_INFO("[Scene_PhysicsTest] Equipment synced from MissionSelect: items=["
-                 << (int)ui.missionEquippedItems[0] << "," << (int)ui.missionEquippedItems[1]
-                 << "] weapons=[" << (int)ui.missionEquippedWeapons[0] << ","
-                 << (int)ui.missionEquippedWeapons[1] << "]");
-    }
+    ECS::SyncEquipmentToGameState(registry);
 #endif
 
     LOG_INFO("[Scene_PhysicsTest] OnEnter complete. "

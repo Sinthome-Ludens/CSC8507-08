@@ -42,7 +42,6 @@ enum class UIScreen : uint8_t {
     HUD,
     GameOver,
     Inventory,
-    Loadout,
     MissionSelect,
     Team,
     Loading,
@@ -90,8 +89,7 @@ struct Res_UIState {
     float     sfxVolume          = 0.8f;
     float     mouseSensitivity   = 0.5f;
 
-    // Loadout / Inventory / Team
-    int8_t    loadoutSelectedIndex  = 0;
+    // Inventory / Team
     int8_t    inventorySelectedSlot = 0;
     float     teamStartTime        = 0.0f;
 
@@ -133,13 +131,9 @@ struct Res_UIState {
     // DevMode (Fix 3: toast cycle needs memory; others derive from current state)
     uint8_t   devToastCycle        = 0;
 
-    // Loadout temporary state (Fix 6: moved from file-scope statics)
-    int8_t    loadoutEquippedItems[2]   = { -1, -1 };
-    int8_t    loadoutEquippedWeapons[2] = { -1, -1 };
-    bool      loadoutInitialized        = false;
-
-    // Saved inventory storeCount cache (populated by SaveManager::LoadGame)
+    // Saved inventory cache (populated by SaveManager::LoadGame)
     uint8_t   savedStoreCount[5]       = {};
+    bool      savedUnlocked[5]         = {};  ///< 武器解锁缓存
     bool      hasSavedInventory        = false;
 
     // ── Map sequence (campaign: random 5-pick-3, sorted by map ID) ──

@@ -103,6 +103,7 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     int gadgetCount = 0;
     DisplaySlot weapons[5] = {};
     int weaponCount = 0;
+    char descBuf[5][80] = {}; // scratch buffer for dynamic descriptions
 
     // ctx 中可能还没有 Res_ItemInventory2（主菜单阶段 Sys_Item 尚未注册），
     // 此时用临时默认实例读取道具列表，并从存档缓存恢复 storeCount。
@@ -110,8 +111,10 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_ItemInventory2>() && ui.hasSavedInventory) {
         int limit = std::min(fallbackInv.kItemCount,
                              static_cast<int>(std::size(ui.savedStoreCount)));
-        for (int i = 0; i < limit; ++i)
+        for (int i = 0; i < limit; ++i) {
             fallbackInv.slots[i].storeCount = ui.savedStoreCount[i];
+            fallbackInv.slots[i].unlocked   = ui.savedUnlocked[i];
+        }
     }
     Res_ItemInventory2& inv = registry.has_ctx<Res_ItemInventory2>()
                               ? registry.ctx<Res_ItemInventory2>()
@@ -121,13 +124,19 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
         auto& slot = inv.slots[i];
         DisplaySlot ds;
         ds.name     = slot.name;
-        ds.desc     = slot.desc;
         ds.carried  = slot.carriedCount;
         ds.maxCarry = slot.maxCarry;
         ds.invIndex = i;
         if (slot.itemType == ItemType::Gadget) {
+            // Append stock info to description
+            snprintf(descBuf[i], sizeof(descBuf[i]), "%s [Stock: %d]",
+                     slot.desc, static_cast<int>(slot.storeCount));
+            ds.desc = descBuf[i];
             if (gadgetCount < 5) gadgets[gadgetCount++] = ds;
         } else {
+            // Only show unlocked weapons
+            if (!slot.unlocked) continue;
+            ds.desc = slot.desc;
             if (weaponCount < 5) weapons[weaponCount++] = ds;
         }
     }
@@ -314,7 +323,7 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     }
 
     // Col 2: Weapons
-    {
+    if (weaponCount > 0) {
         const char* wNames[5] = {};
         const char* wDescs[5] = {};
         for (int i = 0; i < weaponCount; ++i) {
@@ -322,6 +331,12 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             wDescs[i] = weapons[i].desc;
         }
         drawEntries(2, col2X, weaponCount, wNames, wDescs, false, true, weapons);
+    } else {
+        if (smallFont) ImGui::PushFont(smallFont);
+        draw->AddText(ImVec2(col2X, entryStartY + 10.0f),
+            IM_COL32(16, 13, 10, 120),
+            "FIND WEAPONS ON THE MAP TO UNLOCK");
+        if (smallFont) ImGui::PopFont();
     }
 
     // ── Enter key: equip/unequip or select map ─────────────

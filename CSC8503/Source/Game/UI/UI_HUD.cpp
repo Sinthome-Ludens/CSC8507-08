@@ -21,6 +21,7 @@
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/UI/UITheme.h"
+#include "Game/UI/UI_ItemIcons.h"
 
 namespace ECS::UI {
 
@@ -248,85 +249,121 @@ static void RenderHUD_NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, 
 }
 
 // ============================================================
-// 6. RenderHUD_ItemSlots — 右下角装备槽
+// 6. RenderHUD_ItemSlots — 底部居中双面板装备栏
 // ============================================================
-/// @brief 渲染右下角装备槽（道具槽 x2 + 武器槽 x2），活跃槽高亮，冷却中显示进度条。
+/// @brief 渲染底部居中装备栏（左=激活道具 Q，右=激活武器 E），含图标/冷却/闪光。
 static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
     ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* termFont  = UITheme::GetFont_Terminal();
 
-    constexpr float kSlotW = 100.0f;
-    constexpr float kSlotH = 44.0f;
-    constexpr float kGap   = 6.0f;
+    constexpr float kPanelW = 140.0f;
+    constexpr float kPanelH = 60.0f;
+    constexpr float kGap    = 10.0f;
+    constexpr float kIconSize = 12.0f;
 
-    // 4 slots: item0, item1, weapon0, weapon1
-    float totalW = 4 * kSlotW + 3 * kGap;
-    float startX = gameW - totalW - 20.0f;
-    float slotY  = displayH - kSlotH - 16.0f;
+    float totalW = 2 * kPanelW + kGap;
+    float startX = gameW * 0.5f - totalW * 0.5f;
+    float panelY = displayH - kPanelH - 24.0f;
 
-    struct SlotInfo {
-        const char* name;
-        uint8_t count;
-        float cooldown;
-        bool active;
+    struct PanelData {
+        const SlotDisplay* slot;
+        const char* keyLabel;
+        const char* typeLabel;
+        bool isFlashing;
     };
 
-    SlotInfo slots[4] = {
-        { gs.itemSlots[0].name,   gs.itemSlots[0].count,   gs.itemSlots[0].cooldown,   gs.activeItemSlot == 0   },
-        { gs.itemSlots[1].name,   gs.itemSlots[1].count,   gs.itemSlots[1].cooldown,   gs.activeItemSlot == 1   },
-        { gs.weaponSlots[0].name, gs.weaponSlots[0].count,  gs.weaponSlots[0].cooldown, gs.activeWeaponSlot == 0 },
-        { gs.weaponSlots[1].name, gs.weaponSlots[1].count,  gs.weaponSlots[1].cooldown, gs.activeWeaponSlot == 1 },
+    PanelData panels[2] = {
+        { &gs.itemSlots[gs.activeItemSlot],     "[Q]", "GADGET",
+          gs.itemUseFlashTimer > 0.0f && gs.itemUseFlashSlotType == 0 },
+        { &gs.weaponSlots[gs.activeWeaponSlot], "[E]", "WEAPON",
+          gs.itemUseFlashTimer > 0.0f && gs.itemUseFlashSlotType == 1 },
     };
 
-    if (smallFont) ImGui::PushFont(smallFont);
+    for (int i = 0; i < 2; ++i) {
+        float px = startX + i * (kPanelW + kGap);
+        ImVec2 panelMin(px, panelY);
+        ImVec2 panelMax(px + kPanelW, panelY + kPanelH);
 
-    for (int i = 0; i < 4; ++i) {
-        float sx = startX + i * (kSlotW + kGap);
-        ImVec2 slotMin(sx, slotY);
-        ImVec2 slotMax(sx + kSlotW, slotY + kSlotH);
+        const auto* slot = panels[i].slot;
+        bool hasItem = (slot->name[0] != '\0');
+        bool onCooldown = (slot->cooldown > 0.01f);
 
         // Background
-        ImU32 bgColor = slots[i].active
-            ? IM_COL32(252, 111, 41, 50)
-            : IM_COL32(16, 13, 10, 120);
-        draw->AddRectFilled(slotMin, slotMax, bgColor, 3.0f);
+        draw->AddRectFilled(panelMin, panelMax, IM_COL32(16, 13, 10, 140), 3.0f);
 
-        // Border
-        ImU32 borderColor = slots[i].active
-            ? IM_COL32(252, 111, 41, 200)
-            : IM_COL32(200, 200, 200, 80);
-        draw->AddRect(slotMin, slotMax, borderColor, 3.0f, 0, slots[i].active ? 2.0f : 1.0f);
-
-        // Name (or "---" if empty)
-        const char* displayName = (slots[i].name[0] != '\0') ? slots[i].name : "---";
-        draw->AddText(ImVec2(sx + 4.0f, slotY + 3.0f),
-            IM_COL32(245, 238, 232, 220), displayName);
-
-        // Count
-        if (slots[i].count > 0) {
-            char countBuf[8];
-            snprintf(countBuf, sizeof(countBuf), "x%u", slots[i].count);
-            draw->AddText(ImVec2(sx + 4.0f, slotY + 17.0f),
-                IM_COL32(245, 238, 232, 160), countBuf);
+        // Border (flash = bright orange, normal = orange, empty = gray)
+        if (panels[i].isFlashing) {
+            uint8_t flashAlpha = (uint8_t)(200 + 55 * gs.itemUseFlashTimer / 0.3f);
+            draw->AddRect(panelMin, panelMax, IM_COL32(252, 111, 41, flashAlpha), 3.0f, 0, 3.0f);
+        } else if (hasItem) {
+            draw->AddRect(panelMin, panelMax, IM_COL32(252, 111, 41, 200), 3.0f, 0, 1.5f);
+        } else {
+            // Empty: dashed appearance (draw 4 corner segments)
+            draw->AddRect(panelMin, panelMax, IM_COL32(200, 200, 200, 60), 3.0f, 0, 1.0f);
         }
 
-        // Cooldown bar
-        if (slots[i].cooldown > 0.01f) {
-            float cdW = kSlotW * std::clamp(slots[i].cooldown, 0.0f, 1.0f);
-            draw->AddRectFilled(
-                ImVec2(sx, slotY + kSlotH - 4.0f),
-                ImVec2(sx + cdW, slotY + kSlotH),
-                IM_COL32(200, 200, 200, 160), 0.0f);
+        if (hasItem) {
+            // Icon (left side)
+            ImVec2 iconCenter(px + 20.0f, panelY + 20.0f);
+            DrawItemIcon(draw, iconCenter, kIconSize, static_cast<ItemID>(slot->itemId),
+                IM_COL32(245, 238, 232, 220));
+
+            // Name (right of icon)
+            if (termFont) ImGui::PushFont(termFont);
+            draw->AddText(ImVec2(px + 38.0f, panelY + 4.0f),
+                IM_COL32(245, 238, 232, 220), slot->name);
+            if (termFont) ImGui::PopFont();
+
+            // Count + status
+            if (smallFont) ImGui::PushFont(smallFont);
+            char countBuf[16];
+            snprintf(countBuf, sizeof(countBuf), "x%u", slot->count);
+            draw->AddText(ImVec2(px + 38.0f, panelY + 20.0f),
+                IM_COL32(252, 111, 41, 200), countBuf);
+
+            // READY / COOLDOWN label
+            ImVec2 countSize = ImGui::CalcTextSize(countBuf);
+            if (onCooldown) {
+                draw->AddText(ImVec2(px + 38.0f + countSize.x + 8.0f, panelY + 20.0f),
+                    IM_COL32(220, 60, 40, 200), "WAIT");
+            } else if (slot->count > 0) {
+                draw->AddText(ImVec2(px + 38.0f + countSize.x + 8.0f, panelY + 20.0f),
+                    IM_COL32(80, 200, 120, 200), "READY");
+            }
+            if (smallFont) ImGui::PopFont();
+
+            // Cooldown progress bar (bottom edge)
+            if (onCooldown) {
+                float cdFill = std::clamp(slot->cooldown, 0.0f, 1.0f);
+                float barW = kPanelW * cdFill;
+                draw->AddRectFilled(
+                    ImVec2(px, panelY + kPanelH - 4.0f),
+                    ImVec2(px + barW, panelY + kPanelH),
+                    IM_COL32(220, 60, 40, 180), 0.0f);
+            } else {
+                // Full green bar when ready
+                draw->AddRectFilled(
+                    ImVec2(px, panelY + kPanelH - 4.0f),
+                    ImVec2(px + kPanelW, panelY + kPanelH),
+                    IM_COL32(80, 200, 120, 100), 0.0f);
+            }
+        } else {
+            // Empty slot
+            if (smallFont) ImGui::PushFont(smallFont);
+            draw->AddText(ImVec2(px + kPanelW * 0.5f - 10.0f, panelY + kPanelH * 0.5f - 6.0f),
+                IM_COL32(200, 200, 200, 100), "---");
+            if (smallFont) ImGui::PopFont();
         }
 
-        // Slot number label
-        char numBuf[4];
-        snprintf(numBuf, sizeof(numBuf), "%d", i + 1);
-        ImVec2 numSize = ImGui::CalcTextSize(numBuf);
-        draw->AddText(ImVec2(sx + kSlotW - numSize.x - 3.0f, slotY + 3.0f),
-            IM_COL32(245, 238, 232, 100), numBuf);
+        // Key label + type label (bottom)
+        if (smallFont) ImGui::PushFont(smallFont);
+        char labelBuf[24];
+        snprintf(labelBuf, sizeof(labelBuf), "%s %s", panels[i].keyLabel, panels[i].typeLabel);
+        ImVec2 labelSize = ImGui::CalcTextSize(labelBuf);
+        draw->AddText(ImVec2(px + kPanelW * 0.5f - labelSize.x * 0.5f, panelY + kPanelH - 16.0f),
+            IM_COL32(245, 238, 232, 120), labelBuf);
+        if (smallFont) ImGui::PopFont();
     }
-
-    if (smallFont) ImGui::PopFont();
 }
 
 // ============================================================
@@ -605,10 +642,11 @@ void RenderHUD(Registry& registry, float dt) {
     // Control hints (bottom, inside game area)
     ImFont* smallFont = UITheme::GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
+    const char* hints = "[ESC] PAUSE  [Q] GADGET  [E] WEAPON  [TAB] SWITCH  [I] INVENTORY";
+    ImVec2 hintsSize = ImGui::CalcTextSize(hints);
     draw->AddText(
-        ImVec2(gameW - 260.0f, displayH - 18.0f),
-        IM_COL32(245, 238, 232, 100),
-        "[ESC] PAUSE  [I] INVENTORY  [TAB] ITEMS");
+        ImVec2(gameW * 0.5f - hintsSize.x * 0.5f, displayH - 18.0f),
+        IM_COL32(245, 238, 232, 100), hints);
     if (smallFont) ImGui::PopFont();
 }
 

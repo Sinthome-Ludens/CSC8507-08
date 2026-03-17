@@ -442,6 +442,29 @@ public:
     // ============================================================
 
     /**
+     * @brief 创建地图道具拾取实体（PREFAB_ITEM_PICKUP）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_T_ItemPickup, C_D_DebugName
+     * 无物理碰撞体 — 拾取依赖 Sys_Item::DetectPickup 的 XZ 距离检测。
+     *
+     * @param reg        ECS Registry
+     * @param cubeMesh   立方体网格句柄
+     * @param itemId     道具 ID
+     * @param quantity   拾取数量
+     * @param spawnIndex 生成序号（用于 DebugName）
+     * @param spawnPos   生成位置（世界坐标）
+     * @return 拾取实体 ID
+     */
+    static ECS::EntityID CreateItemPickup(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     cubeMesh,
+        ECS::ItemID         itemId,
+        uint8_t             quantity,
+        int                 spawnIndex,
+        NCL::Maths::Vector3 spawnPos
+    );
+
+    /**
      * @brief 创建全息诱饵实体（PREFAB_HOLO_BAIT）
      *
      * 挂载：C_D_Transform, C_D_HoloBaitState, C_D_DebugName
