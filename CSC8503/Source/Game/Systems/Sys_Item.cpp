@@ -277,6 +277,7 @@ void Sys_Item::ProcessItemUseInput(Registry& registry) {
             }
 
             if (slotPressed < 0) return;
+            if (slotPressed >= Res_ItemInventory2::kItemCount) return;
 
             ItemID id   = static_cast<ItemID>(slotPressed);
             auto&  slot = inv.Get(id);

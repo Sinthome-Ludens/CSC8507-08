@@ -18,6 +18,7 @@
  */
 #pragma once
 
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include "Game/Components/C_D_Item.h"
@@ -157,7 +158,9 @@ struct Res_ItemInventory2 {
      * @return 对应 ItemSlot 的引用
      */
     ItemSlot& Get(ItemID id) {
-        return slots[static_cast<int>(id)];
+        int idx = static_cast<int>(id);
+        assert(idx >= 0 && idx < kItemCount);
+        return slots[idx];
     }
 
     /**
@@ -166,7 +169,9 @@ struct Res_ItemInventory2 {
      * @return 对应 ItemSlot 的常量引用
      */
     const ItemSlot& Get(ItemID id) const {
-        return slots[static_cast<int>(id)];
+        int idx = static_cast<int>(id);
+        assert(idx >= 0 && idx < kItemCount);
+        return slots[idx];
     }
 
     /**
