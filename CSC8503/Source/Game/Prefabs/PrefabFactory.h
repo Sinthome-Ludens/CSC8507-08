@@ -436,4 +436,36 @@ public:
         const std::vector<int>&                 indices,
         NCL::Maths::Vector3                     worldOffset
     );
+
+    // ============================================================
+    // 道具效果实体
+    // ============================================================
+
+    /**
+     * @brief 创建全息诱饵实体（PREFAB_HOLO_BAIT）
+     *
+     * 挂载：C_D_Transform, C_D_HoloBaitState, C_D_DebugName
+     *
+     * @param reg       ECS Registry
+     * @param worldPos  诱饵世界位置
+     * @return 诱饵实体 ID
+     */
+    static ECS::EntityID CreateHoloBait(
+        ECS::Registry&      reg,
+        NCL::Maths::Vector3 worldPos
+    );
+
+    /**
+     * @brief 创建流窜 AI 实体（PREFAB_ROAM_AI）
+     *
+     * 挂载：C_D_Transform, C_T_RoamAI, C_D_RoamAI, C_D_DebugName
+     *
+     * @param reg        ECS Registry
+     * @param targetPos  目标世界位置
+     * @return 流窜 AI 实体 ID
+     */
+    static ECS::EntityID CreateRoamAI(
+        ECS::Registry&      reg,
+        NCL::Maths::Vector3 targetPos
+    );
 };

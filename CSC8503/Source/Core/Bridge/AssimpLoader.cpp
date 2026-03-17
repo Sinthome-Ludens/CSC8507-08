@@ -58,6 +58,25 @@ static Vector4 ToVector4(const aiColor4D& c) {
  */
 static OGLMesh* ConvertMesh(const aiMesh* aiMesh);
 
+/**
+ * @brief 判断 aiMesh 是否为数据标记网格（不应渲染）
+ *
+ * Unity 导出的 OBJ 可能包含 PatrolPoints、EnemySpawnPoints 等仅提供坐标的
+ * 占位几何体。这些网格名称包含特定前缀，应在加载时过滤掉。
+ */
+static bool IsMarkerMesh(const aiMesh* m) {
+    if (!m || m->mName.length == 0) return false;
+    std::string name(m->mName.C_Str());
+    return name.find("PatrolPoint") != std::string::npos
+        || name.find("EnemySpawn")  != std::string::npos
+        || name.find("SpawnPoint")  != std::string::npos;
+}
+
+/**
+ * @brief 合并多个 aiMesh 到一个 OGLMesh（跳过标记网格）
+ */
+static OGLMesh* MergeMeshes(const aiScene* scene);
+
 // =============================================================================
 // 公共接口
 // =============================================================================
@@ -69,13 +88,14 @@ OGLMesh* AssimpLoader::LoadMesh(const std::string& path) {
     Assimp::Importer importer;
 
     // 配置后处理标志
+    // 注意：不使用 aiProcess_OptimizeMeshes，以保留各 group 的名称信息，
+    // 从而在合并时过滤掉 PatrolPoints 等数据标记网格。
     unsigned int flags =
         aiProcess_Triangulate |           // 三角化所有面
         aiProcess_GenNormals |            // 生成法线（如果缺失）
         aiProcess_CalcTangentSpace |      // 计算切线空间
         aiProcess_FlipUVs |               // 翻转 UV（OpenGL 约定：原点在左下角）
         aiProcess_JoinIdenticalVertices | // 合并重复顶点
-        aiProcess_OptimizeMeshes |        // 优化网格
         aiProcess_SortByPType;            // 按图元类型排序
 
     // 导入场景
@@ -93,8 +113,8 @@ OGLMesh* AssimpLoader::LoadMesh(const std::string& path) {
         return nullptr;
     }
 
-    // 转换第一个网格
-    OGLMesh* mesh = ConvertMesh(scene->mMeshes[0]);
+    // 合并所有非标记网格
+    OGLMesh* mesh = MergeMeshes(scene);
 
     if (mesh) {
         LOG_INFO("[AssimpLoader] Successfully loaded mesh: " << path
@@ -157,10 +177,10 @@ bool AssimpLoader::LoadCollisionGeometry(
     Assimp::Importer importer;
 
     // 碰撞数据只需三角化和合并重复顶点，不需要法线/UV/切线
+    // 不使用 aiProcess_OptimizeMeshes 以保留名称信息用于标记过滤
     unsigned int flags =
         aiProcess_Triangulate |
-        aiProcess_JoinIdenticalVertices |
-        aiProcess_OptimizeMeshes;
+        aiProcess_JoinIdenticalVertices;
 
     const aiScene* scene = importer.ReadFile(path, flags);
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
@@ -176,10 +196,11 @@ bool AssimpLoader::LoadCollisionGeometry(
     outVertices.clear();
     outIndices.clear();
 
-    // 合并所有子网格到一个碰撞体
+    // 合并所有子网格到一个碰撞体（跳过标记网格）
     int vertexOffset = 0;
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
         const aiMesh* aiM = scene->mMeshes[m];
+        if (IsMarkerMesh(aiM)) continue;
 
         for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
             outVertices.emplace_back(aiM->mVertices[i].x,
@@ -203,6 +224,103 @@ bool AssimpLoader::LoadCollisionGeometry(
              << " (" << outVertices.size() << " verts, "
              << outIndices.size() / 3 << " tris)");
     return true;
+}
+
+// =============================================================================
+// MergeMeshes — 合并所有非标记 aiMesh 到单个 OGLMesh
+// =============================================================================
+
+static OGLMesh* MergeMeshes(const aiScene* scene) {
+    std::vector<Vector3>       positions;
+    std::vector<Vector3>       normals;
+    std::vector<Vector2>       texCoords;
+    std::vector<Vector4>       colours;
+    std::vector<Vector4>       tangents;
+    std::vector<unsigned int>  indices;
+
+    bool hasNormals   = false;
+    bool hasTexCoords = false;
+    bool hasColours   = false;
+    bool hasTangents  = false;
+
+    unsigned int vertexOffset = 0;
+    int skipped = 0;
+
+    for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
+        const aiMesh* aiM = scene->mMeshes[m];
+        if (IsMarkerMesh(aiM)) {
+            LOG_INFO("[AssimpLoader] Skipping marker mesh: " << aiM->mName.C_Str());
+            ++skipped;
+            continue;
+        }
+
+        // Positions
+        for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
+            positions.push_back(ToVector3(aiM->mVertices[i]));
+        }
+
+        // Normals
+        if (aiM->HasNormals()) {
+            hasNormals = true;
+            for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
+                normals.push_back(ToVector3(aiM->mNormals[i]));
+            }
+        }
+
+        // Texture coords
+        if (aiM->HasTextureCoords(0)) {
+            hasTexCoords = true;
+            for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
+                texCoords.push_back(ToVector2(aiM->mTextureCoords[0][i]));
+            }
+        }
+
+        // Vertex colours
+        if (aiM->HasVertexColors(0)) {
+            hasColours = true;
+            for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
+                colours.push_back(ToVector4(aiM->mColors[0][i]));
+            }
+        }
+
+        // Tangents
+        if (aiM->HasTangentsAndBitangents()) {
+            hasTangents = true;
+            for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
+                Vector3 t = ToVector3(aiM->mTangents[i]);
+                Vector3 b = ToVector3(aiM->mBitangents[i]);
+                Vector3 n = ToVector3(aiM->mNormals[i]);
+                float h = Vector::Dot(Vector::Cross(n, t), b) > 0.0f ? 1.0f : -1.0f;
+                tangents.push_back(Vector4(t.x, t.y, t.z, h));
+            }
+        }
+
+        // Indices (offset by accumulated vertex count)
+        for (unsigned int i = 0; i < aiM->mNumFaces; ++i) {
+            const aiFace& face = aiM->mFaces[i];
+            for (unsigned int j = 0; j < face.mNumIndices; ++j) {
+                indices.push_back(face.mIndices[j] + vertexOffset);
+            }
+        }
+
+        vertexOffset += aiM->mNumVertices;
+    }
+
+    if (positions.empty()) return nullptr;
+    if (skipped > 0) {
+        LOG_INFO("[AssimpLoader] Filtered " << skipped << " marker mesh(es)");
+    }
+
+    OGLMesh* mesh = new OGLMesh();
+    mesh->SetVertexPositions(positions);
+    if (hasNormals)   mesh->SetVertexNormals(normals);
+    if (hasTexCoords) mesh->SetVertexTextureCoords(texCoords);
+    if (hasColours)   mesh->SetVertexColours(colours);
+    if (hasTangents)  mesh->SetVertexTangents(tangents);
+    mesh->SetVertexIndices(indices);
+    mesh->SetPrimitiveType(GeometryPrimitive::Triangles);
+    mesh->UploadToGPU();
+    return mesh;
 }
 
 // =============================================================================

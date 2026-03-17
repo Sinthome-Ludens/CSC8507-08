@@ -45,6 +45,9 @@
 #include "Game/Components/C_T_TriggerZone.h"
 #include "Game/Components/C_T_FinishZone.h"
 #include "Game/Components/C_D_PatrolRoute.h"
+#include "Game/Components/C_D_HoloBaitState.h"
+#include "Game/Components/C_T_RoamAI.h"
+#include "Game/Components/C_D_RoamAI.h"
 #include "Game/Utils/Log.h"
 
 #include <cstring>
@@ -750,7 +753,6 @@ EntityID PrefabFactory::CreateNavEnemy(
 {
     EntityID entity = reg.Create();
 
-    // cube.obj 顶点 ±1.0，scale (1,1,1) → 世界尺寸 2×2×2，与 Box 碰撞体 half(1,1,1) 匹配
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
@@ -1068,6 +1070,64 @@ ECS::EntityID PrefabFactory::CreateNavMeshFloor(
              << " verts=" << vertices.size()
              << " tris=" << (indices.size() / 3)
              << " offset=(" << worldOffset.x << "," << worldOffset.y << "," << worldOffset.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateHoloBait  →  PREFAB_HOLO_BAIT
+// ============================================================
+
+EntityID PrefabFactory::CreateHoloBait(
+    Registry& reg,
+    Vector3   worldPos)
+{
+    EntityID entity = reg.Create();
+
+    auto& tf = reg.Emplace<C_D_Transform>(entity);
+    tf.position = worldPos;
+    tf.scale    = Vector3(0.5f, 0.5f, 0.5f);
+
+    auto& bait = reg.Emplace<C_D_HoloBaitState>(entity);
+    bait.worldPos      = worldPos;
+    bait.remainingTime = 3.0f;
+    bait.active        = true;
+
+    AttachDebugName(reg, entity, "ENTITY_HoloBait");
+
+    LOG_INFO("[PrefabFactory] CreateHoloBait id=" << entity
+             << " pos=(" << worldPos.x << "," << worldPos.y << "," << worldPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateRoamAI  →  PREFAB_ROAM_AI
+// ============================================================
+
+EntityID PrefabFactory::CreateRoamAI(
+    Registry& reg,
+    Vector3   targetPos)
+{
+    EntityID entity = reg.Create();
+
+    auto& tf = reg.Emplace<C_D_Transform>(entity);
+    tf.position = targetPos + Vector3(0.0f, 0.5f, 0.0f);
+    tf.scale    = Vector3(0.4f, 0.4f, 0.4f);
+
+    reg.Emplace<C_T_RoamAI>(entity);
+
+    auto& roam = reg.Emplace<C_D_RoamAI>(entity);
+    roam.targetPos        = targetPos;
+    roam.roamSpeed        = 6.0f;
+    roam.waypointInterval = 2.0f;
+    roam.detectRadius     = 1.5f;
+    roam.active           = true;
+
+    AttachDebugName(reg, entity, "ENTITY_RoamAI");
+
+    LOG_INFO("[PrefabFactory] CreateRoamAI id=" << entity
+             << " target=(" << targetPos.x << "," << targetPos.y << "," << targetPos.z << ")");
 
     return entity;
 }
