@@ -26,6 +26,12 @@ inline constexpr ResolutionPreset kResolutions[] = {
 };
 inline constexpr int kResolutionCount = 3;
 
+/// 地图数量与显示名（顺序匹配 CreateMapScene(): 0=HangerA, 1=HangerB, 2=Helipad, 3=Lab, 4=Dock）
+inline constexpr int kMapCount = 5;
+inline constexpr const char* kMapDisplayNames[] = {
+    "HANGER A", "HANGER B", "HELIPAD", "LAB", "DOCK"
+};
+
 enum class UIScreen : uint8_t {
     None = 0,
     TitleScreen,
@@ -53,6 +59,7 @@ enum class SceneRequest : uint8_t {
     HostGame,
     JoinGame,
     NextLevel,          ///< 关卡序列：前进到下一张地图
+    StartTutorial,      ///< 教程关卡入口
 };
 
 struct Res_UIState {
@@ -141,6 +148,7 @@ struct Res_UIState {
     uint8_t   mapSequence[MAP_SEQUENCE_LENGTH] = {0, 1, 2};  ///< 关卡地图 ID
     uint8_t   mapSequenceIndex         = 0;           ///< 当前关卡在序列中的位置
     bool      mapSequenceGenerated     = false;       ///< 是否已生成过序列
+    float     totalPlayTime            = 0.0f;        ///< 累计游玩时间（战役全关合计）
 };
 
 } // namespace ECS

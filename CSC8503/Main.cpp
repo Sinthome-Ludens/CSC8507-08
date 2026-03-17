@@ -59,8 +59,6 @@
 #include "Game/Scenes/Scene_MainMenu.h"
 #include "Game/Scenes/Scene_NavTest.h"
 #include "Game/Scenes/Scene_NetworkGame.h"
-#include "Game/Scenes/Scene_CampaignLevel.h"
-#include "Game/Components/Res_CampaignState.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/Utils/WindowHelper.h"
 #include "Game/Utils/Log.h"
@@ -192,6 +190,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                 case ECS::SceneRequest::StartGame:
                 case ECS::SceneRequest::RestartLevel:
                     // 每次开始 / 重试都重新随机 5 抽 3 序列
+                    ui.totalPlayTime = 0.0f;
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
                         CreateMapScene(ui.mapSequence[0]));
@@ -207,29 +206,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         sceneManager.RequestSceneChange(new Scene_MainMenu());
                     }
                     break;
-                }
-                case ECS::SceneRequest::RestartLevel:
-                    if (reg.has_ctx<ECS::Res_CampaignState>()
-                        && reg.ctx<ECS::Res_CampaignState>().active) {
-                        auto& c = reg.ctx<ECS::Res_CampaignState>();
-                        sceneManager.RequestSceneChange(
-                            new Scene_CampaignLevel(c.mapSequence[c.currentRound]));
-                    } else {
-                        sceneManager.RequestSceneChange(new Scene_PhysicsTest());
-                    }
-                    break;
-                case ECS::SceneRequest::NextLevel: {
-                    if (!reg.has_ctx<ECS::Res_CampaignState>()) break;
-                    auto& campaign = reg.ctx<ECS::Res_CampaignState>();
-                    int mapIdx = campaign.mapSequence[campaign.currentRound];
-                    LOG_INFO("[Main] NextLevel: round " << (int)campaign.currentRound
-                             << " map " << mapIdx);
-                    sceneManager.RequestSceneChange(new Scene_CampaignLevel(mapIdx));
-                    break;
-                }
                 case ECS::SceneRequest::ReturnToMenu:
-                    if (reg.has_ctx<ECS::Res_CampaignState>())
-                        reg.ctx<ECS::Res_CampaignState>().active = false;
                     sceneManager.RequestSceneChange(new Scene_MainMenu());
                     break;
                 case ECS::SceneRequest::HostGame:

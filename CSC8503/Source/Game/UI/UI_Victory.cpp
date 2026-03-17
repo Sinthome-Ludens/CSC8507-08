@@ -8,7 +8,6 @@
 #include <imgui.h>
 #include <cstdio>
 #include "Game/Components/Res_UIState.h"
-#include "Game/Components/Res_CampaignState.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
@@ -79,11 +78,8 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     float statsY = lineY + 20.0f;
     float statsX = cx - 130.0f;
 
-    // Total play time
-    float totalTime = 0.0f;
-    if (registry.has_ctx<Res_CampaignState>()) {
-        totalTime = registry.ctx<Res_CampaignState>().totalPlayTime;
-    }
+    // Total play time (accumulated in Res_UIState by Sys_LevelGoal)
+    float totalTime = ui.totalPlayTime;
     int totalSec = static_cast<int>(totalTime);
     int mm = totalSec / 60;
     int ss = totalSec % 60;
@@ -98,22 +94,19 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     draw->AddText(ImVec2(statsX, mapsY),
         IM_COL32(16, 13, 10, 220), "CLEARED MAPS:");
 
-    if (registry.has_ctx<Res_CampaignState>()) {
-        const auto& campaign = registry.ctx<Res_CampaignState>();
-        for (int i = 0; i < kCampaignRounds; ++i) {
-            int idx = campaign.mapSequence[i];
-            const char* mapName = (idx >= 0 && idx < kCampaignMapCount)
-                ? kCampaignMaps[idx].displayName : "???";
-            snprintf(buf, sizeof(buf), "  %d. %s", i + 1, mapName);
-            draw->AddText(ImVec2(statsX + 10.0f, mapsY + 26.0f + i * 24.0f),
-                IM_COL32(252, 111, 41, 220), buf);
-        }
+    for (int i = 0; i < Res_UIState::MAP_SEQUENCE_LENGTH; ++i) {
+        int idx = ui.mapSequence[i];
+        const char* mapName = (idx >= 0 && idx < kMapCount)
+            ? kMapDisplayNames[idx] : "???";
+        snprintf(buf, sizeof(buf), "  %d. %s", i + 1, mapName);
+        draw->AddText(ImVec2(statsX + 10.0f, mapsY + 26.0f + i * 24.0f),
+            IM_COL32(252, 111, 41, 220), buf);
     }
 
     if (termFont) ImGui::PopFont();
 
     // ── Separator ─────────────────────────────────────────────
-    float sepY = mapsY + 26.0f + kCampaignRounds * 24.0f + 16.0f;
+    float sepY = mapsY + 26.0f + Res_UIState::MAP_SEQUENCE_LENGTH * 24.0f + 16.0f;
     draw->AddLine(ImVec2(cx - 80.0f, sepY), ImVec2(cx + 80.0f, sepY),
         IM_COL32(200, 200, 200, 100), 1.0f);
 

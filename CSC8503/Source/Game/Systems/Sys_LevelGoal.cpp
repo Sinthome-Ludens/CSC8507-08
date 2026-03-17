@@ -6,11 +6,9 @@
 #include "Game/Utils/PauseGuard.h"
 
 #include <cmath>
-#include <cstdio>
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_T_FinishZone.h"
 #include "Game/Components/C_T_Player.h"
-#include "Game/Components/Res_CampaignState.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Utils/Log.h"
 
@@ -72,21 +70,6 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                          << (int)finishId << " distXZ=" << std::sqrt(distXZSq)
                          << " dY=" << dy);
 
-                if (isCampaign) {
-                    auto& campaign = registry.ctx<Res_CampaignState>();
-
-                    // Accumulate play time for this round
-                    if (registry.has_ctx<Res_GameState>()) {
-                        campaign.totalPlayTime += registry.ctx<Res_GameState>().playTime;
-                    }
-
-                    if (campaign.currentRound < kCampaignRounds - 1) {
-                        // More maps remaining → auto-advance
-                        // NOTE: increment currentRound BEFORE setting NextLevel so that
-                        // Main.cpp reads mapSequence[currentRound] as the *next* map index.
-                        campaign.currentRound++;
-                        if (registry.has_ctx<Res_GameState>())
-                            registry.ctx<Res_GameState>().isPaused = true;
 #ifdef USE_IMGUI
                 if (registry.has_ctx<Res_UIState>()) {
                     auto& ui = registry.ctx<Res_UIState>();
@@ -96,9 +79,11 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                                    || ui.mapSequenceIndex >= Res_UIState::MAP_SEQUENCE_LENGTH - 1;
 
                     if (!isFinalMap) {
-                        // ── 非最终关：冻结游戏，触发 NextLevel 加载下一张 ──
+                        // ── 非最终关：冻结游戏，累加时间，触发 NextLevel ──
                         if (registry.has_ctx<Res_GameState>()) {
-                            registry.ctx<Res_GameState>().isGameOver = true;
+                            auto& gs = registry.ctx<Res_GameState>();
+                            gs.isGameOver = true;
+                            ui.totalPlayTime += gs.playTime;
                         }
                         ui.pendingSceneRequest = SceneRequest::NextLevel;
                         UI::PushToast(registry, "AREA CLEAR - MOVING OUT",
@@ -106,13 +91,18 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                         LOG_INFO("[Sys_LevelGoal] Mid-sequence -> NextLevel (index="
                                  << (int)ui.mapSequenceIndex << ")");
                     } else {
-                        // ── 最终关：任务成功 → GameOver 结算画面 ──
+                        // ── 最终关：累加时间，战役→Victory / 非战役→GameOver ──
                         if (registry.has_ctx<Res_GameState>()) {
                             auto& gs = registry.ctx<Res_GameState>();
                             gs.isGameOver     = true;
                             gs.gameOverReason = 3;
+                            ui.totalPlayTime += gs.playTime;
                         }
-                        ui.activeScreen = UIScreen::GameOver;
+                        if (ui.mapSequenceGenerated) {
+                            ui.activeScreen = UIScreen::Victory;
+                        } else {
+                            ui.activeScreen = UIScreen::GameOver;
+                        }
                         UI::PushToast(registry, "MISSION COMPLETE",
                                       ToastType::Success, 3.0f);
                     }
@@ -124,36 +114,6 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                     gs.gameOverReason = 3;
                 }
 #endif
-                        LOG_INFO("[Sys_LevelGoal] Campaign round " << (int)campaign.currentRound
-                                 << "/" << kCampaignRounds << " advancing to next map");
-                    } else {
-                        // Final map → victory
-                        if (registry.has_ctx<Res_GameState>()) {
-                            auto& gs = registry.ctx<Res_GameState>();
-                            gs.isGameOver     = true;
-                            gs.gameOverReason = 3;
-                        }
-#ifdef USE_IMGUI
-                        if (registry.has_ctx<Res_UIState>())
-                            registry.ctx<Res_UIState>().activeScreen = UIScreen::Victory;
-                        UI::PushToast(registry, "CAMPAIGN COMPLETE", ToastType::Success, 3.0f);
-#endif
-                        LOG_INFO("[Sys_LevelGoal] Campaign complete!");
-                    }
-                } else {
-                    // === Non-campaign (Tutorial etc.): original behavior ===
-                    if (registry.has_ctx<Res_GameState>()) {
-                        auto& gs = registry.ctx<Res_GameState>();
-                        gs.isGameOver     = true;
-                        gs.gameOverReason = 3;
-                    }
-#ifdef USE_IMGUI
-                    if (registry.has_ctx<Res_UIState>()) {
-                        registry.ctx<Res_UIState>().activeScreen = UIScreen::GameOver;
-                    }
-                    UI::PushToast(registry, "MISSION COMPLETE", ToastType::Success, 3.0f);
-#endif
-                }
             }
         });
 }
