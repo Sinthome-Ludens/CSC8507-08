@@ -27,6 +27,11 @@
 
 namespace ECS {
 
+static_assert(std::size(Res_UIState{}.savedStoreCount) >= Res_ItemInventory2::kItemCount,
+              "savedStoreCount array must cover all ItemIDs");
+static_assert(std::size(Res_UIState{}.savedUnlocked) >= Res_ItemInventory2::kItemCount,
+              "savedUnlocked array must cover all ItemIDs");
+
 static constexpr int kSaveVersion = 2;
 
 /**
