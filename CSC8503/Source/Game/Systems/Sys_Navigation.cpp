@@ -79,41 +79,40 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
 
     NCL::Maths::Vector3 targetPoint = agent.path_waypoints[agent.current_waypoint_index];
     NCL::Maths::Vector3 dir = targetPoint - tf.position;
-    // 不再清零 dir.y，保留 3D 方向以支持斜坡移动
 
-    float distSq = dir.x*dir.x + dir.y*dir.y + dir.z*dir.z;  // 3D 距离
+    float distSq = dir.x*dir.x + dir.y*dir.y + dir.z*dir.z;
+    float xzCurSq = dir.x*dir.x + dir.z*dir.z;
     bool isLastWaypoint = (agent.current_waypoint_index == agent.path_length - 1);
 
-    // ── 前瞻跳跃：若下一路点比当前路点更近，说明 agent 已越过当前路点 ──────────
-    // 原因：agent 以全速运动时可能略微冲过路点，此时当前路点已在身后或侧方，
-    // 继续朝它移动会产生向后偏转。直接跳到最近的后续路点（保留终点不跳过）。
+    // ── 前瞻跳跃：使用 XZ 距离比较，Y 高度差不干扰路点推进 ──────────
     while (!isLastWaypoint) {
         const NCL::Maths::Vector3& nxt =
             agent.path_waypoints[agent.current_waypoint_index + 1];
         float ndx = nxt.x - tf.position.x;
         float ndy = nxt.y - tf.position.y;
         float ndz = nxt.z - tf.position.z;
-        float nDistSq = ndx*ndx + ndy*ndy + ndz*ndz;  // 3D 距离
-        if (nDistSq < distSq) {
+        float nXZSq = ndx*ndx + ndz*ndz;
+        if (nXZSq < xzCurSq) {
             agent.current_waypoint_index++;
             targetPoint  = nxt;
             dir.x = ndx; dir.y = ndy; dir.z = ndz;
-            distSq = nDistSq;
+            distSq = ndx*ndx + ndy*ndy + ndz*ndz;
+            xzCurSq = nXZSq;
             isLastWaypoint = (agent.current_waypoint_index == agent.path_length - 1);
         } else {
             break;
         }
     }
 
-    // 到达阈值：终点使用 stopping_distance，中间路点 0.36m²（0.6m 半径，3D 空间）
+    // 到达阈值：XZ 平面距离判定，Y 高度差不阻止路点推进
+    float xzDistSq = dir.x * dir.x + dir.z * dir.z;
     float arrivalSq = isLastWaypoint
         ? (agent.stopping_distance * agent.stopping_distance)
         : 0.36f;
 
-    if (distSq < arrivalSq) {
+    if (xzDistSq < arrivalSq) {
         if (!isLastWaypoint) {
             agent.current_waypoint_index++;
-            // 清零速度，防止转角处惯性冲进墙体
             if (physics && rb.body_created) {
                 physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
             }
@@ -145,9 +144,10 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
     }
 
     /**
-     * 前方障碍避让（借鉴 ai/ FollowPathOrMoveTo 避障射线思路）：
+     * 前方障碍避让（墙面滑移版）：
      * 在移动方向前方 1.5m 发射水平射线，命中非自身障碍物时
-     * 本帧清零速度并标记 timer 满值，强制下帧重规划路径。
+     * 将移动方向投影到墙面切线方向（滑移），避免拐角处
+     * "停止-重规划"死循环。仅在完全正对墙面无法滑移时才清零速度。
      * 使用 Sys_Physics::CastRayIgnoring（Jolt），不走 NCLGL。
      */
     if (physics && rb.body_created && dist > 0.5f) {
@@ -156,9 +156,27 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
             dir.x, 0.0f, dir.z,
             1.5f, entity);
         if (fwdHit.hit && fwdHit.entity != entity) {
-            physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
-            agent.timer = agent.update_frequency;
-            return;
+            float nx = fwdHit.normalX;
+            float nz = fwdHit.normalZ;
+            float nLen = sqrtf(nx * nx + nz * nz);
+            if (nLen > 0.001f) {
+                nx /= nLen;
+                nz /= nLen;
+                float dot = dir.x * nx + dir.z * nz;
+                if (dot < 0.0f) {
+                    dir.x -= dot * nx;
+                    dir.z -= dot * nz;
+                    float newLen = sqrtf(dir.x * dir.x + dir.z * dir.z);
+                    if (newLen > 0.001f) {
+                        dir.x /= newLen;
+                        dir.z /= newLen;
+                    } else {
+                        physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
+                        agent.timer = agent.update_frequency;
+                        return;
+                    }
+                }
+            }
         }
     }
 
@@ -172,6 +190,7 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
         physics->SetLinearVelocity(entity,
             dir.x * speed, vy, dir.z * speed);
     }
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -204,9 +223,8 @@ static void SkipReachedWaypoints(C_D_NavAgent& agent, const C_D_Transform& tf)
         const NCL::Maths::Vector3& wp =
             agent.path_waypoints[agent.current_waypoint_index];
         float dx = wp.x - tf.position.x;
-        float dy = wp.y - tf.position.y;
         float dz = wp.z - tf.position.z;
-        if (dx*dx + dy*dy + dz*dz < 0.36f) {   // 3D 距离，0.6m 半径
+        if (dx*dx + dz*dz < 0.36f) {
             agent.current_waypoint_index++;
         } else {
             break;

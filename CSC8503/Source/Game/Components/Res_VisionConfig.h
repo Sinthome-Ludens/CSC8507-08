@@ -11,7 +11,7 @@ namespace ECS {
 /// @brief 敌人视野检测全局配置（数据驱动，注册到 registry ctx）
 struct Res_VisionConfig {
     float fovDegrees      = 60.0f;   // 视野全角（度），cosHalfFov = cos(30°) ≈ 0.866
-    float maxDistance      = 20.0f;   // 最大检测距离（米）
+    float maxDistance      = 30.0f;   // 最大检测距离（米）
     float closeRange       = 3.0f;   // 近距离感知范围（米）[当前未使用，保留供扩展]
     float visibilityMin    = 0.05f;  // 低于此 visibilityFactor 视为完全隐形
     bool  enableOcclusion  = true;   // 是否启用 CastRay 射线遮挡检测
