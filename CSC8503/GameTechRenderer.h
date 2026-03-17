@@ -217,8 +217,11 @@ namespace NCL {
             // ── 全屏三角形 VAO ───────────────────────────────
             GLuint m_fullscreenVAO = 0;
 
+            // ── Fallback 纹理 ─────────────────────────────────
+            GLuint m_fallbackWhiteTex = 0; ///< 1×1 RGBA 白色纹理，替代绑定 0
+
             // ── 辅助绘制方法 ─────────────────────────────────
-            void DrawObject(OGLShader* shader, const RenderObject* o, const Matrix4& viewMatrix);
+            void DrawObject(OGLShader* shader, const RenderObject* o);
         };
     }
 }

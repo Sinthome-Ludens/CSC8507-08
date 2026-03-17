@@ -270,7 +270,7 @@ void main() {
     // ── 太阳光直接照明（Cook-Torrance BRDF）────────────────
     vec3 Lo = vec3(0.0);
     {
-        vec3 L = normalize(sunPos - IN.worldPos); // 点光源；若定向光则 L = normalize(sunPos)
+        vec3 L = normalize(sunPos); // 方向光：sunPos 实际为光照方向向量
         vec3 H = normalize(V + L);
         float NdotL = max(dot(N, L), 0.0);
         float NdotV = max(dot(N, V), 0.001);

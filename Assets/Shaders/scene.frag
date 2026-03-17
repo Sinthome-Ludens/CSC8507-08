@@ -138,7 +138,7 @@ void main() {
     if (doubleSided && !gl_FrontFacing) N = -N;
 
     // ── 光照 ─────────────────────────────────────────────────
-    vec3  incident = normalize(sunPos - IN.worldPos);
+    vec3  incident = normalize(sunPos); // 方向光：sunPos 实际为光照方向向量
     float lambert  = max(0.0, dot(incident, N)) * 0.9;
     vec3  viewDir  = normalize(cameraPos - IN.worldPos);
     vec3  halfDir  = normalize(incident + viewDir);

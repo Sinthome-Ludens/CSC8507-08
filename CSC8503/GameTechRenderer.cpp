@@ -39,6 +39,7 @@
 #include <random>
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 using namespace NCL;
 using namespace Rendering;
@@ -93,6 +94,11 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_shadowTex[c], 0);
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
+        {
+            GLenum s = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (s != GL_FRAMEBUFFER_COMPLETE)
+                std::cout << "[Renderer] Shadow FBO " << c << " incomplete: 0x" << std::hex << s << std::dec << "\n";
+        }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
@@ -131,6 +137,11 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,  GL_TEXTURE_2D, m_hdrDepthTex, 0);
         GLenum drawBuffers[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
         glDrawBuffers(2, drawBuffers);
+        {
+            GLenum s = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (s != GL_FRAMEBUFFER_COMPLETE)
+                std::cout << "[Renderer] HDR FBO incomplete: 0x" << std::hex << s << std::dec << "\n";
+        }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
@@ -150,6 +161,11 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
         glGenFramebuffers(1, &m_ssaoFBO);
         glBindFramebuffer(GL_FRAMEBUFFER, m_ssaoFBO);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ssaoTex, 0);
+        {
+            GLenum s = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (s != GL_FRAMEBUFFER_COMPLETE)
+                std::cout << "[Renderer] SSAO FBO incomplete: 0x" << std::hex << s << std::dec << "\n";
+        }
 
         glGenTextures(1, &m_ssaoBlurTex);
         glBindTexture(GL_TEXTURE_2D, m_ssaoBlurTex);
@@ -161,6 +177,11 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
         glGenFramebuffers(1, &m_ssaoBlurFBO);
         glBindFramebuffer(GL_FRAMEBUFFER, m_ssaoBlurFBO);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ssaoBlurTex, 0);
+        {
+            GLenum s = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (s != GL_FRAMEBUFFER_COMPLETE)
+                std::cout << "[Renderer] SSAO Blur FBO incomplete: 0x" << std::hex << s << std::dec << "\n";
+        }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -209,6 +230,11 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
             glGenFramebuffers(1, &m_ppFBO[i]);
             glBindFramebuffer(GL_FRAMEBUFFER, m_ppFBO[i]);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ppTex[i], 0);
+            {
+                GLenum s = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+                if (s != GL_FRAMEBUFFER_COMPLETE)
+                    std::cout << "[Renderer] PP FBO " << i << " incomplete: 0x" << std::hex << s << std::dec << "\n";
+            }
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -290,6 +316,17 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
     // ── 全屏三角形 VAO（无 VBO，仅需 gl_VertexID）────────
     glGenVertexArrays(1, &m_fullscreenVAO);
 
+    // ── 1×1 白色 fallback 纹理 ────────────────────────
+    {
+        unsigned char white[4] = { 255, 255, 255, 255 };
+        glGenTextures(1, &m_fallbackWhiteTex);
+        glBindTexture(GL_TEXTURE_2D, m_fallbackWhiteTex);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, white);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
+
     SetDebugStringBufferSizes(10000);
     SetDebugLineBufferSizes(1000);
 }
@@ -315,6 +352,7 @@ GameTechRenderer::~GameTechRenderer() {
     glDeleteTextures(1, &m_irradianceMap);
     glDeleteTextures(1, &m_prefilterMap);
     glDeleteTextures(1, &m_brdfLUT);
+    glDeleteTextures(1, &m_fallbackWhiteTex);
     glDeleteVertexArrays(1, &m_fullscreenVAO);
 }
 
@@ -592,7 +630,7 @@ void GameTechRenderer::RenderFrame() {
 
     // ── 1. CSM Shadow Pass ────────────────────────────
     ComputeCascadeMatrices(viewMatrix, projMatrix);
-    {
+    if (!opaqueObjects.empty() || !transparentObjects.empty()) {
         OGLDebugScope scope("CSM Shadow Pass");
         RenderShadowMapPass(opaqueObjects);
     }
@@ -603,7 +641,7 @@ void GameTechRenderer::RenderFrame() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (!opaqueObjects.empty() || !transparentObjects.empty()) {
+    {
         OGLDebugScope scope("Skybox Pass");
         RenderSkyboxPass();
     }
@@ -835,7 +873,7 @@ static void BindCommonSceneUniforms(
 // ============================================================
 
 void GameTechRenderer::DrawObject(OGLShader* shader,
-                                  const RenderObject* o, const Matrix4& viewMatrix)
+                                  const RenderObject* o)
 {
     GLuint pid = shader->GetProgramID();
     auto ul = [&](const char* n) { return glGetUniformLocation(pid, n); };
@@ -859,10 +897,10 @@ void GameTechRenderer::DrawObject(OGLShader* shader,
         glUniform1i(ul(samplerName), unit);
     };
 
-    bindTex(mat.diffuseTex,  "albedoTex",   0, 0);
-    bindTex(mat.bumpTex,     "normalTex",   1, 0);
-    bindTex(mat.ormTex,      "ormTex",      2, 0);
-    bindTex(mat.emissiveTex, "emissiveTex", 3, 0);
+    bindTex(mat.diffuseTex,  "albedoTex",   0, m_fallbackWhiteTex);
+    bindTex(mat.bumpTex,     "normalTex",   1, m_fallbackWhiteTex);
+    bindTex(mat.ormTex,      "ormTex",      2, m_fallbackWhiteTex);
+    bindTex(mat.emissiveTex, "emissiveTex", 3, m_fallbackWhiteTex);
 
     glUniform1i(ul("hasTexture"),    mat.diffuseTex  ? 1 : 0);
     glUniform1i(ul("hasBumpTex"),    mat.bumpTex     ? 1 : 0);
@@ -947,7 +985,7 @@ void GameTechRenderer::RenderOpaquePass(std::vector<ObjectSortState>& list) {
             lastShader = shader;
         }
 
-        DrawObject(shader, o, viewMatrix);
+        DrawObject(shader, o);
     }
 
     if (m_wireframeMode) {
@@ -989,7 +1027,7 @@ void GameTechRenderer::RenderAlphaMaskPass(std::vector<ObjectSortState>& list) {
             lastShader = shader;
         }
 
-        DrawObject(shader, o, viewMatrix);
+        DrawObject(shader, o);
     }
 }
 
@@ -1033,11 +1071,11 @@ void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list)
 
         if (!m_wireframeMode) {
             glCullFace(GL_FRONT);
-            DrawObject(shader, o, viewMatrix);
+            DrawObject(shader, o);
             glCullFace(GL_BACK);
-            DrawObject(shader, o, viewMatrix);
+            DrawObject(shader, o);
         } else {
-            DrawObject(shader, o, viewMatrix);
+            DrawObject(shader, o);
         }
     }
 
