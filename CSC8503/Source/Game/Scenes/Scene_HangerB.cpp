@@ -24,6 +24,7 @@
 #include "Game/Systems/Sys_DeathEffect.h"
 #include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_InputDispatch.h"
+#include "Game/Systems/Sys_Animation.h"
 #include "Game/Systems/Sys_PlayerDisguise.h"
 #include "Game/Systems/Sys_PlayerStance.h"
 #include "Game/Systems/Sys_StealthMetrics.h"
@@ -106,6 +107,7 @@ void Scene_HangerB::OnEnter(ECS::Registry&          registry,
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
 
     systems.Register<ECS::Sys_Input>           ( 10);
+    systems.Register<ECS::Sys_Animation>       ( 50);
     systems.Register<ECS::Sys_InputDispatch>   ( 55);
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);
     systems.Register<ECS::Sys_PlayerStance>    ( 60);
