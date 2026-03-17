@@ -272,10 +272,13 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
         bool isFlashing;
     };
 
+    const uint8_t safeItemSlot   = (gs.activeItemSlot   < 2) ? gs.activeItemSlot   : 0;
+    const uint8_t safeWeaponSlot = (gs.activeWeaponSlot < 2) ? gs.activeWeaponSlot : 0;
+
     PanelData panels[2] = {
-        { &gs.itemSlots[gs.activeItemSlot],     "[Q]", "GADGET",
+        { &gs.itemSlots[safeItemSlot],     "[Q]", "GADGET",
           gs.itemUseFlashTimer > 0.0f && gs.itemUseFlashSlotType == 0 },
-        { &gs.weaponSlots[gs.activeWeaponSlot], "[E]", "WEAPON",
+        { &gs.weaponSlots[safeWeaponSlot], "[E]", "WEAPON",
           gs.itemUseFlashTimer > 0.0f && gs.itemUseFlashSlotType == 1 },
     };
 
@@ -305,8 +308,10 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
         if (hasItem) {
             // Icon (left side)
             ImVec2 iconCenter(px + 20.0f, panelY + 20.0f);
-            DrawItemIcon(draw, iconCenter, kIconSize, static_cast<ItemID>(slot->itemId),
-                IM_COL32(245, 238, 232, 220));
+            if (slot->itemId < static_cast<uint8_t>(ItemID::Count)) {
+                DrawItemIcon(draw, iconCenter, kIconSize, static_cast<ItemID>(slot->itemId),
+                    IM_COL32(245, 238, 232, 220));
+            }
 
             // Name (right of icon)
             if (termFont) ImGui::PushFont(termFont);

@@ -264,16 +264,20 @@ void Sys_Item::ProcessItemUseInput(Registry& registry) {
             // Q: use active gadget slot
             if (slotPressed < 0 && input.gadgetUseJustPressed && registry.has_ctx<Res_GameState>()) {
                 auto& gs = registry.ctx<Res_GameState>();
-                auto& display = gs.itemSlots[gs.activeItemSlot];
-                if (display.name[0] != '\0')
-                    slotPressed = display.itemId;
+                if (gs.activeItemSlot < 2) {
+                    auto& display = gs.itemSlots[gs.activeItemSlot];
+                    if (display.name[0] != '\0')
+                        slotPressed = display.itemId;
+                }
             }
             // E: use active weapon slot
             if (slotPressed < 0 && input.weaponUseJustPressed && registry.has_ctx<Res_GameState>()) {
                 auto& gs = registry.ctx<Res_GameState>();
-                auto& display = gs.weaponSlots[gs.activeWeaponSlot];
-                if (display.name[0] != '\0')
-                    slotPressed = display.itemId;
+                if (gs.activeWeaponSlot < 2) {
+                    auto& display = gs.weaponSlots[gs.activeWeaponSlot];
+                    if (display.name[0] != '\0')
+                        slotPressed = display.itemId;
+                }
             }
 
             if (slotPressed < 0) return;
