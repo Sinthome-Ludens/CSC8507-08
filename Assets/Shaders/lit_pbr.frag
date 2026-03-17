@@ -29,10 +29,10 @@ uniform mat4 shadowMatrix1;
 uniform mat4 shadowMatrix2;
 uniform float cascadeSplits[3]; // = {15, 60, 300}（视空间 z）
 
-// ── IBL（unit 8-10，Stage 3 接入后取消注释）─────────────────
-// uniform samplerCube irradianceMap;  // unit 8
-// uniform samplerCube prefilterMap;   // unit 9
-// uniform sampler2D   brdfLUT;        // unit 10
+// ── IBL（unit 8-10）─────────────────────────────────────────
+uniform samplerCube irradianceMap;  // unit 8
+uniform samplerCube prefilterMap;   // unit 9
+uniform sampler2D   brdfLUT;        // unit 10
 uniform float iblIntensity = 1.0;
 uniform bool  useIBL       = false;
 
@@ -302,9 +302,8 @@ void main() {
         Lo += (kD * albedo / PI + specular) * sunColour * NdotL * shadow;
     }
 
-    // ── IBL 环境光（Stage 3 接通后取消注释）─────────────────
+    // ── IBL 环境光 ─────────────────────────────────────────────
     vec3 ambient = vec3(0.03) * albedo * matAo;
-    /*
     if (useIBL) {
         float NdotV = max(dot(N, V), 0.0);
         vec3  F = F_SchlickRoughness(NdotV, F0, roughness);
@@ -322,7 +321,6 @@ void main() {
 
         ambient = (diffIBL + specIBL) * matAo * iblIntensity;
     }
-    */
 
     // ── 自发光 ────────────────────────────────────────────────
     vec3 emissive = texture(emissiveTex, IN.texCoord).rgb * emissiveColor * emissiveStrength;

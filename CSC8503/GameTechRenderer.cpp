@@ -827,6 +827,7 @@ static void BindCommonSceneUniforms(
     glUniform1i(ul("prefilterMap"),  9);
     glUniform1i(ul("brdfLUT"),       10);
     glUniform1f(ul("iblIntensity"),  iblIntensity);
+    glUniform1i(ul("useIBL"), (irradianceMap != 0 && prefilterMap != 0 && brdfLUT != 0) ? 1 : 0);
 }
 
 // ============================================================
