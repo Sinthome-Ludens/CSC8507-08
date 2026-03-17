@@ -98,7 +98,9 @@ private:
     float m_exposure         = 1.0f;
     float m_vignetteStrength = 0.3f;
 
-    float m_sunPos[3] = { -200.0f, 60.0f, -200.0f }; ///< 太阳位置（镜像 GameWorld::sunPosition）
+    bool  m_showShadowMaps = false; ///< 显示级联 shadow map 预览
+
+    float m_sunPos[3] = { -100.0f, 350.0f, -100.0f }; ///< 太阳位置（镜像 GameWorld::sunPosition）
 
     void* m_renderer  = nullptr; ///< GameTechRenderer*，在 OnAwake 中从 Res_NCL_Pointers 获取
     void* m_gameWorld = nullptr; ///< GameWorld*，用于 ImGui 调整太阳方向

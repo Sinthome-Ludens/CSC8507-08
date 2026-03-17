@@ -563,7 +563,7 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
         minLS.y = centerY - halfExt;
         maxLS.y = centerY + halfExt;
 
-        float shadowNear = std::max(0.1f, -(maxLS.z + 10.0f));
+        float shadowNear = std::max(0.1f, -(maxLS.z + 500.0f));
         float shadowFar  = -(minLS.z - 100.0f);
         if (shadowFar <= shadowNear) shadowFar = shadowNear + 100.0f;
         m_lightProjMat[c] = Matrix::Orthographic(minLS.x, maxLS.x,
@@ -689,7 +689,7 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
-    glCullFace(GL_BACK);   // 存前向面深度：接触点 shadow 精确，自阴影由 fragment 斜率偏置防护
+    glCullFace(GL_FRONT);  // 渲染背面到 shadow map：消除自阴影 acne（标准 CSM 技术）
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
     UseShader(*shadowShader);

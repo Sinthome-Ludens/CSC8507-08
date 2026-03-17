@@ -39,7 +39,7 @@ TutorialGame::TutorialGame(GameWorld& inWorld, GameTechRendererInterface& inRend
 
 	world.GetMainCamera().SetController(*controller);
 
-	world.SetSunPosition({ -200.0f, 60.0f, -200.0f });
+	world.SetSunPosition({ -100.0f, 350.0f, -100.0f });
 	world.SetSunColour({ 0.8f, 0.8f, 0.5f });
 
 	controller->MapAxis(0, "Sidestep");

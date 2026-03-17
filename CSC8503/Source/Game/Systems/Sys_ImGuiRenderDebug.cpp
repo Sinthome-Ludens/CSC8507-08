@@ -130,6 +130,24 @@ void Sys_ImGuiRenderDebug::DrawShadowSection(void* rendererPtr) {
     if (ImGui::Checkbox("Debug Cascades", &m_debugCascades)) {
         r->SetDebugCascades(m_debugCascades);
     }
+
+    ImGui::Checkbox("Show Shadow Maps", &m_showShadowMaps);
+    if (m_showShadowMaps) {
+        int numCascades = GameTechRenderer::GetNumCascades();
+        for (int c = 0; c < numCascades; c++) {
+            ImGui::Text("Cascade %d (%dx%d)", c, r->GetShadowRes(c), r->GetShadowRes(c));
+
+            // Shadow map depth preview
+            ImTextureID texId = (ImTextureID)(intptr_t)r->GetShadowTex(c);
+            ImGui::Image(texId, ImVec2(192, 192), ImVec2(0,1), ImVec2(1,0));
+
+            // Light projection near/far readout
+            const auto& proj = r->GetLightProjMat(c);
+            float projNear = proj.array[3][2] / (proj.array[2][2] - 1.0f);
+            float projFar  = proj.array[3][2] / (proj.array[2][2] + 1.0f);
+            ImGui::Text("  near=%.1f  far=%.1f", projNear, projFar);
+        }
+    }
 }
 
 // ============================================================
