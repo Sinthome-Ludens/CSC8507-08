@@ -25,7 +25,7 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
-MapLoadResult LoadMap(Registry& reg, const C_D_MapConfig& config, MeshHandle cubeMesh)
+MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cubeMesh)
 {
     MapLoadResult result;
     const float scale = config.mapScale;

@@ -9,7 +9,7 @@
 #include "Core/Bridge/AssetManager.h"
 #include "Core/ECS/Registry.h"
 #include "Core/ECS/SystemManager.h"
-#include "Game/Components/C_D_MapConfig.h"
+#include "Game/Components/MapLoadConfig.h"
 #include "Game/Components/Res_NavTestState.h"
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_CQCConfig.h"
@@ -60,6 +60,7 @@
 #include "Game/UI/UI_Toast.h"
 #endif
 
+/** @brief Load map resources, register systems, initialize NavMesh floor and boundary colliders. */
 void Scene_Dock::OnEnter(ECS::Registry&          registry,
                          ECS::SystemManager&     systems,
                          const Res_NCL_Pointers& /*nclPtrs*/)
@@ -89,7 +90,7 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_NavTestState>(std::move(navState));
     }
 
-    C_D_MapConfig mapConfig{};
+    MapLoadConfig mapConfig{};
     strncpy_s(mapConfig.renderMesh,    sizeof(mapConfig.renderMesh),    "Dock.obj", _TRUNCATE);
     strncpy_s(mapConfig.collisionMesh, sizeof(mapConfig.collisionMesh), "Dock_collision.obj", _TRUNCATE);
     strncpy_s(mapConfig.navmesh,       sizeof(mapConfig.navmesh),       "Dock.navmesh", _TRUNCATE);
@@ -236,6 +237,7 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
              << systems.Count() << " systems awake.");
 }
 
+/** @brief Unregister all systems and release scene-specific resources. */
 void Scene_Dock::OnExit(ECS::Registry&      registry,
                         ECS::SystemManager& systems)
 {

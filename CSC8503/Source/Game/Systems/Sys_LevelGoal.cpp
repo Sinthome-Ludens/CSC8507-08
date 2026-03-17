@@ -74,7 +74,7 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 
                     // 判断是否为序列中的最后一张地图
                     bool isFinalMap = !ui.mapSequenceGenerated
-                                   || ui.mapSequenceIndex >= 2;
+                                   || ui.mapSequenceIndex >= Res_UIState::MAP_SEQUENCE_LENGTH - 1;
 
                     if (!isFinalMap) {
                         // ── 非最终关：冻结游戏，触发 NextLevel 加载下一张 ──

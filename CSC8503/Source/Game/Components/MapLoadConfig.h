@@ -1,17 +1,17 @@
 /**
  * @file C_D_MapConfig.h
- * @brief Map configuration data component: stores all resource paths and parameters needed for map loading.
+ * @brief Map loading configuration struct: stores resource paths and parameters for MapLoader.
  */
 #pragma once
 
 /**
- * @brief Map configuration data component
+ * @brief Map loading configuration (not an ECS component — used as a stack-local config struct).
  *
  * Stores all resource filenames and physics parameters for a single map.
  * Populated by scene OnEnter and consumed by MapLoader.
  * Filenames are relative to MESHDIR.
  */
-struct C_D_MapConfig {
+struct MapLoadConfig {
     char renderMesh[64]    = {};   ///< Render OBJ ("HangerA.obj")
     char collisionMesh[64] = {};   ///< Collision OBJ ("HangerA_collision.obj")
     char navmesh[64]       = {};   ///< NavMesh file ("HangerA.navmesh")

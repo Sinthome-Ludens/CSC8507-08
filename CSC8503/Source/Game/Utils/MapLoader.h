@@ -1,12 +1,12 @@
 /**
  * @file MapLoader.h
- * @brief Unified map loader: creates map entity, finish zone, player and enemies from C_D_MapConfig.
+ * @brief Unified map loader: creates map entity, finish zone, player and enemies from MapLoadConfig.
  */
 #pragma once
 
 #include "Core/ECS/Registry.h"
 #include "Core/Bridge/AssetManager.h"
-#include "Game/Components/C_D_MapConfig.h"
+#include "Game/Components/MapLoadConfig.h"
 #include "Vector.h"
 #include <vector>
 #include <string>
@@ -29,7 +29,7 @@ struct MapLoadResult {
 };
 
 /**
- * @brief Load a complete map from a C_D_MapConfig.
+ * @brief Load a complete map from a MapLoadConfig.
  *
  * Performs the 7-step loading sequence:
  *  1. Load render mesh (*.obj)
@@ -45,6 +45,6 @@ struct MapLoadResult {
  * @param cubeMesh  Cube mesh handle (for player and enemy rendering)
  * @return MapLoadResult with all created entity IDs
  */
-MapLoadResult LoadMap(Registry& reg, const C_D_MapConfig& config, MeshHandle cubeMesh);
+MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cubeMesh);
 
 } // namespace ECS

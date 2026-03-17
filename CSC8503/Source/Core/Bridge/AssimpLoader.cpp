@@ -259,31 +259,34 @@ static OGLMesh* MergeMeshes(const aiScene* scene) {
             positions.push_back(ToVector3(aiM->mVertices[i]));
         }
 
-        // Normals
+        // Normals (pad with zero if sub-mesh lacks them)
         if (aiM->HasNormals()) {
             hasNormals = true;
-            for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
+            for (unsigned int i = 0; i < aiM->mNumVertices; ++i)
                 normals.push_back(ToVector3(aiM->mNormals[i]));
-            }
+        } else if (hasNormals) {
+            normals.resize(positions.size(), Vector3(0, 1, 0));
         }
 
-        // Texture coords
+        // Texture coords (pad with zero)
         if (aiM->HasTextureCoords(0)) {
             hasTexCoords = true;
-            for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
+            for (unsigned int i = 0; i < aiM->mNumVertices; ++i)
                 texCoords.push_back(ToVector2(aiM->mTextureCoords[0][i]));
-            }
+        } else if (hasTexCoords) {
+            texCoords.resize(positions.size(), Vector2(0, 0));
         }
 
-        // Vertex colours
+        // Vertex colours (pad with white)
         if (aiM->HasVertexColors(0)) {
             hasColours = true;
-            for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
+            for (unsigned int i = 0; i < aiM->mNumVertices; ++i)
                 colours.push_back(ToVector4(aiM->mColors[0][i]));
-            }
+        } else if (hasColours) {
+            colours.resize(positions.size(), Vector4(1, 1, 1, 1));
         }
 
-        // Tangents
+        // Tangents (pad with zero)
         if (aiM->HasTangentsAndBitangents()) {
             hasTangents = true;
             for (unsigned int i = 0; i < aiM->mNumVertices; ++i) {
@@ -293,6 +296,8 @@ static OGLMesh* MergeMeshes(const aiScene* scene) {
                 float h = Vector::Dot(Vector::Cross(n, t), b) > 0.0f ? 1.0f : -1.0f;
                 tangents.push_back(Vector4(t.x, t.y, t.z, h));
             }
+        } else if (hasTangents) {
+            tangents.resize(positions.size(), Vector4(0, 0, 0, 1));
         }
 
         // Indices (offset by accumulated vertex count)

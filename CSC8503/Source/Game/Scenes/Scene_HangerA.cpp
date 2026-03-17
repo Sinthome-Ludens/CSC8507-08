@@ -9,7 +9,7 @@
 #include "Core/Bridge/AssetManager.h"
 #include "Core/ECS/Registry.h"
 #include "Core/ECS/SystemManager.h"
-#include "Game/Components/C_D_MapConfig.h"
+#include "Game/Components/MapLoadConfig.h"
 #include "Game/Components/Res_NavTestState.h"
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_CQCConfig.h"
@@ -63,6 +63,7 @@
 // ============================================================
 // OnEnter
 // ============================================================
+/** @brief Load map resources, register systems, initialize NavMesh floor and boundary colliders. */
 void Scene_HangerA::OnEnter(ECS::Registry&          registry,
                             ECS::SystemManager&     systems,
                             const Res_NCL_Pointers& /*nclPtrs*/)
@@ -94,8 +95,8 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_NavTestState>(std::move(navState));
     }
 
-    // ── 3. Map loading (C_D_MapConfig driven) ───────────────────────────
-    C_D_MapConfig mapConfig{};
+    // ── 3. Map loading (MapLoadConfig driven) ───────────────────────────
+    MapLoadConfig mapConfig{};
     strncpy_s(mapConfig.renderMesh,    sizeof(mapConfig.renderMesh),    "HangerA.obj", _TRUNCATE);
     strncpy_s(mapConfig.collisionMesh, sizeof(mapConfig.collisionMesh), "HangerA_collision.obj", _TRUNCATE);
     strncpy_s(mapConfig.navmesh,       sizeof(mapConfig.navmesh),       "HangerA.navmesh", _TRUNCATE);
@@ -253,6 +254,7 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
 // ============================================================
 // OnExit
 // ============================================================
+/** @brief Unregister all systems and release scene-specific resources. */
 void Scene_HangerA::OnExit(ECS::Registry&      registry,
                            ECS::SystemManager& systems)
 {

@@ -290,7 +290,10 @@ void ECS::Sys_Physics::CreateBodyForEntity(
                 return;
             }
             const int triCount = static_cast<int>(col.triIndices.size()) / 3;
-            if (triCount == 0) return;
+            if (triCount == 0) {
+                rb.body_created = true;
+                return;
+            }
 
             JPH::VertexList joltVerts;
             joltVerts.reserve(col.triVerts.size());

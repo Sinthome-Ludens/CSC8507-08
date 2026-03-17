@@ -71,7 +71,6 @@ using namespace NCL;
 using namespace CSC8503;
 
 #include <algorithm>
-#include <chrono>
 #include <random>
 #include <thread>
 #include <sstream>
@@ -116,29 +115,10 @@ static IScene* CreateMapScene(uint8_t mapId) {
 /// 地图名称（调试用）
 static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock" };
 
-/// 用系统当前时间生成种子：年月日时分秒毫秒 → 纯数字字符串 → 整型 → splitmix64 哈希
+/// 使用 std::random_device 获取种子（硬件熵源优先，回退到系统时钟）
 static uint32_t TimeBasedSeed() {
-    auto now = std::chrono::system_clock::now();
-    auto tt  = std::chrono::system_clock::to_time_t(now);
-    auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(
-                   now.time_since_epoch()).count() % 1000;
-    struct tm lt;
-    localtime_s(&lt, &tt);
-    // "20260317153042123" — 17 位纯数字（无标点）
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%04d%02d%02d%02d%02d%02d%03d",
-             lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday,
-             lt.tm_hour, lt.tm_min, lt.tm_sec, static_cast<int>(ms));
-    uint64_t raw = 0;
-    for (int i = 0; buf[i]; ++i)
-        raw = raw * 10 + static_cast<uint64_t>(buf[i] - '0');
-    // splitmix64 哈希
-    raw ^= raw >> 30;
-    raw *= 0xBF58476D1CE4E5B9ULL;
-    raw ^= raw >> 27;
-    raw *= 0x94D049BB133111EBULL;
-    raw ^= raw >> 31;
-    return static_cast<uint32_t>(raw);
+    std::random_device rd;
+    return rd();
 }
 
 /// 随机从 5 张地图中抽 3 张（不排序，打乱顺序直接打），重置 index
@@ -217,7 +197,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                 case ECS::SceneRequest::NextLevel:
                     // 序列内前进到下一张地图
                     ui.mapSequenceIndex++;
-                    if (ui.mapSequenceIndex < 3) {
+                    if (ui.mapSequenceIndex < ECS::Res_UIState::MAP_SEQUENCE_LENGTH) {
                         sceneManager.RequestSceneChange(
                             CreateMapScene(ui.mapSequence[ui.mapSequenceIndex]));
                     } else {

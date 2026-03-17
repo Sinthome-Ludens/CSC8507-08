@@ -136,8 +136,9 @@ struct Res_UIState {
 
     // ── Map sequence (campaign: random 5-pick-3, sorted by map ID) ──
     // Map IDs: 0=HangerA, 1=HangerB, 2=Helipad, 3=Lab, 4=Dock
-    uint8_t   mapSequence[3]           = {0, 1, 2};  ///< 三张关卡的地图 ID
-    uint8_t   mapSequenceIndex         = 0;           ///< 当前关卡在序列中的位置 (0-2)
+    static constexpr int MAP_SEQUENCE_LENGTH = 3;
+    uint8_t   mapSequence[MAP_SEQUENCE_LENGTH] = {0, 1, 2};  ///< 关卡地图 ID
+    uint8_t   mapSequenceIndex         = 0;           ///< 当前关卡在序列中的位置
     bool      mapSequenceGenerated     = false;       ///< 是否已生成过序列
 };
 
