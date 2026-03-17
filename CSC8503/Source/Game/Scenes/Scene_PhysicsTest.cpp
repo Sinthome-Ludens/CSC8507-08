@@ -205,11 +205,9 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Countdown>          (350);   // alertLevel≥100 → 30s 倒计时 → GameOver
 
     // ── 5. 初始化游戏状态资源 ──────────────────────────────────────────────
-#ifdef USE_IMGUI
     if (!registry.has_ctx<ECS::Res_GameState>()) {
         registry.ctx_emplace<ECS::Res_GameState>();
     }
-#endif
 
     // ── 6. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
