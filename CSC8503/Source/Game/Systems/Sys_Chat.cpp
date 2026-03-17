@@ -93,27 +93,27 @@ static void LoadFallbackDialogue(Res_DialogueData& data) {
         auto& n0 = seq.nodes[0];
         strncpy(n0.npcMessage, "All clear ahead. Ready to proceed?", sizeof(n0.npcMessage) - 1);
         strncpy(n0.replies[0], "Copy that, moving in.", sizeof(n0.replies[0]) - 1);
-        strncpy(n0.replies[1], "Hold position.", sizeof(n0.replies[0]) - 1);
-        strncpy(n0.replies[2], "What's the situation?", sizeof(n0.replies[0]) - 1);
-        strncpy(n0.replies[3], "Let me scout first.", sizeof(n0.replies[0]) - 1);
+        strncpy(n0.replies[1], "Hold position.", sizeof(n0.replies[1]) - 1);
+        strncpy(n0.replies[2], "What's the situation?", sizeof(n0.replies[2]) - 1);
+        strncpy(n0.replies[3], "Let me scout first.", sizeof(n0.replies[3]) - 1);
         n0.effects[0] = 1; n0.effects[1] = 0; n0.effects[2] = 0; n0.effects[3] = 1;
         n0.replyCount = 4; n0.replyTimeLimit = 0.0f;
 
         auto& n1 = seq.nodes[1];
         strncpy(n1.npcMessage, "Intel suggests minimal resistance in the next sector.", sizeof(n1.npcMessage) - 1);
         strncpy(n1.replies[0], "Good, stay sharp.", sizeof(n1.replies[0]) - 1);
-        strncpy(n1.replies[1], "Understood.", sizeof(n1.replies[0]) - 1);
-        strncpy(n1.replies[2], "Any alternate routes?", sizeof(n1.replies[0]) - 1);
-        strncpy(n1.replies[3], "I don't trust that intel.", sizeof(n1.replies[0]) - 1);
+        strncpy(n1.replies[1], "Understood.", sizeof(n1.replies[1]) - 1);
+        strncpy(n1.replies[2], "Any alternate routes?", sizeof(n1.replies[2]) - 1);
+        strncpy(n1.replies[3], "I don't trust that intel.", sizeof(n1.replies[3]) - 1);
         n1.effects[0] = 1; n1.effects[1] = 0; n1.effects[2] = 0; n1.effects[3] = -1;
         n1.replyCount = 4; n1.replyTimeLimit = 0.0f;
 
         auto& n2 = seq.nodes[2];
         strncpy(n2.npcMessage, "We're making good progress. Extraction ready on your signal.", sizeof(n2.npcMessage) - 1);
         strncpy(n2.replies[0], "Acknowledged. Continuing.", sizeof(n2.replies[0]) - 1);
-        strncpy(n2.replies[1], "Keep the line open.", sizeof(n2.replies[0]) - 1);
-        strncpy(n2.replies[2], "How's our timeline?", sizeof(n2.replies[0]) - 1);
-        strncpy(n2.replies[3], "Almost done here.", sizeof(n2.replies[0]) - 1);
+        strncpy(n2.replies[1], "Keep the line open.", sizeof(n2.replies[1]) - 1);
+        strncpy(n2.replies[2], "How's our timeline?", sizeof(n2.replies[2]) - 1);
+        strncpy(n2.replies[3], "Almost done here.", sizeof(n2.replies[3]) - 1);
         n2.effects[0] = 1; n2.effects[1] = 0; n2.effects[2] = 0; n2.effects[3] = 1;
         n2.replyCount = 4; n2.replyTimeLimit = 0.0f;
     }
@@ -127,17 +127,17 @@ static void LoadFallbackDialogue(Res_DialogueData& data) {
         auto& n0 = seq.nodes[0];
         strncpy(n0.npcMessage, "Movement detected nearby. What's your call?", sizeof(n0.npcMessage) - 1);
         strncpy(n0.replies[0], "Go silent.", sizeof(n0.replies[0]) - 1);
-        strncpy(n0.replies[1], "Push through.", sizeof(n0.replies[0]) - 1);
-        strncpy(n0.replies[2], "Find cover.", sizeof(n0.replies[0]) - 1);
-        strncpy(n0.replies[3], "Abort route.", sizeof(n0.replies[0]) - 1);
+        strncpy(n0.replies[1], "Push through.", sizeof(n0.replies[1]) - 1);
+        strncpy(n0.replies[2], "Find cover.", sizeof(n0.replies[2]) - 1);
+        strncpy(n0.replies[3], "Abort route.", sizeof(n0.replies[3]) - 1);
         n0.effects[0] = 1; n0.effects[1] = -1; n0.effects[2] = 1; n0.effects[3] = 0;
         n0.replyCount = 4; n0.replyTimeLimit = 12.0f;
 
         auto& n1 = seq.nodes[1];
         strncpy(n1.npcMessage, "Comms might be compromised. Keep it brief.", sizeof(n1.npcMessage) - 1);
         strncpy(n1.replies[0], "Roger. Eyes open.", sizeof(n1.replies[0]) - 1);
-        strncpy(n1.replies[1], "Switching frequency.", sizeof(n1.replies[0]) - 1);
-        strncpy(n1.replies[2], "How compromised?", sizeof(n1.replies[0]) - 1);
+        strncpy(n1.replies[1], "Switching frequency.", sizeof(n1.replies[1]) - 1);
+        strncpy(n1.replies[2], "How compromised?", sizeof(n1.replies[2]) - 1);
         n1.effects[0] = 1; n1.effects[1] = 0; n1.effects[2] = -1;
         n1.replyCount = 3; n1.replyTimeLimit = 10.0f;
     }
@@ -151,8 +151,8 @@ static void LoadFallbackDialogue(Res_DialogueData& data) {
         auto& n0 = seq.nodes[0];
         strncpy(n0.npcMessage, "You've been spotted! Respond NOW!", sizeof(n0.npcMessage) - 1);
         strncpy(n0.replies[0], "Engaging.", sizeof(n0.replies[0]) - 1);
-        strncpy(n0.replies[1], "Evading!", sizeof(n0.replies[0]) - 1);
-        strncpy(n0.replies[2], "Need backup!", sizeof(n0.replies[0]) - 1);
+        strncpy(n0.replies[1], "Evading!", sizeof(n0.replies[1]) - 1);
+        strncpy(n0.replies[2], "Need backup!", sizeof(n0.replies[2]) - 1);
         n0.effects[0] = -1; n0.effects[1] = 1; n0.effects[2] = 0;
         n0.replyCount = 3; n0.replyTimeLimit = 6.0f;
     }
