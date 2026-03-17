@@ -32,12 +32,16 @@ namespace ECS::UI {
 // ============================================================
 // 关卡占位数据
 // ============================================================
-static constexpr int kMapCount = 3;
-static const char* kMapNames[] = { "MAP-01", "MAP-02", "MAP-03" };
+static constexpr int kMapCount = 5;
+static const char* kMapNames[] = {
+    "DOCK", "HANGER A", "HANGER B", "HELIPAD", "LAB"
+};
 static const char* kMapDescs[] = {
-    "Training Facility (Placeholder)",
-    "Corporate Tower (Placeholder)",
-    "Underground Lab (Placeholder)",
+    "Dock Area",
+    "Hanger A",
+    "Hanger B",
+    "Helipad",
+    "Underground Lab",
 };
 
 // ============================================================
