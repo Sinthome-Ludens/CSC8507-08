@@ -82,6 +82,8 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 
                     if (campaign.currentRound < kCampaignRounds - 1) {
                         // More maps remaining → auto-advance
+                        // NOTE: increment currentRound BEFORE setting NextLevel so that
+                        // Main.cpp reads mapSequence[currentRound] as the *next* map index.
                         campaign.currentRound++;
                         if (registry.has_ctx<Res_GameState>())
                             registry.ctx<Res_GameState>().isPaused = true;
