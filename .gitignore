@@ -133,3 +133,4 @@ Docs/
 # CSC8503CoreClasses/
 # VulkanRendering/
 # OpenGLRendering/
+*.bak
