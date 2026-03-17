@@ -1,6 +1,10 @@
 /**
  * @file Sys_Door.cpp
  * @brief Key card pickup + locked door unlock implementation.
+ *
+ * Each frame, Sys_Door scans all C_T_KeyCard entities for XZ proximity
+ * to any player.  When a key is collected the key entity and every
+ * C_D_DoorLocked entity that shares the same keyId are destroyed.
  */
 #include "Sys_Door.h"
 
@@ -23,6 +27,10 @@ namespace ECS {
 // ============================================================
 // OnAwake
 // ============================================================
+/**
+ * @brief System initialisation (no-op — door/key entities are data-driven).
+ * @param registry ECS registry.
+ */
 void Sys_Door::OnAwake(Registry& registry) {
     LOG_INFO("[Sys_Door] OnAwake.");
 }
@@ -30,6 +38,17 @@ void Sys_Door::OnAwake(Registry& registry) {
 // ============================================================
 // OnUpdate — pick up key → destroy key + matching doors
 // ============================================================
+/**
+ * @brief Per-frame key pickup and door unlock logic.
+ *
+ * 1. Gather all player positions.
+ * 2. For each C_T_KeyCard entity within kKeyPickupRadius (XZ), record it.
+ * 3. Destroy collected keys, then destroy all C_D_DoorLocked entities
+ *    whose requiredKeyId matches any collected key.
+ *
+ * @param registry ECS registry.
+ * @param dt       Frame delta time (unused).
+ */
 void Sys_Door::OnUpdate(Registry& registry, float /*dt*/) {
     // Gather player positions
     struct PlayerInfo { EntityID id; Vector3 pos; };

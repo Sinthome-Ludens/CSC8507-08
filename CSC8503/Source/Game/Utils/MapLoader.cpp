@@ -2,10 +2,10 @@
  * @file MapLoader.cpp
  * @brief Unified map loader implementation.
  *
- * Orchestrates the 7-step map loading sequence, delegating entity creation
+ * Orchestrates the 8-step map loading sequence, delegating entity creation
  * to PrefabFactory and geometry loading to AssimpLoader / MapPointsLoader /
- * EnemySpawnLoader. All coordinate transforms (scale, Y-offset, winding fix)
- * are applied here before passing to PrefabFactory.
+ * EnemySpawnLoader / DoorKeyLoader. All coordinate transforms (scale,
+ * Y-offset, winding fix) are applied here before passing to PrefabFactory.
  */
 #include "MapLoader.h"
 

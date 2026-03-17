@@ -1137,6 +1137,18 @@ EntityID PrefabFactory::CreateRoamAI(
 // ============================================================
 // CreateKeyCard  →  PREFAB_KEY_CARD
 // ============================================================
+/**
+ * @brief Create a collectible key card entity (PREFAB_KEY_CARD).
+ *
+ * Attaches: C_D_Transform (0.5 scale), C_D_MeshRenderer, C_D_Material (yellow),
+ *           C_T_KeyCard, C_D_DebugName.
+ *
+ * @param reg       ECS Registry.
+ * @param cubeMesh  Cube mesh handle used for rendering.
+ * @param keyId     Key identifier (must match a door's requiredKeyId to unlock it).
+ * @param position  World-space spawn position.
+ * @return Created entity ID.
+ */
 EntityID PrefabFactory::CreateKeyCard(
     Registry&       reg,
     ECS::MeshHandle cubeMesh,
@@ -1176,6 +1188,20 @@ EntityID PrefabFactory::CreateKeyCard(
 // ============================================================
 // CreateLockedDoor  →  PREFAB_LOCKED_DOOR
 // ============================================================
+/**
+ * @brief Create a static locked door entity (PREFAB_LOCKED_DOOR).
+ *
+ * Attaches: C_D_Transform (scale = halfExtents×2), C_D_MeshRenderer,
+ *           C_D_Material (brown), C_D_RigidBody (static), C_D_Collider (Box),
+ *           C_D_DoorLocked, C_D_DebugName.
+ *
+ * @param reg         ECS Registry.
+ * @param cubeMesh    Cube mesh handle used for rendering.
+ * @param keyId       Required key identifier to unlock this door.
+ * @param position    World-space centre position.
+ * @param halfExtents Box collider half-extents (already scaled by caller).
+ * @return Created entity ID.
+ */
 EntityID PrefabFactory::CreateLockedDoor(
     Registry&       reg,
     ECS::MeshHandle cubeMesh,
