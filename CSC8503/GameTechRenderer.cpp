@@ -725,6 +725,18 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
                 glUniformMatrix4fv(mvpLoc, 1, false, (float*)&mvp);
             }
 
+            // 骨骼蒙皮（shadow pass）
+            {
+                GLint curProg = 0;
+                glGetIntegerv(GL_CURRENT_PROGRAM, &curProg);
+                glUniform1i(glGetUniformLocation(curProg, "useSkinning"), o->useSkinning ? 1 : 0);
+                if (o->useSkinning && !o->skinBoneMatrices.empty()) {
+                    glUniformMatrix4fv(glGetUniformLocation(curProg, "boneMatrices"),
+                                       (int)o->skinBoneMatrices.size(), false,
+                                       (float*)o->skinBoneMatrices.data());
+                }
+            }
+
             BindMesh((OGLMesh&)*o->GetMesh());
             size_t layerCount = o->GetMesh()->GetSubMeshCount();
             if (layerCount == 0) DrawBoundMesh(0);
