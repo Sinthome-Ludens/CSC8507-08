@@ -18,6 +18,7 @@
 #include <cmath>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/CollideShape.h>
 #include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 
@@ -117,6 +118,29 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
         m_BPLayerInterface,
         m_ObjectVsBPFilter,
         m_ObjectLayerPairFilter);
+
+    // Unity 导出的 _collision.obj 是闭合 Box/Prism 网格；而 Jolt 在模拟阶段默认忽略
+    // TriMesh 的 back-face。玩家从墙体“背面”接近时会出现穿模/卡墙。
+    // 这里统一把 TriMesh 接触改为双面碰撞，作为当前关卡碰撞体的快速修复。
+    m_PhysicsSystem->SetSimCollideBodyVsBody(
+        [](const JPH::Body& inBody1,
+           const JPH::Body& inBody2,
+           JPH::Mat44Arg inCenterOfMassTransform1,
+           JPH::Mat44Arg inCenterOfMassTransform2,
+           JPH::CollideShapeSettings& ioCollideShapeSettings,
+           JPH::CollideShapeCollector& ioCollector,
+           const JPH::ShapeFilter& inShapeFilter)
+        {
+            ioCollideShapeSettings.mBackFaceMode = JPH::EBackFaceMode::CollideWithBackFaces;
+            JPH::PhysicsSystem::sDefaultSimCollideBodyVsBody(
+                inBody1,
+                inBody2,
+                inCenterOfMassTransform1,
+                inCenterOfMassTransform2,
+                ioCollideShapeSettings,
+                ioCollector,
+                inShapeFilter);
+        });
 
     // 注册 ContactListener
     m_PhysicsSystem->SetContactListener(&m_ContactListener);

@@ -147,9 +147,8 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
                 v.y *= kMapScale;
                 v.z *= kMapScale;
             }
-            for (size_t i = 0; i + 2 < mapCollIndices.size(); i += 3) {
-                std::swap(mapCollIndices[i + 1], mapCollIndices[i + 2]);
-            }
+            // OBJ 由 Unity 导出脚本生成，导出时已同步完成左手系→右手系转换（Z 取反 + 绕序翻转）
+            // 法线已朝外，无需额外处理绕序
             PrefabFactory::CreateNavMeshFloor(registry, mapCollVerts, mapCollIndices,
                                               NCL::Maths::Vector3(0.0f, -6.0f * kMapScale, 0.0f));
             LOG_INFO("[Scene_Lab] Collision mesh loaded from " << collObjPath
