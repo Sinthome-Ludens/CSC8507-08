@@ -3,7 +3,7 @@
   "Name": "Camera_Main",
   "Components": {
     "C_D_Transform": {
-      "position": [0.0, 0.0, 40.0],
+      "position": [0.0, 15.0, 40.0],
       "rotation": [0.0, 0.0, 0.0, 1.0],
       "scale":    [1.0, 1.0, 1.0]
     },
@@ -14,7 +14,7 @@
       "pitch":       -20.0,
       "yaw":         0.0,
       "move_speed":  20.0,
-      "sensitivity": 0.1
+      "sensitivity": 0.5
     },
     "C_T_MainCamera": {},
     "C_D_DebugName": { "name": "ENTITY_Camera_Main" }

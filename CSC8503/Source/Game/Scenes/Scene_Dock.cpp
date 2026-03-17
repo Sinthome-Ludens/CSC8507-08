@@ -40,6 +40,7 @@
 #include "Game/Systems/Sys_LevelGoal.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/MapLoader.h"
+#include "Game/Utils/PrefabLoader.h"
 #include "Game/Utils/SaveManager.h"
 
 #ifdef USE_IMGUI
@@ -97,15 +98,10 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     }
 
     MapLoadConfig mapConfig{};
-    strncpy_s(mapConfig.renderMesh,    sizeof(mapConfig.renderMesh),    "Dock.obj", _TRUNCATE);
-    strncpy_s(mapConfig.collisionMesh, sizeof(mapConfig.collisionMesh), "Dock_collision.obj", _TRUNCATE);
-    strncpy_s(mapConfig.navmesh,       sizeof(mapConfig.navmesh),       "Dock.navmesh", _TRUNCATE);
-    strncpy_s(mapConfig.finishMesh,    sizeof(mapConfig.finishMesh),    "Dock_finish.obj", _TRUNCATE);
-    strncpy_s(mapConfig.startPoints,   sizeof(mapConfig.startPoints),   "Dock.startpoints", _TRUNCATE);
-    strncpy_s(mapConfig.enemySpawns,   sizeof(mapConfig.enemySpawns),   "Dock.enemyspawns", _TRUNCATE);
-    mapConfig.mapScale    = 1.0f;
-    mapConfig.yOffset     = -6.0f;
-    mapConfig.flipWinding = true;
+    if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_Dock.json", mapConfig)) {
+        LOG_ERROR("[Scene_Dock] Failed to load map config from Prefab_Map_Dock.json");
+        return;
+    }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
 

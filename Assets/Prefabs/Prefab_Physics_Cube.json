@@ -20,9 +20,9 @@
     },
     "C_D_Collider": {
       "type":        "Box",
-      "half_x":      0.5,
-      "half_y":      0.5,
-      "half_z":      0.5,
+      "half_x":      1.0,
+      "half_y":      1.0,
+      "half_z":      1.0,
       "friction":    0.5,
       "restitution": 0.1
     },
