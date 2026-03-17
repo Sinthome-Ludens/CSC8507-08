@@ -10,6 +10,7 @@
 #include "Core/ECS/Registry.h"
 #include "Core/Bridge/AssetManager.h"
 #include "Game/Components/C_D_Item.h"
+#include <cstdint>
 #include "Vector.h"
 #include "Quaternion.h"
 #include <vector>
@@ -467,5 +468,48 @@ public:
     static ECS::EntityID CreateRoamAI(
         ECS::Registry&      reg,
         NCL::Maths::Vector3 targetPos
+    );
+
+    // ============================================================
+    // 钥匙卡 & 锁门
+    // ============================================================
+
+    /**
+     * @brief 创建钥匙卡拾取物实体（PREFAB_KEY_CARD）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_T_KeyCard, C_D_DebugName
+     *
+     * @param reg       ECS Registry
+     * @param cubeMesh  立方体网格句柄
+     * @param keyId     钥匙 ID（用于配对门）
+     * @param position  世界坐标
+     * @return 钥匙卡实体 ID
+     */
+    static ECS::EntityID CreateKeyCard(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     cubeMesh,
+        uint8_t             keyId,
+        NCL::Maths::Vector3 position
+    );
+
+    /**
+     * @brief 创建锁门实体（PREFAB_LOCKED_DOOR）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_D_RigidBody(static),
+     *       C_D_Collider(Box), C_D_DoorLocked, C_D_DebugName
+     *
+     * @param reg         ECS Registry
+     * @param cubeMesh    立方体网格句柄
+     * @param keyId       需要的钥匙 ID
+     * @param position    世界坐标
+     * @param halfExtents Box 碰撞体半尺寸
+     * @return 锁门实体 ID
+     */
+    static ECS::EntityID CreateLockedDoor(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     cubeMesh,
+        uint8_t             keyId,
+        NCL::Maths::Vector3 position,
+        NCL::Maths::Vector3 halfExtents
     );
 };

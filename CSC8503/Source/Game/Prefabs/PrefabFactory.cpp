@@ -48,6 +48,8 @@
 #include "Game/Components/C_D_HoloBaitState.h"
 #include "Game/Components/C_T_RoamAI.h"
 #include "Game/Components/C_D_RoamAI.h"
+#include "Game/Components/C_T_KeyCard.h"
+#include "Game/Components/C_D_DoorLocked.h"
 #include "Game/Utils/Log.h"
 
 #include <cstring>
@@ -1128,6 +1130,99 @@ EntityID PrefabFactory::CreateRoamAI(
 
     LOG_INFO("[PrefabFactory] CreateRoamAI id=" << entity
              << " target=(" << targetPos.x << "," << targetPos.y << "," << targetPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateKeyCard  →  PREFAB_KEY_CARD
+// ============================================================
+EntityID PrefabFactory::CreateKeyCard(
+    Registry&       reg,
+    ECS::MeshHandle cubeMesh,
+    uint8_t         keyId,
+    Vector3         position)
+{
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        position,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(0.5f, 0.5f, 0.5f)
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        cubeMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    C_D_Material mat{};
+    mat.baseColour = Vector4(1.0f, 1.0f, 0.0f, 1.0f); // yellow key card
+    reg.Emplace<C_D_Material>(entity, mat);
+
+    reg.Emplace<C_T_KeyCard>(entity, C_T_KeyCard{ keyId });
+
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_KeyCard_%02d", static_cast<int>(keyId));
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreateKeyCard id=" << entity
+             << " keyId=" << (int)keyId
+             << " pos=(" << position.x << "," << position.y << "," << position.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateLockedDoor  →  PREFAB_LOCKED_DOOR
+// ============================================================
+EntityID PrefabFactory::CreateLockedDoor(
+    Registry&       reg,
+    ECS::MeshHandle cubeMesh,
+    uint8_t         keyId,
+    Vector3         position,
+    Vector3         halfExtents)
+{
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        position,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(halfExtents.x * 2.0f, halfExtents.y * 2.0f, halfExtents.z * 2.0f)
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        cubeMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    C_D_Material mat{};
+    mat.baseColour = Vector4(0.6f, 0.3f, 0.1f, 1.0f); // brown door
+    reg.Emplace<C_D_Material>(entity, mat);
+
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    C_D_Collider col{};
+    col.type        = ColliderType::Box;
+    col.half_x      = halfExtents.x;
+    col.half_y      = halfExtents.y;
+    col.half_z      = halfExtents.z;
+    col.friction    = 0.5f;
+    col.restitution = 0.0f;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    reg.Emplace<C_D_DoorLocked>(entity, C_D_DoorLocked{ keyId });
+
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_Door_%02d", static_cast<int>(keyId));
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreateLockedDoor id=" << entity
+             << " keyId=" << (int)keyId
+             << " pos=(" << position.x << "," << position.y << "," << position.z
+             << ") half=(" << halfExtents.x << "," << halfExtents.y << "," << halfExtents.z << ")");
 
     return entity;
 }

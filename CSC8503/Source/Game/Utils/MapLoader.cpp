@@ -15,6 +15,7 @@
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/MapPointsLoader.h"
 #include "Game/Utils/EnemySpawnLoader.h"
+#include "Game/Utils/DoorKeyLoader.h"
 #include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Utils/Log.h"
 
@@ -165,6 +166,37 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
             }
             LOG_INFO("[MapLoader] Spawned " << enemyData.spawns.size()
                      << " enemies with patrol routes.");
+        }
+    }
+
+    // ── Step 8: Doors & keys from .doors ────────────────────────────
+    if (config.doorKeys[0] != '\0') {
+        auto doorData = LoadDoorKeys(NCL::Assets::MESHDIR + config.doorKeys);
+        if (doorData.loaded) {
+            for (int i = 0; i < static_cast<int>(doorData.doors.size()); ++i) {
+                const auto& d = doorData.doors[i];
+                Vector3 doorPos(
+                    d.position.x * scale,
+                    d.position.y * scale + worldY,
+                    d.position.z * scale);
+                Vector3 halfExtents(
+                    d.scale.x * 0.5f * scale,
+                    d.scale.y * 0.5f * scale,
+                    d.scale.z * 0.5f * scale);
+                PrefabFactory::CreateLockedDoor(reg, cubeMesh, d.keyId, doorPos, halfExtents);
+            }
+            for (int i = 0; i < static_cast<int>(doorData.keys.size()); ++i) {
+                const auto& k = doorData.keys[i];
+                Vector3 keyPos(
+                    k.position.x * scale,
+                    k.position.y * scale + worldY,
+                    k.position.z * scale);
+                PrefabFactory::CreateKeyCard(reg, cubeMesh, k.keyId, keyPos);
+            }
+            LOG_INFO("[MapLoader] Loaded " << doorData.doors.size() << " doors, "
+                     << doorData.keys.size() << " keys.");
+        } else {
+            LOG_WARN("[MapLoader] .doors file configured but failed to load: " << config.doorKeys);
         }
     }
 

@@ -1,0 +1,16 @@
+# Unity Door & Key Export (Right-Handed)
+# Root Space: Lab
+doorCount 1
+keyCount 1
+
+door 0
+name Door
+position 12.666670 1.840000 -18.286670
+scale 0.666667 2.666667 3.466667
+keyId 3
+
+key 0
+name Key
+position -2.666667 1.840000 -12.666670
+keyId 3
+
