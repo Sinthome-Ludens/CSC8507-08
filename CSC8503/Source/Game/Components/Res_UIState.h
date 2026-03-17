@@ -41,6 +41,7 @@ enum class UIScreen : uint8_t {
     Team,
     Loading,
     Lobby,
+    Victory,     ///< 战役通关画面
 };
 
 enum class SceneRequest : uint8_t {
