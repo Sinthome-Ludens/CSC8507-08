@@ -98,7 +98,10 @@ void Scene_HangerB::OnEnter(ECS::Registry&          registry,
     }
 
     MapLoadConfig mapConfig{};
-    ECS::PrefabLoader::LoadMapConfig("Prefab_Map_HangerB.json", mapConfig);
+    if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_HangerB.json", mapConfig)) {
+        LOG_ERROR("[Scene_HangerB] Failed to load map config from Prefab_Map_HangerB.json");
+        return;
+    }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
 

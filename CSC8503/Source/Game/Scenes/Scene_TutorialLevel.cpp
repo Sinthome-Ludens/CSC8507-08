@@ -100,7 +100,10 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     }
 
     MapLoadConfig mapConfig{};
-    ECS::PrefabLoader::LoadMapConfig("Prefab_Map_TutorialLevel.json", mapConfig);
+    if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_TutorialLevel.json", mapConfig)) {
+        LOG_ERROR("[Scene_TutorialLevel] Failed to load map config from Prefab_Map_TutorialLevel.json");
+        return;
+    }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
 

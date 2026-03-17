@@ -85,6 +85,7 @@ static void ReadVec3(const json& j, const char* key, Vector3& out) {
     if (!j.contains(key)) return;
     auto& arr = j[key];
     if (!arr.is_array() || arr.size() < 3) return;
+    if (!arr[0].is_number() || !arr[1].is_number() || !arr[2].is_number()) return;
     out.x = arr[0].get<float>();
     out.y = arr[1].get<float>();
     out.z = arr[2].get<float>();
@@ -97,6 +98,7 @@ static void ReadVec4(const json& j, const char* key, Vector4& out) {
     if (!j.contains(key)) return;
     auto& arr = j[key];
     if (!arr.is_array() || arr.size() < 4) return;
+    if (!arr[0].is_number() || !arr[1].is_number() || !arr[2].is_number() || !arr[3].is_number()) return;
     out.x = arr[0].get<float>();
     out.y = arr[1].get<float>();
     out.z = arr[2].get<float>();
@@ -107,15 +109,19 @@ static void ReadVec4(const json& j, const char* key, Vector4& out) {
  * ReadRigidBody — 从 "C_D_RigidBody" JSON 对象填充 C_D_RigidBody
  * ================================================================ */
 static void ReadRigidBody(const json& j, C_D_RigidBody& rb) {
-    if (j.contains("mass"))            rb.mass            = j["mass"].get<float>();
-    if (j.contains("linear_damping"))  rb.linear_damping  = j["linear_damping"].get<float>();
-    if (j.contains("angular_damping")) rb.angular_damping = j["angular_damping"].get<float>();
-    if (j.contains("gravity_factor"))  rb.gravity_factor  = j["gravity_factor"].get<float>();
-    if (j.contains("is_static"))       rb.is_static       = j["is_static"].get<bool>();
-    if (j.contains("is_kinematic"))    rb.is_kinematic    = j["is_kinematic"].get<bool>();
-    if (j.contains("lock_rotation_x")) rb.lock_rotation_x = j["lock_rotation_x"].get<bool>();
-    if (j.contains("lock_rotation_y")) rb.lock_rotation_y = j["lock_rotation_y"].get<bool>();
-    if (j.contains("lock_rotation_z")) rb.lock_rotation_z = j["lock_rotation_z"].get<bool>();
+    try {
+        if (j.contains("mass")            && j["mass"].is_number())            rb.mass            = j["mass"].get<float>();
+        if (j.contains("linear_damping")  && j["linear_damping"].is_number())  rb.linear_damping  = j["linear_damping"].get<float>();
+        if (j.contains("angular_damping") && j["angular_damping"].is_number()) rb.angular_damping = j["angular_damping"].get<float>();
+        if (j.contains("gravity_factor")  && j["gravity_factor"].is_number())  rb.gravity_factor  = j["gravity_factor"].get<float>();
+        if (j.contains("is_static")       && j["is_static"].is_boolean())      rb.is_static       = j["is_static"].get<bool>();
+        if (j.contains("is_kinematic")    && j["is_kinematic"].is_boolean())   rb.is_kinematic    = j["is_kinematic"].get<bool>();
+        if (j.contains("lock_rotation_x") && j["lock_rotation_x"].is_boolean()) rb.lock_rotation_x = j["lock_rotation_x"].get<bool>();
+        if (j.contains("lock_rotation_y") && j["lock_rotation_y"].is_boolean()) rb.lock_rotation_y = j["lock_rotation_y"].get<bool>();
+        if (j.contains("lock_rotation_z") && j["lock_rotation_z"].is_boolean()) rb.lock_rotation_z = j["lock_rotation_z"].get<bool>();
+    } catch (const json::exception& e) {
+        LOG_WARN("[PrefabLoader] ReadRigidBody type error: " << e.what());
+    }
 }
 
 /* ================================================================
@@ -126,47 +132,55 @@ static void ReadRigidBody(const json& j, C_D_RigidBody& rb) {
  * Box/Sphere 使用 "half_x", "half_y", "half_z"。
  * ================================================================ */
 static void ReadCollider(const json& j, C_D_Collider& col) {
-    if (j.contains("type")) {
-        std::string t = j["type"].get<std::string>();
-        if      (t == "Box")     col.type = ColliderType::Box;
-        else if (t == "Sphere")  col.type = ColliderType::Sphere;
-        else if (t == "Capsule") col.type = ColliderType::Capsule;
-        else if (t == "TriMesh") col.type = ColliderType::TriMesh;
-    }
+    try {
+        if (j.contains("type") && j["type"].is_string()) {
+            std::string t = j["type"].get<std::string>();
+            if      (t == "Box")     col.type = ColliderType::Box;
+            else if (t == "Sphere")  col.type = ColliderType::Sphere;
+            else if (t == "Capsule") col.type = ColliderType::Capsule;
+            else if (t == "TriMesh") col.type = ColliderType::TriMesh;
+        }
 
-    if (col.type == ColliderType::Capsule) {
-        if (j.contains("radius"))      col.half_x = j["radius"].get<float>();
-        if (j.contains("half_height")) col.half_y = j["half_height"].get<float>();
-    }
-    else {
-        if (j.contains("half_x")) col.half_x = j["half_x"].get<float>();
-        if (j.contains("half_y")) col.half_y = j["half_y"].get<float>();
-        if (j.contains("half_z")) col.half_z = j["half_z"].get<float>();
-    }
+        if (col.type == ColliderType::Capsule) {
+            if (j.contains("radius")      && j["radius"].is_number())      col.half_x = j["radius"].get<float>();
+            if (j.contains("half_height") && j["half_height"].is_number()) col.half_y = j["half_height"].get<float>();
+        }
+        else {
+            if (j.contains("half_x") && j["half_x"].is_number()) col.half_x = j["half_x"].get<float>();
+            if (j.contains("half_y") && j["half_y"].is_number()) col.half_y = j["half_y"].get<float>();
+            if (j.contains("half_z") && j["half_z"].is_number()) col.half_z = j["half_z"].get<float>();
+        }
 
-    if (j.contains("friction"))    col.friction    = j["friction"].get<float>();
-    if (j.contains("restitution")) col.restitution = j["restitution"].get<float>();
-    if (j.contains("is_trigger"))  col.is_trigger  = j["is_trigger"].get<bool>();
+        if (j.contains("friction")    && j["friction"].is_number())   col.friction    = j["friction"].get<float>();
+        if (j.contains("restitution") && j["restitution"].is_number()) col.restitution = j["restitution"].get<float>();
+        if (j.contains("is_trigger")  && j["is_trigger"].is_boolean()) col.is_trigger  = j["is_trigger"].get<bool>();
+    } catch (const json::exception& e) {
+        LOG_WARN("[PrefabLoader] ReadCollider type error: " << e.what());
+    }
 }
 
 /* ================================================================
  * ReadCamera — 从 "C_D_Camera" JSON 对象填充 C_D_Camera
  * ================================================================ */
 static void ReadCamera(const json& j, C_D_Camera& cam) {
-    if (j.contains("fov"))         cam.fov         = j["fov"].get<float>();
-    if (j.contains("near_z"))      cam.near_z      = j["near_z"].get<float>();
-    if (j.contains("far_z"))       cam.far_z       = j["far_z"].get<float>();
-    if (j.contains("pitch"))       cam.pitch       = j["pitch"].get<float>();
-    if (j.contains("yaw"))         cam.yaw         = j["yaw"].get<float>();
-    if (j.contains("move_speed"))  cam.move_speed  = j["move_speed"].get<float>();
-    if (j.contains("sensitivity")) cam.sensitivity = j["sensitivity"].get<float>();
+    try {
+        if (j.contains("fov")         && j["fov"].is_number())         cam.fov         = j["fov"].get<float>();
+        if (j.contains("near_z")      && j["near_z"].is_number())      cam.near_z      = j["near_z"].get<float>();
+        if (j.contains("far_z")       && j["far_z"].is_number())       cam.far_z       = j["far_z"].get<float>();
+        if (j.contains("pitch")       && j["pitch"].is_number())       cam.pitch       = j["pitch"].get<float>();
+        if (j.contains("yaw")         && j["yaw"].is_number())         cam.yaw         = j["yaw"].get<float>();
+        if (j.contains("move_speed")  && j["move_speed"].is_number())  cam.move_speed  = j["move_speed"].get<float>();
+        if (j.contains("sensitivity") && j["sensitivity"].is_number()) cam.sensitivity = j["sensitivity"].get<float>();
+    } catch (const json::exception& e) {
+        LOG_WARN("[PrefabLoader] ReadCamera type error: " << e.what());
+    }
 }
 
 /* ================================================================
  * GetComponents — 辅助：从 JSON 根对象获取 "Components" 子对象
  * ================================================================ */
 static const json* GetComponents(const json& root) {
-    if (!root.contains("Components")) return nullptr;
+    if (!root.contains("Components") || !root["Components"].is_object()) return nullptr;
     return &root["Components"];
 }
 
@@ -369,6 +383,11 @@ static void ReadEnemyCommon(const json& comps, PrefabEnemyDefaults& out) {
  * LoadPhysicsEnemyDefaults — Prefab_Physics_Enemy.json
  * ================================================================ */
 bool LoadPhysicsEnemyDefaults(PrefabEnemyDefaults& out) {
+    // Physics Enemy 默认碰撞体：Capsule(radius=0.5, halfHeight=1.0)
+    out.col.type   = ColliderType::Capsule;
+    out.col.half_x = 0.5f;   // radius
+    out.col.half_y = 1.0f;   // half_height
+
     const json* doc = LoadJSON("Prefab_Physics_Enemy.json");
     if (!doc) return false;
 
@@ -385,6 +404,12 @@ bool LoadPhysicsEnemyDefaults(PrefabEnemyDefaults& out) {
  * LoadNavEnemyDefaults — Prefab_Nav_Enemy.json
  * ================================================================ */
 bool LoadNavEnemyDefaults(PrefabEnemyDefaults& out) {
+    // Nav Enemy 默认碰撞体：Box(1.0, 1.0, 1.0)
+    out.col.type   = ColliderType::Box;
+    out.col.half_x = 1.0f;
+    out.col.half_y = 1.0f;
+    out.col.half_z = 1.0f;
+
     const json* doc = LoadJSON("Prefab_Nav_Enemy.json");
     if (!doc) return false;
 

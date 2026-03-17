@@ -98,7 +98,10 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     }
 
     MapLoadConfig mapConfig{};
-    ECS::PrefabLoader::LoadMapConfig("Prefab_Map_Dock.json", mapConfig);
+    if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_Dock.json", mapConfig)) {
+        LOG_ERROR("[Scene_Dock] Failed to load map config from Prefab_Map_Dock.json");
+        return;
+    }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
 

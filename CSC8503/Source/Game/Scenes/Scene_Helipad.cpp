@@ -98,7 +98,10 @@ void Scene_Helipad::OnEnter(ECS::Registry&          registry,
     }
 
     MapLoadConfig mapConfig{};
-    ECS::PrefabLoader::LoadMapConfig("Prefab_Map_Helipad.json", mapConfig);
+    if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_Helipad.json", mapConfig)) {
+        LOG_ERROR("[Scene_Helipad] Failed to load map config from Prefab_Map_Helipad.json");
+        return;
+    }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
 

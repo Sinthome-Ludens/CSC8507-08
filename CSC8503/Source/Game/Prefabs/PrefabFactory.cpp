@@ -509,7 +509,7 @@ EntityID PrefabFactory::CreateInvisibleWall(
     Quaternion  rotation)
 {
     /*
-     * Load JSON defaults from Prefab_InvisibleWall.json.
+     * Load JSON defaults from Prefab_Env_InvisibleWall.json.
      * Position, halfExtents, rotation come from function parameters.
      * Friction and restitution come from the loaded defaults.
      */
@@ -879,7 +879,7 @@ EntityID PrefabFactory::CreateDeathZone(
     Vector3     halfExtents)
 {
     /*
-     * Load JSON defaults from Prefab_DeathZone.json.
+     * Load JSON defaults from Prefab_Env_DeathZone.json.
      * Position and halfExtents come from function parameters.
      * Friction, restitution, and is_trigger come from the loaded defaults.
      */

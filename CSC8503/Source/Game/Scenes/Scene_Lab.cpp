@@ -98,7 +98,10 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
     }
 
     MapLoadConfig mapConfig{};
-    ECS::PrefabLoader::LoadMapConfig("Prefab_Map_Lab.json", mapConfig);
+    if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_Lab.json", mapConfig)) {
+        LOG_ERROR("[Scene_Lab] Failed to load map config from Prefab_Map_Lab.json");
+        return;
+    }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
 
