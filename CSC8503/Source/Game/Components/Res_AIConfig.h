@@ -7,7 +7,7 @@
  *
  * 使用方式：
  *   - 场景 OnEnter 中 registry.ctx_emplace<Res_AIConfig>(Res_AIConfig{});
- *   - 场景 OnLeave 中 registry.ctx_erase<Res_AIConfig>();
+ *   - 场景 OnExit 中 registry.ctx_erase<Res_AIConfig>();
  *   - Sys_EnemyAI::OnUpdate 中 registry.ctx<Res_AIConfig>() 读取
  */
 #pragma once

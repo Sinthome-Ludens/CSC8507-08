@@ -181,7 +181,7 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
     }
 
     float speed = agent.speed;
-    if (!isLastWaypoint && dist < agent.corner_decel_range) {
+    if (!isLastWaypoint && agent.corner_decel_range > 0.001f && dist < agent.corner_decel_range) {
         speed *= std::max(0.4f, dist / agent.corner_decel_range);
     }
 

@@ -151,11 +151,13 @@ void Sys_EnemyAI::OnUpdate(Registry& registry, float dt) {
             const auto& etf = registry.Get<C_D_Transform>(entity);
             float dx = playerPos.x - etf.position.x;
             float dz = playerPos.z - etf.position.z;
-            if (dx * dx + dz * dz < contactDistSq) {
+            float contactDistSqActual = dx * dx + dz * dz;
+            if (contactDistSqActual < contactDistSq) {
                 if (detect.detection_value < detect.alert_threshold) {
                     detect.detection_value = detect.alert_threshold;
                 }
                 detect.is_spotted = true;
+                detect.spotted_distance = std::sqrt(contactDistSqActual);
             }
         }
 
