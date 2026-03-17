@@ -31,8 +31,9 @@ struct C_D_NavAgent {
     float patrol_speed      = 2.5f;    ///< 巡逻/Alert 速度（= 玩家行走速度的一半）
     float rotation_speed    = 10.0f;  ///< 转向速度（数值越大转得越快）
     bool  smooth_rotation   = true;   ///< 是否开启平滑转向
-    float stopping_distance = 1.0f;
-    float update_frequency  = 0.5f;
+    float stopping_distance     = 1.0f;
+    float update_frequency      = 0.5f;
+    float corner_decel_range    = 1.5f;
     float timer             = 0.0f;
 
     /// 要追踪的目标实体标签（匹配 C_T_NavTarget::target_type）
@@ -49,6 +50,7 @@ struct C_D_NavAgent {
     NCL::Maths::Vector3 alert_snapshot_pos   {0.0f, 0.0f, 0.0f}; ///< 进入 Alert 时的位置快照
     EnemyState          prev_state = EnemyState::Safe;             ///< 上一帧 AI 状态（检测首次进入 Alert）
     bool                has_last_known_pos = false;                ///< 是否已记录过有效目标位置
+    bool                search_arrived     = false;                ///< Search 状态下是否已到达调查点
 };
 
 } // namespace ECS

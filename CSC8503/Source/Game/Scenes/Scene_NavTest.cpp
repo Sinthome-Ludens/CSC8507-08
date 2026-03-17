@@ -15,6 +15,7 @@
 #include "Game/Systems/Sys_DeathEffect.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_VisionConfig.h"
+#include "Game/Components/Res_AIConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Input.h"
@@ -74,6 +75,10 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     // 视野检测配置资源（数据驱动）
     if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
         registry.ctx_emplace<ECS::Res_VisionConfig>(ECS::Res_VisionConfig{});
+    }
+
+    if (!registry.has_ctx<ECS::Res_AIConfig>()) {
+        registry.ctx_emplace<ECS::Res_AIConfig>(ECS::Res_AIConfig{});
     }
 
     // 无条件重置：场景重进时 DestroyAll 已销毁旧实体，ctx 中残留的实体 ID 列表
@@ -163,6 +168,7 @@ void Scene_NavTest::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<Res_NavTestState>())          registry.ctx_erase<Res_NavTestState>();
     if (registry.has_ctx<ECS::Res_DeathConfig>())     registry.ctx_erase<ECS::Res_DeathConfig>();
     if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
+    if (registry.has_ctx<ECS::Res_AIConfig>())       registry.ctx_erase<ECS::Res_AIConfig>();
 
     registry.Clear();
 

@@ -16,6 +16,7 @@
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_VisionConfig.h"
+#include "Game/Components/Res_AIConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Countdown.h"
@@ -84,6 +85,13 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
         registry.ctx_emplace<ECS::Res_VisionConfig>(ECS::Res_VisionConfig{});
     }
+
+    if (!registry.has_ctx<ECS::Res_AIConfig>()) {
+        registry.ctx_emplace<ECS::Res_AIConfig>(ECS::Res_AIConfig{});
+    }
+
+    // 无条件重置：场景重进时 DestroyAll 已销毁旧实体，ctx 中残留的实体 ID 列表
+    // 若不清空会导致 "Delete Last" 操作访问已失效 ID
     {
         Res_NavTestState navState;
         navState.enemyMeshHandle  = cubeMesh;
@@ -257,6 +265,7 @@ void Scene_TutorialLevel::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_CQCConfig>())       registry.ctx_erase<ECS::Res_CQCConfig>();
     if (registry.has_ctx<ECS::Res_DeathConfig>())     registry.ctx_erase<ECS::Res_DeathConfig>();
     if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
+    if (registry.has_ctx<ECS::Res_AIConfig>())       registry.ctx_erase<ECS::Res_AIConfig>();
     if (registry.has_ctx<ECS::Res_ItemInventory2>())  registry.ctx_erase<ECS::Res_ItemInventory2>();
     if (registry.has_ctx<ECS::Res_RadarState>())      registry.ctx_erase<ECS::Res_RadarState>();
     if (registry.has_ctx<ECS::Res_GameState>())       registry.ctx_erase<ECS::Res_GameState>();
