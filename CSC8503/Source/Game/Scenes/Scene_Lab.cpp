@@ -16,6 +16,7 @@
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_VisionConfig.h"
+#include "Game/Components/Res_AIConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Countdown.h"
@@ -83,6 +84,11 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
     if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
         registry.ctx_emplace<ECS::Res_VisionConfig>(ECS::Res_VisionConfig{});
     }
+
+    if (!registry.has_ctx<ECS::Res_AIConfig>()) {
+        registry.ctx_emplace<ECS::Res_AIConfig>(ECS::Res_AIConfig{});
+    }
+
     {
         Res_NavTestState navState;
         navState.enemyMeshHandle  = cubeMesh;
@@ -254,6 +260,7 @@ void Scene_Lab::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_CQCConfig>())       registry.ctx_erase<ECS::Res_CQCConfig>();
     if (registry.has_ctx<ECS::Res_DeathConfig>())     registry.ctx_erase<ECS::Res_DeathConfig>();
     if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
+    if (registry.has_ctx<ECS::Res_AIConfig>())        registry.ctx_erase<ECS::Res_AIConfig>();
     if (registry.has_ctx<ECS::Res_ItemInventory2>())  registry.ctx_erase<ECS::Res_ItemInventory2>();
     if (registry.has_ctx<ECS::Res_RadarState>())      registry.ctx_erase<ECS::Res_RadarState>();
     if (registry.has_ctx<ECS::Res_GameState>())       registry.ctx_erase<ECS::Res_GameState>();

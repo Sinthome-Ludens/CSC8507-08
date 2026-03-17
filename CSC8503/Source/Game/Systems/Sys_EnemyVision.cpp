@@ -103,25 +103,23 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
             }
 
             bool spotted = false;
+            float spottedDistXZ = config.maxDistance;
 
             for (int i = 0; i < playerCount; ++i) {
                 const auto& player = players[i];
 
-                // A. XZ 平面距离
                 float dx = player.position.x - enemyTf.position.x;
                 float dz = player.position.z - enemyTf.position.z;
                 float distXZ = std::sqrt(dx * dx + dz * dz);
 
                 if (distXZ > config.maxDistance) continue;
 
-                // B. 可见度门槛（在所有视野判定之前，含重叠位置）
                 if (player.visibilityFactor < config.visibilityMin) continue;
 
-                // 重叠位置直接判定为发现
                 if (distXZ < 0.001f) {
                     spotted = true;
+                    spottedDistXZ = 0.0f;
                 } else if (hasFwd) {
-                    // 扇形视锥检测（仅正向 FOV）
                     float tpx = dx / distXZ;
                     float tpz = dz / distXZ;
                     float dotVal = efx * tpx + efz * tpz;
@@ -130,7 +128,6 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
                     spotted = true;
                 }
 
-                // E. 遮挡检测（射线忽略敌人和玩家自身碰撞体）
                 if (spotted && physics) {
                     float rayOx = enemyTf.position.x;
                     float rayOy = enemyTf.position.y + config.rayOriginHeight;
@@ -151,16 +148,21 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
                             rayDx, rayDy, rayDz, rayDist,
                             enemyId, player.id);
                         if (hit.hit) {
-                            // 命中墙壁/障碍物 = 有遮挡
                             spotted = false;
                         }
                     }
                 }
 
-                if (spotted) break;
+                if (spotted) {
+                    spottedDistXZ = distXZ;
+                    break;
+                }
             }
 
             perception.is_spotted = spotted;
+            if (spotted) {
+                perception.spotted_distance = spottedDistXZ;
+            }
 
 #ifdef USE_IMGUI
             // FOV 可视化：仅线框模式下画扇形视锥轮廓
