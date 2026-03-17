@@ -1,0 +1,35 @@
+{
+  "PrefabID": "PREFAB_MAP_DOCK",
+  "Name": "Map_Dock",
+  "Description": "Dock level map Prefab. C_D_MapConfig stores all resource paths; MapLoader creates entities at runtime.",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, -6.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle": "Dock.obj",
+      "materialHandle": 0
+    },
+    "C_D_Material": { "shadingModel": "BlinnPhong" },
+    "C_D_RigidBody": { "is_static": true },
+    "C_D_Collider": {
+      "type": "TriMesh",
+      "friction": 0.5, "restitution": 0.0,
+      "_note": "triVerts/triIndices populated by MapLoader from collisionMesh"
+    },
+    "C_D_MapConfig": {
+      "renderMesh":    "Dock.obj",
+      "collisionMesh": "Dock_collision.obj",
+      "navmesh":       "Dock.navmesh",
+      "finishMesh":    "Dock_finish.obj",
+      "startPoints":   "Dock.startpoints",
+      "enemySpawns":   "Dock.enemyspawns",
+      "mapScale":      1.0,
+      "yOffset":       -6.0,
+      "flipWinding":   true
+    },
+    "C_D_DebugName": { "name": "ENTITY_Env_StaticMap" }
+  }
+}

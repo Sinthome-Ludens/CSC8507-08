@@ -27,7 +27,6 @@
 #include "Game/Components/C_D_Material.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_Collider.h"
-#include "Game/Components/C_D_TriMeshCollider.h"
 #include "Game/Components/C_T_Player.h"
 #include "Game/Components/C_T_InvisibleWall.h"
 #include "Game/Components/C_D_PlayerState.h"
@@ -45,10 +44,12 @@
 #include "Game/Components/C_T_NavTarget.h"
 #include "Game/Components/C_T_TriggerZone.h"
 #include "Game/Components/C_T_FinishZone.h"
+#include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Utils/Log.h"
 
 #include <cstring>
 #include <cstdio>
+#include <cmath>
 
 using namespace NCL::Maths;
 using namespace ECS;
@@ -204,7 +205,68 @@ EntityID PrefabFactory::CreateStaticMap(Registry& reg, ECS::MeshHandle mapMesh, 
 }
 
 // ============================================================
-// CreateStaticMapRenderOnly  →  PREFAB_ENV_MAP_RENDER_ONLY
+// CreateStaticMapEntity  →  PREFAB_ENV_STATIC_MAP
+// ============================================================
+/**
+ * @brief Single-entity static map: render mesh + TriMesh collision in one entity.
+ *
+ * Collision vertices must be pre-scaled and winding-corrected by the caller.
+ * The entity's Transform uses worldOffset for position, scale for uniform scaling.
+ * Render mesh uses *.obj (correct face normals), collision uses _collision.obj geometry.
+ */
+EntityID PrefabFactory::CreateStaticMapEntity(
+    Registry&                               reg,
+    ECS::MeshHandle                         renderMesh,
+    const std::vector<NCL::Maths::Vector3>& collVerts,
+    const std::vector<int>&                 collIndices,
+    Vector3                                 worldOffset,
+    float                                   scale)
+{
+    if (collVerts.empty() || collIndices.empty() || collIndices.size() % 3 != 0) {
+        LOG_WARN("[PrefabFactory] CreateStaticMapEntity: invalid collision geometry (verts="
+                 << collVerts.size() << " idx=" << collIndices.size() << "), skipping.");
+        return ECS::Entity::NULL_ENTITY;
+    }
+
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        worldOffset,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(scale, scale, scale)
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        renderMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    reg.Emplace<C_D_Material>(entity);
+
+    C_D_RigidBody rb{};
+    rb.is_static = true;
+    reg.Emplace<C_D_RigidBody>(entity, rb);
+
+    C_D_Collider col{};
+    col.type        = ColliderType::TriMesh;
+    col.triVerts    = collVerts;
+    col.triIndices  = collIndices;
+    col.friction    = 0.5f;
+    col.restitution = 0.0f;
+    reg.Emplace<C_D_Collider>(entity, std::move(col));
+
+    AttachDebugName(reg, entity, "ENTITY_Env_StaticMap");
+
+    LOG_INFO("[PrefabFactory] CreateStaticMapEntity id=" << entity
+             << " verts=" << collVerts.size()
+             << " tris=" << (collIndices.size() / 3)
+             << " scale=" << scale);
+
+    return entity;
+}
+
+// ============================================================
+// CreateStaticMapRenderOnly  →  PREFAB_ENV_MAP_RENDER_ONLY (deprecated)
 // ============================================================
 /**
  * @brief 创建纯渲染地图实体（碰撞由 NavMeshFloor 承担）。
@@ -287,14 +349,15 @@ EntityID PrefabFactory::CreateFinishZoneMesh(
     rb.is_static = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    // C_D_TriMeshCollider（三角网格触发器）
-    C_D_TriMeshCollider tri{};
-    tri.vertices    = collisionVerts;
-    tri.indices     = collisionIndices;
-    tri.friction    = 0.0f;
-    tri.restitution = 0.0f;
-    tri.is_trigger  = true;
-    reg.Emplace<C_D_TriMeshCollider>(entity, std::move(tri));
+    // C_D_Collider（TriMesh 三角网格触发器）
+    C_D_Collider col{};
+    col.type        = ColliderType::TriMesh;
+    col.triVerts    = collisionVerts;
+    col.triIndices  = collisionIndices;
+    col.friction    = 0.0f;
+    col.restitution = 0.0f;
+    col.is_trigger  = true;
+    reg.Emplace<C_D_Collider>(entity, std::move(col));
 
     // C_T_TriggerZone + C_T_FinishZone 标签（供 Sys_LevelGoal 检测终点到达）
     reg.Emplace<C_T_TriggerZone>(entity);
@@ -312,6 +375,70 @@ EntityID PrefabFactory::CreateFinishZoneMesh(
              << " tris=" << (collisionIndices.size() / 3)
              << " offset=(" << worldOffset.x << "," << worldOffset.y << "," << worldOffset.z << ")");
 
+    return entity;
+}
+
+// ============================================================
+// CreateFinishZoneRender  →  PREFAB_ENV_FINISH_ZONE_RENDER
+// ============================================================
+/**
+ * @brief Render-only finish zone entity (red material, no collider).
+ *
+ * Placed at worldOffset with uniform scale; the OBJ vertices carry the
+ * local-space position of the finish area.
+ */
+EntityID PrefabFactory::CreateFinishZoneRender(
+    Registry&       reg,
+    ECS::MeshHandle finishMesh,
+    Vector3         worldOffset,
+    float           scale)
+{
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        worldOffset,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(scale, scale, scale));
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        finishMesh, static_cast<uint32_t>(0));
+
+    C_D_Material mat{};
+    mat.baseColour = Vector4(1.0f, 0.0f, 0.0f, 1.0f);
+    reg.Emplace<C_D_Material>(entity, mat);
+
+    AttachDebugName(reg, entity, "ENTITY_Env_FinishZoneRender");
+
+    LOG_INFO("[PrefabFactory] CreateFinishZoneRender id=" << entity);
+    return entity;
+}
+
+// ============================================================
+// CreateFinishZoneDetect  →  PREFAB_ENV_FINISH_ZONE_DETECT
+// ============================================================
+/**
+ * @brief Invisible detection entity at the OBJ geometric center (world space).
+ *
+ * Sys_LevelGoal uses distance to this entity's C_T_FinishZone tag to determine
+ * whether the player has reached the goal.
+ */
+EntityID PrefabFactory::CreateFinishZoneDetect(
+    Registry& reg,
+    Vector3   detectPos)
+{
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        detectPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f));
+
+    reg.Emplace<C_T_FinishZone>(entity);
+
+    AttachDebugName(reg, entity, "ENTITY_Env_FinishZoneDetect");
+
+    LOG_INFO("[PrefabFactory] CreateFinishZoneDetect id=" << entity
+             << " pos=(" << detectPos.x << "," << detectPos.y << "," << detectPos.z << ")");
     return entity;
 }
 
@@ -372,6 +499,9 @@ EntityID PrefabFactory::CreatePlayer(
 
     // C_D_Health（生命值）
     reg.Emplace<ECS::C_D_Health>(entity, ECS::C_D_Health{});
+
+    // C_T_NavTarget（导航目标标签，使 Sys_Navigation 能定位玩家）
+    reg.Emplace<C_T_NavTarget>(entity);
 
     // C_D_DebugName
     AttachDebugName(reg, entity, "ENTITY_Player_Main");
@@ -721,6 +851,43 @@ EntityID PrefabFactory::CreateNavTarget(
 }
 
 // ============================================================
+// AttachPatrolRoute — patrol waypoints + initial facing
+// ============================================================
+/**
+ * @brief Attaches a C_D_PatrolRoute component to an existing enemy entity and
+ * rotates the entity to face the second waypoint (avoids facing a wall on spawn).
+ */
+void PrefabFactory::AttachPatrolRoute(
+    Registry&      reg,
+    EntityID       entity,
+    const Vector3* waypoints,
+    int            count,
+    Vector3        spawnPos)
+{
+    if (count < 2) return;
+
+    auto& patrol = reg.Emplace<C_D_PatrolRoute>(entity);
+    patrol.count = std::min(count, ECS::PATROL_MAX_WAYPOINTS);
+    for (int p = 0; p < patrol.count; ++p) {
+        patrol.waypoints[p] = waypoints[p];
+    }
+    patrol.current_index = 0;
+    patrol.needs_path    = true;
+
+    Vector3 dir = patrol.waypoints[1] - spawnPos;
+    dir.y = 0.0f;
+    float len = sqrtf(dir.x * dir.x + dir.z * dir.z);
+    if (len > 0.01f) {
+        float yaw = atan2f(-dir.x / len, -dir.z / len) * 57.29577f;
+        auto& tf = reg.Get<C_D_Transform>(entity);
+        tf.rotation = Quaternion::EulerAnglesToQuaternion(0, yaw, 0);
+    }
+
+    LOG_INFO("[PrefabFactory] AttachPatrolRoute entity=" << entity
+             << " waypoints=" << patrol.count);
+}
+
+// ============================================================
 // CreateDeathZone  →  PREFAB_ENV_DEATH_ZONE
 // ============================================================
 EntityID PrefabFactory::CreateDeathZone(
@@ -885,13 +1052,14 @@ ECS::EntityID PrefabFactory::CreateNavMeshFloor(
     rb.is_static = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    // C_D_TriMeshCollider（三角网格地板）
-    C_D_TriMeshCollider tri{};
-    tri.vertices    = vertices;
-    tri.indices     = indices;
-    tri.friction    = 0.5f;
-    tri.restitution = 0.0f;
-    reg.Emplace<C_D_TriMeshCollider>(entity, std::move(tri));
+    // C_D_Collider（TriMesh 三角网格地板）
+    C_D_Collider col{};
+    col.type        = ColliderType::TriMesh;
+    col.triVerts    = vertices;
+    col.triIndices  = indices;
+    col.friction    = 0.5f;
+    col.restitution = 0.0f;
+    reg.Emplace<C_D_Collider>(entity, std::move(col));
 
     // C_D_DebugName
     AttachDebugName(reg, entity, "ENTITY_Env_NavMeshFloor");

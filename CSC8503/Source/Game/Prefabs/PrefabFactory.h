@@ -97,7 +97,30 @@ public:
     );
 
     /**
-     * @brief 创建纯渲染地图实体（无 Box 碰撞体，碰撞由 NavMeshFloor 提供）
+     * @brief 创建静态地图实体（PREFAB_ENV_STATIC_MAP）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_D_RigidBody(Static),
+     *       C_D_Collider(TriMesh), C_D_DebugName
+     *
+     * @param reg          ECS Registry
+     * @param renderMesh   渲染用网格句柄（*.obj）
+     * @param collVerts    碰撞 TriMesh 顶点（已缩放 + winding 修正后）
+     * @param collIndices  碰撞 TriMesh 索引
+     * @param worldOffset  世界空间偏移
+     * @param scale        地图缩放系数
+     * @return 地图实体 ID
+     */
+    static ECS::EntityID CreateStaticMapEntity(
+        ECS::Registry&                          reg,
+        ECS::MeshHandle                         renderMesh,
+        const std::vector<NCL::Maths::Vector3>& collVerts,
+        const std::vector<int>&                 collIndices,
+        NCL::Maths::Vector3                     worldOffset,
+        float                                   scale = 1.0f
+    );
+
+    /**
+     * @brief @deprecated 创建纯渲染地图实体（无 Box 碰撞体，碰撞由 NavMeshFloor 提供）
      *
      * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_D_DebugName
      * 不挂载 C_D_RigidBody 和 C_D_Collider — 碰撞完全由 NavMeshFloor TriMesh 承担。
@@ -118,7 +141,7 @@ public:
      * @brief 创建可见终点区域实体（渲染 + TriMesh Trigger 碰撞）
      *
      * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_RigidBody(Static),
-     *       C_D_TriMeshCollider(is_trigger), C_T_TriggerZone, C_D_DebugName
+     *       C_D_Collider(TriMesh, is_trigger), C_T_TriggerZone, C_D_DebugName
      *
      * 碰撞体使用 TriMesh 三角网格，形状与渲染 mesh 完全一致或来自独立碰撞数据。
      * 适用于终点区域等需要精确碰撞触发的场景。
@@ -138,6 +161,38 @@ public:
         const std::vector<int>&                 collisionIndices,
         NCL::Maths::Vector3                     worldOffset,
         float                                   scale = 1.0f
+    );
+
+    /**
+     * @brief 创建终点区域渲染实体（纯视觉，无碰撞）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material(红色), C_D_DebugName
+     *
+     * @param reg         ECS Registry
+     * @param finishMesh  终点区域网格句柄
+     * @param worldOffset 世界空间偏移
+     * @param scale       缩放系数
+     * @return 渲染实体 ID
+     */
+    static ECS::EntityID CreateFinishZoneRender(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     finishMesh,
+        NCL::Maths::Vector3 worldOffset,
+        float               scale = 1.0f
+    );
+
+    /**
+     * @brief 创建终点区域检测实体（不可见，仅供 Sys_LevelGoal 距离检测）
+     *
+     * 挂载：C_D_Transform, C_T_FinishZone, C_D_DebugName
+     *
+     * @param reg       ECS Registry
+     * @param detectPos 检测点世界坐标
+     * @return 检测实体 ID
+     */
+    static ECS::EntityID CreateFinishZoneDetect(
+        ECS::Registry&      reg,
+        NCL::Maths::Vector3 detectPos
     );
 
     // ============================================================
@@ -289,6 +344,30 @@ public:
     );
 
     // ============================================================
+    // 巡逻路线挂载
+    // ============================================================
+
+    /**
+     * @brief 为已创建的敌人实体挂载巡逻路线并设置初始朝向
+     *
+     * 挂载：C_D_PatrolRoute
+     * 修改：C_D_Transform::rotation（面向第二个巡逻路点）
+     *
+     * @param reg        ECS Registry
+     * @param entity     目标敌人实体
+     * @param waypoints  世界空间巡逻路点数组
+     * @param count      有效路点数量
+     * @param spawnPos   敌人生成位置（用于计算初始朝向）
+     */
+    static void AttachPatrolRoute(
+        ECS::Registry&             reg,
+        ECS::EntityID              entity,
+        const NCL::Maths::Vector3* waypoints,
+        int                        count,
+        NCL::Maths::Vector3        spawnPos
+    );
+
+    // ============================================================
     // 死亡区域
     // ============================================================
 
@@ -338,10 +417,9 @@ public:
     // ============================================================
 
     /**
-     * @brief 从 NavMesh 可行走三角形创建静态地板碰撞体（PREFAB_ENV_NAVMESH_FLOOR）
+     * @brief @deprecated 从 NavMesh 可行走三角形创建静态地板碰撞体（PREFAB_ENV_NAVMESH_FLOOR）
      *
-     * 挂载：C_D_Transform, C_D_RigidBody(Static), C_D_TriMeshCollider, C_D_DebugName
-     * 不挂载 C_D_Collider（使用 TriMesh 路径）。
+     * 挂载：C_D_Transform, C_D_RigidBody(Static), C_D_Collider(TriMesh), C_D_DebugName
      *
      * 适用于多层地图（HangerA/HangerB/Lab 等），为斜坡和上层平台提供精确物理支撑。
      * 顶点坐标应为 NavMesh 局部空间（已 ScaleVertices），worldOffset 提供 Y 偏移对齐。

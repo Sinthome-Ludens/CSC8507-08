@@ -143,20 +143,11 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
 void ECS::Sys_Physics::OnUpdate(Registry& registry, float dt) {
     if (!m_PhysicsSystem) return;
 
-    // 1. 检测并创建新实体的 Jolt Body（标准碰撞体）
+    // 1. 检测并创建新实体的 Jolt Body（标准碰撞体 + TriMesh）
     registry.view<C_D_Transform, C_D_RigidBody, C_D_Collider>().each(
         [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb, C_D_Collider& col) {
             if (!rb.body_created) {
                 CreateBodyForEntity(registry, id, tf, rb, col);
-            }
-        }
-    );
-
-    // 1b. 检测并创建三角网格碰撞体（用于多层地图地板/斜坡）
-    registry.view<C_D_Transform, C_D_RigidBody, C_D_TriMeshCollider>().each(
-        [&](EntityID id, C_D_Transform& tf, C_D_RigidBody& rb, C_D_TriMeshCollider& tri) {
-            if (!rb.body_created) {
-                CreateTriMeshBodyForEntity(registry, id, tf, rb, tri);
             }
         }
     );
@@ -291,6 +282,36 @@ void ECS::Sys_Physics::CreateBodyForEntity(
             shapeResult = JPH::CapsuleShapeSettings(col.half_y, col.half_x).Create();
             break;
         }
+        case ColliderType::TriMesh: {
+            // TriMesh: 从 C_D_Collider 的 triVerts/triIndices 构建 Jolt MeshShape
+            if (col.triVerts.empty() || col.triIndices.empty()) {
+                LOG_WARN("[Sys_Physics] CreateBodyForEntity(TriMesh): empty geometry for entity " << id);
+                rb.body_created = true;  // 防止每帧重复触发
+                return;
+            }
+            const int triCount = static_cast<int>(col.triIndices.size()) / 3;
+            if (triCount == 0) return;
+
+            JPH::VertexList joltVerts;
+            joltVerts.reserve(col.triVerts.size());
+            for (const auto& v : col.triVerts) {
+                joltVerts.push_back(JPH::Float3(v.x, v.y, v.z));
+            }
+
+            JPH::IndexedTriangleList joltTris;
+            joltTris.reserve(triCount);
+            for (int i = 0; i < triCount; ++i) {
+                joltTris.push_back(JPH::IndexedTriangle(
+                    static_cast<uint32_t>(col.triIndices[i*3 + 0]),
+                    static_cast<uint32_t>(col.triIndices[i*3 + 1]),
+                    static_cast<uint32_t>(col.triIndices[i*3 + 2]),
+                    0));
+            }
+
+            JPH::MeshShapeSettings meshSettings(joltVerts, joltTris);
+            shapeResult = meshSettings.Create();
+            break;
+        }
     }
 
     if (shapeResult.HasError()) {
@@ -316,7 +337,9 @@ void ECS::Sys_Physics::CreateBodyForEntity(
     JPH::BodyCreationSettings bcs(
         shapeResult.Get(),
         JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
-        JPH::Quat(tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w),
+        (col.type == ColliderType::TriMesh)
+            ? JPH::Quat::sIdentity()
+            : JPH::Quat(tf.rotation.x, tf.rotation.y, tf.rotation.z, tf.rotation.w),
         motionType,
         layer
     );
@@ -366,91 +389,12 @@ void ECS::Sys_Physics::CreateBodyForEntity(
     rb.body_created  = true;
     m_BodyToEntity[rawID] = id;
     m_EntityToBody[id]    = rawID;
-}
 
-// ============================================================
-// CreateTriMeshBodyForEntity — Jolt MeshShape（多层地图地板）
-// ============================================================
-/**
- * @brief 从 C_D_TriMeshCollider 数据创建 Jolt 静态 MeshShape 刚体。
- *
- * 仅用于静态地板/斜坡实体（is_static=true）。与 CreateBodyForEntity 的区别：
- * 使用 JPH::MeshShapeSettings 而非 Box/Sphere/Capsule，支持任意三角网格。
- *
- * @param reg  ECS Registry
- * @param id   目标实体 ID
- * @param tf   实体 Transform（提供世界偏移）
- * @param rb   RigidBody 组件（设置 body_created 标志）
- * @param tri  TriMeshCollider 组件（顶点 + 索引，必须非空且索引数为 3 的倍数）
- */
-void ECS::Sys_Physics::CreateTriMeshBodyForEntity(
-    Registry& reg, EntityID id,
-    C_D_Transform& tf, C_D_RigidBody& rb, C_D_TriMeshCollider& tri)
-{
-    if (tri.vertices.empty() || tri.indices.empty()) {
-        LOG_WARN("[Sys_Physics] CreateTriMeshBodyForEntity: empty geometry for entity " << id);
-        rb.body_created = true;  // 防止每帧重复触发
-        return;
+    if (col.type == ColliderType::TriMesh) {
+        LOG_INFO("[Sys_Physics] TriMesh body created: entity=" << id
+                 << " tris=" << (col.triIndices.size() / 3)
+                 << " pos=(" << tf.position.x << "," << tf.position.y << "," << tf.position.z << ")");
     }
-    const int triCount = static_cast<int>(tri.indices.size()) / 3;
-    if (triCount == 0) return;
-
-    auto& bi = m_PhysicsSystem->GetBodyInterface();
-
-    // 构建 Jolt 顶点列表
-    JPH::VertexList joltVerts;
-    joltVerts.reserve(tri.vertices.size());
-    for (const auto& v : tri.vertices) {
-        joltVerts.push_back(JPH::Float3(v.x, v.y, v.z));
-    }
-
-    // 构建 Jolt 三角形索引列表
-    JPH::IndexedTriangleList joltTris;
-    joltTris.reserve(triCount);
-    for (int i = 0; i < triCount; ++i) {
-        joltTris.push_back(JPH::IndexedTriangle(
-            static_cast<uint32_t>(tri.indices[i*3 + 0]),
-            static_cast<uint32_t>(tri.indices[i*3 + 1]),
-            static_cast<uint32_t>(tri.indices[i*3 + 2]),
-            0));
-    }
-
-    JPH::MeshShapeSettings meshSettings(joltVerts, joltTris);
-    auto shapeResult = meshSettings.Create();
-    if (shapeResult.HasError()) {
-        LOG_ERROR("[Sys_Physics] MeshShape creation failed for entity " << id
-                  << ": " << shapeResult.GetError().c_str());
-        return;
-    }
-
-    JPH::BodyCreationSettings bcs(
-        shapeResult.Get(),
-        JPH::RVec3(tf.position.x, tf.position.y, tf.position.z),
-        JPH::Quat::sIdentity(),
-        JPH::EMotionType::Static,
-        PhysicsLayers::NON_MOVING);
-
-    bcs.mFriction    = tri.friction;
-    bcs.mRestitution = tri.restitution;
-    bcs.mIsSensor    = tri.is_trigger;   // Trigger 模式：仅触发事件，不产生物理推力
-    bcs.mUserData    = static_cast<uint64_t>(id);
-
-    JPH::Body* body = bi.CreateBody(bcs);
-    if (!body) {
-        LOG_ERROR("[Sys_Physics] Failed to create TriMesh Body for entity " << id);
-        return;
-    }
-
-    bi.AddBody(body->GetID(), JPH::EActivation::DontActivate);
-
-    uint32_t rawID   = body->GetID().GetIndexAndSequenceNumber();
-    rb.body_created  = true;
-    m_BodyToEntity[rawID] = id;
-    m_EntityToBody[id]    = rawID;
-
-    LOG_INFO("[Sys_Physics] TriMesh floor body created: entity=" << id
-             << " tris=" << triCount
-             << " pos=(" << tf.position.x << "," << tf.position.y << "," << tf.position.z << ")");
 }
 
 // ============================================================
@@ -539,10 +483,8 @@ void ECS::Sys_Physics::FlushCollisionEvents(Registry& reg) {
 
         // 触发器判定：Enter 事件用 ContactListener 的 is_trigger（Jolt IsSensor 直接结果），
         // Exit 事件由 OnContactRemoved 无法获取 IsSensor，从组件重查。
-        bool isTriggerA = (reg.Has<C_D_Collider>(entA) && reg.Get<C_D_Collider>(entA).is_trigger)
-                       || (reg.Has<C_D_TriMeshCollider>(entA) && reg.Get<C_D_TriMeshCollider>(entA).is_trigger);
-        bool isTriggerB = (reg.Has<C_D_Collider>(entB) && reg.Get<C_D_Collider>(entB).is_trigger)
-                       || (reg.Has<C_D_TriMeshCollider>(entB) && reg.Get<C_D_TriMeshCollider>(entB).is_trigger);
+        bool isTriggerA = (reg.Has<C_D_Collider>(entA) && reg.Get<C_D_Collider>(entA).is_trigger);
+        bool isTriggerB = (reg.Has<C_D_Collider>(entB) && reg.Get<C_D_Collider>(entB).is_trigger);
         bool isTrigger  = c.is_trigger || isTriggerA || isTriggerB;
 
         if (isTrigger) {
