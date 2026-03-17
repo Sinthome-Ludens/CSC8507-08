@@ -51,6 +51,7 @@ enum class SceneRequest : uint8_t {
     QuitApp,
     HostGame,
     JoinGame,
+    NextLevel,          ///< 关卡序列：前进到下一张地图
 };
 
 struct Res_UIState {
@@ -132,6 +133,12 @@ struct Res_UIState {
     // Saved inventory storeCount cache (populated by SaveManager::LoadGame)
     uint8_t   savedStoreCount[5]       = {};
     bool      hasSavedInventory        = false;
+
+    // ── Map sequence (campaign: random 5-pick-3, sorted by map ID) ──
+    // Map IDs: 0=HangerA, 1=HangerB, 2=Helipad, 3=Lab, 4=Dock
+    uint8_t   mapSequence[3]           = {0, 1, 2};  ///< 三张关卡的地图 ID
+    uint8_t   mapSequenceIndex         = 0;           ///< 当前关卡在序列中的位置 (0-2)
+    bool      mapSequenceGenerated     = false;       ///< 是否已生成过序列
 };
 
 } // namespace ECS

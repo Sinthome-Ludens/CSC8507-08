@@ -72,6 +72,7 @@ using namespace CSC8503;
 
 #include <algorithm>
 #include <chrono>
+#include <random>
 #include <thread>
 #include <sstream>
 
@@ -97,6 +98,70 @@ static void HandleKeyboardShortcuts(Window* w) {
 /// 更新窗口标题
 static void UpdateWindowTitle(Window* w, float dt) {
     w->SetTitle("NEUROMANCER - " + std::to_string(1000.0f * dt) + " ms");
+}
+
+/// 根据地图 ID 创建对应场景实例
+/// Map IDs: 0=HangerA, 1=HangerB, 2=Helipad, 3=Lab, 4=Dock
+static IScene* CreateMapScene(uint8_t mapId) {
+    switch (mapId) {
+        case 0: return new Scene_HangerA();
+        case 1: return new Scene_HangerB();
+        case 2: return new Scene_Helipad();
+        case 3: return new Scene_Lab();
+        case 4: return new Scene_Dock();
+        default: return new Scene_HangerA();
+    }
+}
+
+/// 地图名称（调试用）
+static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock" };
+
+/// 用系统当前时间生成种子：年月日时分秒毫秒 → 纯数字字符串 → 整型 → splitmix64 哈希
+static uint32_t TimeBasedSeed() {
+    auto now = std::chrono::system_clock::now();
+    auto tt  = std::chrono::system_clock::to_time_t(now);
+    auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(
+                   now.time_since_epoch()).count() % 1000;
+    struct tm lt;
+    localtime_s(&lt, &tt);
+    // "20260317153042123" — 17 位纯数字（无标点）
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%04d%02d%02d%02d%02d%02d%03d",
+             lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday,
+             lt.tm_hour, lt.tm_min, lt.tm_sec, static_cast<int>(ms));
+    uint64_t raw = 0;
+    for (int i = 0; buf[i]; ++i)
+        raw = raw * 10 + static_cast<uint64_t>(buf[i] - '0');
+    // splitmix64 哈希
+    raw ^= raw >> 30;
+    raw *= 0xBF58476D1CE4E5B9ULL;
+    raw ^= raw >> 27;
+    raw *= 0x94D049BB133111EBULL;
+    raw ^= raw >> 31;
+    return static_cast<uint32_t>(raw);
+}
+
+/// 随机从 5 张地图中抽 3 张（不排序，打乱顺序直接打），重置 index
+static void GenerateMapSequence(ECS::Res_UIState& ui) {
+    uint32_t seed = TimeBasedSeed();
+    uint8_t pool[] = {0, 1, 2, 3, 4};
+    std::mt19937 gen(seed);
+    std::shuffle(pool, pool + 5, gen);
+    // 取前 3 个，保持 shuffle 后的随机顺序（不排序）
+    ui.mapSequence[0] = pool[0];
+    ui.mapSequence[1] = pool[1];
+    ui.mapSequence[2] = pool[2];
+    ui.mapSequenceIndex    = 0;
+    ui.mapSequenceGenerated = true;
+
+    std::cout << "[MapSequence] seed=" << seed
+              << "  sequence: " << kMapNames[ui.mapSequence[0]]
+              << " -> " << kMapNames[ui.mapSequence[1]]
+              << " -> " << kMapNames[ui.mapSequence[2]] << std::endl;
+    LOG_INFO("[Main] Map sequence generated (seed=" << seed << "): "
+             << (int)ui.mapSequence[0] << " -> "
+             << (int)ui.mapSequence[1] << " -> "
+             << (int)ui.mapSequence[2]);
 }
 
 /// 处理所有 UI 请求（场景切换、分辨率、全屏、光标、退出）
@@ -144,7 +209,21 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
             switch (ui.pendingSceneRequest) {
                 case ECS::SceneRequest::StartGame:
                 case ECS::SceneRequest::RestartLevel:
-                    sceneManager.RequestSceneChange(new Scene_PhysicsTest());
+                    // 每次开始 / 重试都重新随机 5 抽 3 序列
+                    GenerateMapSequence(ui);
+                    sceneManager.RequestSceneChange(
+                        CreateMapScene(ui.mapSequence[0]));
+                    break;
+                case ECS::SceneRequest::NextLevel:
+                    // 序列内前进到下一张地图
+                    ui.mapSequenceIndex++;
+                    if (ui.mapSequenceIndex < 3) {
+                        sceneManager.RequestSceneChange(
+                            CreateMapScene(ui.mapSequence[ui.mapSequenceIndex]));
+                    } else {
+                        // 安全兜底：不应到达这里
+                        sceneManager.RequestSceneChange(new Scene_MainMenu());
+                    }
                     break;
                 case ECS::SceneRequest::ReturnToMenu:
                     sceneManager.RequestSceneChange(new Scene_MainMenu());
