@@ -19,6 +19,7 @@
  */
 #include "PrefabFactory.h"
 
+#include "Assets.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/C_T_MainCamera.h"
@@ -1075,6 +1076,68 @@ ECS::EntityID PrefabFactory::CreateNavMeshFloor(
 }
 
 // ============================================================
+// CreateItemPickup  →  PREFAB_ITEM_PICKUP
+// ============================================================
+EntityID PrefabFactory::CreateItemPickup(
+    Registry&       reg,
+    ECS::MeshHandle cubeMesh,
+    ECS::ItemID     itemId,
+    uint8_t         quantity,
+    int             spawnIndex,
+    Vector3         spawnPos)
+{
+    EntityID entity = reg.Create();
+
+    // Weapons use capsule mesh, gadgets use cube mesh
+    bool isWeapon = (itemId == ItemID::RoamAI || itemId == ItemID::TargetStrike);
+    ECS::MeshHandle actualMesh = cubeMesh;
+    Vector3 pickupScale(0.5f, 0.5f, 0.5f);
+    if (isWeapon) {
+        actualMesh = ECS::AssetManager::Instance().LoadMesh(
+            NCL::Assets::MESHDIR + "Capsule.obj");
+        pickupScale = Vector3(0.25f, 0.15f, 0.25f);
+    }
+
+    reg.Emplace<C_D_Transform>(entity,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        pickupScale
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        actualMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // Per-item color
+    C_D_Material mat{};
+    switch (itemId) {
+        case ItemID::HoloBait:     mat.baseColour = Vector4(0.95f, 0.85f, 0.1f, 1.0f);  break; // yellow
+        case ItemID::PhotonRadar:  mat.baseColour = Vector4(0.1f, 0.85f, 0.95f, 1.0f);  break; // cyan
+        case ItemID::DDoS:         mat.baseColour = Vector4(0.7f, 0.2f, 0.9f, 1.0f);    break; // purple
+        case ItemID::RoamAI:       mat.baseColour = Vector4(0.2f, 0.85f, 0.2f, 1.0f);   break; // green
+        case ItemID::TargetStrike: mat.baseColour = Vector4(0.9f, 0.2f, 0.2f, 1.0f);    break; // red
+        default:                   mat.baseColour = Vector4(0.8f, 0.8f, 0.8f, 1.0f);    break; // gray
+    }
+    reg.Emplace<C_D_Material>(entity, mat);
+
+    auto& pickup = reg.Emplace<C_T_ItemPickup>(entity);
+    pickup.itemId   = itemId;
+    pickup.quantity = quantity;
+
+    char debugName[64];
+    std::snprintf(debugName, sizeof(debugName), "ENTITY_ItemPickup_%02d", spawnIndex);
+    AttachDebugName(reg, entity, debugName);
+
+    LOG_INFO("[PrefabFactory] CreateItemPickup id=" << entity
+             << " itemId=" << static_cast<int>(itemId)
+             << " qty=" << (int)quantity
+             << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
+}
+
+// ============================================================
 // CreateHoloBait  →  PREFAB_HOLO_BAIT
 // ============================================================
 
@@ -1092,6 +1155,14 @@ EntityID PrefabFactory::CreateHoloBait(
     bait.worldPos      = worldPos;
     bait.remainingTime = 3.0f;
     bait.active        = true;
+
+    // Visual: yellow cube (flashing decoy)
+    ECS::MeshHandle baitMesh = ECS::AssetManager::Instance().LoadMesh(
+        NCL::Assets::MESHDIR + "cube.obj");
+    reg.Emplace<C_D_MeshRenderer>(entity, baitMesh, static_cast<uint32_t>(0));
+    C_D_Material baitMat{};
+    baitMat.baseColour = Vector4(0.95f, 0.85f, 0.1f, 1.0f);
+    reg.Emplace<C_D_Material>(entity, baitMat);
 
     AttachDebugName(reg, entity, "ENTITY_HoloBait");
 
@@ -1123,6 +1194,14 @@ EntityID PrefabFactory::CreateRoamAI(
     roam.waypointInterval = 2.0f;
     roam.detectRadius     = 1.5f;
     roam.active           = true;
+
+    // Visual: green cube (patrol AI)
+    ECS::MeshHandle roamMesh = ECS::AssetManager::Instance().LoadMesh(
+        NCL::Assets::MESHDIR + "cube.obj");
+    reg.Emplace<C_D_MeshRenderer>(entity, roamMesh, static_cast<uint32_t>(0));
+    C_D_Material roamMat{};
+    roamMat.baseColour = Vector4(0.2f, 0.85f, 0.2f, 1.0f);
+    reg.Emplace<C_D_Material>(entity, roamMat);
 
     AttachDebugName(reg, entity, "ENTITY_RoamAI");
 
