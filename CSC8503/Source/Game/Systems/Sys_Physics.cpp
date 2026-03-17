@@ -12,7 +12,10 @@
  * - `OnUpdate` 仅负责 Body 的创建/清理/参数同步，不执行步进。
  */
 #include "Sys_Physics.h"
+#include "Core/Bridge/AssetManager.h"
+#include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Utils/Log.h"
+#include "OGLMesh.h"
 #include <iostream>
 #include <cfloat>
 #include <cmath>
@@ -21,8 +24,52 @@
 #include <Jolt/Physics/Collision/CollideShape.h>
 #include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 
 using namespace NCL::Maths;
+
+namespace {
+
+struct MeshBounds {
+    Vector3 center{0.0f, 0.0f, 0.0f};
+    Vector3 half{0.5f, 0.5f, 0.5f};
+};
+
+bool GetScaledMeshBounds(ECS::Registry& reg, ECS::EntityID id, const ECS::C_D_Transform& tf, MeshBounds& out) {
+    if (!reg.Has<ECS::C_D_MeshRenderer>(id)) {
+        return false;
+    }
+
+    const auto& mr = reg.Get<ECS::C_D_MeshRenderer>(id);
+    auto* mesh = ECS::AssetManager::Instance().GetMesh(mr.meshHandle);
+    if (!mesh) {
+        return false;
+    }
+
+    const auto& positions = mesh->GetPositionData();
+    if (positions.empty()) {
+        return false;
+    }
+
+    Vector3 minV(FLT_MAX, FLT_MAX, FLT_MAX);
+    Vector3 maxV(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+    for (const auto& p : positions) {
+        Vector3 scaled(p.x * tf.scale.x, p.y * tf.scale.y, p.z * tf.scale.z);
+        minV.x = std::min(minV.x, scaled.x);
+        minV.y = std::min(minV.y, scaled.y);
+        minV.z = std::min(minV.z, scaled.z);
+        maxV.x = std::max(maxV.x, scaled.x);
+        maxV.y = std::max(maxV.y, scaled.y);
+        maxV.z = std::max(maxV.z, scaled.z);
+    }
+
+    out.center = (minV + maxV) * 0.5f;
+    out.half = (maxV - minV) * 0.5f;
+    return true;
+}
+
+} // namespace
 
 // ============================================================
 // Jolt ↔ NCL 转换工具
@@ -300,19 +347,50 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
+    float halfX = col.half_x;
+    float halfY = col.half_y;
+    float halfZ = col.half_z;
+    Vector3 localShapeCenter(0.0f, 0.0f, 0.0f);
+
+    if (col.fit_mode == ColliderFitMode::MeshBoundsAuto) {
+        MeshBounds bounds;
+        if (GetScaledMeshBounds(reg, id, tf, bounds)) {
+            localShapeCenter = bounds.center;
+
+            switch (col.type) {
+                case ColliderType::Box:
+                    halfX = bounds.half.x + col.fit_padding;
+                    halfY = bounds.half.y + col.fit_padding;
+                    halfZ = bounds.half.z + col.fit_padding;
+                    break;
+                case ColliderType::Sphere: {
+                    float radius = std::max(bounds.half.x, std::max(bounds.half.y, bounds.half.z));
+                    halfX = radius + col.fit_padding;
+                    break;
+                }
+                case ColliderType::Capsule: {
+                    float radius = std::max(bounds.half.x, bounds.half.z) + col.fit_padding;
+                    halfX = radius;
+                    halfY = std::max(0.0f, bounds.half.y - radius + col.fit_padding);
+                    break;
+                }
+            }
+        }
+    }
+
     // --- 构建 Shape ---
     JPH::ShapeSettings::ShapeResult shapeResult;
     switch (col.type) {
         case ColliderType::Box: {
-            shapeResult = JPH::BoxShapeSettings(ToJolt(col.half_x, col.half_y, col.half_z)).Create();
+            shapeResult = JPH::BoxShapeSettings(ToJolt(halfX, halfY, halfZ)).Create();
             break;
         }
         case ColliderType::Sphere: {
-            shapeResult = JPH::SphereShapeSettings(col.half_x).Create();
+            shapeResult = JPH::SphereShapeSettings(halfX).Create();
             break;
         }
         case ColliderType::Capsule: {
-            shapeResult = JPH::CapsuleShapeSettings(col.half_y, col.half_x).Create();
+            shapeResult = JPH::CapsuleShapeSettings(halfY, halfX).Create();
             break;
         }
     }
@@ -320,6 +398,18 @@ void ECS::Sys_Physics::CreateBodyForEntity(
     if (shapeResult.HasError()) {
         LOG_ERROR("[Sys_Physics] Shape creation failed: " << shapeResult.GetError().c_str());
         return;
+    }
+
+    if (Vector::LengthSquared(localShapeCenter) > 1e-8f) {
+        shapeResult = JPH::RotatedTranslatedShapeSettings(
+            ToJolt(localShapeCenter.x, localShapeCenter.y, localShapeCenter.z),
+            JPH::Quat::sIdentity(),
+            shapeResult.Get()).Create();
+
+        if (shapeResult.HasError()) {
+            LOG_ERROR("[Sys_Physics] Offset shape creation failed: " << shapeResult.GetError().c_str());
+            return;
+        }
     }
 
     // --- 运动类型 ---

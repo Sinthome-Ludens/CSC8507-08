@@ -246,7 +246,7 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
                 sp.x * kMapScale,
                 sp.y * kMapScale + (-6.0f * kMapScale) + 1.5f,
                 sp.z * kMapScale);
-            ECS::EntityID player = PrefabFactory::CreatePlayer(registry, cubeMesh, spawnPos);
+            ECS::EntityID player = PrefabFactory::CreatePlayer(registry, capsuleMesh, spawnPos);
             registry.Emplace<ECS::C_T_NavTarget>(player);
         }
     }

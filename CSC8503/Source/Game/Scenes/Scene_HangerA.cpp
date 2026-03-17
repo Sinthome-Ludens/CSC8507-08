@@ -274,7 +274,7 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
                 sp.x * kMapScale,
                 sp.y * kMapScale + (-6.0f * kMapScale) + 1.5f,
                 sp.z * kMapScale);
-            ECS::EntityID player = PrefabFactory::CreatePlayer(registry, cubeMesh, spawnPos);
+            ECS::EntityID player = PrefabFactory::CreatePlayer(registry, capsuleMesh, spawnPos);
             // 挂载导航目标标签，使 Sys_Navigation 能定位玩家
             registry.Emplace<ECS::C_T_NavTarget>(player);
         }

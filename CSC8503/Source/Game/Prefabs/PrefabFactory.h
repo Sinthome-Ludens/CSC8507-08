@@ -151,13 +151,13 @@ public:
      *       C_T_Player, C_D_PlayerState, C_D_Input, C_D_DebugName
      *
      * @param reg       ECS Registry
-     * @param cubeMesh  临时网格句柄（后续替换为角色模型）
+     * @param playerMesh 玩家网格句柄
      * @param spawnPos  生成位置（世界坐标）
      * @return 玩家实体 ID
      */
     static ECS::EntityID CreatePlayer(
         ECS::Registry&      reg,
-        ECS::MeshHandle     cubeMesh,
+        ECS::MeshHandle     playerMesh,
         NCL::Maths::Vector3 spawnPos
     );
 
