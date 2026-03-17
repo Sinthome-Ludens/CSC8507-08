@@ -51,6 +51,7 @@ enum class SceneRequest : uint8_t {
     QuitApp,
     HostGame,
     JoinGame,
+    StartTutorial,
 };
 
 struct Res_UIState {

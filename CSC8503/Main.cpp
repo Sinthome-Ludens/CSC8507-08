@@ -162,6 +162,9 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         new Scene_NetworkGame(ECS::PeerType::CLIENT, ip));
                     break;
                 }
+                case ECS::SceneRequest::StartTutorial:
+                    sceneManager.RequestSceneChange(new Scene_TutorialLevel());
+                    break;
                 case ECS::SceneRequest::QuitApp:
                     running = false;
                     break;
