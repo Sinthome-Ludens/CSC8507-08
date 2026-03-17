@@ -184,6 +184,8 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
                 result.itemPickups.push_back(pickup);
             }
             LOG_INFO("[MapLoader] Spawned " << itemData.spawns.size() << " item pickups.");
+        } else {
+            LOG_WARN("[MapLoader] Failed to load item spawns: " << config.itemSpawns);
         }
     }
 
