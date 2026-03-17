@@ -997,6 +997,23 @@ void ECS::Sys_Physics::ReplaceShapeCapsule(EntityID entity, float halfHeight, fl
     bi.SetShape(jid, shapeResult.Get(), false,
                 JPH::EActivation::Activate);
 }
+
+void ECS::Sys_Physics::ReplaceShapeBox(EntityID entity, float halfX, float halfY, float halfZ) {
+    if (!m_PhysicsSystem) return;
+    JPH::BodyID jid;
+    if (!TryGetBodyID(entity, jid)) return;
+
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+    JPH::BoxShapeSettings boxSettings(ToJolt(halfX, halfY, halfZ));
+    auto shapeResult = boxSettings.Create();
+    if (shapeResult.HasError()) {
+        LOG_ERROR("[Sys_Physics] ReplaceShapeBox failed: " << shapeResult.GetError().c_str());
+        return;
+    }
+
+    bi.SetShape(jid, shapeResult.Get(), false, JPH::EActivation::Activate);
+}
+
 // ============================================================
 // SetPosition — 直接设置动态体世界位置 (来自 master)
 // ============================================================

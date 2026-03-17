@@ -147,8 +147,9 @@ void Scene_HangerB::OnEnter(ECS::Registry&          registry,
                 v.y *= kMapScale;
                 v.z *= kMapScale;
             }
-            // OBJ 由 Unity 导出脚本生成，导出时已同步完成左手系→右手系转换（Z 取反 + 绕序翻转）
-            // 法线已朝外，无需额外处理绕序
+            for (size_t i = 0; i + 2 < mapCollIndices.size(); i += 3) {
+                std::swap(mapCollIndices[i + 1], mapCollIndices[i + 2]);
+            }
             PrefabFactory::CreateNavMeshFloor(registry, mapCollVerts, mapCollIndices,
                                               NCL::Maths::Vector3(0.0f, -6.0f * kMapScale, 0.0f));
             LOG_INFO("[Scene_HangerB] Collision mesh loaded from " << collObjPath
@@ -246,7 +247,7 @@ void Scene_HangerB::OnEnter(ECS::Registry&          registry,
                 sp.x * kMapScale,
                 sp.y * kMapScale + (-6.0f * kMapScale) + 1.5f,
                 sp.z * kMapScale);
-            ECS::EntityID player = PrefabFactory::CreatePlayer(registry, capsuleMesh, spawnPos);
+            ECS::EntityID player = PrefabFactory::CreatePlayer(registry, cubeMesh, spawnPos);
             registry.Emplace<ECS::C_T_NavTarget>(player);
         }
     }

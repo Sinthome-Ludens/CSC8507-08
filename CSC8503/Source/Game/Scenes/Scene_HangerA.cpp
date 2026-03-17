@@ -157,8 +157,11 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
                 v.y *= kMapScale;
                 v.z *= kMapScale;
             }
-            // OBJ 由 Unity 导出脚本生成，导出时已同步完成左手系→右手系转换（Z 取反 + 绕序翻转）
-            // 法线已朝外，无需额外处理绕序
+            // 修正面片绕序：导出脚本 Z 取反后未翻转绕序，导致法线反转
+            // 交换每个三角形的 index[1] 和 index[2] 使法线朝外
+            for (size_t i = 0; i + 2 < mapCollIndices.size(); i += 3) {
+                std::swap(mapCollIndices[i + 1], mapCollIndices[i + 2]);
+            }
             PrefabFactory::CreateNavMeshFloor(registry, mapCollVerts, mapCollIndices,
                                               NCL::Maths::Vector3(0.0f, -6.0f * kMapScale, 0.0f));
             LOG_INFO("[Scene_HangerA] Collision mesh loaded from " << collObjPath
@@ -274,7 +277,7 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
                 sp.x * kMapScale,
                 sp.y * kMapScale + (-6.0f * kMapScale) + 1.5f,
                 sp.z * kMapScale);
-            ECS::EntityID player = PrefabFactory::CreatePlayer(registry, capsuleMesh, spawnPos);
+            ECS::EntityID player = PrefabFactory::CreatePlayer(registry, cubeMesh, spawnPos);
             // 挂载导航目标标签，使 Sys_Navigation 能定位玩家
             registry.Emplace<ECS::C_T_NavTarget>(player);
         }

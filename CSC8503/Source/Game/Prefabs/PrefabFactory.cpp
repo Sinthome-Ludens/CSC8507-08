@@ -325,13 +325,12 @@ EntityID PrefabFactory::CreatePlayer(
 {
     EntityID entity = reg.Create();
 
-    // Capsule.msh 原始半径约 1.1835，总高约 4.2514。
-    // 目标玩家物理尺寸：radius=0.5, half_height=1.0，总高 3.0。
-    // 因此渲染缩放需要与碰撞体保持一致，避免视觉上“卡进墙里一半”。
+    // 玩家当前使用 cube.obj：scale(1,1,1) 时世界尺寸 2x2x2。
+    // 这里让碰撞体由 mesh 包围盒自动拟合为 Box，保证外观与阻挡一致。
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(0.4225f, 0.7056f, 0.4225f)
+        Vector3(1.0f, 1.0f, 1.0f)
     );
 
     // C_D_MeshRenderer（玩家渲染 mesh）
@@ -351,9 +350,9 @@ EntityID PrefabFactory::CreatePlayer(
     rb.lock_rotation_z = true;
     reg.Emplace<C_D_RigidBody>(entity, rb);
 
-    // C_D_Collider：由玩家 mesh 包围盒自动拟合为胶囊体，保持渲染与碰撞一致。
+    // C_D_Collider：由玩家 mesh 包围盒自动拟合为 Box，保持渲染与碰撞一致。
     C_D_Collider col{};
-    col.type        = ColliderType::Capsule;
+    col.type        = ColliderType::Box;
     col.fit_mode    = ColliderFitMode::MeshBoundsAuto;
     col.friction    = 0.5f;
     col.restitution = 0.0f;
@@ -363,7 +362,9 @@ EntityID PrefabFactory::CreatePlayer(
     reg.Emplace<ECS::C_T_Player>(entity);
 
     // C_D_PlayerState（MGS 风格潜行状态）
-    reg.Emplace<ECS::C_D_PlayerState>(entity, ECS::C_D_PlayerState{});
+    auto& ps = reg.Emplace<ECS::C_D_PlayerState>(entity, ECS::C_D_PlayerState{});
+    ps.colliderRadius     = 1.0f;
+    ps.colliderHalfHeight = 1.0f;
 
     // C_D_Input（输入数据，由 Sys_InputDispatch 每帧写入）
     reg.Emplace<ECS::C_D_Input>(entity, ECS::C_D_Input{});
