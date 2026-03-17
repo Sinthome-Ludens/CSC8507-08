@@ -18,6 +18,7 @@
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/StratagemTable.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_DialogueData.h"
 #include "Game/Utils/DialogueLoader.h"
@@ -31,36 +32,31 @@ using namespace NCL;
 namespace ECS {
 
 /**
- * @brief 为当前回复选项生成前缀无冲突的方向键序列。
+ * @brief 从 Helldivers 2 指令码表中选取前缀无冲突的方向键序列。
  *
- * 每个选项的首键唯一（Up/Down/Left/Right），后接 2-6 个随机键，
- * 总长 3-7，由 seed 驱动伪随机变化。
+ * 使用 Knuth 乘法哈希从 45 条战略配置码中确定性地选取
+ * replyCount 条不重复的指令码，赋给对应回复选项。
  * @param cs   聊天状态资源
  * @param seed 伪随机种子（通常为 dialoguePhase）
  */
 static void GenerateDirSequences(Res_ChatState& cs, uint8_t seed) {
-    // Each option gets a unique first key (Up/Down/Left/Right)
-    // Then 2-6 random keys appended (total length 3-7)
-    DirKey firstKeys[DirSequence::kDirKeyCount] = { DirKey::Up, DirKey::Down, DirKey::Left, DirKey::Right };
-
-    // Shuffle first keys using seed
-    for (int i = DirSequence::kDirKeyCount - 1; i > 0; --i) {
-        int j = (seed + i * 7) % (i + 1);
-        DirKey tmp = firstKeys[i];
-        firstKeys[i] = firstKeys[j];
-        firstKeys[j] = tmp;
-    }
+    bool used[kStratagemCount] = {};
 
     for (int i = 0; i < cs.replyCount && i < Res_ChatState::kMaxReplies; ++i) {
+        uint32_t h = static_cast<uint32_t>(seed) * 2654435761u
+                   + static_cast<uint32_t>(i) * 40503u;
+        uint32_t idx = (h >> 8) % kStratagemCount;
+
+        while (used[idx]) {
+            idx = (idx + 1) % kStratagemCount;
+        }
+        used[idx] = true;
+
+        const auto& entry = kStratagems[idx];
         auto& seq = cs.replySequences[i];
-        seq.keys[0] = firstKeys[i];
-
-        // Total length 3-7, varied by seed + index
-        uint8_t extraLen = 2 + ((seed + i * 3) % 5);  // 2-6 extra keys
-        seq.length = 1 + extraLen;                      // total 3-7
-
-        for (uint8_t k = 1; k <= extraLen; ++k) {
-            seq.keys[k] = static_cast<DirKey>((seed + i * 5 + k * 11) % DirSequence::kDirKeyCount);
+        seq.length = entry.length;
+        for (uint8_t k = 0; k < entry.length; ++k) {
+            seq.keys[k] = entry.keys[k];
         }
     }
 
