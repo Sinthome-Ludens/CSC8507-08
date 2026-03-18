@@ -36,6 +36,7 @@
 #include "Game/Systems/Sys_EnemyVision.h"
 #include "Game/Systems/Sys_Navigation.h"
 #include "Game/Systems/Sys_Physics.h"
+#include "Game/Systems/Sys_Network.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
@@ -121,6 +122,9 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
     // ── 4. System registration (priority ascending) ─────────────────────
     systems.Register<ECS::Sys_Input>           ( 10);
     systems.Register<ECS::Sys_Animation>       ( 50);
+    if (isMultiplayer) {
+        systems.Register<ECS::Sys_Network>     ( 54);
+    }
     systems.Register<ECS::Sys_InputDispatch>   ( 55);
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);
     systems.Register<ECS::Sys_PlayerStance>    ( 60);

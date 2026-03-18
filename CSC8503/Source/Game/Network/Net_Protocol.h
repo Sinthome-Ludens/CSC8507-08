@@ -21,8 +21,10 @@ enum Net_PacketType : uint8_t {
     SYS_WELCOME,         ///< 服务端确认连接并发送初始化数据
     SYS_DISCONNECT,      ///< 断开连接通知
     SYNC_TRANSFORM,      ///< Transform状态同步数据包
+    SYNC_MATCH_STATE,    ///< 比赛状态同步数据包
     GAME_EVENT,          ///< 游戏事件数据包（客户端或服务端在发生攻击、交互、技能释放等游戏行为时发送）
-    CLIENT_INPUT         ///< 客户端输入数据包（用于服务器权威架构）
+    CLIENT_INPUT,        ///< 客户端输入数据包（用于服务器权威架构）
+    CLIENT_MATCH_PROGRESS///< 客户端上报当前比赛进度
 };
 
 // 传输可靠性
@@ -89,6 +91,21 @@ struct Net_Packet_Transform : public Net_PacketHeader {
 };
 
 /**
+ * @struct Net_Packet_MatchState
+ * @brief 服务端广播的多人比赛状态。
+ *
+ * 只同步单本地玩家多人模式需要的状态，不依赖远端玩家实体。
+ */
+struct Net_Packet_MatchState : public Net_PacketHeader {
+    uint8_t matchPhase;
+    uint8_t matchResult;
+    uint8_t hostStageProgress;
+    uint8_t clientStageProgress;
+    uint8_t currentRoundIndex;
+    uint8_t gameOverReason;
+};
+
+/**
  * @struct Net_Packet_GameAction
  * @brief 游戏行为数据包
  *
@@ -116,6 +133,16 @@ struct Net_Packet_ClientInput : public Net_PacketHeader {
     uint32_t buttonMask;
 };
 
+/**
+ * @struct Net_Packet_ClientMatchProgress
+ * @brief 客户端上报自己的三阶段比赛进度。
+ */
+struct Net_Packet_ClientMatchProgress : public Net_PacketHeader {
+    uint8_t stageProgress;
+    uint8_t currentRoundIndex;
+    uint8_t reportedFinished;
+};
+
 #pragma pack(pop)
 
 /**
@@ -128,7 +155,9 @@ static_assert(sizeof(Net_PacketHeader) == 5, "Net_PacketHeader size mismatch");
 static_assert(sizeof(Net_Packet_Handshake) == 9, "Net_Packet_Handshake size mismatch");
 static_assert(sizeof(Net_Packet_Welcome) == 25, "Net_Packet_Welcome size mismatch");
 static_assert(sizeof(Net_Packet_Transform) == 49, "Net_Packet_Transform size mismatch");
+static_assert(sizeof(Net_Packet_MatchState) == 11, "Net_Packet_MatchState size mismatch");
 static_assert(sizeof(Net_Packet_GameAction) == 18, "Net_Packet_GameAction size mismatch");
 static_assert(sizeof(Net_Packet_ClientInput) == 9, "Net_Packet_ClientInput size mismatch");
+static_assert(sizeof(Net_Packet_ClientMatchProgress) == 8, "Net_Packet_ClientMatchProgress size mismatch");
 
 }

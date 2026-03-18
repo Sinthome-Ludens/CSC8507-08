@@ -21,6 +21,7 @@
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_NetworkIdentity.h"
 #include "Game/Components/C_D_InterpBuffer.h"
+#include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_Time.h"
 #include "Game/Events/Evt_Net_PeerConnected.h"
 #include "Game/Events/Evt_Net_PeerDisconnected.h"
@@ -30,6 +31,7 @@
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_PlayerInput.h"
 #include "Keyboard.h"
+#include <algorithm>
 #include <iostream>
 
 namespace ECS {
@@ -40,7 +42,9 @@ namespace ECS {
 void Sys_Network::RegisterHandlers() {
     m_PacketHandlers[SYS_WELCOME]    = &Sys_Network::HandleWelcomePacket;
     m_PacketHandlers[SYNC_TRANSFORM] = &Sys_Network::HandleSyncTransform;
+    m_PacketHandlers[SYNC_MATCH_STATE] = &Sys_Network::HandleMatchState;
     m_PacketHandlers[CLIENT_INPUT]   = &Sys_Network::HandleClientInput;
+    m_PacketHandlers[CLIENT_MATCH_PROGRESS] = &Sys_Network::HandleClientMatchProgress;
     m_PacketHandlers[GAME_EVENT]     = &Sys_Network::HandleGameAction;
 }
 
@@ -141,13 +145,32 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
 void Sys_Network::OnUpdate(Registry& reg, float dt) {
     auto& resNet = reg.ctx<Res_Network>();
     if (!resNet.host) return;
+    ResetFrameFlags(reg);
 
     // 1. 处理所有传入的网络事件
     ProcessNetworkEvents(reg, resNet);
+
+    if (resNet.peer != nullptr) {
+        resNet.rtt = resNet.peer->roundTripTime;
+    } else {
+        resNet.rtt = 0;
+    }
+    if (reg.has_ctx<Res_GameState>()) {
+        reg.ctx<Res_GameState>().networkPing = resNet.rtt;
+    }
+
     if (!resNet.connected) return;
 
     // 2. 处理本地输入（客户端发包，服务端直接驱动物理）
     HandleLocalInput(reg, resNet);
+
+    if (resNet.mode == PeerType::CLIENT) {
+        UpdateClientMatchProgress(reg, resNet);
+    }
+
+    if (resNet.mode == PeerType::SERVER) {
+        BroadcastMatchStateIfDirty(reg, resNet);
+    }
 
     // 3. 服务端定时广播同步状态
     m_TimeSinceLastSend += dt;
@@ -183,6 +206,14 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                     welcomePkt.timestamp = 0;
                     // 使用 SendPacket 助手函数，内部会处理 flags 映射
                     SendPacket(resNet, welcomePkt, NetTarget::Single, NetDelivery::Reliable, event.peer);
+                    if (reg.has_ctx<Res_GameState>()) {
+                        auto& gs = reg.ctx<Res_GameState>();
+                        if (gs.isMultiplayer && gs.matchPhase == MatchPhase::WaitingForPeer) {
+                            gs.matchPhase = MatchPhase::Running;
+                            gs.matchJustStarted = true;
+                        }
+                    }
+                    BroadcastMatchStateIfDirty(reg, resNet, true);
                 } else {
                     resNet.connected = true;
                     // Client 侧不在此处抛出事件，在收到 SYS_WELCOME 知道自己 ID 时再抛出
@@ -201,7 +232,21 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                 if (reg.has_ctx<EventBus*>()) {
                     reg.ctx<EventBus*>()->publish_deferred<Evt_Net_PeerDisconnected>({ disconnectedID });
                 }
-                if (resNet.mode == PeerType::CLIENT) resNet.connected = false;
+                if (reg.has_ctx<Res_GameState>()) {
+                    auto& gs = reg.ctx<Res_GameState>();
+                    if (gs.isMultiplayer) {
+                        gs.matchPhase = MatchPhase::Finished;
+                        gs.matchResult = MatchResult::Disconnected;
+                        gs.matchJustFinished = true;
+                        gs.isGameOver = true;
+                        gs.gameOverReason = 0;
+                    }
+                }
+                if (resNet.mode == PeerType::CLIENT) {
+                    resNet.connected = false;
+                } else {
+                    BroadcastMatchStateIfDirty(reg, resNet, true);
+                }
                 break;
             }
         }
@@ -251,6 +296,32 @@ void Sys_Network::HandleWelcomePacket(Registry& reg, Res_Network& resNet, const 
     }
 }
 
+void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (resNet.mode != PeerType::CLIENT || !reg.has_ctx<Res_GameState>()) return;
+
+    auto* pkt = GetPacketData<Net_Packet_MatchState>(event);
+    if (!pkt) return;
+
+    auto& gs = reg.ctx<Res_GameState>();
+    const MatchPhase previousPhase = gs.matchPhase;
+    const uint8_t previousLocalProgress = gs.localStageProgress;
+    const uint8_t previousOpponentProgress = gs.opponentStageProgress;
+
+    gs.matchPhase = static_cast<MatchPhase>(pkt->matchPhase);
+    gs.matchResult = static_cast<MatchResult>(pkt->matchResult);
+    gs.localStageProgress = ClampStageProgress(pkt->clientStageProgress);
+    gs.opponentStageProgress = ClampStageProgress(pkt->hostStageProgress);
+    gs.currentRoundIndex = std::min<uint8_t>(pkt->currentRoundIndex, kMultiplayerStageCount - 1);
+    gs.gameOverReason = pkt->gameOverReason;
+    gs.localProgress = gs.localStageProgress;
+    gs.opponentProgress = gs.opponentStageProgress;
+    gs.matchJustStarted = (previousPhase != MatchPhase::Running && gs.matchPhase == MatchPhase::Running);
+    gs.matchJustFinished = (previousPhase != MatchPhase::Finished && gs.matchPhase == MatchPhase::Finished);
+    gs.roundJustAdvanced = (previousLocalProgress != gs.localStageProgress)
+        || (previousOpponentProgress != gs.opponentStageProgress);
+    gs.isGameOver = (gs.matchPhase == MatchPhase::Finished);
+}
+
 /**
  * @brief 处理 SYNC_TRANSFORM 数据包（仅客户端），将服务器同步的位置数据存入插值缓冲区
  * @param reg ECS 注册表
@@ -294,6 +365,28 @@ void Sys_Network::HandleClientInput(Registry& reg, Res_Network& resNet, const EN
     UpdatePlayerInput(reg, GetClientID(event), pkt->buttonMask);
 }
 
+void Sys_Network::HandleClientMatchProgress(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (resNet.mode != PeerType::SERVER || !reg.has_ctx<Res_GameState>()) return;
+
+    auto* pkt = GetPacketData<Net_Packet_ClientMatchProgress>(event);
+    if (!pkt) return;
+
+    auto& gs = reg.ctx<Res_GameState>();
+    const uint8_t previousOpponentProgress = gs.opponentStageProgress;
+    gs.opponentStageProgress = ClampStageProgress(pkt->stageProgress);
+    gs.currentRoundIndex = ComputeCurrentRoundIndex(gs.localStageProgress, gs.opponentStageProgress);
+    gs.opponentProgress = gs.opponentStageProgress;
+    gs.roundJustAdvanced = (previousOpponentProgress != gs.opponentStageProgress);
+
+    if (gs.matchPhase == MatchPhase::WaitingForPeer || gs.matchPhase == MatchPhase::Starting) {
+        gs.matchPhase = MatchPhase::Running;
+        gs.matchJustStarted = true;
+    }
+
+    ApplyMatchResult(gs);
+    BroadcastMatchStateIfDirty(reg, resNet, true);
+}
+
 /**
  * @brief 处理 GAME_EVENT 数据包，将网络接收到的游戏动作作为本地事件抛出供其他系统消费
  * @param reg ECS 注册表
@@ -313,6 +406,15 @@ void Sys_Network::HandleGameAction(Registry& reg, Res_Network& resNet, const ENe
         
         reg.ctx<EventBus*>()->publish_deferred<Evt_Net_GameAction>(localEvt);
     }
+}
+
+void Sys_Network::ResetFrameFlags(Registry& reg) {
+    if (!reg.has_ctx<Res_GameState>()) return;
+
+    auto& gs = reg.ctx<Res_GameState>();
+    gs.roundJustAdvanced = false;
+    gs.matchJustStarted = false;
+    gs.matchJustFinished = false;
 }
 
 /**
@@ -359,6 +461,26 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
     }
 }
 
+void Sys_Network::UpdateClientMatchProgress(Registry& reg, Res_Network& resNet) {
+    if (resNet.mode != PeerType::CLIENT || resNet.peer == nullptr || !reg.has_ctx<Res_GameState>()) return;
+
+    auto& gs = reg.ctx<Res_GameState>();
+    if (!gs.isMultiplayer) return;
+
+    const uint8_t localStageProgress = ClampStageProgress(gs.localStageProgress);
+    if (m_LastReportedLocalStageProgress == localStageProgress) return;
+
+    Net_Packet_ClientMatchProgress pkt;
+    pkt.type = CLIENT_MATCH_PROGRESS;
+    pkt.timestamp = static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f);
+    pkt.stageProgress = localStageProgress;
+    pkt.currentRoundIndex = std::min<uint8_t>(gs.currentRoundIndex, kMultiplayerStageCount - 1);
+    pkt.reportedFinished = (localStageProgress >= kMultiplayerStageCount) ? 1u : 0u;
+
+    SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Reliable);
+    m_LastReportedLocalStageProgress = localStageProgress;
+}
+
 /**
  * @brief 将输入位掩码应用到特定客户端所拥有的实体上
  * @param reg ECS 注册表
@@ -377,6 +499,105 @@ void Sys_Network::UpdatePlayerInput(Registry& reg, uint32_t clientID, uint32_t b
             }
         }
     );
+}
+
+void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet, bool force) {
+    if (resNet.mode != PeerType::SERVER || !reg.has_ctx<Res_GameState>()) return;
+
+    auto& gs = reg.ctx<Res_GameState>();
+    if (!gs.isMultiplayer) return;
+
+    gs.localStageProgress = ClampStageProgress(gs.localStageProgress);
+    gs.opponentStageProgress = ClampStageProgress(gs.opponentStageProgress);
+    gs.currentRoundIndex = ComputeCurrentRoundIndex(gs.localStageProgress, gs.opponentStageProgress);
+    gs.localProgress = gs.localStageProgress;
+    gs.opponentProgress = gs.opponentStageProgress;
+    ApplyMatchResult(gs);
+
+    const uint8_t phase = static_cast<uint8_t>(gs.matchPhase);
+    const uint8_t result = static_cast<uint8_t>(gs.matchResult);
+    const uint8_t hostStage = gs.localStageProgress;
+    const uint8_t clientStage = gs.opponentStageProgress;
+    const uint8_t roundIndex = gs.currentRoundIndex;
+    const uint8_t gameOverReason = gs.gameOverReason;
+
+    const bool dirty = force
+        || m_LastBroadcastPhase != phase
+        || m_LastBroadcastResult != result
+        || m_LastBroadcastHostStage != hostStage
+        || m_LastBroadcastClientStage != clientStage
+        || m_LastBroadcastRoundIndex != roundIndex
+        || m_LastBroadcastGameOverReason != gameOverReason;
+
+    if (!dirty) return;
+
+    Net_Packet_MatchState pkt;
+    pkt.type = SYNC_MATCH_STATE;
+    pkt.timestamp = static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f);
+    pkt.matchPhase = phase;
+    pkt.matchResult = result;
+    pkt.hostStageProgress = hostStage;
+    pkt.clientStageProgress = clientStage;
+    pkt.currentRoundIndex = roundIndex;
+    pkt.gameOverReason = gameOverReason;
+    SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Reliable);
+
+    m_LastBroadcastPhase = phase;
+    m_LastBroadcastResult = result;
+    m_LastBroadcastHostStage = hostStage;
+    m_LastBroadcastClientStage = clientStage;
+    m_LastBroadcastRoundIndex = roundIndex;
+    m_LastBroadcastGameOverReason = gameOverReason;
+}
+
+void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
+    if (gs.matchPhase == MatchPhase::Finished && gs.matchResult == MatchResult::Disconnected) {
+        gs.isGameOver = true;
+        gs.gameOverReason = 0;
+        return;
+    }
+
+    const bool hostFinished = gs.localStageProgress >= kMultiplayerStageCount;
+    const bool clientFinished = gs.opponentStageProgress >= kMultiplayerStageCount;
+
+    if (!hostFinished && !clientFinished) {
+        if (gs.matchPhase != MatchPhase::Finished && gs.matchPhase != MatchPhase::WaitingForPeer) {
+            gs.matchPhase = MatchPhase::Running;
+        }
+        gs.matchResult = MatchResult::None;
+        gs.isGameOver = false;
+        gs.gameOverReason = 0;
+        return;
+    }
+
+    const MatchPhase previousPhase = gs.matchPhase;
+    gs.matchPhase = MatchPhase::Finished;
+    if (hostFinished && clientFinished) {
+        gs.matchResult = MatchResult::Draw;
+        gs.gameOverReason = 0;
+    } else if (hostFinished) {
+        gs.matchResult = MatchResult::LocalWin;
+        gs.gameOverReason = 3;
+    } else {
+        gs.matchResult = MatchResult::OpponentWin;
+        gs.gameOverReason = 2;
+    }
+    gs.isGameOver = true;
+    if (previousPhase != MatchPhase::Finished) {
+        gs.matchJustFinished = true;
+    }
+}
+
+uint8_t Sys_Network::ClampStageProgress(uint8_t progress) {
+    return std::min<uint8_t>(progress, kMultiplayerStageCount);
+}
+
+uint8_t Sys_Network::ComputeCurrentRoundIndex(uint8_t hostStageProgress, uint8_t clientStageProgress) {
+    const uint8_t furthestStage = std::max(ClampStageProgress(hostStageProgress), ClampStageProgress(clientStageProgress));
+    if (furthestStage >= kMultiplayerStageCount) {
+        return kMultiplayerStageCount - 1;
+    }
+    return furthestStage;
 }
 
 /**

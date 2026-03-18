@@ -9,6 +9,7 @@
 
 #include "Core/ECS/SystemManager.h"
 #include "Core/ECS/EventBus.h"
+#include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_Network.h"
 #include "Game/Events/Evt_Net_GameAction.h"
 #include "Game/Utils/Log.h"
@@ -83,8 +84,17 @@ private:
     // ── 数据包处理回调函数 ──
     void HandleWelcomePacket(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleSyncTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    void HandleMatchState(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleClientInput(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    void HandleClientMatchProgress(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleGameAction(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+
+    void ResetFrameFlags(Registry& reg);
+    void UpdateClientMatchProgress(Registry& reg, Res_Network& resNet);
+    void BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet, bool force = false);
+    void ApplyMatchResult(Res_GameState& gs);
+    static uint8_t ClampStageProgress(uint8_t progress);
+    static uint8_t ComputeCurrentRoundIndex(uint8_t hostStageProgress, uint8_t clientStageProgress);
 
     // ── 数据包解包与物理驱动辅助方法 ──
     template<typename T>
@@ -142,6 +152,13 @@ private:
     uint32_t m_NextClientID = 1; ///< 服务端分配给下一个连接客户端的 ID
     uint32_t m_LastInputMask = 0; ///< 记录客户端上一帧的输入，用于判断状态变化
     float m_InputTimer = 0.0f;    ///< 客户端输入发送计时器
+    uint8_t m_LastReportedLocalStageProgress = 0xFF;
+    uint8_t m_LastBroadcastPhase = 0xFF;
+    uint8_t m_LastBroadcastResult = 0xFF;
+    uint8_t m_LastBroadcastHostStage = 0xFF;
+    uint8_t m_LastBroadcastClientStage = 0xFF;
+    uint8_t m_LastBroadcastRoundIndex = 0xFF;
+    uint8_t m_LastBroadcastGameOverReason = 0xFF;
 
     void OnLocalGameAction(const Evt_Net_GameAction& evt);
 };
