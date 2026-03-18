@@ -221,6 +221,10 @@ bool LoadMapConfig(const std::string& prefabName, MapLoadConfig& out) {
         std::string v = mc["enemySpawns"].get<std::string>();
         strncpy_s(out.enemySpawns, sizeof(out.enemySpawns), v.c_str(), sizeof(out.enemySpawns) - 1);
     }
+    if (mc.contains("doorKeys")) {
+        std::string v = mc["doorKeys"].get<std::string>();
+        strncpy_s(out.doorKeys, sizeof(out.doorKeys), v.c_str(), sizeof(out.doorKeys) - 1);
+    }
     if (mc.contains("mapScale"))     out.mapScale     = mc["mapScale"].get<float>();
     if (mc.contains("yOffset"))      out.yOffset      = mc["yOffset"].get<float>();
     if (mc.contains("flipWinding"))  out.flipWinding  = mc["flipWinding"].get<bool>();
@@ -546,6 +550,66 @@ bool LoadRoamAIDefaults(PrefabRoamAIDefaults& out) {
     }
 
     LOG_INFO("[PrefabLoader] LoadRoamAIDefaults OK");
+    return true;
+}
+
+/* ================================================================
+ * LoadKeyCardDefaults — Prefab_KeyCard.json
+ * ================================================================ */
+bool LoadKeyCardDefaults(PrefabKeyCardDefaults& out) {
+    const json* doc = LoadJSON("Prefab_KeyCard.json");
+    if (!doc) return false;
+
+    const json* comps = GetComponents(*doc);
+    if (!comps) return false;
+
+    if (comps->contains("C_D_Transform")) {
+        auto& tf = (*comps)["C_D_Transform"];
+        ReadVec3(tf, "scale", out.scale);
+    }
+
+    if (comps->contains("C_D_Material")) {
+        auto& mat = (*comps)["C_D_Material"];
+        ReadVec4(mat, "baseColour", out.baseColour);
+    }
+
+    LOG_INFO("[PrefabLoader] LoadKeyCardDefaults OK");
+    return true;
+}
+
+/* ================================================================
+ * LoadLockedDoorDefaults — Prefab_LockedDoor.json
+ * ================================================================ */
+bool LoadLockedDoorDefaults(PrefabLockedDoorDefaults& out) {
+    // Hardcoded defaults matching PrefabFactory before JSON override
+    out.rb.is_static = true;
+    out.col.type        = ColliderType::Box;
+    out.col.half_x      = 0.5f;
+    out.col.half_y      = 0.5f;
+    out.col.half_z      = 0.5f;
+    out.col.friction    = 0.5f;
+    out.col.restitution = 0.0f;
+
+    const json* doc = LoadJSON("Prefab_LockedDoor.json");
+    if (!doc) return false;
+
+    const json* comps = GetComponents(*doc);
+    if (!comps) return false;
+
+    if (comps->contains("C_D_RigidBody")) {
+        ReadRigidBody((*comps)["C_D_RigidBody"], out.rb);
+    }
+
+    if (comps->contains("C_D_Collider")) {
+        ReadCollider((*comps)["C_D_Collider"], out.col);
+    }
+
+    if (comps->contains("C_D_Material")) {
+        auto& mat = (*comps)["C_D_Material"];
+        ReadVec4(mat, "baseColour", out.baseColour);
+    }
+
+    LOG_INFO("[PrefabLoader] LoadLockedDoorDefaults OK");
     return true;
 }
 

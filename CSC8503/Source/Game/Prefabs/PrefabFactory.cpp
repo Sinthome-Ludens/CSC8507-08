@@ -1143,12 +1143,20 @@ EntityID PrefabFactory::CreateKeyCard(
     uint8_t         keyId,
     Vector3         position)
 {
+    /*
+     * Load JSON defaults from Prefab_KeyCard.json.
+     * position and keyId from function parameters override the loaded defaults.
+     * Scale and baseColour come from the loaded defaults.
+     */
+    PrefabLoader::PrefabKeyCardDefaults defs;
+    PrefabLoader::LoadKeyCardDefaults(defs);
+
     EntityID entity = reg.Create();
 
     reg.Emplace<C_D_Transform>(entity,
         position,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(0.5f, 0.5f, 0.5f)
+        defs.scale
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
@@ -1157,7 +1165,7 @@ EntityID PrefabFactory::CreateKeyCard(
     );
 
     C_D_Material mat{};
-    mat.baseColour = Vector4(1.0f, 1.0f, 0.0f, 1.0f); // yellow key card
+    mat.baseColour = defs.baseColour;
     reg.Emplace<C_D_Material>(entity, mat);
 
     reg.Emplace<C_T_KeyCard>(entity, C_T_KeyCard{ keyId });
@@ -1197,6 +1205,14 @@ EntityID PrefabFactory::CreateLockedDoor(
     Vector3         position,
     Vector3         halfExtents)
 {
+    /*
+     * Load JSON defaults from Prefab_LockedDoor.json.
+     * position, keyId, halfExtents from function parameters override the loaded defaults.
+     * RigidBody, Collider friction/restitution, and baseColour come from the loaded defaults.
+     */
+    PrefabLoader::PrefabLockedDoorDefaults defs;
+    PrefabLoader::LoadLockedDoorDefaults(defs);
+
     EntityID entity = reg.Create();
 
     reg.Emplace<C_D_Transform>(entity,
@@ -1211,20 +1227,15 @@ EntityID PrefabFactory::CreateLockedDoor(
     );
 
     C_D_Material mat{};
-    mat.baseColour = Vector4(0.6f, 0.3f, 0.1f, 1.0f); // brown door
+    mat.baseColour = defs.baseColour;
     reg.Emplace<C_D_Material>(entity, mat);
 
-    C_D_RigidBody rb{};
-    rb.is_static = true;
-    reg.Emplace<C_D_RigidBody>(entity, rb);
+    reg.Emplace<C_D_RigidBody>(entity, defs.rb);
 
-    C_D_Collider col{};
-    col.type        = ColliderType::Box;
-    col.half_x      = halfExtents.x;
-    col.half_y      = halfExtents.y;
-    col.half_z      = halfExtents.z;
-    col.friction    = 0.5f;
-    col.restitution = 0.0f;
+    C_D_Collider col = defs.col;
+    col.half_x       = halfExtents.x;
+    col.half_y       = halfExtents.y;
+    col.half_z       = halfExtents.z;
     reg.Emplace<C_D_Collider>(entity, col);
 
     reg.Emplace<C_D_DoorLocked>(entity, C_D_DoorLocked{ keyId });
