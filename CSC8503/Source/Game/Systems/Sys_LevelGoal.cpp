@@ -5,6 +5,7 @@
 #include "Sys_LevelGoal.h"
 #include "Game/Utils/PauseGuard.h"
 
+#include <algorithm>
 #include <cmath>
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_T_FinishZone.h"
@@ -38,7 +39,6 @@ void Sys_LevelGoal::OnAwake(Registry& /*registry*/) {
  */
 void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
     PAUSE_GUARD(registry);
-    if (m_FinishTriggered) return;
 
     // 获取玩家位置
     NCL::Maths::Vector3 playerPos{};
@@ -53,11 +53,12 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
     // 检测玩家与所有终点区域的 3D 距离（支持多层垂直地图）
     constexpr float kFinishRadiusXZ = 4.0f;   // XZ 平面触发半径
     constexpr float kFinishHeightMax = 3.0f;   // Y 最大高度差（防止上下层误触发）
+    const bool isMultiplayer = registry.has_ctx<Res_GameState>()
+        && registry.ctx<Res_GameState>().isMultiplayer;
+    if (!isMultiplayer && m_FinishTriggered) return;
 
     registry.view<C_T_FinishZone, C_D_Transform>().each(
         [&](EntityID finishId, C_T_FinishZone&, C_D_Transform& ftf) {
-            if (m_FinishTriggered) return;
-
             float dx = playerPos.x - ftf.position.x;
             float dy = playerPos.y - ftf.position.y;
             float dz = playerPos.z - ftf.position.z;
@@ -65,10 +66,47 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 
             if (distXZSq < kFinishRadiusXZ * kFinishRadiusXZ
                 && std::fabs(dy) < kFinishHeightMax) {
+                if (isMultiplayer && m_FinishTriggered) {
+                    return;
+                }
+
                 m_FinishTriggered = true;
                 LOG_INFO("[Sys_LevelGoal] Player reached finish zone "
                          << (int)finishId << " distXZ=" << std::sqrt(distXZSq)
                          << " dY=" << dy);
+
+                if (isMultiplayer) {
+                    auto& gs = registry.ctx<Res_GameState>();
+                    if (gs.localStageProgress < kMultiplayerStageCount) {
+                        ++gs.localStageProgress;
+                    }
+                    gs.currentRoundIndex = std::min<uint8_t>(gs.localStageProgress, kMultiplayerStageCount - 1);
+                    gs.localProgress = gs.localStageProgress;
+                    gs.roundJustAdvanced = true;
+                    if (gs.localStageProgress >= kMultiplayerStageCount) {
+                        gs.isGameOver = true;
+                        gs.gameOverReason = 3;
+                        gs.gameOverTime = gs.playTime;
+                    }
+
+#ifdef USE_IMGUI
+                    if (registry.has_ctx<Res_UIState>()) {
+                        auto& ui = registry.ctx<Res_UIState>();
+                        if (gs.localStageProgress < kMultiplayerStageCount) {
+                            ui.totalPlayTime += gs.playTime;
+                            ui.pendingSceneRequest = SceneRequest::NextLevel;
+                            UI::PushToast(registry, "AREA CLEAR - MOVING OUT", ToastType::Success, 2.0f);
+                        } else {
+                            UI::PushToast(registry, "FINAL STAGE CLEAR", ToastType::Success, 2.0f);
+                        }
+                    }
+#else
+                    if (gs.localStageProgress >= kMultiplayerStageCount) {
+                        gs.isGameOver = true;
+                    }
+#endif
+                    return;
+                }
 
 #ifdef USE_IMGUI
                 if (registry.has_ctx<Res_UIState>()) {
@@ -123,6 +161,7 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 #endif
             }
         });
+
 }
 
 /**

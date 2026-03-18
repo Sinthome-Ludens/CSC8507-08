@@ -77,6 +77,7 @@ struct Res_UIState {
     int8_t    settingsSelectedIndex  = 0;
     int8_t    pauseSelectedIndex     = 0;
     int8_t    gameOverSelectedIndex  = 0;
+    bool      multiplayerRetryRequested = false;
     int8_t    resolutionIndex        = 2;   // default 1920x1080 (0=720p, 1=900p, 2=1080p)
     bool      resolutionChanged      = false;
 
