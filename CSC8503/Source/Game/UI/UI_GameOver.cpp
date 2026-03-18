@@ -146,7 +146,32 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         }
     }
 
-    // Title
+    // ── Score + Rating ──────────────────────────────────────
+    const int32_t finalScore = ui.campaignScore;
+    const char* rating = GetScoreRating(finalScore);
+    int8_t ratingTier = GetScoreRatingTier(finalScore);
+
+    // 单人通关但积分≤500 → 覆盖为失败（在绘制标题之前判断）
+    if (!isMultiplayer && isSuccess && finalScore <= 500) {
+        resultTitle    = "MISSION FAILED";
+        resultSubtitle = "INSUFFICIENT SCORE";
+        titleColor     = IM_COL32(220, 60, 40, 255);
+        isSuccess      = false;
+    }
+
+    // Multiplayer: override rating with match result string
+    if (isMultiplayer) {
+        switch (matchResult) {
+            case MatchResult::LocalWin:    rating = "WIN"; break;
+            case MatchResult::OpponentWin: rating = "LOSS"; break;
+            case MatchResult::Draw:        rating = "DRAW"; break;
+            case MatchResult::Disconnected:rating = "DISCONNECTED"; break;
+            case MatchResult::None:
+            default:                       rating = "UNKNOWN"; break;
+        }
+    }
+
+    // Title（仅绘制一次）
     ImFont* titleFont = UITheme::GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
     ImVec2 titleSize = ImGui::CalcTextSize(resultTitle);
@@ -167,46 +192,6 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float lineY = titleY + titleSize.y + 32.0f;
     draw->AddLine(ImVec2(cx - 120.0f, lineY), ImVec2(cx + 120.0f, lineY),
         IM_COL32(200, 200, 200, 120), 1.0f);
-
-    // ── Score + Rating (campaignScore-based) ────────────────
-    int32_t finalScore = 0;
-    const Res_UIState* uiPtr = &ui;
-    finalScore = uiPtr->campaignScore;
-    const char* rating = GetScoreRating(finalScore);
-    int8_t ratingTier = GetScoreRatingTier(finalScore);
-
-    // Multiplayer: override rating with match result string
-    if (isMultiplayer) {
-        switch (matchResult) {
-            case MatchResult::LocalWin:    rating = "WIN"; break;
-            case MatchResult::OpponentWin: rating = "LOSS"; break;
-            case MatchResult::Draw:        rating = "DRAW"; break;
-            case MatchResult::Disconnected:rating = "DISCONNECTED"; break;
-            case MatchResult::None:
-            default:                       rating = "UNKNOWN"; break;
-        }
-    } else {
-        // 通关但积分≤500 → 仍判失败
-        if (isSuccess && finalScore <= 500) {
-            resultTitle    = "MISSION FAILED";
-            resultSubtitle = "INSUFFICIENT SCORE";
-            titleColor     = IM_COL32(220, 60, 40, 255);
-            isSuccess      = false;
-            // 重绘 title (覆盖)
-            if (titleFont) ImGui::PushFont(titleFont);
-            ImVec2 ts2 = ImGui::CalcTextSize(resultTitle);
-            draw->AddRectFilled(ImVec2(vpPos.x, titleY - 2.0f),
-                ImVec2(vpPos.x + vpSize.x, titleY + ts2.y + 2.0f),
-                IM_COL32(245, 238, 232, 255));
-            draw->AddText(ImVec2(cx - ts2.x * 0.5f, titleY), titleColor, resultTitle);
-            if (titleFont) ImGui::PopFont();
-            if (termFont) ImGui::PushFont(termFont);
-            ImVec2 ss2 = ImGui::CalcTextSize(resultSubtitle);
-            draw->AddText(ImVec2(cx - ss2.x * 0.5f, titleY + titleSize.y + 6.0f),
-                IM_COL32(16, 13, 10, 180), resultSubtitle);
-            if (termFont) ImGui::PopFont();
-        }
-    }
 
     // 评级颜色
     ImU32 ratingCol;
@@ -260,28 +245,28 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         // TIME penalty
         snprintf(buf, sizeof(buf), "TIME (-1/s):");
         draw->AddText(ImVec2(statsX, statsY + 52.0f), labelCol, buf);
-        if (uiPtr->scoreLost_time > 0) {
-            snprintf(buf, sizeof(buf), "-%d", uiPtr->scoreLost_time);
+        if (ui.scoreLost_time > 0) {
+            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_time);
             draw->AddText(ImVec2(valX, statsY + 52.0f), deductCol, buf);
         } else {
             draw->AddText(ImVec2(valX, statsY + 52.0f), labelCol, "0");
         }
 
         // KILLS
-        snprintf(buf, sizeof(buf), "KILLS (x%d):", uiPtr->scoreKillCount);
+        snprintf(buf, sizeof(buf), "KILLS (x%d):", ui.scoreKillCount);
         draw->AddText(ImVec2(statsX, statsY + 76.0f), labelCol, buf);
-        if (uiPtr->scoreLost_kills > 0) {
-            snprintf(buf, sizeof(buf), "-%d", uiPtr->scoreLost_kills);
+        if (ui.scoreLost_kills > 0) {
+            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_kills);
             draw->AddText(ImVec2(valX, statsY + 76.0f), deductCol, buf);
         } else {
             draw->AddText(ImVec2(valX, statsY + 76.0f), labelCol, "0");
         }
 
         // ITEMS
-        snprintf(buf, sizeof(buf), "ITEMS (x%d):", uiPtr->scoreItemUseCount);
+        snprintf(buf, sizeof(buf), "ITEMS (x%d):", ui.scoreItemUseCount);
         draw->AddText(ImVec2(statsX, statsY + 100.0f), labelCol, buf);
-        if (uiPtr->scoreLost_items > 0) {
-            snprintf(buf, sizeof(buf), "-%d", uiPtr->scoreLost_items);
+        if (ui.scoreLost_items > 0) {
+            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_items);
             draw->AddText(ImVec2(valX, statsY + 100.0f), deductCol, buf);
         } else {
             draw->AddText(ImVec2(valX, statsY + 100.0f), labelCol, "0");
@@ -289,8 +274,8 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
 
         // COUNTDOWN
         draw->AddText(ImVec2(statsX, statsY + 124.0f), labelCol, "COUNTDOWN:");
-        if (uiPtr->scoreLost_countdown > 0) {
-            snprintf(buf, sizeof(buf), "-%d", uiPtr->scoreLost_countdown);
+        if (ui.scoreLost_countdown > 0) {
+            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_countdown);
             draw->AddText(ImVec2(valX, statsY + 124.0f), deductCol, buf);
         } else {
             draw->AddText(ImVec2(valX, statsY + 124.0f), labelCol, "0");
@@ -298,8 +283,8 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
 
         // FAILURE
         draw->AddText(ImVec2(statsX, statsY + 148.0f), labelCol, "FAILURE:");
-        if (uiPtr->scoreLost_failure > 0) {
-            snprintf(buf, sizeof(buf), "-%d", uiPtr->scoreLost_failure);
+        if (ui.scoreLost_failure > 0) {
+            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_failure);
             draw->AddText(ImVec2(valX, statsY + 148.0f), deductCol, buf);
         } else {
             draw->AddText(ImVec2(valX, statsY + 148.0f), labelCol, "0");
