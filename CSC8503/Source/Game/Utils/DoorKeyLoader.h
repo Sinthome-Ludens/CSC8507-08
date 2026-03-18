@@ -33,7 +33,9 @@ struct DoorKeyData {
 /**
  * @brief Load door and key placement data from a .doors file.
  * @param filePath Full path to the .doors file.
- * @return Parsed data; loaded=false if file cannot be opened.
+ * @return Parsed data; loaded=false if the file cannot be opened,
+ *         the header is malformed (missing doorCount/keyCount),
+ *         or no valid entries were parsed.
  */
 DoorKeyData LoadDoorKeys(const std::string& filePath);
 

@@ -13,8 +13,9 @@ namespace ECS {
  * @brief Parse a `.doors` placement file into DoorKeyData.
  *
  * Reads the header (doorCount, keyCount), then each door/key block.
+ * Incomplete entries (missing keyId) are skipped with a warning.
  * Returns loaded=false if the file cannot be opened, the header is
- * malformed, or any entry is incomplete (missing keyId).
+ * malformed, or no valid entries were parsed after skipping.
  *
  * @param filePath Full filesystem path to the .doors file.
  * @return Parsed door/key data; check `.loaded` before use.
