@@ -26,6 +26,8 @@
 #include "Game/Components/C_D_HoloBaitState.h"
 #include "Game/Components/C_D_DDoSFrozen.h"
 #include "Game/Components/C_D_RoamAI.h"
+#include "Game/Components/C_D_Dying.h"
+#include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/C_T_RoamAI.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/Res_RadarState.h"
@@ -38,9 +40,11 @@
 
 #include <cmath>
 #include <cstring>
+#include <algorithm>
 #include <cfloat>
 #include <vector>
 
+#include "Game/Components/Res_UIState.h"
 #ifdef USE_IMGUI
 #include "Game/UI/UI_ActionNotify.h"
 #endif
@@ -70,6 +74,24 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
         if (bus) {
             m_UseSubId = bus->subscribe<Evt_Item_Use>(
                 [this, &registry](const Evt_Item_Use& evt) {
+                    // 统一道具使用扣分 -5
+                    {
+                        static const char* kItemNames[] = {
+                            "HOLOBAIT", "RADAR", "DDOS", "ROAM AI", "TARGET STRIKE"
+                        };
+                        const char* usedName = (static_cast<uint8_t>(evt.itemId) < 5)
+                            ? kItemNames[static_cast<uint8_t>(evt.itemId)] : "ITEM";
+#ifdef USE_IMGUI
+                        ECS::UI::PushActionNotify(registry, "USED", usedName,
+                                                  -5, ActionNotifyType::Alert);
+#endif
+                        if (registry.has_ctx<Res_UIState>()) {
+                            auto& uiS = registry.ctx<Res_UIState>();
+                            uiS.campaignScore = std::max(0, uiS.campaignScore - 5);
+                            uiS.scoreLost_items += 5;
+                            uiS.scoreItemUseCount++;
+                        }
+                    }
                     switch (evt.itemId) {
                         case ItemID::HoloBait:     EffectHoloBait    (registry, evt); break;
                         case ItemID::PhotonRadar:  EffectPhotonRadar (registry, evt); break;
@@ -165,7 +187,7 @@ void Sys_ItemEffects::EffectHoloBait(Registry& registry, const Evt_Item_Use& evt
 
 #ifdef USE_IMGUI
     ECS::UI::PushActionNotify(registry, "HOLOBAIT", "DEPLOYED",
-                              5, ActionNotifyType::Bonus);
+                              0, ActionNotifyType::Bonus);
 #endif
 }
 
@@ -184,7 +206,7 @@ void Sys_ItemEffects::EffectPhotonRadar(Registry& registry, const Evt_Item_Use& 
 
 #ifdef USE_IMGUI
     ECS::UI::PushActionNotify(registry, "RADAR", "ACTIVATED",
-                              5, ActionNotifyType::Bonus);
+                              0, ActionNotifyType::Bonus);
 #endif
 }
 
@@ -217,7 +239,7 @@ void Sys_ItemEffects::EffectDDoS(Registry& registry, const Evt_Item_Use& evt) {
 
 #ifdef USE_IMGUI
     ECS::UI::PushActionNotify(registry, "DDOS", "GUARD",
-                              10, ActionNotifyType::Weapon);
+                              0, ActionNotifyType::Weapon);
 #endif
 }
 
@@ -255,14 +277,25 @@ void Sys_ItemEffects::EffectTargetStrike(Registry& registry, const Evt_Item_Use&
         LOG_INFO("[Sys_ItemEffects] TargetStrike killed entity " << target << " via health component.");
 #ifdef USE_IMGUI
         ECS::UI::PushActionNotify(registry, "TARGET STRIKE", "GUARD",
-                                  50, ActionNotifyType::Weapon);
+                                  0, ActionNotifyType::Weapon);
 #endif
     } else if (registry.Has<C_T_Enemy>(target)) {
-        registry.Destroy(target);
-        LOG_INFO("[Sys_ItemEffects] TargetStrike destroyed enemy entity " << target << " without health component.");
+        // 无 C_D_Health 的极端情况 — 走标准死亡流程
+        if (!registry.Has<C_D_Dying>(target)) {
+            registry.Emplace<C_D_Dying>(target);
+            registry.Emplace<C_D_DeathVisual>(target);
+            if (registry.has_ctx<Res_UIState>()) {
+                auto& uiS = registry.ctx<Res_UIState>();
+                uiS.campaignScore = std::max(0, uiS.campaignScore - 10);
+                uiS.scoreLost_kills += 10;
+                uiS.scoreKillCount++;
+            }
+        }
+        LOG_INFO("[Sys_ItemEffects] TargetStrike killed enemy entity "
+                 << target << " (no health, direct death).");
 #ifdef USE_IMGUI
         ECS::UI::PushActionNotify(registry, "TARGET STRIKE", "GUARD",
-                                  50, ActionNotifyType::Weapon);
+                                  0, ActionNotifyType::Weapon);
 #endif
     }
 }
@@ -357,14 +390,31 @@ void Sys_ItemEffects::UpdateRoamAI(Registry& registry, float dt) {
                     if ((dx*dx + dz*dz) <= r2) {
                         killed = true;
                         roam.active = false;
-                        toDestroy.push_back(roamId);
-                        toDestroy.push_back(eid);
+                        toDestroy.push_back(roamId);  // 仅销毁 RoamAI 自身
+
+                        // 标准 ECS 死亡流程（C_D_Dying 守卫防重复）
+                        if (!registry.Has<C_D_Dying>(eid)) {
+                            if (registry.Has<C_D_Health>(eid)) {
+                                auto& hp = registry.Get<C_D_Health>(eid);
+                                hp.hp = 0.0f;
+                                hp.deathCause = DeathType::EnemyHpZero;
+                            }
+                            registry.Emplace<C_D_Dying>(eid);
+                            registry.Emplace<C_D_DeathVisual>(eid);
+
+                            if (registry.has_ctx<Res_UIState>()) {
+                                auto& uiS = registry.ctx<Res_UIState>();
+                                uiS.campaignScore = std::max(0, uiS.campaignScore - 10);
+                                uiS.scoreLost_kills += 10;
+                                uiS.scoreKillCount++;
+                            }
+#ifdef USE_IMGUI
+                            ECS::UI::PushActionNotify(registry, "KILL PENALTY", "ROAM AI",
+                                                      -10, ActionNotifyType::Kill);
+#endif
+                        }
                         LOG_INFO("[Sys_ItemEffects] RoamAI " << roamId
                                  << " killed enemy " << eid);
-#ifdef USE_IMGUI
-                        ECS::UI::PushActionNotify(registry, "ROAM AI", "GUARD",
-                                                  30, ActionNotifyType::Kill);
-#endif
                     }
                 }
             );

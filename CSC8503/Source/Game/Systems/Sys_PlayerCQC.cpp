@@ -20,6 +20,7 @@
 #include "Game/Components/C_D_CQCHighlight.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_AIState.h"
+#include "Game/Components/C_D_Health.h"
 #include "Game/Components/C_D_Dying.h"
 #include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/C_T_Player.h"
@@ -112,7 +113,12 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                     ClearHighlight(registry, cqc);
                     EntityID target = cqc.targetEnemy;
                     if (target != 0 && !registry.Has<C_D_Dying>(target)) {
-                        // 直接触发死亡动画（无需 C_D_Health）
+                        // 设 hp=0 确保 health 状态一致
+                        if (registry.Has<C_D_Health>(target)) {
+                            auto& hp = registry.Get<C_D_Health>(target);
+                            hp.hp = 0.0f;
+                            hp.deathCause = DeathType::EnemyHpZero;
+                        }
                         registry.Emplace<C_D_Dying>(target);
                         registry.Emplace<C_D_DeathVisual>(target);
                         LOG_INFO("[Sys_PlayerCQC] CQC kill: entity " << (int)target);
