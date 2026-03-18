@@ -123,6 +123,9 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
     resNet.host = enet_host_create(NULL, 1, 2, 0, 0);
     if (resNet.host == nullptr) {
         LOG_ERROR("An error occurred while trying to create an ENet client host.");
+        resNet.peer        = nullptr;
+        resNet.connected   = false;
+        resNet.localClientID = UINT32_MAX;
         return;
     }
     // 客户端实际 ID 应在 SYS_WELCOME 包中由 Server 分配。
@@ -132,6 +135,11 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
     ENetAddress address;
     if (enet_address_set_host(&address, resNet.serverIP) != 0) {
         LOG_ERROR("Failed to resolve server host: " << resNet.serverIP);
+        enet_host_destroy(resNet.host);
+        resNet.host        = nullptr;
+        resNet.peer        = nullptr;
+        resNet.connected   = false;
+        resNet.localClientID = UINT32_MAX;
         return;
     }
     address.port = resNet.serverPort;
@@ -139,6 +147,11 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
     resNet.peer = enet_host_connect(resNet.host, &address, 2, 0);
     if (resNet.peer == nullptr) {
         LOG_ERROR("No available peers for initiating an ENet connection.");
+        enet_host_destroy(resNet.host);
+        resNet.host        = nullptr;
+        resNet.peer        = nullptr;
+        resNet.connected   = false;
+        resNet.localClientID = UINT32_MAX;
         return;
     }
     m_LastInputMask = 0;
