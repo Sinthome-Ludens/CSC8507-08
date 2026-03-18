@@ -314,6 +314,20 @@ private:
     uint8_t m_LastBroadcastRoundIndex = 0xFF;
     uint8_t m_LastBroadcastGameOverReason = 0xFF;
 
+    /**
+     * @brief 本地游戏动作事件回调。
+     *
+     * @details
+     * 由本机发布的 `Evt_Net_GameAction` 事件触发，用于将本地输入/状态变化转换为网络数据包
+     * 或本地网络状态更新。
+     *
+     * 线程与生命周期假设：
+     * - 在主游戏线程中由 EventBus 调用，不在 ENet 内部工作线程中执行。
+     * - 仅在 `Sys_Network::OnAwake` 成功完成且未调用 `OnDestroy` 期间有效，此时 `m_Registry` 保证非空。
+     * - 不应发生重入调用，调用方需保证按帧序或事件队列顺序串行触发。
+     *
+     * @param evt 描述本地玩家动作或网络相关请求的事件载体。
+     */
     void OnLocalGameAction(const Evt_Net_GameAction& evt);
 };
 
