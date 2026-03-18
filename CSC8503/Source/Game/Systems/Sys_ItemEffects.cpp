@@ -13,8 +13,8 @@
  * 本系统仅：
  *  - HoloBait：记录吸引目标到 C_D_HoloBaitState，由敌人 AI 读取（存根）
  *  - DDoS：挂载 C_D_DDoSFrozen，Sys_EnemyAI 读取后跳过移动
- *  - RoamAI：碰撞检测后对敌人 hp 归零（触发 Sys_DeathJudgment）
- *  - TargetStrike：对最近敌人 hp 归零（触发 Sys_DeathJudgment）
+ *  - RoamAI：碰撞检测后 hp=0 + 直接挂 C_D_Dying/C_D_DeathVisual + 扣分（School A）
+ *  - TargetStrike：有 C_D_Health 时 hp=0（委托 Sys_DeathJudgment），无 C_D_Health 时直接挂 C_D_Dying + 扣分
  */
 #include "Sys_ItemEffects.h"
 #include "Game/Utils/PauseGuard.h"
