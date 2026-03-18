@@ -1,3 +1,10 @@
+/**
+ * @file DialogueLoader.cpp
+ * @brief JSON dialogue data parser implementation.
+ *
+ * Parses per-mode dialogue JSON files into DialogueSequence structs.
+ * Handles UTF-8 safe truncation for fixed-size char buffers.
+ */
 #include "DialogueLoader.h"
 #include "Game/Utils/Log.h"
 
@@ -19,7 +26,7 @@ namespace ECS {
  * character is the start or continuation of a multibyte sequence that was
  * cut short, truncate at the character boundary.
  */
-static void SafeUtf8Truncate(char* buf, int bufSize) {
+static void SafeUtf8Truncate(char* buf, [[maybe_unused]] int bufSize) {
     int len = static_cast<int>(std::strlen(buf));
     if (len == 0) return;
 
@@ -43,6 +50,17 @@ static void SafeUtf8Truncate(char* buf, int bufSize) {
     }
 }
 
+/**
+ * @brief Parse a single dialogue JSON file into a DialogueSequence.
+ *
+ * Expects a JSON object with optional "delay" (float) and required "nodes" (array).
+ * Each node may be an isRoot tree entry, an interactive node with replies, or an
+ * auto-advance node. Populates outSeq.nodes[], outSeq.trees[], and outSeq.nodeCount.
+ *
+ * @param filepath  Full path to the .json dialogue file.
+ * @param outSeq    Output sequence; cleared and populated on success.
+ * @return true on success, false if the file cannot be opened or has no "nodes" array.
+ */
 bool LoadDialogueSequenceFromJSON(const std::string& filepath, DialogueSequence& outSeq) {
     std::ifstream file(filepath);
     if (!file.is_open()) {

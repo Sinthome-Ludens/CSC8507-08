@@ -38,7 +38,7 @@ struct DialogueTreeInfo {
     char rootNodeId[32] = {};   ///< 入口节点 ID（如 "na_01"）
 };
 
-/// 单个对话模式的网状图（最多 64 个节点，可含多棵对话树）
+/// 单个对话模式的网状图（最多 128 个节点，可含多棵对话树）
 struct DialogueSequence {
     static constexpr int kMaxNodes = 128;
     static constexpr int kMaxTrees = 8;     ///< 同一文件中最多 8 棵对话树

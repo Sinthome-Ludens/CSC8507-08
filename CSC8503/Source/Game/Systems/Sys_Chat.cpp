@@ -265,7 +265,7 @@ void Sys_Chat::OnAwake(Registry& registry) {
     auto& dialogueData = registry.ctx<Res_DialogueData>();
 
     if (!dialogueData.loaded) {
-        const std::string dir = NCL::Assets::DIALOGUEDIR;
+        const std::string dir = NCL::Assets::ASSETROOT + "Dialogue/";
         bool ok = true;
         ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Normal.json",  dialogueData.proactive);
         ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Alert.json",   dialogueData.mixed);
@@ -288,16 +288,15 @@ void Sys_Chat::OnAwake(Registry& registry) {
         ChatState_PushMessage(chat, "SYSTEM", "Awaiting operator input...", 0, true);
     }
 
-    // Cross-map: clear forcedTreeId so the new scene can set its own
-    if (chatStateExisted) {
-        chat.forcedTreeId[0] = '\0';
-    }
-
     // Always reset dialogue progress — select a dialogue tree (forced or random)
+    // Note: forcedTreeId may have been set by the scene *before* OnAwake (e.g., TutorialLevel).
+    // We read it first, then clear it so it doesn't persist to the next map.
     const DialogueSequence* seq = GetSequence(dialogueData, chat.chatMode);
     if (!seq || !SelectTree(*seq, chat.forcedTreeId, chat.currentNodeId, sizeof(chat.currentNodeId))) {
         chat.currentNodeId[0] = '\0';
     }
+    // Clear forcedTreeId after tree selection so it doesn't carry over to the next map
+    chat.forcedTreeId[0]  = '\0';
     chat.treeFinished     = false;
     chat.nextMessageDelay = seq ? seq->messageDelay : 8.0f;
     chat.nextMessageTimer = 3.0f;
@@ -423,8 +422,9 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
                 // isLoop: stay on the same node — will re-display after delay
                 // (currentNodeId unchanged)
             } else {
-                // End of branch
+                // End of branch — mark tree as finished immediately
                 chat.currentNodeId[0] = '\0';
+                chat.treeFinished = true;
             }
         }
 
@@ -449,7 +449,9 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
             if (curNode && curNode->isLoop) {
                 // keep currentNodeId unchanged — will re-display after delay
             } else {
+                // Timeout ended the tree — mark finished immediately
                 chat.currentNodeId[0] = '\0';
+                chat.treeFinished = true;
             }
 
             ChatState_ClearReplies(chat);
