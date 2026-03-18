@@ -10,9 +10,11 @@
 #include "Core/ECS/Registry.h"
 #include "Core/Bridge/AssetManager.h"
 #include "Game/Components/C_D_Item.h"
+#include "RuntimeOverrides.h"
 #include "Vector.h"
 #include "Quaternion.h"
 #include <vector>
+#include <string>
 
 /**
  * @brief 实体预制体工厂（JSON 数据驱动 + 硬编码回退）
@@ -47,6 +49,43 @@ class PrefabFactory {
 public:
     PrefabFactory()  = delete; // 纯静态工厂，禁止实例化
     ~PrefabFactory() = delete;
+
+    // ============================================================
+    // 通用数据驱动创建入口
+    // ============================================================
+
+    /**
+     * @brief 通用 Prefab 创建入口（数据驱动）
+     *
+     * 从 JSON 蓝图的 "Components" 字典中读取组件列表，
+     * 通过 ComponentRegistry 查表 Emplace 各组件。
+     *
+     * @param reg             ECS Registry
+     * @param prefabJsonFile  JSON 蓝图文件名（如 "Prefab_Player.json"）
+     * @param overrides       运行时参数覆盖（mesh 句柄、位置等）
+     * @return 创建的实体 ID，或 Entity::NULL_ENTITY（失败时）
+     */
+    static ECS::EntityID Create(
+        ECS::Registry&          reg,
+        const std::string&      prefabJsonFile,
+        const ECS::RuntimeOverrides& overrides = {}
+    );
+
+    /**
+     * @brief 从 JSON 蓝图的 "Variants" 中创建指定变体实体
+     *
+     * @param reg             ECS Registry
+     * @param prefabJsonFile  JSON 蓝图文件名
+     * @param variantName     变体名称（如 "Mesh", "Render", "Detect"）
+     * @param overrides       运行时参数覆盖
+     * @return 创建的实体 ID，或 Entity::NULL_ENTITY（失败时）
+     */
+    static ECS::EntityID CreateVariant(
+        ECS::Registry&          reg,
+        const std::string&      prefabJsonFile,
+        const std::string&      variantName,
+        const ECS::RuntimeOverrides& overrides = {}
+    );
 
     // ============================================================
     // 相机
