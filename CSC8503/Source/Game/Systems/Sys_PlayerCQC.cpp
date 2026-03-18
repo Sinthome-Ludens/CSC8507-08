@@ -28,10 +28,12 @@
 #include "Game/Events/Evt_CQC_Takedown.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/UI/UI_ActionNotify.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cfloat>
 
@@ -115,10 +117,16 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                         registry.Emplace<C_D_DeathVisual>(target);
                         LOG_INFO("[Sys_PlayerCQC] CQC kill: entity " << (int)target);
 
-                        // 击杀通知
+                        // CQC 击杀扣分（直接写入，不依赖通知系统）
+                        if (registry.has_ctx<Res_UIState>()) {
+                            auto& uiS = registry.ctx<Res_UIState>();
+                            uiS.campaignScore = std::max(0, uiS.campaignScore - 10);
+                            uiS.scoreLost_kills += 10;
+                            uiS.scoreKillCount++;
+                        }
 #ifdef USE_IMGUI
-                        ECS::UI::PushActionNotify(registry, "消灭", "敌人", 10,
-                                                  ECS::ActionNotifyType::Kill);
+                        ECS::UI::PushActionNotify(registry, "KILL PENALTY", "CQC",
+                                                  -10, ActionNotifyType::Kill);
 #endif
 
                         // 发布 CQC 完成事件
