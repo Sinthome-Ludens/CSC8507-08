@@ -28,6 +28,7 @@
 #include "Game/Components/C_D_DebugName.h"
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Components/C_D_Material.h"
+#include "Game/Components/C_D_PlayerState.h"
 #include "Game/Components/C_T_ItemPickup.h"
 #include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Components/C_D_HoloBaitState.h"
@@ -292,7 +293,31 @@ EntityID PrefabFactory::CreatePlayer(
     RuntimeOverrides ovr;
     ovr.meshHandle = cubeMesh;
     ovr.position   = spawnPos;
-    return Create(reg, "Prefab_Player.json", ovr);
+    EntityID entity = Create(reg, "Prefab_Player.json", ovr);
+    if (entity == Entity::NULL_ENTITY) {
+        return entity;
+    }
+
+    if (reg.Has<C_D_Collider>(entity)) {
+        auto& col = reg.Get<C_D_Collider>(entity);
+        col.type = ColliderType::Box;
+        col.fit_mode = ColliderFitMode::MeshBoundsAuto;
+        col.fit_padding = 0.0f;
+    }
+
+    if (reg.Has<C_D_PlayerState>(entity)) {
+        auto& ps = reg.Get<C_D_PlayerState>(entity);
+        ps.colliderRadius = 1.0f;
+        ps.colliderHalfHeight = 1.0f;
+    }
+
+    return entity;
+}
+
+static void AttachDebugName(Registry& reg, EntityID entity, const char* name)
+{
+    auto& dn = reg.Emplace<C_D_DebugName>(entity);
+    std::snprintf(dn.name, sizeof(dn.name), "%s", name);
 }
 
 // ============================================================

@@ -10,6 +10,7 @@
 
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_Transform.h"
+#include "Game/Components/C_D_Collider.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_PlayerState.h"
 #include "Game/Components/C_T_Player.h"
@@ -26,7 +27,7 @@ namespace ECS {
 
 /**
  * @brief 处理玩家姿态切换与碰撞体重建。
- * @details 根据输入、伪装状态和强制站立请求决定目标姿态，并通过 Sys_Physics 的 EntityID 接口替换胶囊体、修正位置、唤醒刚体，再发布姿态切换事件。
+ * @details 根据输入、伪装状态和强制站立请求决定目标姿态，并通过 Sys_Physics 的 EntityID 接口替换 Box 碰撞体、修正位置、唤醒刚体，再发布姿态切换事件。
  * @param registry 当前场景注册表
  * @param dt 本帧时间步长（当前实现未直接使用）
  */
@@ -49,11 +50,20 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
                     float oldHalfHeight = ps.colliderHalfHeight;
 
                     ps.stance = PlayerStance::Standing;
-                    ps.colliderHalfHeight = STAND_HALF_HEIGHT;
-                    physics->ReplaceShapeCapsule(id, STAND_HALF_HEIGHT, CAPSULE_RADIUS);
+                    ps.colliderRadius = STAND_HALF_X;
+                    ps.colliderHalfHeight = STAND_HALF_Y;
+                    if (registry.Has<C_D_Collider>(id)) {
+                        auto& col = registry.Get<C_D_Collider>(id);
+                        col.type = ColliderType::Box;
+                        col.fit_mode = ColliderFitMode::Manual;
+                        col.half_x = STAND_HALF_X;
+                        col.half_y = STAND_HALF_Y;
+                        col.half_z = STAND_HALF_Z;
+                    }
+                    physics->ReplaceShapeBox(id, STAND_HALF_X, STAND_HALF_Y, STAND_HALF_Z);
 
-                    float oldBottom = (tf.position.y - SKIN_OFFSET) - (oldHalfHeight + CAPSULE_RADIUS);
-                    float newCenterY = oldBottom + STAND_HALF_HEIGHT + CAPSULE_RADIUS + SKIN_OFFSET;
+                    float oldBottom = (tf.position.y - SKIN_OFFSET) - oldHalfHeight;
+                    float newCenterY = oldBottom + STAND_HALF_Y + SKIN_OFFSET;
                     physics->SetPosition(id, tf.position.x, newCenterY, tf.position.z);
                     tf.position.y = newCenterY;
                     physics->ActivateBody(id);
@@ -105,17 +115,30 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
 
             // 确定新碰撞体半高
             float oldHalfHeight = (oldStance == PlayerStance::Standing)
-                                  ? STAND_HALF_HEIGHT : CROUCH_HALF_HEIGHT;
+                                  ? STAND_HALF_Y : CROUCH_HALF_Y;
             float newHalfHeight = (ps.stance == PlayerStance::Crouching)
-                                  ? CROUCH_HALF_HEIGHT : STAND_HALF_HEIGHT;
+                                  ? CROUCH_HALF_Y : STAND_HALF_Y;
             ps.colliderHalfHeight = newHalfHeight;
+            ps.colliderRadius = STAND_HALF_X;
 
             // 1) 替换碰撞体形状
-            physics->ReplaceShapeCapsule(id, newHalfHeight, CAPSULE_RADIUS);
+            if (registry.Has<C_D_Collider>(id)) {
+                auto& col = registry.Get<C_D_Collider>(id);
+                col.type = ColliderType::Box;
+                col.fit_mode = ColliderFitMode::Manual;
+                col.half_x = (ps.stance == PlayerStance::Crouching) ? CROUCH_HALF_X : STAND_HALF_X;
+                col.half_y = newHalfHeight;
+                col.half_z = (ps.stance == PlayerStance::Crouching) ? CROUCH_HALF_Z : STAND_HALF_Z;
+            }
+            physics->ReplaceShapeBox(
+                id,
+                (ps.stance == PlayerStance::Crouching) ? CROUCH_HALF_X : STAND_HALF_X,
+                newHalfHeight,
+                (ps.stance == PlayerStance::Crouching) ? CROUCH_HALF_Z : STAND_HALF_Z);
 
             // 2) 调整 Y 位置，保持脚底不动
-            float oldBottom = (tf.position.y - SKIN_OFFSET) - (oldHalfHeight + CAPSULE_RADIUS);
-            float newCenterY = oldBottom + newHalfHeight + CAPSULE_RADIUS + SKIN_OFFSET;
+            float oldBottom = (tf.position.y - SKIN_OFFSET) - oldHalfHeight;
+            float newCenterY = oldBottom + newHalfHeight + SKIN_OFFSET;
             physics->SetPosition(id, tf.position.x, newCenterY, tf.position.z);
             tf.position.y = newCenterY;
 

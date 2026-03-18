@@ -144,6 +144,7 @@ void ReadRigidBody(const json& j, C_D_RigidBody& rb) {
  * JSON 中 Capsule 使用 "radius" / "half_height" 字段名，
  * 映射到 C_D_Collider 的 half_x(radius) / half_y(half_height)。
  * Box/Sphere 使用 "half_x", "half_y", "half_z"。
+ * 可选字段 "fit_mode"（"Manual" / "MeshBoundsAuto"）与 "fit_padding"。
  * ================================================================ */
 void ReadCollider(const json& j, C_D_Collider& col) {
     try {
@@ -154,6 +155,15 @@ void ReadCollider(const json& j, C_D_Collider& col) {
             else if (t == "Capsule") col.type = ColliderType::Capsule;
             else if (t == "TriMesh") col.type = ColliderType::TriMesh;
         }
+
+        if (j.contains("fit_mode") && j["fit_mode"].is_string()) {
+            std::string fm = j["fit_mode"].get<std::string>();
+            if      (fm == "Manual")         col.fit_mode = ColliderFitMode::Manual;
+            else if (fm == "MeshBoundsAuto") col.fit_mode = ColliderFitMode::MeshBoundsAuto;
+        }
+
+        if (j.contains("fit_padding") && j["fit_padding"].is_number())
+            col.fit_padding = j["fit_padding"].get<float>();
 
         if (col.type == ColliderType::Capsule) {
             if (j.contains("radius")      && j["radius"].is_number())      col.half_x = j["radius"].get<float>();
