@@ -38,17 +38,27 @@ using json = nlohmann::json;
 using namespace NCL::Maths;
 using namespace ECS;
 
-// ============================================================
-// 内部辅助：从 JSON 根对象获取 "Components" 子对象
-// ============================================================
+/**
+ * @brief 从 JSON 根对象提取 "Components" 子对象。
+ * @param root JSON 文档根对象
+ * @return 指向 "Components" JSON 对象的 const 指针；若不存在或不是 object 返回 nullptr
+ */
 static const json* GetComponents(const json& root) {
     if (!root.contains("Components") || !root["Components"].is_object()) return nullptr;
     return &root["Components"];
 }
 
-// ============================================================
-// 内部辅助：遍历 Components 字典，查表 Emplace 各组件
-// ============================================================
+/**
+ * @brief 遍历 JSON Components 字典，按 key 查找 ComponentRegistry 并逐一 Emplace。
+ *
+ * 对于未注册的组件 key，输出 LOG_WARN 并跳过（不阻断其余组件的创建）。
+ * overrides 的优先级：RuntimeOverrides 字段 > JSON 字段 > 组件默认构造值。
+ *
+ * @param reg       ECS Registry
+ * @param comps     JSON "Components" 字典对象
+ * @param overrides 运行时覆盖参数
+ * @return 新创建的实体 ID（始终有效，即使部分组件跳过）
+ */
 static EntityID EmplaceFromJson(
     Registry& reg,
     const json& comps,
@@ -66,9 +76,17 @@ static EntityID EmplaceFromJson(
     return entity;
 }
 
-// ============================================================
-// Create — 通用数据驱动创建入口
-// ============================================================
+/**
+ * @brief 通用数据驱动创建入口：从 JSON 蓝图的 "Components" 字典创建实体。
+ *
+ * 首次调用时触发 ComponentRegistry::RegisterAll()（幂等）。
+ * 优先级链：RuntimeOverrides > JSON 字段 > 组件默认值。
+ *
+ * @param reg             ECS Registry
+ * @param prefabJsonFile  JSON 蓝图文件名（如 "Prefab_Player.json"）
+ * @param overrides       运行时覆盖参数
+ * @return 创建的实体 ID；JSON 文件不存在或缺少 "Components" 时返回 Entity::NULL_ENTITY
+ */
 EntityID PrefabFactory::Create(
     Registry&               reg,
     const std::string&      prefabJsonFile,
@@ -85,9 +103,19 @@ EntityID PrefabFactory::Create(
     return EmplaceFromJson(reg, *comps, overrides);
 }
 
-// ============================================================
-// CreateVariant — 从 JSON 蓝图的 "Variants" 中创建指定变体
-// ============================================================
+/**
+ * @brief 从 JSON 蓝图的 "Variants" 中创建指定变体实体。
+ *
+ * 查找 doc["Variants"][variantName]["Components"]，然后走与 Create() 相同的
+ * EmplaceFromJson 路径。用于同一 JSON 文件中声明多个变体的场景（如 FinishZone
+ * 的 Mesh/Render/Detect 三变体）。
+ *
+ * @param reg             ECS Registry
+ * @param prefabJsonFile  JSON 蓝图文件名
+ * @param variantName     变体名称（如 "Mesh", "Render", "Detect"）
+ * @param overrides       运行时覆盖参数
+ * @return 创建的实体 ID；变体不存在时返回 Entity::NULL_ENTITY
+ */
 EntityID PrefabFactory::CreateVariant(
     Registry&               reg,
     const std::string&      prefabJsonFile,

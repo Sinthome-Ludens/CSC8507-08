@@ -46,27 +46,45 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
-/* ================================================================
- * Meyer's singleton map
- * ================================================================ */
+/**
+ * @brief Meyer's singleton：返回进程级别的 static unordered_map。
+ *
+ * 首次调用时构造空 map，后续调用返回同一实例。
+ * 非线程安全（仅在主线程的 RegisterAll/Find 中调用）。
+ */
 std::unordered_map<std::string, EmplaceFn>& ComponentRegistry::GetMap() {
     static std::unordered_map<std::string, EmplaceFn> s_map;
     return s_map;
 }
 
+/**
+ * @brief 注册或覆盖一个组件名到 Emplace 函数的映射。
+ *
+ * 使用 operator[] 赋值，若 name 已存在则覆盖旧的 EmplaceFn。
+ */
 void ComponentRegistry::Register(const std::string& name, EmplaceFn fn) {
     GetMap()[name] = std::move(fn);
 }
 
+/**
+ * @brief 按组件名查找已注册的 Emplace 函数。
+ *
+ * 返回 map 中元素的指针（进程级生命周期），未找到返回 nullptr。
+ * RegisterAll() 完成后 map 不再修改，因此返回的指针稳定。
+ */
 const EmplaceFn* ComponentRegistry::Find(const std::string& name) {
     auto& map = GetMap();
     auto it = map.find(name);
     return (it != map.end()) ? &it->second : nullptr;
 }
 
-/* ================================================================
- * RegisterAll — 幂等注册全部组件类型
- * ================================================================ */
+/**
+ * @brief 幂等注册全部已知组件类型到内部 map。
+ *
+ * 使用 static bool 保证只执行一次（非线程安全，仅主线程调用）。
+ * 注册约 32 个组件的 Emplace lambda，每个 lambda 从 JSON data 读取字段，
+ * 并应用 RuntimeOverrides 覆盖，最终调用 Registry::Emplace<T>()。
+ */
 void ComponentRegistry::RegisterAll() {
     static bool s_registered = false;
     if (s_registered) return;

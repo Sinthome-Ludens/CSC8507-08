@@ -11,7 +11,7 @@
 
 #include "Vector.h"
 #include "Quaternion.h"
-#include "Core/Bridge/AssetManager.h"
+#include "Game/Components/C_D_MeshRenderer.h"  // MeshHandle typedef
 
 #include <optional>
 #include <vector>
@@ -22,7 +22,7 @@ struct RuntimeOverrides {
     std::optional<NCL::Maths::Vector3>     position;      // 生成位置覆盖
     std::optional<NCL::Maths::Quaternion>  rotation;      // 旋转覆盖
     std::optional<NCL::Maths::Vector3>     scale;         // 缩放覆盖
-    std::optional<uint32_t>                meshHandle;    // AssetManager 返回的句柄
+    std::optional<MeshHandle>              meshHandle;    // AssetManager 返回的句柄
     std::optional<int>                     spawnIndex;    // DebugName 编号 (_XX → _03)
     std::optional<NCL::Maths::Vector3>     halfExtents;   // 碰撞体半尺寸覆盖
     std::optional<NCL::Maths::Vector3>     worldOffset;   // 地图 Y 偏移覆盖 position

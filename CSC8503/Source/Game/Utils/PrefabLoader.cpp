@@ -190,9 +190,16 @@ void ReadCamera(const json& j, C_D_Camera& cam) {
     }
 }
 
-/* ================================================================
- * LoadBlueprint — 公开接口，读取并缓存 JSON 蓝图文件
- * ================================================================ */
+/**
+ * @brief 公开接口：读取并缓存 JSON 蓝图文件。
+ *
+ * 委托内部 LoadJSON() 实现。返回的指针指向 s_cache 中的条目，
+ * 生命周期持续到 ClearCache() 被调用（通常在场景切换时）。
+ * 文件不存在时由 LoadJSON 输出 LOG_WARN，解析失败时输出 LOG_ERROR。
+ *
+ * @param filename JSON 文件名（相对于 PrefabDir()，如 "Prefab_Player.json"）
+ * @return 指向缓存中 JSON 文档的 const 指针，或 nullptr（失败时）
+ */
 const json* LoadBlueprint(const std::string& filename) {
     return LoadJSON(filename);
 }
