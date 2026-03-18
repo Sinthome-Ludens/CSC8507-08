@@ -17,7 +17,9 @@
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/MapLoadConfig.h"
 #include "Vector.h"
+#include "Quaternion.h"
 
+#include <nlohmann/json_fwd.hpp>
 #include <string>
 
 namespace ECS {
@@ -32,6 +34,23 @@ const std::string& PrefabDir();
  * @brief 清除内部 JSON 文件缓存（场景切换时调用，释放内存）。
  */
 void ClearCache();
+
+/* ================================================================
+ * 公开 Read 辅助函数（供 ComponentRegistry 使用）
+ * ================================================================ */
+void ReadVec3(const nlohmann::json& j, const char* key, NCL::Maths::Vector3& out);
+void ReadVec4(const nlohmann::json& j, const char* key, NCL::Maths::Vector4& out);
+void ReadQuat(const nlohmann::json& j, const char* key, NCL::Maths::Quaternion& out);
+void ReadRigidBody(const nlohmann::json& j, C_D_RigidBody& rb);
+void ReadCollider(const nlohmann::json& j, C_D_Collider& col);
+void ReadCamera(const nlohmann::json& j, C_D_Camera& cam);
+
+/**
+ * @brief 加载 JSON 蓝图文件（缓存机制），返回 JSON 文档指针。
+ * @param filename JSON 文件名（不含路径前缀，如 "Prefab_Player.json"）
+ * @return 指向缓存中 JSON 文档的指针；文件不存在或解析失败时返回 nullptr。
+ */
+const nlohmann::json* LoadBlueprint(const std::string& filename);
 
 /* ================================================================
  * Prefab 默认值结构体

@@ -81,7 +81,7 @@ static const json* LoadJSON(const std::string& filename) {
 /* ================================================================
  * ReadVec3 — 从 JSON 数组 [x, y, z] 读取 Vector3
  * ================================================================ */
-static void ReadVec3(const json& j, const char* key, Vector3& out) {
+void ReadVec3(const json& j, const char* key, Vector3& out) {
     if (!j.contains(key)) return;
     auto& arr = j[key];
     if (!arr.is_array() || arr.size() < 3) return;
@@ -94,7 +94,21 @@ static void ReadVec3(const json& j, const char* key, Vector3& out) {
 /* ================================================================
  * ReadVec4 — 从 JSON 数组 [x, y, z, w] 读取 Vector4
  * ================================================================ */
-static void ReadVec4(const json& j, const char* key, Vector4& out) {
+void ReadVec4(const json& j, const char* key, Vector4& out) {
+    if (!j.contains(key)) return;
+    auto& arr = j[key];
+    if (!arr.is_array() || arr.size() < 4) return;
+    if (!arr[0].is_number() || !arr[1].is_number() || !arr[2].is_number() || !arr[3].is_number()) return;
+    out.x = arr[0].get<float>();
+    out.y = arr[1].get<float>();
+    out.z = arr[2].get<float>();
+    out.w = arr[3].get<float>();
+}
+
+/* ================================================================
+ * ReadQuat — 从 JSON 数组 [x, y, z, w] 读取 Quaternion
+ * ================================================================ */
+void ReadQuat(const json& j, const char* key, NCL::Maths::Quaternion& out) {
     if (!j.contains(key)) return;
     auto& arr = j[key];
     if (!arr.is_array() || arr.size() < 4) return;
@@ -108,7 +122,7 @@ static void ReadVec4(const json& j, const char* key, Vector4& out) {
 /* ================================================================
  * ReadRigidBody — 从 "C_D_RigidBody" JSON 对象填充 C_D_RigidBody
  * ================================================================ */
-static void ReadRigidBody(const json& j, C_D_RigidBody& rb) {
+void ReadRigidBody(const json& j, C_D_RigidBody& rb) {
     try {
         if (j.contains("mass")            && j["mass"].is_number())            rb.mass            = j["mass"].get<float>();
         if (j.contains("linear_damping")  && j["linear_damping"].is_number())  rb.linear_damping  = j["linear_damping"].get<float>();
@@ -131,7 +145,7 @@ static void ReadRigidBody(const json& j, C_D_RigidBody& rb) {
  * 映射到 C_D_Collider 的 half_x(radius) / half_y(half_height)。
  * Box/Sphere 使用 "half_x", "half_y", "half_z"。
  * ================================================================ */
-static void ReadCollider(const json& j, C_D_Collider& col) {
+void ReadCollider(const json& j, C_D_Collider& col) {
     try {
         if (j.contains("type") && j["type"].is_string()) {
             std::string t = j["type"].get<std::string>();
@@ -162,7 +176,7 @@ static void ReadCollider(const json& j, C_D_Collider& col) {
 /* ================================================================
  * ReadCamera — 从 "C_D_Camera" JSON 对象填充 C_D_Camera
  * ================================================================ */
-static void ReadCamera(const json& j, C_D_Camera& cam) {
+void ReadCamera(const json& j, C_D_Camera& cam) {
     try {
         if (j.contains("fov")         && j["fov"].is_number())         cam.fov         = j["fov"].get<float>();
         if (j.contains("near_z")      && j["near_z"].is_number())      cam.near_z      = j["near_z"].get<float>();
@@ -174,6 +188,13 @@ static void ReadCamera(const json& j, C_D_Camera& cam) {
     } catch (const json::exception& e) {
         LOG_WARN("[PrefabLoader] ReadCamera type error: " << e.what());
     }
+}
+
+/* ================================================================
+ * LoadBlueprint — 公开接口，读取并缓存 JSON 蓝图文件
+ * ================================================================ */
+const json* LoadBlueprint(const std::string& filename) {
+    return LoadJSON(filename);
 }
 
 /* ================================================================
