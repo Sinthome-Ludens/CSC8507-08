@@ -22,9 +22,11 @@ enum Net_PacketType : uint8_t {
     SYS_DISCONNECT,      ///< 断开连接通知
     SYNC_TRANSFORM,      ///< Transform状态同步数据包
     SYNC_MATCH_STATE,    ///< 比赛状态同步数据包
+    SYNC_MATCH_RESTART,  ///< 服务端广播多人重开指令
     GAME_EVENT,          ///< 游戏事件数据包（客户端或服务端在发生攻击、交互、技能释放等游戏行为时发送）
     CLIENT_INPUT,        ///< 客户端输入数据包（用于服务器权威架构）
-    CLIENT_MATCH_PROGRESS///< 客户端上报当前比赛进度
+    CLIENT_MATCH_PROGRESS,///< 客户端上报当前比赛进度
+    CLIENT_MATCH_RESTART_REQUEST ///< 客户端请求服务端执行多人重开
 };
 
 // 传输可靠性
@@ -105,6 +107,10 @@ struct Net_Packet_MatchState : public Net_PacketHeader {
     uint8_t gameOverReason;
 };
 
+struct Net_Packet_MatchRestart : public Net_PacketHeader {
+    uint8_t reserved = 0;
+};
+
 /**
  * @struct Net_Packet_GameAction
  * @brief 游戏行为数据包
@@ -141,6 +147,7 @@ struct Net_Packet_ClientMatchProgress : public Net_PacketHeader {
     uint8_t stageProgress;
     uint8_t currentRoundIndex;
     uint8_t reportedFinished;
+    uint8_t gameOverReason;
 };
 
 #pragma pack(pop)
@@ -156,8 +163,9 @@ static_assert(sizeof(Net_Packet_Handshake) == 9, "Net_Packet_Handshake size mism
 static_assert(sizeof(Net_Packet_Welcome) == 25, "Net_Packet_Welcome size mismatch");
 static_assert(sizeof(Net_Packet_Transform) == 49, "Net_Packet_Transform size mismatch");
 static_assert(sizeof(Net_Packet_MatchState) == 11, "Net_Packet_MatchState size mismatch");
+static_assert(sizeof(Net_Packet_MatchRestart) == 6, "Net_Packet_MatchRestart size mismatch");
 static_assert(sizeof(Net_Packet_GameAction) == 18, "Net_Packet_GameAction size mismatch");
 static_assert(sizeof(Net_Packet_ClientInput) == 9, "Net_Packet_ClientInput size mismatch");
-static_assert(sizeof(Net_Packet_ClientMatchProgress) == 8, "Net_Packet_ClientMatchProgress size mismatch");
+static_assert(sizeof(Net_Packet_ClientMatchProgress) == 9, "Net_Packet_ClientMatchProgress size mismatch");
 
 }

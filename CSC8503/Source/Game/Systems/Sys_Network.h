@@ -10,6 +10,7 @@
 #include "Core/ECS/SystemManager.h"
 #include "Core/ECS/EventBus.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_Network.h"
 #include "Game/Events/Evt_Net_GameAction.h"
 #include "Game/Utils/Log.h"
@@ -85,14 +86,21 @@ private:
     void HandleWelcomePacket(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleSyncTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleMatchState(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    void HandleMatchRestart(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleClientInput(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleClientMatchProgress(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    void HandleClientMatchRestartRequest(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     void HandleGameAction(Registry& reg, Res_Network& resNet, const ENetEvent& event);
 
     void ResetFrameFlags(Registry& reg);
     void UpdateClientMatchProgress(Registry& reg, Res_Network& resNet);
+    void ProcessMatchRestartRequest(Registry& reg, Res_Network& resNet);
     void BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet, bool force = false);
+    void BroadcastMatchRestart(Registry& reg, Res_Network& resNet);
     void ApplyMatchResult(Res_GameState& gs);
+    void UpdateMatchUIState(Registry& reg);
+    static MatchResult ToClientPerspective(MatchResult authoritativeResult);
+    static uint8_t ComputeGameOverReasonForResult(MatchResult result);
     static uint8_t ClampStageProgress(uint8_t progress);
     static uint8_t ComputeCurrentRoundIndex(uint8_t hostStageProgress, uint8_t clientStageProgress);
 
@@ -153,6 +161,7 @@ private:
     uint32_t m_LastInputMask = 0; ///< 记录客户端上一帧的输入，用于判断状态变化
     float m_InputTimer = 0.0f;    ///< 客户端输入发送计时器
     uint8_t m_LastReportedLocalStageProgress = 0xFF;
+    uint8_t m_LastReportedLocalGameOverReason = 0xFF;
     uint8_t m_LastBroadcastPhase = 0xFF;
     uint8_t m_LastBroadcastResult = 0xFF;
     uint8_t m_LastBroadcastHostStage = 0xFF;

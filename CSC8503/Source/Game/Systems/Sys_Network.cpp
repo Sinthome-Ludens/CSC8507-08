@@ -22,6 +22,7 @@
 #include "Game/Components/C_D_NetworkIdentity.h"
 #include "Game/Components/C_D_InterpBuffer.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_Time.h"
 #include "Game/Events/Evt_Net_PeerConnected.h"
 #include "Game/Events/Evt_Net_PeerDisconnected.h"
@@ -43,8 +44,10 @@ void Sys_Network::RegisterHandlers() {
     m_PacketHandlers[SYS_WELCOME]    = &Sys_Network::HandleWelcomePacket;
     m_PacketHandlers[SYNC_TRANSFORM] = &Sys_Network::HandleSyncTransform;
     m_PacketHandlers[SYNC_MATCH_STATE] = &Sys_Network::HandleMatchState;
+    m_PacketHandlers[SYNC_MATCH_RESTART] = &Sys_Network::HandleMatchRestart;
     m_PacketHandlers[CLIENT_INPUT]   = &Sys_Network::HandleClientInput;
     m_PacketHandlers[CLIENT_MATCH_PROGRESS] = &Sys_Network::HandleClientMatchProgress;
+    m_PacketHandlers[CLIENT_MATCH_RESTART_REQUEST] = &Sys_Network::HandleClientMatchRestartRequest;
     m_PacketHandlers[GAME_EVENT]     = &Sys_Network::HandleGameAction;
 }
 
@@ -168,6 +171,8 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
         UpdateClientMatchProgress(reg, resNet);
     }
 
+    ProcessMatchRestartRequest(reg, resNet);
+
     if (resNet.mode == PeerType::SERVER) {
         BroadcastMatchStateIfDirty(reg, resNet);
     }
@@ -242,6 +247,7 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                         gs.gameOverReason = 0;
                     }
                 }
+                UpdateMatchUIState(reg);
                 if (resNet.mode == PeerType::CLIENT) {
                     resNet.connected = false;
                 } else {
@@ -306,20 +312,45 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
     const MatchPhase previousPhase = gs.matchPhase;
     const uint8_t previousLocalProgress = gs.localStageProgress;
     const uint8_t previousOpponentProgress = gs.opponentStageProgress;
+    const uint8_t pendingLocalStageProgress = gs.localStageProgress;
+    const uint8_t pendingLocalGameOverReason = gs.isGameOver ? gs.gameOverReason : 0u;
+    const bool hasPendingLocalTerminalState =
+        pendingLocalGameOverReason != 0u || pendingLocalStageProgress >= kMultiplayerStageCount;
+    const MatchPhase incomingPhase = static_cast<MatchPhase>(pkt->matchPhase);
+    const MatchResult incomingResult = ToClientPerspective(static_cast<MatchResult>(pkt->matchResult));
 
-    gs.matchPhase = static_cast<MatchPhase>(pkt->matchPhase);
-    gs.matchResult = static_cast<MatchResult>(pkt->matchResult);
-    gs.localStageProgress = ClampStageProgress(pkt->clientStageProgress);
+    gs.matchPhase = incomingPhase;
+    gs.matchResult = incomingResult;
+    gs.localStageProgress = std::max(ClampStageProgress(pkt->clientStageProgress), pendingLocalStageProgress);
     gs.opponentStageProgress = ClampStageProgress(pkt->hostStageProgress);
     gs.currentRoundIndex = std::min<uint8_t>(pkt->currentRoundIndex, kMultiplayerStageCount - 1);
-    gs.gameOverReason = pkt->gameOverReason;
     gs.localProgress = gs.localStageProgress;
     gs.opponentProgress = gs.opponentStageProgress;
     gs.matchJustStarted = (previousPhase != MatchPhase::Running && gs.matchPhase == MatchPhase::Running);
     gs.matchJustFinished = (previousPhase != MatchPhase::Finished && gs.matchPhase == MatchPhase::Finished);
     gs.roundJustAdvanced = (previousLocalProgress != gs.localStageProgress)
         || (previousOpponentProgress != gs.opponentStageProgress);
-    gs.isGameOver = (gs.matchPhase == MatchPhase::Finished);
+
+    if (incomingPhase == MatchPhase::Finished) {
+        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.isGameOver = true;
+    } else if (hasPendingLocalTerminalState) {
+        gs.gameOverReason = pendingLocalGameOverReason;
+        gs.isGameOver = (pendingLocalGameOverReason != 0u);
+    } else {
+        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.isGameOver = false;
+    }
+
+    UpdateMatchUIState(reg);
+}
+
+void Sys_Network::HandleMatchRestart(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (!GetPacketData<Net_Packet_MatchRestart>(event) || !reg.has_ctx<Res_UIState>()) return;
+
+    auto& ui = reg.ctx<Res_UIState>();
+    ui.multiplayerRetryRequested = false;
+    ui.pendingSceneRequest = SceneRequest::RestartLevel;
 }
 
 /**
@@ -377,14 +408,43 @@ void Sys_Network::HandleClientMatchProgress(Registry& reg, Res_Network& resNet, 
     gs.currentRoundIndex = ComputeCurrentRoundIndex(gs.localStageProgress, gs.opponentStageProgress);
     gs.opponentProgress = gs.opponentStageProgress;
     gs.roundJustAdvanced = (previousOpponentProgress != gs.opponentStageProgress);
+    const uint8_t remoteGameOverReason = pkt->gameOverReason;
 
     if (gs.matchPhase == MatchPhase::WaitingForPeer || gs.matchPhase == MatchPhase::Starting) {
         gs.matchPhase = MatchPhase::Running;
         gs.matchJustStarted = true;
     }
 
+    if (pkt->reportedFinished != 0u || remoteGameOverReason != 0u) {
+        LOG_INFO("[Sys_Network] Server received client terminal state: stage="
+                 << (int)pkt->stageProgress << " finished=" << (int)pkt->reportedFinished
+                 << " reason=" << (int)remoteGameOverReason);
+        const MatchPhase previousPhase = gs.matchPhase;
+        gs.matchPhase = MatchPhase::Finished;
+        gs.isGameOver = true;
+
+        if (remoteGameOverReason == 3 || gs.opponentStageProgress >= kMultiplayerStageCount) {
+            gs.matchResult = MatchResult::OpponentWin;
+        } else if (remoteGameOverReason == 1 || remoteGameOverReason == 2) {
+            gs.matchResult = MatchResult::LocalWin;
+        } else {
+            gs.matchResult = MatchResult::OpponentWin;
+        }
+
+        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        if (previousPhase != MatchPhase::Finished) {
+            gs.matchJustFinished = true;
+        }
+    }
+
     ApplyMatchResult(gs);
     BroadcastMatchStateIfDirty(reg, resNet, true);
+}
+
+void Sys_Network::HandleClientMatchRestartRequest(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (resNet.mode != PeerType::SERVER || !GetPacketData<Net_Packet_MatchRestart>(event)) return;
+
+    BroadcastMatchRestart(reg, resNet);
 }
 
 /**
@@ -468,17 +528,66 @@ void Sys_Network::UpdateClientMatchProgress(Registry& reg, Res_Network& resNet) 
     if (!gs.isMultiplayer) return;
 
     const uint8_t localStageProgress = ClampStageProgress(gs.localStageProgress);
-    if (m_LastReportedLocalStageProgress == localStageProgress) return;
+    const uint8_t localGameOverReason = gs.isGameOver ? gs.gameOverReason : 0u;
+    const bool hasPendingTerminalState =
+        (localStageProgress >= kMultiplayerStageCount || localGameOverReason != 0u)
+        && gs.matchPhase != MatchPhase::Finished;
+    if (!hasPendingTerminalState
+        && m_LastReportedLocalStageProgress == localStageProgress
+        && m_LastReportedLocalGameOverReason == localGameOverReason) {
+        return;
+    }
 
     Net_Packet_ClientMatchProgress pkt;
     pkt.type = CLIENT_MATCH_PROGRESS;
     pkt.timestamp = static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f);
     pkt.stageProgress = localStageProgress;
     pkt.currentRoundIndex = std::min<uint8_t>(gs.currentRoundIndex, kMultiplayerStageCount - 1);
-    pkt.reportedFinished = (localStageProgress >= kMultiplayerStageCount) ? 1u : 0u;
+    pkt.reportedFinished = (localStageProgress >= kMultiplayerStageCount || localGameOverReason != 0u) ? 1u : 0u;
+    pkt.gameOverReason = localGameOverReason;
+
+    if (pkt.reportedFinished != 0u || pkt.gameOverReason != 0u) {
+        LOG_INFO("[Sys_Network] Client reporting terminal state: stage="
+                 << (int)pkt.stageProgress << " finished=" << (int)pkt.reportedFinished
+                 << " reason=" << (int)pkt.gameOverReason
+                 << " phase=" << (int)gs.matchPhase);
+    }
 
     SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Reliable);
     m_LastReportedLocalStageProgress = localStageProgress;
+    m_LastReportedLocalGameOverReason = localGameOverReason;
+}
+
+void Sys_Network::ProcessMatchRestartRequest(Registry& reg, Res_Network& resNet) {
+    if (!reg.has_ctx<Res_UIState>() || !reg.has_ctx<Res_GameState>()) return;
+
+    auto& ui = reg.ctx<Res_UIState>();
+    auto& gs = reg.ctx<Res_GameState>();
+    if (!ui.multiplayerRetryRequested || !gs.isMultiplayer) return;
+
+    if (gs.matchResult == MatchResult::Disconnected || !resNet.connected) {
+        ui.multiplayerRetryRequested = false;
+        ui.pendingSceneRequest = SceneRequest::RestartLevel;
+        return;
+    }
+
+    if (gs.matchPhase != MatchPhase::Finished) {
+        ui.multiplayerRetryRequested = false;
+        return;
+    }
+
+    if (resNet.mode == PeerType::SERVER) {
+        BroadcastMatchRestart(reg, resNet);
+        return;
+    }
+
+    if (resNet.mode == PeerType::CLIENT && resNet.peer != nullptr) {
+        Net_Packet_MatchRestart pkt;
+        pkt.type = CLIENT_MATCH_RESTART_REQUEST;
+        pkt.timestamp = static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f);
+        SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Reliable);
+        ui.multiplayerRetryRequested = false;
+    }
 }
 
 /**
@@ -513,13 +622,15 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
     gs.localProgress = gs.localStageProgress;
     gs.opponentProgress = gs.opponentStageProgress;
     ApplyMatchResult(gs);
+    UpdateMatchUIState(reg);
 
     const uint8_t phase = static_cast<uint8_t>(gs.matchPhase);
     const uint8_t result = static_cast<uint8_t>(gs.matchResult);
     const uint8_t hostStage = gs.localStageProgress;
     const uint8_t clientStage = gs.opponentStageProgress;
     const uint8_t roundIndex = gs.currentRoundIndex;
-    const uint8_t gameOverReason = gs.gameOverReason;
+    const uint8_t gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+    gs.gameOverReason = gameOverReason;
 
     const bool dirty = force
         || m_LastBroadcastPhase != phase
@@ -540,6 +651,12 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
     pkt.clientStageProgress = clientStage;
     pkt.currentRoundIndex = roundIndex;
     pkt.gameOverReason = gameOverReason;
+    if (phase == static_cast<uint8_t>(MatchPhase::Finished)) {
+        LOG_INFO("[Sys_Network] Server broadcasting finished match state: result="
+                 << (int)result << " hostStage=" << (int)hostStage
+                 << " clientStage=" << (int)clientStage
+                 << " reason=" << (int)gameOverReason);
+    }
     SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Reliable);
 
     m_LastBroadcastPhase = phase;
@@ -550,10 +667,50 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
     m_LastBroadcastGameOverReason = gameOverReason;
 }
 
+void Sys_Network::BroadcastMatchRestart(Registry& reg, Res_Network& resNet) {
+    if (!reg.has_ctx<Res_UIState>()) return;
+
+    Net_Packet_MatchRestart pkt;
+    pkt.type = SYNC_MATCH_RESTART;
+    pkt.timestamp = reg.has_ctx<Res_Time>()
+        ? static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f)
+        : 0u;
+    SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Reliable);
+
+    auto& ui = reg.ctx<Res_UIState>();
+    ui.multiplayerRetryRequested = false;
+    ui.pendingSceneRequest = SceneRequest::RestartLevel;
+}
+
+void Sys_Network::UpdateMatchUIState(Registry& reg) {
+    if (!reg.has_ctx<Res_GameState>() || !reg.has_ctx<Res_UIState>()) return;
+
+    auto& gs = reg.ctx<Res_GameState>();
+    if (!gs.isMultiplayer || gs.matchPhase != MatchPhase::Finished) return;
+
+    auto& ui = reg.ctx<Res_UIState>();
+    if (ui.activeScreen != UIScreen::GameOver) {
+        ui.previousScreen = ui.activeScreen;
+        ui.activeScreen = UIScreen::GameOver;
+        ui.gameOverSelectedIndex = 0;
+    }
+}
+
 void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
-    if (gs.matchPhase == MatchPhase::Finished && gs.matchResult == MatchResult::Disconnected) {
+    if (gs.matchPhase == MatchPhase::Finished && gs.matchResult != MatchResult::None) {
         gs.isGameOver = true;
-        gs.gameOverReason = 0;
+        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        return;
+    }
+
+    if (gs.isGameOver && gs.gameOverReason != 0) {
+        const MatchPhase previousPhase = gs.matchPhase;
+        gs.matchPhase = MatchPhase::Finished;
+        gs.matchResult = (gs.gameOverReason == 3) ? MatchResult::LocalWin : MatchResult::OpponentWin;
+        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        if (previousPhase != MatchPhase::Finished) {
+            gs.matchJustFinished = true;
+        }
         return;
     }
 
@@ -566,7 +723,7 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
         }
         gs.matchResult = MatchResult::None;
         gs.isGameOver = false;
-        gs.gameOverReason = 0;
+        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
         return;
     }
 
@@ -580,11 +737,33 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
         gs.gameOverReason = 3;
     } else {
         gs.matchResult = MatchResult::OpponentWin;
-        gs.gameOverReason = 2;
     }
     gs.isGameOver = true;
+    gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
     if (previousPhase != MatchPhase::Finished) {
         gs.matchJustFinished = true;
+    }
+}
+
+MatchResult Sys_Network::ToClientPerspective(MatchResult authoritativeResult) {
+    switch (authoritativeResult) {
+        case MatchResult::LocalWin:    return MatchResult::OpponentWin;
+        case MatchResult::OpponentWin: return MatchResult::LocalWin;
+        default:                       return authoritativeResult;
+    }
+}
+
+uint8_t Sys_Network::ComputeGameOverReasonForResult(MatchResult result) {
+    switch (result) {
+        case MatchResult::LocalWin:
+            return 3;
+        case MatchResult::OpponentWin:
+            return 2;
+        case MatchResult::Draw:
+        case MatchResult::Disconnected:
+        case MatchResult::None:
+        default:
+            return 0;
     }
 }
 

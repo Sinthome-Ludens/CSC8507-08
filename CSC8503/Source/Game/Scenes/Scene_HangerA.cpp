@@ -168,16 +168,25 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<ECS::Res_GameState>();
     }
     auto& gs = registry.ctx<ECS::Res_GameState>();
+    const bool preserveMultiplayerState = isMultiplayer && gs.isMultiplayer;
+    const auto preservedPhase = gs.matchPhase;
+    const auto preservedResult = gs.matchResult;
+    const uint8_t preservedRoundIndex = gs.currentRoundIndex;
+    const uint8_t preservedLocalStage = gs.localStageProgress;
+    const uint8_t preservedOpponentStage = gs.opponentStageProgress;
+    gs = ECS::Res_GameState{};
     gs.isMultiplayer = isMultiplayer;
-    gs.matchPhase = isMultiplayer ? ECS::MatchPhase::WaitingForPeer : ECS::MatchPhase::Finished;
-    gs.matchResult = ECS::MatchResult::None;
-    gs.currentRoundIndex = 0;
-    gs.localStageProgress = 0;
-    gs.opponentStageProgress = 0;
-    gs.roundJustAdvanced = false;
-    gs.matchJustStarted = false;
-    gs.matchJustFinished = false;
-    gs.networkPing = 0;
+    if (isMultiplayer) {
+        gs.matchPhase = preserveMultiplayerState ? preservedPhase : ECS::MatchPhase::WaitingForPeer;
+        gs.matchResult = preserveMultiplayerState ? preservedResult : ECS::MatchResult::None;
+        gs.currentRoundIndex = preserveMultiplayerState ? preservedRoundIndex : 0;
+        gs.localStageProgress = preserveMultiplayerState ? preservedLocalStage : 0;
+        gs.opponentStageProgress = preserveMultiplayerState ? preservedOpponentStage : 0;
+        gs.localProgress = gs.localStageProgress;
+        gs.opponentProgress = gs.opponentStageProgress;
+    } else {
+        gs.matchPhase = ECS::MatchPhase::Finished;
+    }
 
     // ── 6. Awake all systems ────────────────────────────────────────────
     systems.AwakeAll(registry);
@@ -243,7 +252,7 @@ void Scene_HangerA::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_AIConfig>())        registry.ctx_erase<ECS::Res_AIConfig>();
     if (registry.has_ctx<ECS::Res_ItemInventory2>())  registry.ctx_erase<ECS::Res_ItemInventory2>();
     if (registry.has_ctx<ECS::Res_RadarState>())      registry.ctx_erase<ECS::Res_RadarState>();
-    if (registry.has_ctx<ECS::Res_GameState>())       registry.ctx_erase<ECS::Res_GameState>();
+    if (!isMultiplayer && registry.has_ctx<ECS::Res_GameState>()) registry.ctx_erase<ECS::Res_GameState>();
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_ToastState>())      registry.ctx_erase<ECS::Res_ToastState>();
     if (registry.has_ctx<ECS::Res_ChatState>())       registry.ctx_erase<ECS::Res_ChatState>();

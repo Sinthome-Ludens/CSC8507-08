@@ -61,12 +61,20 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float alertLevel = 0.0f;
     float alertMax = 150.0f;
     float playTime = 0.0f;
+    bool isMultiplayer = false;
+    MatchResult matchResult = MatchResult::None;
+    uint8_t localStageProgress = 0;
+    uint8_t opponentStageProgress = 0;
     if (registry.has_ctx<Res_GameState>()) {
         auto& gs = registry.ctx<Res_GameState>();
         reason     = gs.gameOverReason;
         alertLevel = gs.alertLevel;
         alertMax   = gs.alertMax;
         playTime   = gs.playTime;
+        isMultiplayer = gs.isMultiplayer;
+        matchResult = gs.matchResult;
+        localStageProgress = gs.localStageProgress;
+        opponentStageProgress = gs.opponentStageProgress;
     }
 
     // ── Dynamic title based on reason ──────────────────────
@@ -75,28 +83,60 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     ImU32 titleColor;
     bool isSuccess = false;
 
-    switch (reason) {
-        case 1: // Countdown expired
-            resultTitle    = "MISSION FAILED";
-            resultSubtitle = "COUNTDOWN EXPIRED";
-            titleColor     = IM_COL32(220, 60, 40, 255);
-            break;
-        case 2: // Detected
-            resultTitle    = "MISSION FAILED";
-            resultSubtitle = "OPERATOR DETECTED";
-            titleColor     = IM_COL32(220, 60, 40, 255);
-            break;
-        case 3: // Success
-            resultTitle    = "MISSION COMPLETE";
-            resultSubtitle = "ALL OBJECTIVES ACHIEVED";
-            titleColor     = IM_COL32(252, 111, 41, 255);
-            isSuccess      = true;
-            break;
-        default:
-            resultTitle    = "MISSION TERMINATED";
-            resultSubtitle = "";
-            titleColor     = IM_COL32(200, 200, 200, 255);
-            break;
+    if (isMultiplayer) {
+        switch (matchResult) {
+            case MatchResult::LocalWin:
+                resultTitle    = "MATCH VICTORY";
+                resultSubtitle = "YOU CLEARED ALL THREE STAGES";
+                titleColor     = IM_COL32(252, 111, 41, 255);
+                isSuccess      = true;
+                break;
+            case MatchResult::OpponentWin:
+                resultTitle    = "MATCH DEFEAT";
+                resultSubtitle = "OPPONENT CLEARED THE FINAL STAGE";
+                titleColor     = IM_COL32(220, 60, 40, 255);
+                break;
+            case MatchResult::Draw:
+                resultTitle    = "MATCH DRAW";
+                resultSubtitle = "BOTH OPERATIVES FINISHED";
+                titleColor     = IM_COL32(180, 140, 40, 255);
+                break;
+            case MatchResult::Disconnected:
+                resultTitle    = "MATCH TERMINATED";
+                resultSubtitle = "PEER DISCONNECTED";
+                titleColor     = IM_COL32(120, 120, 120, 255);
+                break;
+            case MatchResult::None:
+            default:
+                resultTitle    = "MATCH COMPLETE";
+                resultSubtitle = "";
+                titleColor     = IM_COL32(200, 200, 200, 255);
+                break;
+        }
+    } else {
+        switch (reason) {
+            case 1: // Countdown expired
+                resultTitle    = "MISSION FAILED";
+                resultSubtitle = "COUNTDOWN EXPIRED";
+                titleColor     = IM_COL32(220, 60, 40, 255);
+                break;
+            case 2: // Detected
+                resultTitle    = "MISSION FAILED";
+                resultSubtitle = "OPERATOR DETECTED";
+                titleColor     = IM_COL32(220, 60, 40, 255);
+                break;
+            case 3: // Success
+                resultTitle    = "MISSION COMPLETE";
+                resultSubtitle = "ALL OBJECTIVES ACHIEVED";
+                titleColor     = IM_COL32(252, 111, 41, 255);
+                isSuccess      = true;
+                break;
+            default:
+                resultTitle    = "MISSION TERMINATED";
+                resultSubtitle = "";
+                titleColor     = IM_COL32(200, 200, 200, 255);
+                break;
+        }
     }
 
     // Title
@@ -126,7 +166,16 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     if (bodyFont) ImGui::PushFont(bodyFont);
 
     const char* rating;
-    if (!isSuccess) {
+    if (isMultiplayer) {
+        switch (matchResult) {
+            case MatchResult::LocalWin:    rating = "RESULT: WIN"; break;
+            case MatchResult::OpponentWin: rating = "RESULT: LOSS"; break;
+            case MatchResult::Draw:        rating = "RESULT: DRAW"; break;
+            case MatchResult::Disconnected:rating = "RESULT: DISCONNECTED"; break;
+            case MatchResult::None:
+            default:                       rating = "RESULT: UNKNOWN"; break;
+        }
+    } else if (!isSuccess) {
         rating = "RATING: F";
     } else if (alertLevel < 30.0f) {
         rating = "RATING: S";
@@ -158,14 +207,24 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     draw->AddText(ImVec2(statsX, statsY),
         IM_COL32(16, 13, 10, 220), buf);
 
-    snprintf(buf, sizeof(buf), "ALERT:     %.0f / %.0f", alertLevel, alertMax);
-    draw->AddText(ImVec2(statsX, statsY + 28.0f),
-        IM_COL32(16, 13, 10, 220), buf);
+    if (isMultiplayer) {
+        snprintf(buf, sizeof(buf), "LOCAL:     %d / 3", (int)localStageProgress);
+        draw->AddText(ImVec2(statsX, statsY + 28.0f),
+            IM_COL32(16, 13, 10, 220), buf);
 
-    const char* detectedStr = (reason == 2) ? "YES" : "NO";
-    snprintf(buf, sizeof(buf), "DETECTED:  %s", detectedStr);
-    draw->AddText(ImVec2(statsX, statsY + 56.0f),
-        IM_COL32(16, 13, 10, 220), buf);
+        snprintf(buf, sizeof(buf), "OPPONENT:  %d / 3", (int)opponentStageProgress);
+        draw->AddText(ImVec2(statsX, statsY + 56.0f),
+            IM_COL32(16, 13, 10, 220), buf);
+    } else {
+        snprintf(buf, sizeof(buf), "ALERT:     %.0f / %.0f", alertLevel, alertMax);
+        draw->AddText(ImVec2(statsX, statsY + 28.0f),
+            IM_COL32(16, 13, 10, 220), buf);
+
+        const char* detectedStr = (reason == 2) ? "YES" : "NO";
+        snprintf(buf, sizeof(buf), "DETECTED:  %s", detectedStr);
+        draw->AddText(ImVec2(statsX, statsY + 56.0f),
+            IM_COL32(16, 13, 10, 220), buf);
+    }
 
     if (termFont) ImGui::PopFont();
 
@@ -250,7 +309,11 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     if (confirmedIndex >= 0) {
         switch (confirmedIndex) {
             case 0: // RETRY
-                ui.pendingSceneRequest = SceneRequest::RestartLevel;
+                if (isMultiplayer && matchResult != MatchResult::Disconnected) {
+                    ui.multiplayerRetryRequested = true;
+                } else {
+                    ui.pendingSceneRequest = SceneRequest::RestartLevel;
+                }
                 LOG_INFO("[UI_GameOver] GameOver -> Retry");
                 break;
             case 1: // RETURN TO MENU

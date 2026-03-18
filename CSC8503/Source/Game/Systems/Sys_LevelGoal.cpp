@@ -89,10 +89,20 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                     gs.roundJustAdvanced = true;
 
 #ifdef USE_IMGUI
-                    UI::PushToast(registry,
-                                  gs.localStageProgress >= kMultiplayerStageCount ? "FINAL STAGE CLEAR" : "STAGE CLEAR",
-                                  ToastType::Success,
-                                  2.0f);
+                    if (registry.has_ctx<Res_UIState>()) {
+                        auto& ui = registry.ctx<Res_UIState>();
+                        if (gs.localStageProgress < kMultiplayerStageCount) {
+                            ui.totalPlayTime += gs.playTime;
+                            ui.pendingSceneRequest = SceneRequest::NextLevel;
+                            UI::PushToast(registry, "AREA CLEAR - MOVING OUT", ToastType::Success, 2.0f);
+                        } else {
+                            UI::PushToast(registry, "FINAL STAGE CLEAR", ToastType::Success, 2.0f);
+                        }
+                    }
+#else
+                    if (gs.localStageProgress >= kMultiplayerStageCount) {
+                        gs.isGameOver = true;
+                    }
 #endif
                     return;
                 }
