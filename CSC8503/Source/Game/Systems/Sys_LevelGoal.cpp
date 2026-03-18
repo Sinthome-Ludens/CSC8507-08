@@ -57,8 +57,6 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
         && registry.ctx<Res_GameState>().isMultiplayer;
     if (!isMultiplayer && m_FinishTriggered) return;
 
-    bool reachedFinishZone = false;
-
     registry.view<C_T_FinishZone, C_D_Transform>().each(
         [&](EntityID finishId, C_T_FinishZone&, C_D_Transform& ftf) {
             float dx = playerPos.x - ftf.position.x;
@@ -68,8 +66,6 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 
             if (distXZSq < kFinishRadiusXZ * kFinishRadiusXZ
                 && std::fabs(dy) < kFinishHeightMax) {
-                reachedFinishZone = true;
-
                 if (isMultiplayer && m_FinishTriggered) {
                     return;
                 }
