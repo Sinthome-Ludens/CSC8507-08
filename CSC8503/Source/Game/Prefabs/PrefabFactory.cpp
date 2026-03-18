@@ -638,10 +638,6 @@ EntityID PrefabFactory::CreateKeyCard(
 
     reg.Emplace<C_T_KeyCard>(entity, C_T_KeyCard{ keyId });
 
-    char debugName[64];
-    std::snprintf(debugName, sizeof(debugName), "ENTITY_KeyCard_%02d", static_cast<int>(keyId));
-    AttachDebugName(reg, entity, debugName);
-
     LOG_INFO("[PrefabFactory] CreateKeyCard id=" << entity
              << " keyId=" << (int)keyId
              << " pos=(" << position.x << "," << position.y << "," << position.z << ")");
@@ -707,10 +703,6 @@ EntityID PrefabFactory::CreateLockedDoor(
     reg.Emplace<C_D_Collider>(entity, col);
 
     reg.Emplace<C_D_DoorLocked>(entity, C_D_DoorLocked{ keyId });
-
-    char debugName[64];
-    std::snprintf(debugName, sizeof(debugName), "ENTITY_Door_%02d", static_cast<int>(keyId));
-    AttachDebugName(reg, entity, debugName);
 
     LOG_INFO("[PrefabFactory] CreateLockedDoor id=" << entity
              << " keyId=" << (int)keyId

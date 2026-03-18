@@ -247,7 +247,7 @@ void Scene_Dock::OnExit(ECS::Registry&      registry,
     if (!isMultiplayer && registry.has_ctx<ECS::Res_GameState>()) registry.ctx_erase<ECS::Res_GameState>();
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_ToastState>())      registry.ctx_erase<ECS::Res_ToastState>();
-    if (registry.has_ctx<ECS::Res_ChatState>())       registry.ctx_erase<ECS::Res_ChatState>();
+    // Res_ChatState preserved across maps (only erased in MainMenu)
     if (registry.has_ctx<ECS::Res_InventoryState>())  registry.ctx_erase<ECS::Res_InventoryState>();
     if (registry.has_ctx<ECS::Res_LobbyState>())      registry.ctx_erase<ECS::Res_LobbyState>();
     if (registry.has_ctx<ECS::Res_DialogueData>())    registry.ctx_erase<ECS::Res_DialogueData>();
