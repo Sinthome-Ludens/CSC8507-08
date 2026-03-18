@@ -37,10 +37,10 @@
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
-#include "Game/Systems/Sys_Door.h"
 #include "Game/Systems/Sys_LevelGoal.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/MapLoader.h"
+#include "Game/Utils/PrefabLoader.h"
 #include "Game/Utils/SaveManager.h"
 
 #ifdef USE_IMGUI
@@ -98,16 +98,10 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
     }
 
     MapLoadConfig mapConfig{};
-    strncpy_s(mapConfig.renderMesh,    sizeof(mapConfig.renderMesh),    "Lab.obj", _TRUNCATE);
-    strncpy_s(mapConfig.collisionMesh, sizeof(mapConfig.collisionMesh), "Lab_collision.obj", _TRUNCATE);
-    strncpy_s(mapConfig.navmesh,       sizeof(mapConfig.navmesh),       "Lab.navmesh", _TRUNCATE);
-    strncpy_s(mapConfig.finishMesh,    sizeof(mapConfig.finishMesh),    "Lab_finish.obj", _TRUNCATE);
-    strncpy_s(mapConfig.startPoints,   sizeof(mapConfig.startPoints),   "Lab.startpoints", _TRUNCATE);
-    strncpy_s(mapConfig.enemySpawns,   sizeof(mapConfig.enemySpawns),   "Lab.enemyspawns", _TRUNCATE);
-    strncpy_s(mapConfig.doorKeys,      sizeof(mapConfig.doorKeys),      "Lab.doors", _TRUNCATE);
-    mapConfig.mapScale    = 1.0f;
-    mapConfig.yOffset     = -6.0f;
-    mapConfig.flipWinding = true;
+    if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_Lab.json", mapConfig)) {
+        LOG_ERROR("[Scene_Lab] Failed to load map config from Prefab_Map_Lab.json");
+        return;
+    }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
 
@@ -137,7 +131,6 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Render>          (200);
     systems.Register<ECS::Sys_Item>            (250);
     systems.Register<ECS::Sys_ItemEffects>     (260);
-    systems.Register<ECS::Sys_Door>            (270);
 
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>             (300);

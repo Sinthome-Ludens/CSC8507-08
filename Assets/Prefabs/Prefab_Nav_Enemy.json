@@ -1,0 +1,39 @@
+{
+  "PrefabID": "PREFAB_NAV_ENEMY",
+  "Name": "Nav_Enemy",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle":     "",
+      "materialHandle": 0
+    },
+    "C_D_RigidBody": {
+      "mass":            1.0,
+      "gravity_factor":  1.0,
+      "is_static":       false,
+      "lock_rotation_x": true,
+      "lock_rotation_z": true
+    },
+    "C_D_Collider": {
+      "type":   "Box",
+      "half_x": 1.0,
+      "half_y": 1.0,
+      "half_z": 1.0
+    },
+    "C_T_Enemy": {},
+    "C_D_AIState": {},
+    "C_D_EnemyDormant": {},
+    "C_D_AIPerception": {
+      "detection_value":          0.0,
+      "detection_value_increase": 15.0,
+      "detection_value_decrease": 5.0
+    },
+    "C_D_NavAgent": {},
+    "C_T_Pathfinder": {},
+    "C_D_DebugName": { "name": "ENTITY_Nav_Enemy_XX" }
+  }
+}

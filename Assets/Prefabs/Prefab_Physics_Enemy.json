@@ -1,0 +1,36 @@
+{
+  "PrefabID": "PREFAB_PHYSICS_ENEMY",
+  "Name": "Physics_Enemy",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle":     "",
+      "materialHandle": 0
+    },
+    "C_D_RigidBody": {
+      "mass":            1.0,
+      "gravity_factor":  1.0,
+      "is_static":       false,
+      "lock_rotation_x": true,
+      "lock_rotation_z": true
+    },
+    "C_D_Collider": {
+      "type":        "Capsule",
+      "radius":      0.5,
+      "half_height": 1.0
+    },
+    "C_T_Enemy": {},
+    "C_D_AIState": {},
+    "C_D_EnemyDormant": {},
+    "C_D_AIPerception": {
+      "detection_value":          0.0,
+      "detection_value_increase": 15.0,
+      "detection_value_decrease": 5.0
+    },
+    "C_D_DebugName": { "name": "ENTITY_Enemy_XX" }
+  }
+}
