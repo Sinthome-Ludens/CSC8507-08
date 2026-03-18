@@ -215,11 +215,13 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         IM_COL32(16, 13, 10, 220), buf);
 
     if (isMultiplayer) {
-        snprintf(buf, sizeof(buf), "LOCAL:     %d / 3", (int)localStageProgress);
+        snprintf(buf, sizeof(buf), "LOCAL:     %d / %d",
+            (int)localStageProgress, (int)kMultiplayerStageCount);
         draw->AddText(ImVec2(statsX, statsY + 28.0f),
             IM_COL32(16, 13, 10, 220), buf);
 
-        snprintf(buf, sizeof(buf), "OPPONENT:  %d / 3", (int)opponentStageProgress);
+        snprintf(buf, sizeof(buf), "OPPONENT:  %d / %d",
+            (int)opponentStageProgress, (int)kMultiplayerStageCount);
         draw->AddText(ImVec2(statsX, statsY + 56.0f),
             IM_COL32(16, 13, 10, 220), buf);
     } else {

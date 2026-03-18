@@ -61,6 +61,32 @@ void Sys_Network::OnAwake(Registry& reg) {
 
     auto& resNet = reg.ctx<Res_Network>();
     if (resNet.host != nullptr) {
+        m_TimeSinceLastSend = 0.0f;
+        m_InputTimer = 0.0f;
+        m_LastInputMask = 0u;
+        m_LastReportedLocalStageProgress = 0xFF;
+        m_LastReportedLocalGameOverReason = 0xFF;
+        m_LastBroadcastPhase = 0xFF;
+        m_LastBroadcastResult = 0xFF;
+        m_LastBroadcastHostStage = 0xFF;
+        m_LastBroadcastClientStage = 0xFF;
+        m_LastBroadcastRoundIndex = 0xFF;
+        m_LastBroadcastGameOverReason = 0xFF;
+
+        if (resNet.mode == PeerType::SERVER && resNet.host->peers != nullptr) {
+            uint32_t maxAssignedClientID = 0u;
+            for (size_t i = 0; i < resNet.host->peerCount; ++i) {
+                const ENetPeer& peer = resNet.host->peers[i];
+                if (peer.state != ENET_PEER_STATE_CONNECTED || peer.data == nullptr) {
+                    continue;
+                }
+                const uint32_t clientID = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(peer.data));
+                maxAssignedClientID = std::max(maxAssignedClientID, clientID);
+            }
+            m_NextClientID = std::max<uint32_t>(1u, maxAssignedClientID + 1u);
+        } else {
+            m_NextClientID = 1u;
+        }
         LOG_INFO("[Sys_Network] Reusing existing ENet session for scene transition.");
         return;
     }
@@ -384,6 +410,7 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
 void Sys_Network::HandleMatchRestart(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
     if (!GetPacketData<Net_Packet_MatchRestart>(event) || !reg.has_ctx<Res_UIState>()) return;
 
+    ResetMatchStateForRestart(reg);
     auto& ui = reg.ctx<Res_UIState>();
     ui.multiplayerRetryRequested = false;
     ui.pendingSceneRequest = SceneRequest::RestartLevel;
@@ -464,23 +491,12 @@ void Sys_Network::HandleClientMatchProgress(Registry& reg, Res_Network& resNet, 
                  << " reason=" << (int)remoteGameOverReason);
         const MatchPhase previousPhase = gs.matchPhase;
         gs.matchPhase = MatchPhase::Finished;
-        gs.isGameOver = true;
-
-        if (remoteGameOverReason == 3 || gs.opponentStageProgress >= kMultiplayerStageCount) {
-            gs.matchResult = MatchResult::OpponentWin;
-        } else if (remoteGameOverReason == 1 || remoteGameOverReason == 2) {
-            gs.matchResult = MatchResult::LocalWin;
-        } else {
-            gs.matchResult = MatchResult::OpponentWin;
-        }
-
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
         if (previousPhase != MatchPhase::Finished) {
             gs.matchJustFinished = true;
         }
     }
 
-    ApplyMatchResult(gs);
+    ApplyMatchResult(gs, remoteGameOverReason);
     BroadcastMatchStateIfDirty(reg, resNet, true);
 }
 
@@ -759,6 +775,8 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
 void Sys_Network::BroadcastMatchRestart(Registry& reg, Res_Network& resNet) {
     if (!reg.has_ctx<Res_UIState>()) return;
 
+    ResetMatchStateForRestart(reg);
+
     Net_Packet_MatchRestart pkt;
     pkt.type = SYNC_MATCH_RESTART;
     pkt.timestamp = reg.has_ctx<Res_Time>()
@@ -769,6 +787,43 @@ void Sys_Network::BroadcastMatchRestart(Registry& reg, Res_Network& resNet) {
     auto& ui = reg.ctx<Res_UIState>();
     ui.multiplayerRetryRequested = false;
     ui.pendingSceneRequest = SceneRequest::RestartLevel;
+}
+
+/**
+ * @brief 将多人比赛状态重置为新一局的初始状态。
+ * @details 在切场景前清掉旧的 Finished/Result/Progress，避免旧战局状态继续广播并把双方拉回 GameOver。
+ * @param reg ECS 注册表
+ */
+void Sys_Network::ResetMatchStateForRestart(Registry& reg) {
+    if (reg.has_ctx<Res_GameState>()) {
+        auto& gs = reg.ctx<Res_GameState>();
+        if (gs.isMultiplayer) {
+            gs.matchPhase = MatchPhase::Running;
+            gs.matchResult = MatchResult::None;
+            gs.currentRoundIndex = 0;
+            gs.localStageProgress = 0;
+            gs.opponentStageProgress = 0;
+            gs.localProgress = 0;
+            gs.opponentProgress = 0;
+            gs.roundJustAdvanced = false;
+            gs.matchJustStarted = true;
+            gs.matchJustFinished = false;
+            gs.isGameOver = false;
+            gs.gameOverReason = 0;
+            gs.gameOverTime = 0.0f;
+            gs.countdownActive = false;
+            gs.countdownTimer = gs.countdownMax;
+        }
+    }
+
+    m_LastReportedLocalStageProgress = 0xFF;
+    m_LastReportedLocalGameOverReason = 0xFF;
+    m_LastBroadcastPhase = 0xFF;
+    m_LastBroadcastResult = 0xFF;
+    m_LastBroadcastHostStage = 0xFF;
+    m_LastBroadcastClientStage = 0xFF;
+    m_LastBroadcastRoundIndex = 0xFF;
+    m_LastBroadcastGameOverReason = 0xFF;
 }
 
 /**
@@ -794,26 +849,16 @@ void Sys_Network::UpdateMatchUIState(Registry& reg) {
  * @details 该函数只运行在权威状态收口路径，确保 `matchPhase/matchResult/isGameOver` 保持一致。
  * @param gs 当前比赛状态资源
  */
-void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
-    if (gs.matchPhase == MatchPhase::Finished && gs.matchResult != MatchResult::None) {
-        gs.isGameOver = true;
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
-        return;
-    }
+void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReason) {
+    const bool hostFinishedBySuccess = gs.localStageProgress >= kMultiplayerStageCount
+        || (gs.isGameOver && gs.gameOverReason == 3u);
+    const bool hostFinishedByFailure = gs.isGameOver && gs.gameOverReason != 0u && gs.gameOverReason != 3u;
+    const bool clientFinishedBySuccess = gs.opponentStageProgress >= kMultiplayerStageCount
+        || remoteGameOverReason == 3u;
+    const bool clientFinishedByFailure = remoteGameOverReason != 0u && remoteGameOverReason != 3u;
 
-    if (gs.isGameOver && gs.gameOverReason != 0) {
-        const MatchPhase previousPhase = gs.matchPhase;
-        gs.matchPhase = MatchPhase::Finished;
-        gs.matchResult = (gs.gameOverReason == 3) ? MatchResult::LocalWin : MatchResult::OpponentWin;
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
-        if (previousPhase != MatchPhase::Finished) {
-            gs.matchJustFinished = true;
-        }
-        return;
-    }
-
-    const bool hostFinished = gs.localStageProgress >= kMultiplayerStageCount;
-    const bool clientFinished = gs.opponentStageProgress >= kMultiplayerStageCount;
+    const bool hostFinished = hostFinishedBySuccess || hostFinishedByFailure;
+    const bool clientFinished = clientFinishedBySuccess || clientFinishedByFailure;
 
     if (!hostFinished && !clientFinished) {
         if (gs.matchPhase != MatchPhase::Finished && gs.matchPhase != MatchPhase::WaitingForPeer) {
@@ -827,12 +872,11 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
 
     const MatchPhase previousPhase = gs.matchPhase;
     gs.matchPhase = MatchPhase::Finished;
-    if (hostFinished && clientFinished) {
+    if ((hostFinishedBySuccess && clientFinishedBySuccess)
+        || (hostFinishedByFailure && clientFinishedByFailure)) {
         gs.matchResult = MatchResult::Draw;
-        gs.gameOverReason = 0;
-    } else if (hostFinished) {
+    } else if (hostFinishedBySuccess || clientFinishedByFailure) {
         gs.matchResult = MatchResult::LocalWin;
-        gs.gameOverReason = 3;
     } else {
         gs.matchResult = MatchResult::OpponentWin;
     }

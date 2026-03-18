@@ -207,10 +207,16 @@ private:
      */
     void BroadcastMatchRestart(Registry& reg, Res_Network& resNet);
     /**
+     * @brief 将当前多人战局状态重置为新一局的初始值。
+     * @param reg ECS 注册表
+     */
+    void ResetMatchStateForRestart(Registry& reg);
+    /**
      * @brief 根据本地/远端阶段与终局原因收口权威比赛结果。
      * @param gs 当前比赛状态资源
+     * @param remoteGameOverReason 对手最新上报的终局原因；0 表示未终局
      */
-    void ApplyMatchResult(Res_GameState& gs);
+    void ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReason = 0u);
     /**
      * @brief 将 Finished 比赛状态映射到 GameOver UI。
      * @param reg ECS 注册表

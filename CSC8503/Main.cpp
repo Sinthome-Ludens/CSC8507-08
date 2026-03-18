@@ -125,7 +125,7 @@ static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock
  */
 static void ClearNetworkMode(ECS::Registry& reg) {
     if (reg.has_ctx<ECS::Res_Network>()) {
-        auto& resNet = reg.ctx_get<ECS::Res_Network>();
+        auto& resNet = reg.ctx<ECS::Res_Network>();
         resNet.mode = ECS::PeerType::OFFLINE;
         resNet.serverIP[0] = '\0';
         resNet.serverPort = 0;
@@ -143,7 +143,7 @@ static void ClearNetworkMode(ECS::Registry& reg) {
 static void ConfigureNetworkMode(ECS::Registry& reg, ECS::PeerType mode, const char* ip, uint16_t port) {
     ECS::Res_Network* resNetPtr = nullptr;
     if (reg.has_ctx<ECS::Res_Network>()) {
-        resNetPtr = &reg.ctx_get<ECS::Res_Network>();
+        resNetPtr = &reg.ctx<ECS::Res_Network>();
     } else {
         resNetPtr = &reg.ctx_emplace<ECS::Res_Network>();
     }
@@ -233,7 +233,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                 default: break;
             }
 
-            if (debugSceneIndex >= 0 && debugSceneIndex <= 8) {
+            if (debugSceneIndex >= 0 && debugSceneIndex <= 9) {
                 ClearNetworkMode(reg);
             }
             if (reg.has_ctx<ECS::Res_UIState>()) {

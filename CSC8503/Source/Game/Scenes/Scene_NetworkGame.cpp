@@ -57,7 +57,9 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     ECS::MeshHandle cubeMesh = ECS::AssetManager::Instance().LoadMesh(NCL::Assets::MESHDIR + "cube.obj");
 
     // 2. 注册网络资源
-    auto& resNet = registry.ctx_emplace<ECS::Res_Network>();
+    auto& resNet = registry.has_ctx<ECS::Res_Network>()
+        ? registry.ctx<ECS::Res_Network>()
+        : registry.ctx_emplace<ECS::Res_Network>();
     resNet.mode = m_Mode;
     const char* targetIP = m_IP.empty() ? "127.0.0.1" : m_IP.c_str();
     strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), targetIP, sizeof(resNet.serverIP) - 1);
@@ -123,7 +125,9 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     // 5. 初始化游戏状态（多人模式）
 #ifdef USE_IMGUI
     {
-        auto& gs = registry.ctx_emplace<ECS::Res_GameState>();
+        auto& gs = registry.has_ctx<ECS::Res_GameState>()
+            ? registry.ctx<ECS::Res_GameState>()
+            : registry.ctx_emplace<ECS::Res_GameState>();
         gs.isMultiplayer = true;
     }
 #endif
@@ -164,9 +168,6 @@ void Scene_NetworkGame::OnExit(ECS::Registry&      registry,
     // Explicitly clear context resources owned/used by this scene to avoid
     // leaving dangling raw pointers in the registry context after systems
     // have been destroyed.
-    if (registry.has_ctx<ECS::Res_Network>()) {
-        registry.ctx_erase<ECS::Res_Network>();
-    }
     if (registry.has_ctx<Res_UIFlags>()) {
         registry.ctx_erase<Res_UIFlags>();
     }
