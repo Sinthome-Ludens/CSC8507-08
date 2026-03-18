@@ -9,7 +9,6 @@
 #include <cstdio>
 #include <algorithm>
 #include "Game/Components/Res_UIState.h"
-#include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
@@ -115,11 +114,7 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     const char* rating = GetScoreRating(finalScore);
     int8_t ratingTier = GetScoreRatingTier(finalScore);
 
-    ImU32 ratingCol;
-    if      (ratingTier >= 5) ratingCol = IM_COL32(80, 200, 120, 255);
-    else if (ratingTier >= 3) ratingCol = IM_COL32(220, 200, 0, 255);
-    else if (ratingTier >= 1) ratingCol = IM_COL32(252, 111, 41, 255);
-    else                      ratingCol = IM_COL32(220, 60, 40, 255);
+    const ImU32 ratingCol = UITheme::GetScoreRatingColor(ratingTier);
 
     ImU32 labelCol  = IM_COL32(16, 13, 10, 220);
     ImU32 deductCol = IM_COL32(220, 60, 40, 220);

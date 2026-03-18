@@ -94,6 +94,18 @@ inline const ImVec2 kItemSpacing       = {8.0f, 6.0f};
 inline const ImVec2 kItemInnerSpacing  = {6.0f, 4.0f};
 
 // ============================================================
+// Score rating color (shared across HUD / GameOver / Victory)
+// ============================================================
+
+/// @brief 根据评级档位返回对应颜色（S+绿 / B+黄 / D+橙 / F红）。
+inline ImU32 GetScoreRatingColor(int8_t tier, uint8_t alpha = 255) {
+    if      (tier >= 5) return IM_COL32(80, 200, 120, alpha);   // S+ green
+    else if (tier >= 3) return IM_COL32(220, 200, 0, alpha);    // B+ yellow
+    else if (tier >= 1) return IM_COL32(252, 111, 41, alpha);   // D+ orange
+    else                return IM_COL32(220, 60, 40, alpha);    // F  red
+}
+
+// ============================================================
 // Function declarations
 // ============================================================
 

@@ -165,4 +165,35 @@ struct Res_UIState {
     int16_t scoreItemUseCount   = 0;   ///< 道具使用次数
 };
 
+// ── Campaign score utility functions ────────────────────────
+
+/// @brief 评级名称数组（按 tier 索引：0=F, 1=D, ..., 7=SSS）。
+inline constexpr const char* const kScoreRatingNames[] = {"F","D","C","B","A","S","SS","SSS"};
+
+/// @brief 根据积分返回评级字符串（F/D/C/B/A/S/SS/SSS）。
+/// @pre score >= 0
+inline const char* GetScoreRating(int32_t score) {
+    if (score <= 500) return "F";
+    if (score <= 599) return "D";
+    if (score <= 699) return "C";
+    if (score <= 799) return "B";
+    if (score <= 899) return "A";
+    if (score <= 949) return "S";
+    if (score <= 969) return "SS";
+    return "SSS";
+}
+
+/// @brief 返回评级数值档位（0=F, 1=D, ..., 7=SSS），用于降级检测。
+/// @pre score >= 0
+inline int8_t GetScoreRatingTier(int32_t score) {
+    if (score <= 500) return 0;
+    if (score <= 599) return 1;
+    if (score <= 699) return 2;
+    if (score <= 799) return 3;
+    if (score <= 899) return 4;
+    if (score <= 949) return 5;
+    if (score <= 969) return 6;
+    return 7;
+}
+
 } // namespace ECS

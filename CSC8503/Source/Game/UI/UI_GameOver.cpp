@@ -193,12 +193,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     draw->AddLine(ImVec2(cx - 120.0f, lineY), ImVec2(cx + 120.0f, lineY),
         IM_COL32(200, 200, 200, 120), 1.0f);
 
-    // 评级颜色
-    ImU32 ratingCol;
-    if      (ratingTier >= 5) ratingCol = IM_COL32(80, 200, 120, 255);   // S+ green
-    else if (ratingTier >= 3) ratingCol = IM_COL32(220, 200, 0, 255);    // B+ yellow
-    else if (ratingTier >= 1) ratingCol = IM_COL32(252, 111, 41, 255);   // D+ orange
-    else                      ratingCol = IM_COL32(220, 60, 40, 255);    // F red
+    const ImU32 ratingCol = UITheme::GetScoreRatingColor(ratingTier);
 
     ImFont* bodyFont = UITheme::GetFont_Body();
     if (bodyFont) ImGui::PushFont(bodyFont);

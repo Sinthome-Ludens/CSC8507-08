@@ -146,12 +146,7 @@ static void RenderHUD_Score(ImDrawList* draw, int32_t score, float gameW) {
     const char* rating = GetScoreRating(score);
     int8_t tier = GetScoreRatingTier(score);
 
-    // 积分颜色随评级档位变化
-    ImU32 scoreCol;
-    if      (tier >= 5) scoreCol = IM_COL32(80, 200, 120, 220);   // S+ green
-    else if (tier >= 3) scoreCol = IM_COL32(220, 200, 0, 220);    // B+ yellow
-    else if (tier >= 1) scoreCol = IM_COL32(252, 111, 41, 220);   // D+ orange
-    else                scoreCol = IM_COL32(220, 60, 40, 220);    // F  red
+    const ImU32 scoreCol = UITheme::GetScoreRatingColor(tier, 220);
 
     if (termFont) ImGui::PushFont(termFont);
 
