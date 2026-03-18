@@ -1,3 +1,12 @@
+/**
+ * @file Net_Protocol.h
+ * @brief 定义多人联机使用的固定线协议包类型与包体结构。
+ *
+ * @details
+ * 所有 `Net_PacketType` 都显式绑定稳定的数值 ID，避免新增包类型时重排旧枚举值，
+ * 从而破坏不同构建之间的基础线协议兼容性。若未来需要引入破坏性协议变更，
+ * 应同步提升 `Net_Packet_Handshake::protocolVersion` 并在连接阶段做版本校验。
+ */
 #pragma once
 #include <cstdint>
 
@@ -17,16 +26,16 @@ namespace ECS {
  * - GAME ：游戏业务逻辑数据包
  */
 enum Net_PacketType : uint8_t {
-    SYS_HANDSHAKE = 0,   ///< 客户端发送握手请求
-    SYS_WELCOME,         ///< 服务端确认连接并发送初始化数据
-    SYS_DISCONNECT,      ///< 断开连接通知
-    SYNC_TRANSFORM,      ///< Transform状态同步数据包
-    SYNC_MATCH_STATE,    ///< 比赛状态同步数据包
-    SYNC_MATCH_RESTART,  ///< 服务端广播多人重开指令
-    GAME_EVENT,          ///< 游戏事件数据包（客户端或服务端在发生攻击、交互、技能释放等游戏行为时发送）
-    CLIENT_INPUT,        ///< 客户端输入数据包（用于服务器权威架构）
-    CLIENT_MATCH_PROGRESS,///< 客户端上报当前比赛进度
-    CLIENT_MATCH_RESTART_REQUEST ///< 客户端请求服务端执行多人重开
+    SYS_HANDSHAKE = 0,             ///< 客户端发送握手请求
+    SYS_WELCOME = 1,               ///< 服务端确认连接并发送初始化数据
+    SYS_DISCONNECT = 2,            ///< 断开连接通知
+    SYNC_TRANSFORM = 3,            ///< Transform状态同步数据包
+    SYNC_MATCH_STATE = 4,          ///< 比赛状态同步数据包
+    SYNC_MATCH_RESTART = 5,        ///< 服务端广播多人重开指令
+    GAME_EVENT = 6,                ///< 游戏事件数据包（客户端或服务端在发生攻击、交互、技能释放等游戏行为时发送）
+    CLIENT_INPUT = 7,              ///< 客户端输入数据包（用于服务器权威架构）
+    CLIENT_MATCH_PROGRESS = 8,     ///< 客户端上报当前比赛进度
+    CLIENT_MATCH_RESTART_REQUEST = 9 ///< 客户端请求服务端执行多人重开
 };
 
 // 传输可靠性

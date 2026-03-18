@@ -35,6 +35,11 @@ namespace ECS {
 
 namespace {
 
+/**
+ * @brief 将多人比赛阶段枚举转换为调试面板使用的字符串。
+ * @param phase 比赛阶段枚举值
+ * @return 对应的只读字符串
+ */
 const char* MatchPhaseToString(MatchPhase phase) {
     switch (phase) {
         case MatchPhase::WaitingForPeer: return "WaitingForPeer";
@@ -45,6 +50,11 @@ const char* MatchPhaseToString(MatchPhase phase) {
     }
 }
 
+/**
+ * @brief 将多人比赛结果枚举转换为调试面板使用的字符串。
+ * @param result 比赛结果枚举值
+ * @return 对应的只读字符串
+ */
 const char* MatchResultToString(MatchResult result) {
     switch (result) {
         case MatchResult::None:         return "None";

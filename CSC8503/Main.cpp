@@ -118,12 +118,25 @@ static IScene* CreateMapScene(uint8_t mapId) {
 /// 地图名称（调试用）
 static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock" };
 
+/**
+ * @brief 清除当前场景图中的联机模式配置。
+ * @details 仅移除 `Res_Network`，不触碰其他 UI 或玩法资源。
+ * @param reg 当前场景注册表
+ */
 static void ClearNetworkMode(ECS::Registry& reg) {
     if (reg.has_ctx<ECS::Res_Network>()) {
         reg.ctx_erase<ECS::Res_Network>();
     }
 }
 
+/**
+ * @brief 以指定角色与地址重建联机配置资源。
+ * @details 会先清除旧的 `Res_Network`，再创建新的网络上下文。
+ * @param reg 当前场景注册表
+ * @param mode 节点网络角色
+ * @param ip 目标 IP；服务端模式下仅用于填充默认值
+ * @param port 使用的监听或连接端口
+ */
 static void ConfigureNetworkMode(ECS::Registry& reg, ECS::PeerType mode, const char* ip, uint16_t port) {
     ClearNetworkMode(reg);
 
@@ -162,6 +175,11 @@ static void GenerateMapSequence(ECS::Res_UIState& ui) {
              << (int)ui.mapSequence[2]);
 }
 
+/**
+ * @brief 初始化多人模式固定三关流程。
+ * @details v1 固定使用 `HangerA -> HangerB -> Helipad`，并重置战局累计 UI 状态。
+ * @param ui 全局 UI 状态资源
+ */
 static void InitializeMultiplayerMapSequence(ECS::Res_UIState& ui) {
     ui.mapSequence[0] = 0;
     ui.mapSequence[1] = 1;

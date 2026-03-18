@@ -59,12 +59,17 @@ void Sys_Network::OnAwake(Registry& reg) {
     RegisterHandlers();
     InitializeEvents(reg);
 
+    auto& resNet = reg.ctx<Res_Network>();
+    if (resNet.host != nullptr) {
+        LOG_INFO("[Sys_Network] Reusing existing ENet session for scene transition.");
+        return;
+    }
+
     if (enet_initialize() != 0) {
         LOG_ERROR("An error occurred while initializing ENet.");
         return;
     }
 
-    auto& resNet = reg.ctx<Res_Network>();
     if (resNet.mode == PeerType::SERVER) {
         InitializeServer(resNet);
     } 
@@ -302,6 +307,13 @@ void Sys_Network::HandleWelcomePacket(Registry& reg, Res_Network& resNet, const 
     }
 }
 
+/**
+ * @brief 处理服务端广播的多人比赛状态快照。
+ * @details 客户端会保留尚未被服务端确认的本地终局状态，避免旧的 Running 快照覆盖本地终局。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
 void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
     if (resNet.mode != PeerType::CLIENT || !reg.has_ctx<Res_GameState>()) return;
 
@@ -313,7 +325,7 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
     const uint8_t previousLocalProgress = gs.localStageProgress;
     const uint8_t previousOpponentProgress = gs.opponentStageProgress;
     const uint8_t pendingLocalStageProgress = gs.localStageProgress;
-    const uint8_t pendingLocalGameOverReason = gs.isGameOver ? gs.gameOverReason : 0u;
+    const uint8_t pendingLocalGameOverReason = GetLocalTerminalReason(reg, gs);
     const bool hasPendingLocalTerminalState =
         pendingLocalGameOverReason != 0u || pendingLocalStageProgress >= kMultiplayerStageCount;
     const MatchPhase incomingPhase = static_cast<MatchPhase>(pkt->matchPhase);
@@ -335,8 +347,12 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
         gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
         gs.isGameOver = true;
     } else if (hasPendingLocalTerminalState) {
-        gs.gameOverReason = pendingLocalGameOverReason;
-        gs.isGameOver = (pendingLocalGameOverReason != 0u);
+        const uint8_t inferredPendingReason =
+            pendingLocalGameOverReason != 0u
+            ? pendingLocalGameOverReason
+            : (pendingLocalStageProgress >= kMultiplayerStageCount ? 3u : 0u);
+        gs.gameOverReason = inferredPendingReason;
+        gs.isGameOver = (inferredPendingReason != 0u);
     } else {
         gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
         gs.isGameOver = false;
@@ -345,6 +361,13 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
     UpdateMatchUIState(reg);
 }
 
+/**
+ * @brief 处理服务端广播的多人重开指令。
+ * @details 收到后由双方统一走 `RestartLevel`，避免本地 UI 直接重开造成状态分叉。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
 void Sys_Network::HandleMatchRestart(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
     if (!GetPacketData<Net_Packet_MatchRestart>(event) || !reg.has_ctx<Res_UIState>()) return;
 
@@ -396,6 +419,13 @@ void Sys_Network::HandleClientInput(Registry& reg, Res_Network& resNet, const EN
     UpdatePlayerInput(reg, GetClientID(event), pkt->buttonMask);
 }
 
+/**
+ * @brief 处理客户端上报的阶段推进和终局状态。
+ * @details 服务端收到后会收口权威比赛结果，并在状态变化后广播最新快照。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
 void Sys_Network::HandleClientMatchProgress(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
     if (resNet.mode != PeerType::SERVER || !reg.has_ctx<Res_GameState>()) return;
 
@@ -441,8 +471,26 @@ void Sys_Network::HandleClientMatchProgress(Registry& reg, Res_Network& resNet, 
     BroadcastMatchStateIfDirty(reg, resNet, true);
 }
 
+/**
+ * @brief 处理客户端发起的多人 Retry 请求。
+ * @details 仅当服务端权威比赛已结束时才允许广播重开，避免中途收到异常包强制重置战局。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
 void Sys_Network::HandleClientMatchRestartRequest(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
-    if (resNet.mode != PeerType::SERVER || !GetPacketData<Net_Packet_MatchRestart>(event)) return;
+    if (resNet.mode != PeerType::SERVER
+        || !GetPacketData<Net_Packet_MatchRestart>(event)
+        || !reg.has_ctx<Res_GameState>()) {
+        return;
+    }
+
+    auto& gs = reg.ctx<Res_GameState>();
+    if (!gs.isMultiplayer || gs.matchPhase != MatchPhase::Finished) {
+        LOG_WARN("[Sys_Network] Ignored premature client restart request while matchPhase="
+                 << static_cast<int>(gs.matchPhase));
+        return;
+    }
 
     BroadcastMatchRestart(reg, resNet);
 }
@@ -468,6 +516,10 @@ void Sys_Network::HandleGameAction(Registry& reg, Res_Network& resNet, const ENe
     }
 }
 
+/**
+ * @brief 清空仅在当前帧内生效的比赛状态边沿标记。
+ * @param reg ECS 注册表
+ */
 void Sys_Network::ResetFrameFlags(Registry& reg) {
     if (!reg.has_ctx<Res_GameState>()) return;
 
@@ -521,6 +573,12 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
     }
 }
 
+/**
+ * @brief 由客户端向服务端上报本地阶段进度和待确认终局状态。
+ * @details 当客户端已经本地终局但尚未收到权威 `Finished` 时，会持续重发，避免单次丢包卡死。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ */
 void Sys_Network::UpdateClientMatchProgress(Registry& reg, Res_Network& resNet) {
     if (resNet.mode != PeerType::CLIENT || resNet.peer == nullptr || !reg.has_ctx<Res_GameState>()) return;
 
@@ -528,7 +586,7 @@ void Sys_Network::UpdateClientMatchProgress(Registry& reg, Res_Network& resNet) 
     if (!gs.isMultiplayer) return;
 
     const uint8_t localStageProgress = ClampStageProgress(gs.localStageProgress);
-    const uint8_t localGameOverReason = gs.isGameOver ? gs.gameOverReason : 0u;
+    const uint8_t localGameOverReason = GetLocalTerminalReason(reg, gs);
     const bool hasPendingTerminalState =
         (localStageProgress >= kMultiplayerStageCount || localGameOverReason != 0u)
         && gs.matchPhase != MatchPhase::Finished;
@@ -558,6 +616,12 @@ void Sys_Network::UpdateClientMatchProgress(Registry& reg, Res_Network& resNet) 
     m_LastReportedLocalGameOverReason = localGameOverReason;
 }
 
+/**
+ * @brief 处理本地 UI 发起的多人 Retry 请求。
+ * @details Host 会直接广播重开；Client 会先向 Host 发请求，由 Host 统一裁决并广播。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ */
 void Sys_Network::ProcessMatchRestartRequest(Registry& reg, Res_Network& resNet) {
     if (!reg.has_ctx<Res_UIState>() || !reg.has_ctx<Res_GameState>()) return;
 
@@ -610,6 +674,13 @@ void Sys_Network::UpdatePlayerInput(Registry& reg, uint32_t clientID, uint32_t b
     );
 }
 
+/**
+ * @brief 当服务端权威比赛状态发生变化时广播最新快照。
+ * @details 同时负责规范化阶段值、推导轮次索引，并把多人结果桥接回现有 UI/GameOver 状态。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param force 是否忽略脏检查强制广播
+ */
 void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet, bool force) {
     if (resNet.mode != PeerType::SERVER || !reg.has_ctx<Res_GameState>()) return;
 
@@ -667,6 +738,11 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
     m_LastBroadcastGameOverReason = gameOverReason;
 }
 
+/**
+ * @brief 由服务端广播多人重开指令，并让本地 UI 同步进入重开流程。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ */
 void Sys_Network::BroadcastMatchRestart(Registry& reg, Res_Network& resNet) {
     if (!reg.has_ctx<Res_UIState>()) return;
 
@@ -682,6 +758,10 @@ void Sys_Network::BroadcastMatchRestart(Registry& reg, Res_Network& resNet) {
     ui.pendingSceneRequest = SceneRequest::RestartLevel;
 }
 
+/**
+ * @brief 将多人比赛结束态映射到 `UIScreen::GameOver`。
+ * @param reg ECS 注册表
+ */
 void Sys_Network::UpdateMatchUIState(Registry& reg) {
     if (!reg.has_ctx<Res_GameState>() || !reg.has_ctx<Res_UIState>()) return;
 
@@ -696,6 +776,11 @@ void Sys_Network::UpdateMatchUIState(Registry& reg) {
     }
 }
 
+/**
+ * @brief 根据当前双方阶段数和本地终局原因收口比赛结果。
+ * @details 该函数只运行在权威状态收口路径，确保 `matchPhase/matchResult/isGameOver` 保持一致。
+ * @param gs 当前比赛状态资源
+ */
 void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
     if (gs.matchPhase == MatchPhase::Finished && gs.matchResult != MatchResult::None) {
         gs.isGameOver = true;
@@ -745,6 +830,11 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
     }
 }
 
+/**
+ * @brief 将服务端视角的比赛结果转换为客户端本地视角。
+ * @param authoritativeResult 服务端权威结果
+ * @return 客户端本地视角结果
+ */
 MatchResult Sys_Network::ToClientPerspective(MatchResult authoritativeResult) {
     switch (authoritativeResult) {
         case MatchResult::LocalWin:    return MatchResult::OpponentWin;
@@ -753,6 +843,11 @@ MatchResult Sys_Network::ToClientPerspective(MatchResult authoritativeResult) {
     }
 }
 
+/**
+ * @brief 将多人比赛结果映射到现有 `gameOverReason` 编码。
+ * @param result 比赛结果
+ * @return 对应的 GameOver 原因码
+ */
 uint8_t Sys_Network::ComputeGameOverReasonForResult(MatchResult result) {
     switch (result) {
         case MatchResult::LocalWin:
@@ -767,10 +862,47 @@ uint8_t Sys_Network::ComputeGameOverReasonForResult(MatchResult result) {
     }
 }
 
+/**
+ * @brief 从当前本地状态推导客户端需要上报给服务端的终局原因。
+ * @details 覆盖三关完成、倒计时耗尽、玩家死亡，以及已切入 GameOver 但尚未写入明确原因的兜底场景。
+ * @param reg ECS 注册表
+ * @param gs 当前比赛状态资源
+ * @return 0 表示本地仍未终局，否则返回标准 gameOverReason
+ */
+uint8_t Sys_Network::GetLocalTerminalReason(Registry& reg, const Res_GameState& gs) {
+    if (gs.gameOverReason != 0u) {
+        return gs.gameOverReason;
+    }
+    if (gs.localStageProgress >= kMultiplayerStageCount) {
+        return 3u;
+    }
+    if (gs.isGameOver) {
+        return 2u;
+    }
+    if (reg.has_ctx<Res_UIState>()) {
+        const auto& ui = reg.ctx<Res_UIState>();
+        if (ui.activeScreen == UIScreen::GameOver) {
+            return (gs.matchResult == MatchResult::LocalWin) ? 3u : 2u;
+        }
+    }
+    return 0u;
+}
+
+/**
+ * @brief 将阶段进度限制在 `0..kMultiplayerStageCount` 范围内。
+ * @param progress 原始阶段值
+ * @return 裁剪后的阶段值
+ */
 uint8_t Sys_Network::ClampStageProgress(uint8_t progress) {
     return std::min<uint8_t>(progress, kMultiplayerStageCount);
 }
 
+/**
+ * @brief 根据双方最远推进的阶段数推导当前轮次索引。
+ * @param hostStageProgress Host 已完成阶段数
+ * @param clientStageProgress Client 已完成阶段数
+ * @return 当前轮次索引
+ */
 uint8_t Sys_Network::ComputeCurrentRoundIndex(uint8_t hostStageProgress, uint8_t clientStageProgress) {
     const uint8_t furthestStage = std::max(ClampStageProgress(hostStageProgress), ClampStageProgress(clientStageProgress));
     if (furthestStage >= kMultiplayerStageCount) {
@@ -823,7 +955,18 @@ void Sys_Network::OnDestroy(Registry& reg) {
     }
     m_Registry = nullptr;
 
+    if (!reg.has_ctx<Res_Network>()) {
+        enet_deinitialize();
+        LOG_INFO("[Sys_Network] Network context already removed; ENet deinitialized without host teardown.");
+        return;
+    }
+
     auto& resNet = reg.ctx<Res_Network>();
+    if (resNet.mode != PeerType::OFFLINE && resNet.host != nullptr) {
+        LOG_INFO("[Sys_Network] Preserving ENet session across scene teardown.");
+        return;
+    }
+
     if (resNet.host) {
         enet_host_destroy(resNet.host);
         resNet.host = nullptr;

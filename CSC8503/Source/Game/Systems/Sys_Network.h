@@ -69,39 +69,184 @@ private:
     using PacketHandler = void (Sys_Network::*)(Registry&, Res_Network&, const ENetEvent&);
     std::unordered_map<Net_PacketType, PacketHandler> m_PacketHandlers;
 
+    /**
+     * @brief 注册数据包类型到成员处理函数的分发表。
+     */
     void RegisterHandlers();
 
     // ── 初始化阶段函数 ──
+    /**
+     * @brief 订阅网络系统依赖的本地事件总线回调。
+     * @param reg ECS 注册表
+     */
     void InitializeEvents(Registry& reg);
+    /**
+     * @brief 初始化服务端 ENet host，并准备分配客户端 ID。
+     * @param resNet 网络资源对象
+     */
     void InitializeServer(Res_Network& resNet);
+    /**
+     * @brief 初始化客户端 ENet host，并向目标地址发起连接。
+     * @param resNet 网络资源对象
+     */
     void InitializeClient(Res_Network& resNet);
 
     // ── 内部阶段函数 ──
+    /**
+     * @brief 拉取并分发所有待处理的底层网络事件。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     */
     void ProcessNetworkEvents(Registry& reg, Res_Network& resNet);
+    /**
+     * @brief 根据包头类型将收到的数据包派发给对应处理函数。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
     void HandleReceivePacket(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理本地输入的采集、发送与主机本地驱动。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     */
     void HandleLocalInput(Registry& reg, Res_Network& resNet);
+    /**
+     * @brief 将服务端权威世界状态广播给客户端。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     */
     void BroadcastWorldState(Registry& reg, Res_Network& resNet);
 
     // ── 数据包处理回调函数 ──
+    /**
+     * @brief 处理服务端分配客户端身份的欢迎包。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
     void HandleWelcomePacket(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理服务端广播的 Transform 同步包。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
     void HandleSyncTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理服务端广播的比赛状态快照。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
     void HandleMatchState(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理服务端广播的多人重开指令。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
     void HandleMatchRestart(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理客户端上报的输入位掩码。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
     void HandleClientInput(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理客户端上报的三阶段比赛进度与终局状态。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
     void HandleClientMatchProgress(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理客户端发起的多人重开请求。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
     void HandleClientMatchRestartRequest(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理网络同步过来的离散玩法事件。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
     void HandleGameAction(Registry& reg, Res_Network& resNet, const ENetEvent& event);
 
+    /**
+     * @brief 清空仅在单帧内有效的比赛状态边沿标记。
+     * @param reg ECS 注册表
+     */
     void ResetFrameFlags(Registry& reg);
+    /**
+     * @brief 由客户端上报本地阶段进度与待确认终局状态。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     */
     void UpdateClientMatchProgress(Registry& reg, Res_Network& resNet);
+    /**
+     * @brief 处理本地 UI 触发的多人重开请求。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     */
     void ProcessMatchRestartRequest(Registry& reg, Res_Network& resNet);
+    /**
+     * @brief 当服务端权威比赛状态发生变化时广播新的快照。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param force 是否忽略脏检查强制广播
+     */
     void BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet, bool force = false);
+    /**
+     * @brief 由服务端向双方广播多人重开指令。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     */
     void BroadcastMatchRestart(Registry& reg, Res_Network& resNet);
+    /**
+     * @brief 根据本地/远端阶段与终局原因收口权威比赛结果。
+     * @param gs 当前比赛状态资源
+     */
     void ApplyMatchResult(Res_GameState& gs);
+    /**
+     * @brief 将 Finished 比赛状态映射到 GameOver UI。
+     * @param reg ECS 注册表
+     */
     void UpdateMatchUIState(Registry& reg);
+    /**
+     * @brief 将服务端视角的胜负结果转换为客户端本地视角。
+     * @param authoritativeResult 服务端权威结果
+     * @return 客户端本地视角下的结果
+     */
     static MatchResult ToClientPerspective(MatchResult authoritativeResult);
+    /**
+     * @brief 将多人比赛结果映射到现有单机 GameOver reason 编码。
+     * @param result 比赛结果
+     * @return 对应的 gameOverReason
+     */
     static uint8_t ComputeGameOverReasonForResult(MatchResult result);
+    /**
+     * @brief 从本地玩法/界面状态统一推导客户端当前待上报的终局原因。
+     * @param reg ECS 注册表
+     * @param gs 当前比赛状态资源
+     * @return 0 表示尚未进入本地终局，否则返回现有 gameOverReason 编码
+     */
+    static uint8_t GetLocalTerminalReason(Registry& reg, const Res_GameState& gs);
+    /**
+     * @brief 将阶段进度限制在合法的 `0..kMultiplayerStageCount` 范围内。
+     * @param progress 原始阶段值
+     * @return 裁剪后的阶段值
+     */
     static uint8_t ClampStageProgress(uint8_t progress);
+    /**
+     * @brief 根据双方最远推进阶段推导当前轮次索引。
+     * @param hostStageProgress Host 阶段数
+     * @param clientStageProgress Client 阶段数
+     * @return 当前应显示的轮次索引
+     */
     static uint8_t ComputeCurrentRoundIndex(uint8_t hostStageProgress, uint8_t clientStageProgress);
 
     // ── 数据包解包与物理驱动辅助方法 ──

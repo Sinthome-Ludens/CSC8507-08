@@ -87,6 +87,11 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                     gs.currentRoundIndex = std::min<uint8_t>(gs.localStageProgress, kMultiplayerStageCount - 1);
                     gs.localProgress = gs.localStageProgress;
                     gs.roundJustAdvanced = true;
+                    if (gs.localStageProgress >= kMultiplayerStageCount) {
+                        gs.isGameOver = true;
+                        gs.gameOverReason = 3;
+                        gs.gameOverTime = gs.playTime;
+                    }
 
 #ifdef USE_IMGUI
                     if (registry.has_ctx<Res_UIState>()) {
@@ -161,9 +166,6 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
             }
         });
 
-    if (isMultiplayer && !reachedFinishZone) {
-        m_FinishTriggered = false;
-    }
 }
 
 /**

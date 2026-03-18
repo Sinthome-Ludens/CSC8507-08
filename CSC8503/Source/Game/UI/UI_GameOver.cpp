@@ -31,6 +31,13 @@ static const char* kGameOverItems[] = {
 };
 static constexpr int kGameOverItemCount = 2;
 
+/**
+ * @brief 渲染游戏结束界面，并根据输入写回场景切换请求。
+ * @details 读取 `Res_UIState` 与 `Res_GameState` 的单机/多人结果状态，
+ *          决定标题、统计信息以及 Retry/ReturnToMenu 的后续流程。
+ * @param registry 当前 ECS 注册表
+ * @param dt 本帧时间步长（未使用）
+ */
 void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();

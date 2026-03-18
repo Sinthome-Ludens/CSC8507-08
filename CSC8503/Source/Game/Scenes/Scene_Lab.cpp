@@ -74,6 +74,9 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
 {
     const bool isMultiplayer = registry.has_ctx<ECS::Res_Network>()
         && registry.ctx<ECS::Res_Network>().mode != ECS::PeerType::OFFLINE;
+    const bool hasActiveNetworkSession = isMultiplayer
+        && registry.ctx<ECS::Res_Network>().host != nullptr
+        && registry.ctx<ECS::Res_Network>().connected;
 
     ECS::AssetManager::Instance().Init();
 
@@ -169,13 +172,16 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
     gs = ECS::Res_GameState{};
     gs.isMultiplayer = isMultiplayer;
     if (isMultiplayer) {
-        gs.matchPhase = preserveMultiplayerState ? preservedPhase : ECS::MatchPhase::WaitingForPeer;
+        gs.matchPhase = preserveMultiplayerState
+            ? preservedPhase
+            : (hasActiveNetworkSession ? ECS::MatchPhase::Running : ECS::MatchPhase::WaitingForPeer);
         gs.matchResult = preserveMultiplayerState ? preservedResult : ECS::MatchResult::None;
         gs.currentRoundIndex = preserveMultiplayerState ? preservedRoundIndex : 0;
         gs.localStageProgress = preserveMultiplayerState ? preservedLocalStage : 0;
         gs.opponentStageProgress = preserveMultiplayerState ? preservedOpponentStage : 0;
         gs.localProgress = gs.localStageProgress;
         gs.opponentProgress = gs.opponentStageProgress;
+        gs.matchJustStarted = !preserveMultiplayerState && hasActiveNetworkSession;
     } else {
         gs.matchPhase = ECS::MatchPhase::Finished;
     }
