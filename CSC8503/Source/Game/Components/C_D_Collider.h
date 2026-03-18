@@ -1,3 +1,12 @@
+/**
+ * @file C_D_Collider.h
+ * @brief 碰撞体数据组件及配套枚举，描述 Jolt Physics 物理形状的创建参数。
+ *
+ * @details
+ * 支持 Box / Sphere / Capsule / TriMesh 四种形状类型，以及
+ * Manual（手工指定尺寸）与 MeshBoundsAuto（从渲染 mesh 包围盒自动推导）
+ * 两种拟合模式。
+ */
 #pragma once
 #include <cstdint>
 #include <vector>

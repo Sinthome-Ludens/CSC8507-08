@@ -1,3 +1,7 @@
+/**
+ * @file C_D_PlayerState.h
+ * @brief 玩家运行时状态数据组件，存储姿态、伪装、CQC、噪音、碰撞体尺寸等字段。
+ */
 #pragma once
 
 #include <cstdint>

@@ -357,7 +357,8 @@ void ECS::Sys_Physics::CreateBodyForEntity(
                 case ColliderType::Capsule: {
                     float radius = std::max(bounds.half.x, bounds.half.z) + col.fit_padding;
                     halfX = radius;
-                    halfY = std::max(0.0f, bounds.half.y - radius + col.fit_padding);
+                    // bounds.half.y + fit_padding 是总半高，减去球帽半径得到圆柱半高
+                    halfY = std::max(0.0f, (bounds.half.y + col.fit_padding) - radius);
                     break;
                 }
                 case ColliderType::TriMesh:
@@ -940,6 +941,17 @@ void ECS::Sys_Physics::ReplaceShapeCapsule(EntityID entity, float halfHeight, fl
                 JPH::EActivation::Activate);
 }
 
+// ============================================================
+// ReplaceShapeBox — 运行时替换碰撞体为 Box
+// ============================================================
+/**
+ * @brief 按实体 ID 替换为 Box 碰撞体。
+ * @details 用于玩家站立/蹲伏姿态切换时的碰撞体重建，保留现有质量属性并激活目标 Body。
+ * @param entity 目标实体 ID
+ * @param halfX  Box X 轴半尺寸
+ * @param halfY  Box Y 轴半尺寸
+ * @param halfZ  Box Z 轴半尺寸
+ */
 void ECS::Sys_Physics::ReplaceShapeBox(EntityID entity, float halfX, float halfY, float halfZ) {
     if (!m_PhysicsSystem) return;
     JPH::BodyID jid;

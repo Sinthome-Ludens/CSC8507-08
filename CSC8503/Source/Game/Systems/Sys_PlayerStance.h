@@ -1,3 +1,7 @@
+/**
+ * @file Sys_PlayerStance.h
+ * @brief 玩家姿态系统声明：站立 ↔ 蹲伏切换及 Box 碰撞体重建。
+ */
 #pragma once
 
 #include "Core/ECS/BaseSystem.h"
@@ -21,6 +25,11 @@ class Sys_Physics;
  */
 class Sys_PlayerStance : public ISystem {
 public:
+    /**
+     * @brief 每帧处理玩家姿态输入，切换 Box 碰撞体形状并补偿脚底 Y 位置。
+     * @param registry 当前场景注册表
+     * @param dt       本帧时间步长（当前实现未直接使用）
+     */
     void OnUpdate(Registry& registry, float dt) override;
 
 private:
