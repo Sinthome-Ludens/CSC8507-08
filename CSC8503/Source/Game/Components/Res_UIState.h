@@ -77,6 +77,7 @@ struct Res_UIState {
     int8_t    settingsSelectedIndex  = 0;
     int8_t    pauseSelectedIndex     = 0;
     int8_t    gameOverSelectedIndex  = 0;
+    bool      multiplayerRetryRequested = false;
     int8_t    resolutionIndex        = 2;   // default 1920x1080 (0=720p, 1=900p, 2=1080p)
     bool      resolutionChanged      = false;
 
@@ -143,6 +144,9 @@ struct Res_UIState {
     uint8_t   mapSequenceIndex         = 0;           ///< 当前关卡在序列中的位置
     bool      mapSequenceGenerated     = false;       ///< 是否已生成过序列
     float     totalPlayTime            = 0.0f;        ///< 累计游玩时间（战役全关合计）
+
+    // ── Debug mode (bypass map sequence) ──
+    int8_t    debugCurrentScene        = -1;  ///< >=0 表示当前为 debug 模式进入的场景 index，-1 表示正常流程
 };
 
 } // namespace ECS

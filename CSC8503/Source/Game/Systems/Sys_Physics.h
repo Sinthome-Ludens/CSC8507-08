@@ -314,6 +314,15 @@ public:
     void ReplaceShapeCapsule(EntityID entity, float halfHeight, float radius);
 
     /**
+     * @brief 按实体 ID 将碰撞体替换为 Box。
+     * @param entity 目标实体 ID
+     * @param halfX X 轴半尺寸
+     * @param halfY Y 轴半尺寸
+     * @param halfZ Z 轴半尺寸
+     */
+    void ReplaceShapeBox(EntityID entity, float halfX, float halfY, float halfZ);
+
+    /**
      * @brief 按实体 ID 设置刚体世界位置。
      * @details 设置后会激活目标 Body 以保证位置修正立即生效。
      * @param entity 目标实体 ID

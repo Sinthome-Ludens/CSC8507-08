@@ -39,6 +39,8 @@
 #include "Game/Components/C_D_InterpBuffer.h"
 #include "Game/Components/C_D_RigidBody.h"
 
+#include <cstring>
+
 /**
  * @brief 进入联机场景并初始化网络、物理与 UI 系统。
  * @details 预热资源、创建网络上下文与初始同步实体，依据当前 PeerType 配置客户端插值表现，然后注册网络场景所需系统并唤醒它们。
@@ -55,9 +57,13 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     ECS::MeshHandle cubeMesh = ECS::AssetManager::Instance().LoadMesh(NCL::Assets::MESHDIR + "cube.obj");
 
     // 2. 注册网络资源
-    auto& resNet = registry.ctx_emplace<ECS::Res_Network>();
+    auto& resNet = registry.has_ctx<ECS::Res_Network>()
+        ? registry.ctx<ECS::Res_Network>()
+        : registry.ctx_emplace<ECS::Res_Network>();
     resNet.mode = m_Mode;
-    // 此处可扩展 IP/Port 存储
+    const char* targetIP = m_IP.empty() ? "127.0.0.1" : m_IP.c_str();
+    strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), targetIP, sizeof(resNet.serverIP) - 1);
+    resNet.serverPort = (m_Port == 0) ? 32499 : m_Port;
 
     if (!registry.has_ctx<Res_UIFlags>()) {
         registry.ctx_emplace<Res_UIFlags>();
@@ -119,7 +125,9 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     // 5. 初始化游戏状态（多人模式）
 #ifdef USE_IMGUI
     {
-        auto& gs = registry.ctx_emplace<ECS::Res_GameState>();
+        auto& gs = registry.has_ctx<ECS::Res_GameState>()
+            ? registry.ctx<ECS::Res_GameState>()
+            : registry.ctx_emplace<ECS::Res_GameState>();
         gs.isMultiplayer = true;
     }
 #endif
@@ -142,7 +150,9 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     ECS::UI::PushToast(registry, "MULTIPLAYER CONNECTED", ECS::ToastType::Success, 2.5f);
 #endif
 
-    LOG_INFO("[Scene_NetworkGame] OnEnter complete. Mode=" << (m_Mode == ECS::PeerType::SERVER ? "SERVER" : "CLIENT"));
+    LOG_INFO("[Scene_NetworkGame] OnEnter complete. Mode="
+             << (m_Mode == ECS::PeerType::SERVER ? "SERVER" : "CLIENT")
+             << " target=" << resNet.serverIP << ":" << resNet.serverPort);
 }
 
 /**
@@ -158,16 +168,13 @@ void Scene_NetworkGame::OnExit(ECS::Registry&      registry,
     // Explicitly clear context resources owned/used by this scene to avoid
     // leaving dangling raw pointers in the registry context after systems
     // have been destroyed.
-    if (registry.has_ctx<ECS::Res_Network>()) {
-        registry.ctx_erase<ECS::Res_Network>();
-    }
     if (registry.has_ctx<Res_UIFlags>()) {
         registry.ctx_erase<Res_UIFlags>();
     }
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_GameState>())      registry.ctx_erase<ECS::Res_GameState>();
     if (registry.has_ctx<ECS::Res_ToastState>())     registry.ctx_erase<ECS::Res_ToastState>();
-    if (registry.has_ctx<ECS::Res_ChatState>())      registry.ctx_erase<ECS::Res_ChatState>();
+    // Res_ChatState preserved across maps (only erased in MainMenu)
     if (registry.has_ctx<ECS::Res_InventoryState>()) registry.ctx_erase<ECS::Res_InventoryState>();
     if (registry.has_ctx<ECS::Res_LobbyState>())      registry.ctx_erase<ECS::Res_LobbyState>();
     if (registry.has_ctx<ECS::Res_DialogueData>())   registry.ctx_erase<ECS::Res_DialogueData>();

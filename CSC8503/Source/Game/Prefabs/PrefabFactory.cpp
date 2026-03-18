@@ -28,8 +28,14 @@
 #include "Game/Components/C_D_DebugName.h"
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Components/C_D_Material.h"
+#include "Game/Components/C_D_PlayerState.h"
 #include "Game/Components/C_T_ItemPickup.h"
 #include "Game/Components/C_D_PatrolRoute.h"
+#include "Game/Components/C_D_HoloBaitState.h"
+#include "Game/Components/C_T_RoamAI.h"
+#include "Game/Components/C_D_RoamAI.h"
+#include "Game/Components/C_T_KeyCard.h"
+#include "Game/Components/C_D_DoorLocked.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/PrefabLoader.h"
 
@@ -287,7 +293,31 @@ EntityID PrefabFactory::CreatePlayer(
     RuntimeOverrides ovr;
     ovr.meshHandle = cubeMesh;
     ovr.position   = spawnPos;
-    return Create(reg, "Prefab_Player.json", ovr);
+    EntityID entity = Create(reg, "Prefab_Player.json", ovr);
+    if (entity == Entity::NULL_ENTITY) {
+        return entity;
+    }
+
+    if (reg.Has<C_D_Collider>(entity)) {
+        auto& col = reg.Get<C_D_Collider>(entity);
+        col.type = ColliderType::Box;
+        col.fit_mode = ColliderFitMode::MeshBoundsAuto;
+        col.fit_padding = 0.0f;
+    }
+
+    if (reg.Has<C_D_PlayerState>(entity)) {
+        auto& ps = reg.Get<C_D_PlayerState>(entity);
+        ps.colliderRadius = 1.0f;
+        ps.colliderHalfHeight = 1.0f;
+    }
+
+    return entity;
+}
+
+static void AttachDebugName(Registry& reg, EntityID entity, const char* name)
+{
+    auto& dn = reg.Emplace<C_D_DebugName>(entity);
+    std::snprintf(dn.name, sizeof(dn.name), "%s", name);
 }
 
 // ============================================================
@@ -558,4 +588,126 @@ EntityID PrefabFactory::CreateRoamAI(
     ovr.position  = targetPos + Vector3(0.0f, 0.5f, 0.0f);
     ovr.targetPos = targetPos;
     return Create(reg, "Prefab_RoamAI.json", ovr);
+}
+
+// ============================================================
+// CreateKeyCard  →  PREFAB_KEY_CARD
+// ============================================================
+/**
+ * @brief Create a collectible key card entity (PREFAB_KEY_CARD).
+ *
+ * Attaches: C_D_Transform (0.5 scale), C_D_MeshRenderer, C_D_Material (yellow),
+ *           C_T_KeyCard, C_D_DebugName.
+ *
+ * @param reg       ECS Registry.
+ * @param cubeMesh  Cube mesh handle used for rendering.
+ * @param keyId     Key identifier (must match a door's requiredKeyId to unlock it).
+ * @param position  World-space spawn position.
+ * @return Created entity ID.
+ */
+EntityID PrefabFactory::CreateKeyCard(
+    Registry&       reg,
+    ECS::MeshHandle cubeMesh,
+    uint8_t         keyId,
+    Vector3         position)
+{
+    /*
+     * Load JSON defaults from Prefab_KeyCard.json.
+     * position and keyId from function parameters override the loaded defaults.
+     * Scale and baseColour come from the loaded defaults.
+     */
+    PrefabLoader::PrefabKeyCardDefaults defs;
+    PrefabLoader::LoadKeyCardDefaults(defs);
+
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        position,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        defs.scale
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        cubeMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    C_D_Material mat{};
+    mat.baseColour = defs.baseColour;
+    reg.Emplace<C_D_Material>(entity, mat);
+
+    reg.Emplace<C_T_KeyCard>(entity, C_T_KeyCard{ keyId });
+
+    LOG_INFO("[PrefabFactory] CreateKeyCard id=" << entity
+             << " keyId=" << (int)keyId
+             << " pos=(" << position.x << "," << position.y << "," << position.z << ")");
+
+    return entity;
+}
+
+// ============================================================
+// CreateLockedDoor  →  PREFAB_LOCKED_DOOR
+// ============================================================
+/**
+ * @brief Create a static locked door entity (PREFAB_LOCKED_DOOR).
+ *
+ * Attaches: C_D_Transform (scale = halfExtents×2), C_D_MeshRenderer,
+ *           C_D_Material (brown), C_D_RigidBody (static), C_D_Collider (Box),
+ *           C_D_DoorLocked, C_D_DebugName.
+ *
+ * @param reg         ECS Registry.
+ * @param cubeMesh    Cube mesh handle used for rendering.
+ * @param keyId       Required key identifier to unlock this door.
+ * @param position    World-space centre position.
+ * @param halfExtents Box collider half-extents (already scaled by caller).
+ * @return Created entity ID.
+ */
+EntityID PrefabFactory::CreateLockedDoor(
+    Registry&       reg,
+    ECS::MeshHandle cubeMesh,
+    uint8_t         keyId,
+    Vector3         position,
+    Vector3         halfExtents)
+{
+    /*
+     * Load JSON defaults from Prefab_LockedDoor.json.
+     * position, keyId, halfExtents from function parameters override the loaded defaults.
+     * RigidBody, Collider friction/restitution, and baseColour come from the loaded defaults.
+     */
+    PrefabLoader::PrefabLockedDoorDefaults defs;
+    PrefabLoader::LoadLockedDoorDefaults(defs);
+
+    EntityID entity = reg.Create();
+
+    reg.Emplace<C_D_Transform>(entity,
+        position,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(halfExtents.x * 2.0f, halfExtents.y * 2.0f, halfExtents.z * 2.0f)
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        cubeMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    C_D_Material mat{};
+    mat.baseColour = defs.baseColour;
+    reg.Emplace<C_D_Material>(entity, mat);
+
+    reg.Emplace<C_D_RigidBody>(entity, defs.rb);
+
+    C_D_Collider col = defs.col;
+    col.half_x       = halfExtents.x;
+    col.half_y       = halfExtents.y;
+    col.half_z       = halfExtents.z;
+    reg.Emplace<C_D_Collider>(entity, col);
+
+    reg.Emplace<C_D_DoorLocked>(entity, C_D_DoorLocked{ keyId });
+
+    LOG_INFO("[PrefabFactory] CreateLockedDoor id=" << entity
+             << " keyId=" << (int)keyId
+             << " pos=(" << position.x << "," << position.y << "," << position.z
+             << ") half=(" << halfExtents.x << "," << halfExtents.y << "," << halfExtents.z << ")");
+
+    return entity;
 }

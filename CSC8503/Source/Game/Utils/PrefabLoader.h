@@ -138,7 +138,9 @@ struct PrefabFloorDefaults {
 
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         50.0f, 1.0f, 50.0f,
+        0.0f,
         0.5f,
         0.0f,
         false,
@@ -159,7 +161,9 @@ struct PrefabPlayerDefaults {
 
     C_D_Collider col{
         ColliderType::Capsule,
+        ColliderFitMode::Manual,
         0.5f, 1.0f, 0.5f,
+        0.0f,
         0.5f,
         0.0f,
         false,
@@ -183,7 +187,9 @@ struct PrefabPhysicsCubeDefaults {
 
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         1.0f, 1.0f, 1.0f,
+        0.0f,
         0.5f,
         0.1f,
         false,
@@ -206,7 +212,9 @@ struct PrefabPhysicsCapsuleDefaults {
 
     C_D_Collider col{
         ColliderType::Capsule,
+        ColliderFitMode::Manual,
         0.5f, 0.5f, 0.5f,
+        0.0f,
         0.5f,
         0.0f,
         false,
@@ -236,7 +244,9 @@ struct PrefabNavTargetDefaults {
 
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         0.5f, 0.5f, 0.5f,
+        0.0f,
         0.5f,
         0.0f,
         false,
@@ -247,7 +257,9 @@ struct PrefabNavTargetDefaults {
 struct PrefabInvisibleWallDefaults {
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         0.5f, 0.5f, 0.5f,
+        0.0f,
         0.0f,
         0.0f,
         false,
@@ -258,7 +270,9 @@ struct PrefabInvisibleWallDefaults {
 struct PrefabDeathZoneDefaults {
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         0.5f, 0.5f, 0.5f,
+        0.0f,
         0.0f,
         0.0f,
         true,
@@ -269,7 +283,9 @@ struct PrefabDeathZoneDefaults {
 struct PrefabTriggerZoneDefaults {
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         0.5f, 0.5f, 0.5f,
+        0.0f,
         0.5f,
         0.0f,
         true,
@@ -287,6 +303,17 @@ struct PrefabRoamAIDefaults {
     float roamSpeed         = 6.0f;
     float waypointInterval  = 2.0f;
     float detectRadius      = 1.5f;
+};
+
+struct PrefabKeyCardDefaults {
+    NCL::Maths::Vector3 scale{0.5f, 0.5f, 0.5f};
+    NCL::Maths::Vector4 baseColour{1.0f, 1.0f, 0.0f, 1.0f}; // yellow
+};
+
+struct PrefabLockedDoorDefaults {
+    C_D_RigidBody rb{};      // is_static = true (set in Load function)
+    C_D_Collider  col{};     // Box (set in Load function)
+    NCL::Maths::Vector4 baseColour{0.6f, 0.3f, 0.1f, 1.0f}; // brown
 };
 
 /* ================================================================
@@ -310,6 +337,8 @@ bool LoadDeathZoneDefaults(PrefabDeathZoneDefaults& out);
 bool LoadTriggerZoneDefaults(PrefabTriggerZoneDefaults& out);
 bool LoadHoloBaitDefaults(PrefabHoloBaitDefaults& out);
 bool LoadRoamAIDefaults(PrefabRoamAIDefaults& out);
+bool LoadKeyCardDefaults(PrefabKeyCardDefaults& out);
+bool LoadLockedDoorDefaults(PrefabLockedDoorDefaults& out);
 
 } // namespace PrefabLoader
 } // namespace ECS

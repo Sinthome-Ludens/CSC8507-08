@@ -134,3 +134,4 @@ Docs/
 # VulkanRendering/
 # OpenGLRendering/
 *.bak
+imgui.ini

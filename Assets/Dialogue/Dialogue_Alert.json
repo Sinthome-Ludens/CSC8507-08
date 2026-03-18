@@ -1,0 +1,50 @@
+{
+  "delay": 5.0,
+  "nodes": [
+    {
+      "id": "m_01",
+      "isRoot": true,
+      "treeId": "alert_patrol",
+      "speaker": "HANDLER",
+      "message": "Movement detected nearby. What's your call?",
+      "alertDelta": 2,
+      "nextSpeaker": "PLAYER",
+      "comment": "Alert rising — tactical decision required",
+      "timeLimit": 12.0,
+      "replies": [
+        { "text": "Go silent.",    "alertDelta": -5,  "next": "m_02", "comment": "stealth approach" },
+        { "text": "Push through.", "alertDelta": 10,  "next": "m_03", "comment": "aggressive, risky" },
+        { "text": "Find cover.",   "alertDelta": -5,  "next": "m_02", "comment": "defensive" },
+        { "text": "Abort route.",  "alertDelta":  0,  "next": "m_03", "comment": "retreat" }
+      ]
+    },
+    {
+      "id": "m_02",
+      "speaker": "HANDLER",
+      "message": "Comms might be compromised. Keep it brief.",
+      "alertDelta": 3,
+      "nextSpeaker": "PLAYER",
+      "comment": "Tension escalation — short exchange",
+      "timeLimit": 10.0,
+      "replies": [
+        { "text": "Roger. Eyes open.",       "alertDelta": -5,  "next": "m_03", "comment": "professional" },
+        { "text": "Switching frequency.",    "alertDelta":  0,  "next": "m_03", "comment": "neutral" },
+        { "text": "How compromised?",        "alertDelta":  8,  "next": "m_01", "comment": "wastes time, loops back" }
+      ]
+    },
+    {
+      "id": "m_03",
+      "speaker": "HANDLER",
+      "message": "Patrol shift change in progress. Window is narrow.",
+      "alertDelta": 0,
+      "nextSpeaker": "PLAYER",
+      "comment": "Closing node — end or loop back under pressure",
+      "timeLimit": 10.0,
+      "replies": [
+        { "text": "Moving now.",       "alertDelta": -5,  "next": "", "comment": "end: decisive" },
+        { "text": "Wait for clear.",   "alertDelta":  0,  "next": "", "comment": "end: cautious" },
+        { "text": "How narrow?",       "alertDelta":  8,  "next": "m_01", "comment": "hesitation, loops back" }
+      ]
+    }
+  ]
+}

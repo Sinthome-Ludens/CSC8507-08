@@ -12,15 +12,20 @@
  * - `OnUpdate` 仅负责 Body 的创建/清理/参数同步，不执行步进。
  */
 #include "Sys_Physics.h"
+#include "Core/Bridge/AssetManager.h"
+#include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Utils/PauseGuard.h"
 #include "Game/Utils/Log.h"
+#include "OGLMesh.h"
 #include <iostream>
 #include <cfloat>
 #include <cmath>
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/CollideShape.h>
 #include <Jolt/Physics/Collision/NarrowPhaseQuery.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 
 using namespace NCL::Maths;
 
@@ -57,6 +62,45 @@ static Quaternion FromJoltQuat(JPH::QuatArg q) {
 namespace {
     bool g_JoltInitialized = false;
     std::unordered_map<uint32_t, float> g_LastGravityFactors;
+
+    struct MeshBounds {
+        Vector3 center{0.0f, 0.0f, 0.0f};
+        Vector3 half{0.5f, 0.5f, 0.5f};
+    };
+
+    bool GetScaledMeshBounds(ECS::Registry& reg, ECS::EntityID id, const ECS::C_D_Transform& tf, MeshBounds& out) {
+        if (!reg.Has<ECS::C_D_MeshRenderer>(id)) {
+            return false;
+        }
+
+        const auto& mr = reg.Get<ECS::C_D_MeshRenderer>(id);
+        auto* mesh = ECS::AssetManager::Instance().GetMesh(mr.meshHandle);
+        if (!mesh) {
+            return false;
+        }
+
+        const auto& positions = mesh->GetPositionData();
+        if (positions.empty()) {
+            return false;
+        }
+
+        Vector3 minV(FLT_MAX, FLT_MAX, FLT_MAX);
+        Vector3 maxV(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+
+        for (const auto& p : positions) {
+            Vector3 scaled(p.x * tf.scale.x, p.y * tf.scale.y, p.z * tf.scale.z);
+            minV.x = std::min(minV.x, scaled.x);
+            minV.y = std::min(minV.y, scaled.y);
+            minV.z = std::min(minV.z, scaled.z);
+            maxV.x = std::max(maxV.x, scaled.x);
+            maxV.y = std::max(maxV.y, scaled.y);
+            maxV.z = std::max(maxV.z, scaled.z);
+        }
+
+        out.center = (minV + maxV) * 0.5f;
+        out.half = (maxV - minV) * 0.5f;
+        return true;
+    }
 }
 
 /**
@@ -118,6 +162,26 @@ void ECS::Sys_Physics::OnAwake(Registry& registry) {
         m_BPLayerInterface,
         m_ObjectVsBPFilter,
         m_ObjectLayerPairFilter);
+
+    m_PhysicsSystem->SetSimCollideBodyVsBody(
+        [](const JPH::Body& inBody1,
+           const JPH::Body& inBody2,
+           JPH::Mat44Arg inCenterOfMassTransform1,
+           JPH::Mat44Arg inCenterOfMassTransform2,
+           JPH::CollideShapeSettings& ioCollideShapeSettings,
+           JPH::CollideShapeCollector& ioCollector,
+           const JPH::ShapeFilter& inShapeFilter)
+        {
+            ioCollideShapeSettings.mBackFaceMode = JPH::EBackFaceMode::CollideWithBackFaces;
+            JPH::PhysicsSystem::sDefaultSimCollideBodyVsBody(
+                inBody1,
+                inBody2,
+                inCenterOfMassTransform1,
+                inCenterOfMassTransform2,
+                ioCollideShapeSettings,
+                ioCollector,
+                inShapeFilter);
+        });
 
     // 注册 ContactListener
     m_PhysicsSystem->SetContactListener(&m_ContactListener);
@@ -269,19 +333,53 @@ void ECS::Sys_Physics::CreateBodyForEntity(
 {
     auto& bi = m_PhysicsSystem->GetBodyInterface();
 
+    float halfX = col.half_x;
+    float halfY = col.half_y;
+    float halfZ = col.half_z;
+    Vector3 localShapeCenter(0.0f, 0.0f, 0.0f);
+
+    if (col.fit_mode == ColliderFitMode::MeshBoundsAuto) {
+        MeshBounds bounds;
+        if (GetScaledMeshBounds(reg, id, tf, bounds)) {
+            localShapeCenter = bounds.center;
+
+            switch (col.type) {
+                case ColliderType::Box:
+                    halfX = bounds.half.x + col.fit_padding;
+                    halfY = bounds.half.y + col.fit_padding;
+                    halfZ = bounds.half.z + col.fit_padding;
+                    break;
+                case ColliderType::Sphere: {
+                    float radius = std::max(bounds.half.x, std::max(bounds.half.y, bounds.half.z));
+                    halfX = radius + col.fit_padding;
+                    break;
+                }
+                case ColliderType::Capsule: {
+                    float radius = std::max(bounds.half.x, bounds.half.z) + col.fit_padding;
+                    halfX = radius;
+                    // bounds.half.y + fit_padding 是总半高，减去球帽半径得到圆柱半高
+                    halfY = std::max(0.0f, (bounds.half.y + col.fit_padding) - radius);
+                    break;
+                }
+                case ColliderType::TriMesh:
+                    break;
+            }
+        }
+    }
+
     // --- 构建 Shape ---
     JPH::ShapeSettings::ShapeResult shapeResult;
     switch (col.type) {
         case ColliderType::Box: {
-            shapeResult = JPH::BoxShapeSettings(ToJolt(col.half_x, col.half_y, col.half_z)).Create();
+            shapeResult = JPH::BoxShapeSettings(ToJolt(halfX, halfY, halfZ)).Create();
             break;
         }
         case ColliderType::Sphere: {
-            shapeResult = JPH::SphereShapeSettings(col.half_x).Create();
+            shapeResult = JPH::SphereShapeSettings(halfX).Create();
             break;
         }
         case ColliderType::Capsule: {
-            shapeResult = JPH::CapsuleShapeSettings(col.half_y, col.half_x).Create();
+            shapeResult = JPH::CapsuleShapeSettings(halfY, halfX).Create();
             break;
         }
         case ColliderType::TriMesh: {
@@ -322,6 +420,18 @@ void ECS::Sys_Physics::CreateBodyForEntity(
     if (shapeResult.HasError()) {
         LOG_ERROR("[Sys_Physics] Shape creation failed: " << shapeResult.GetError().c_str());
         return;
+    }
+
+    if (col.type != ColliderType::TriMesh && Vector::LengthSquared(localShapeCenter) > 1e-8f) {
+        shapeResult = JPH::RotatedTranslatedShapeSettings(
+            ToJolt(localShapeCenter.x, localShapeCenter.y, localShapeCenter.z),
+            JPH::Quat::sIdentity(),
+            shapeResult.Get()).Create();
+
+        if (shapeResult.HasError()) {
+            LOG_ERROR("[Sys_Physics] Offset shape creation failed: " << shapeResult.GetError().c_str());
+            return;
+        }
     }
 
     // --- 运动类型 ---
@@ -829,6 +939,33 @@ void ECS::Sys_Physics::ReplaceShapeCapsule(EntityID entity, float halfHeight, fl
     // 替换形状，保留原有质量属性（false = 不用新形状默认密度重算质量）
     bi.SetShape(jid, shapeResult.Get(), false,
                 JPH::EActivation::Activate);
+}
+
+// ============================================================
+// ReplaceShapeBox — 运行时替换碰撞体为 Box
+// ============================================================
+/**
+ * @brief 按实体 ID 替换为 Box 碰撞体。
+ * @details 用于玩家站立/蹲伏姿态切换时的碰撞体重建，保留现有质量属性并激活目标 Body。
+ * @param entity 目标实体 ID
+ * @param halfX  Box X 轴半尺寸
+ * @param halfY  Box Y 轴半尺寸
+ * @param halfZ  Box Z 轴半尺寸
+ */
+void ECS::Sys_Physics::ReplaceShapeBox(EntityID entity, float halfX, float halfY, float halfZ) {
+    if (!m_PhysicsSystem) return;
+    JPH::BodyID jid;
+    if (!TryGetBodyID(entity, jid)) return;
+
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+    JPH::BoxShapeSettings boxSettings(ToJolt(halfX, halfY, halfZ));
+    auto shapeResult = boxSettings.Create();
+    if (shapeResult.HasError()) {
+        LOG_ERROR("[Sys_Physics] ReplaceShapeBox failed: " << shapeResult.GetError().c_str());
+        return;
+    }
+
+    bi.SetShape(jid, shapeResult.Get(), false, JPH::EActivation::Activate);
 }
 // ============================================================
 // SetPosition — 直接设置动态体世界位置 (来自 master)

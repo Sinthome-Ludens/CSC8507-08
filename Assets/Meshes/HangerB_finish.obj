@@ -4,7 +4,7 @@ mtllib HangerB_finish.mtl
 
 # FinishPoint: finish
 g finish_0
-usemtl Lit_0
+usemtl Red_0
 v -11.982890 10.615790 -13.762890
 v -13.397110 10.615790 -15.177110
 v -10.982890 12.030000 -14.762890

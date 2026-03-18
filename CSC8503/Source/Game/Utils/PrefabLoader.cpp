@@ -144,6 +144,7 @@ void ReadRigidBody(const json& j, C_D_RigidBody& rb) {
  * JSON 中 Capsule 使用 "radius" / "half_height" 字段名，
  * 映射到 C_D_Collider 的 half_x(radius) / half_y(half_height)。
  * Box/Sphere 使用 "half_x", "half_y", "half_z"。
+ * 可选字段 "fit_mode"（"Manual" / "MeshBoundsAuto"）与 "fit_padding"。
  * ================================================================ */
 void ReadCollider(const json& j, C_D_Collider& col) {
     try {
@@ -154,6 +155,15 @@ void ReadCollider(const json& j, C_D_Collider& col) {
             else if (t == "Capsule") col.type = ColliderType::Capsule;
             else if (t == "TriMesh") col.type = ColliderType::TriMesh;
         }
+
+        if (j.contains("fit_mode") && j["fit_mode"].is_string()) {
+            std::string fm = j["fit_mode"].get<std::string>();
+            if      (fm == "Manual")         col.fit_mode = ColliderFitMode::Manual;
+            else if (fm == "MeshBoundsAuto") col.fit_mode = ColliderFitMode::MeshBoundsAuto;
+        }
+
+        if (j.contains("fit_padding") && j["fit_padding"].is_number())
+            col.fit_padding = j["fit_padding"].get<float>();
 
         if (col.type == ColliderType::Capsule) {
             if (j.contains("radius")      && j["radius"].is_number())      col.half_x = j["radius"].get<float>();
@@ -248,6 +258,10 @@ bool LoadMapConfig(const std::string& prefabName, MapLoadConfig& out) {
     if (mc.contains("enemySpawns")) {
         std::string v = mc["enemySpawns"].get<std::string>();
         strncpy_s(out.enemySpawns, sizeof(out.enemySpawns), v.c_str(), sizeof(out.enemySpawns) - 1);
+    }
+    if (mc.contains("doorKeys")) {
+        std::string v = mc["doorKeys"].get<std::string>();
+        strncpy_s(out.doorKeys, sizeof(out.doorKeys), v.c_str(), sizeof(out.doorKeys) - 1);
     }
     if (mc.contains("itemSpawns")) {
         std::string v = mc["itemSpawns"].get<std::string>();
@@ -578,6 +592,66 @@ bool LoadRoamAIDefaults(PrefabRoamAIDefaults& out) {
     }
 
     LOG_INFO("[PrefabLoader] LoadRoamAIDefaults OK");
+    return true;
+}
+
+/* ================================================================
+ * LoadKeyCardDefaults — Prefab_KeyCard.json
+ * ================================================================ */
+bool LoadKeyCardDefaults(PrefabKeyCardDefaults& out) {
+    const json* doc = LoadJSON("Prefab_KeyCard.json");
+    if (!doc) return false;
+
+    const json* comps = GetComponents(*doc);
+    if (!comps) return false;
+
+    if (comps->contains("C_D_Transform")) {
+        auto& tf = (*comps)["C_D_Transform"];
+        ReadVec3(tf, "scale", out.scale);
+    }
+
+    if (comps->contains("C_D_Material")) {
+        auto& mat = (*comps)["C_D_Material"];
+        ReadVec4(mat, "baseColour", out.baseColour);
+    }
+
+    LOG_INFO("[PrefabLoader] LoadKeyCardDefaults OK");
+    return true;
+}
+
+/* ================================================================
+ * LoadLockedDoorDefaults — Prefab_LockedDoor.json
+ * ================================================================ */
+bool LoadLockedDoorDefaults(PrefabLockedDoorDefaults& out) {
+    // Hardcoded defaults matching PrefabFactory before JSON override
+    out.rb.is_static = true;
+    out.col.type        = ColliderType::Box;
+    out.col.half_x      = 0.5f;
+    out.col.half_y      = 0.5f;
+    out.col.half_z      = 0.5f;
+    out.col.friction    = 0.5f;
+    out.col.restitution = 0.0f;
+
+    const json* doc = LoadJSON("Prefab_LockedDoor.json");
+    if (!doc) return false;
+
+    const json* comps = GetComponents(*doc);
+    if (!comps) return false;
+
+    if (comps->contains("C_D_RigidBody")) {
+        ReadRigidBody((*comps)["C_D_RigidBody"], out.rb);
+    }
+
+    if (comps->contains("C_D_Collider")) {
+        ReadCollider((*comps)["C_D_Collider"], out.col);
+    }
+
+    if (comps->contains("C_D_Material")) {
+        auto& mat = (*comps)["C_D_Material"];
+        ReadVec4(mat, "baseColour", out.baseColour);
+    }
+
+    LOG_INFO("[PrefabLoader] LoadLockedDoorDefaults OK");
     return true;
 }
 

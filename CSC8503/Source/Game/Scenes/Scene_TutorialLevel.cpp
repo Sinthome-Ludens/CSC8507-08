@@ -38,6 +38,7 @@
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
+#include "Game/Systems/Sys_Door.h"
 #include "Game/Systems/Sys_LevelGoal.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/MapLoader.h"
@@ -76,6 +77,16 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
 
     if (!registry.has_ctx<Res_UIFlags>()) {
         registry.ctx_emplace<Res_UIFlags>();
+    }
+
+    // Force tutorial dialogue tree (treeId "0") for this scene
+    if (!registry.has_ctx<ECS::Res_ChatState>()) {
+        registry.ctx_emplace<ECS::Res_ChatState>();
+    }
+    {
+        auto& cs = registry.ctx<ECS::Res_ChatState>();
+        cs.forcedTreeId[0] = '0';
+        cs.forcedTreeId[1] = '\0';
     }
     if (!registry.has_ctx<ECS::Res_CQCConfig>()) {
         registry.ctx_emplace<ECS::Res_CQCConfig>(ECS::Res_CQCConfig{});
@@ -136,6 +147,7 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Render>          (200);
     systems.Register<ECS::Sys_Item>            (250);
     systems.Register<ECS::Sys_ItemEffects>     (260);
+    systems.Register<ECS::Sys_Door>            (270);
 
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>             (300);
@@ -209,7 +221,7 @@ void Scene_TutorialLevel::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_GameState>())       registry.ctx_erase<ECS::Res_GameState>();
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_ToastState>())      registry.ctx_erase<ECS::Res_ToastState>();
-    if (registry.has_ctx<ECS::Res_ChatState>())       registry.ctx_erase<ECS::Res_ChatState>();
+    // Res_ChatState preserved across maps (only erased in MainMenu)
     if (registry.has_ctx<ECS::Res_InventoryState>())  registry.ctx_erase<ECS::Res_InventoryState>();
     if (registry.has_ctx<ECS::Res_LobbyState>())      registry.ctx_erase<ECS::Res_LobbyState>();
     if (registry.has_ctx<ECS::Res_DialogueData>())    registry.ctx_erase<ECS::Res_DialogueData>();

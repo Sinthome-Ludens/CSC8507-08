@@ -65,6 +65,26 @@ enum class PlayerMoveState : uint8_t {
     Running   = 2,
 };
 
+/// @brief 多人比赛阶段（等待/开始/进行中/结束）。
+enum class MatchPhase : uint8_t {
+    WaitingForPeer = 0,
+    Starting       = 1,
+    Running        = 2,
+    Finished       = 3,
+};
+
+/// @brief 多人比赛结果（供 GameOver/UI 读取）。
+enum class MatchResult : uint8_t {
+    None         = 0,
+    LocalWin     = 1,
+    OpponentWin  = 2,
+    Draw         = 3,
+    Disconnected = 4,
+};
+
+/// @brief 多人比赛固定为三关，用于三段式进度条和比赛结束判定。
+static constexpr uint8_t kMultiplayerStageCount = 3;
+
 /// @brief 装备槽显示数据（名称/数量/冷却进度），由 HUD 渲染直接读取。
 struct SlotDisplay {
     char    name[24] = {};
@@ -123,14 +143,24 @@ struct Res_GameState {
     float playTime = 0.0f;
 
     // ─ 多人对战 (1v1) ──────────────────────────────────────
-    bool     isMultiplayer       = false;  ///< 当前是否为多人模式
-    uint8_t  localProgress       = 0;      ///< 本地玩家目标进度 (0-100%)
-    uint8_t  opponentProgress    = 0;      ///< 对手目标进度 (0-100%)
-    char     opponentName[16]    = "RIVAL";///< 对手显示名称
-    uint8_t  disruptionType      = 0;      ///< 受到的干扰类型: 0=无 1=视觉干扰 2=减速 3=信号扰乱
-    float    disruptionTimer     = 0.0f;   ///< 干扰剩余时长
-    float    disruptionDuration  = 0.0f;   ///< 干扰总时长
-    uint32_t networkPing         = 0;      ///< 网络延迟 RTT (ms)
+    bool       isMultiplayer         = false;  ///< 当前是否为多人模式
+    MatchPhase matchPhase            = MatchPhase::WaitingForPeer; ///< 当前比赛阶段
+    MatchResult matchResult          = MatchResult::None;          ///< 当前比赛结果
+    uint8_t    currentRoundIndex     = 0;      ///< 当前处于第几关 [0,2]
+    uint8_t    localStageProgress    = 0;      ///< 本地已完成关卡数 [0,3]
+    uint8_t    opponentStageProgress = 0;      ///< 对手已完成关卡数 [0,3]
+    bool       roundJustAdvanced     = false;  ///< 本帧是否刚推进一关
+    bool       matchJustStarted      = false;  ///< 本帧是否刚开始比赛
+    bool       matchJustFinished     = false;  ///< 本帧是否刚结束比赛
+    char       opponentName[16]      = "RIVAL";///< 对手显示名称
+    uint8_t    disruptionType        = 0;      ///< 受到的干扰类型: 0=无 1=视觉干扰 2=减速 3=信号扰乱
+    float      disruptionTimer       = 0.0f;   ///< 干扰剩余时长
+    float      disruptionDuration    = 0.0f;   ///< 干扰总时长
+    uint32_t   networkPing           = 0;      ///< 网络延迟 RTT (ms)
+
+    // 兼容旧 HUD 逻辑：Phase 0 仅新增三阶段状态，不在本阶段移除旧百分比字段。
+    uint8_t  localProgress       = 0;      ///< Deprecated: 旧多人 HUD 进度 (0-100%)
+    uint8_t  opponentProgress    = 0;      ///< Deprecated: 旧多人 HUD 进度 (0-100%)
 
 };
 

@@ -9,6 +9,7 @@
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/C_D_RigidBody.h"
+#include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_UIState.h"
@@ -31,6 +32,41 @@
 using namespace NCL::Maths;
 
 namespace ECS {
+
+namespace {
+
+/**
+ * @brief 将多人比赛阶段枚举转换为调试面板使用的字符串。
+ * @param phase 比赛阶段枚举值
+ * @return 对应的只读字符串
+ */
+const char* MatchPhaseToString(MatchPhase phase) {
+    switch (phase) {
+        case MatchPhase::WaitingForPeer: return "WaitingForPeer";
+        case MatchPhase::Starting:       return "Starting";
+        case MatchPhase::Running:        return "Running";
+        case MatchPhase::Finished:       return "Finished";
+        default:                         return "Unknown";
+    }
+}
+
+/**
+ * @brief 将多人比赛结果枚举转换为调试面板使用的字符串。
+ * @param result 比赛结果枚举值
+ * @return 对应的只读字符串
+ */
+const char* MatchResultToString(MatchResult result) {
+    switch (result) {
+        case MatchResult::None:         return "None";
+        case MatchResult::LocalWin:     return "LocalWin";
+        case MatchResult::OpponentWin:  return "OpponentWin";
+        case MatchResult::Draw:         return "Draw";
+        case MatchResult::Disconnected: return "Disconnected";
+        default:                        return "Unknown";
+    }
+}
+
+}
 
 // ============================================================
 // OnAwake / OnDestroy
@@ -63,22 +99,29 @@ void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
  * @param dt 本帧时间步长（秒）
  */
 void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
-    // 开发者模式关闭时隐藏所有调试界面
-    if (registry.has_ctx<Res_UIState>()
-        && !registry.ctx<Res_UIState>().devMode) {
+    const bool devMode = registry.has_ctx<Res_UIState>()
+        && registry.ctx<Res_UIState>().devMode;
+    const bool showNetworkDebug = registry.has_ctx<Res_UIFlags>()
+        && registry.ctx<Res_UIFlags>().showNetworkDebug
+        && registry.has_ctx<Res_Network>();
+
+    // 多人联机调试面板不再依赖 devMode，其余 ImGui 调试界面仍由 devMode 控制。
+    if (!devMode && !showNetworkDebug) {
         return;
     }
 
-    RenderMainMenuBar(registry);
+    if (devMode) {
+        RenderMainMenuBar(registry);
 
-    if (m_ShowDemoWindow)  ImGui::ShowDemoWindow(&m_ShowDemoWindow);
-    if (m_ShowDebugWindow) RenderDebugWindow(registry, dt);
-    if (m_ShowNCLStatus)   RenderNCLStatus(registry);
+        if (m_ShowDemoWindow)  ImGui::ShowDemoWindow(&m_ShowDemoWindow);
+        if (m_ShowDebugWindow) RenderDebugWindow(registry, dt);
+        if (m_ShowNCLStatus)   RenderNCLStatus(registry);
+    }
 
     // 调试窗口：由 Res_UIFlags context 控制显隐
     if (registry.has_ctx<Res_UIFlags>()) {
         auto& flags = registry.ctx<Res_UIFlags>();
-        if (flags.showTestControls) RenderTestControlsWindow(registry);
+        if (devMode && flags.showTestControls) RenderTestControlsWindow(registry);
         if (flags.showNetworkDebug && registry.has_ctx<Res_Network>())
             RenderNetworkDebugWindow(registry);
     }
@@ -352,7 +395,22 @@ void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
 
     ImGui::Separator();
 
-    // 2. 流量统计
+    // 2. 比赛状态
+    if (registry.has_ctx<Res_GameState>()) {
+        auto& gs = registry.ctx<Res_GameState>();
+        if (ImGui::CollapsingHeader("Match State", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Is Multiplayer: %s", gs.isMultiplayer ? "true" : "false");
+            ImGui::Text("MatchPhase: %s", MatchPhaseToString(gs.matchPhase));
+            ImGui::Text("MatchResult: %s", MatchResultToString(gs.matchResult));
+            ImGui::Text("CurrentRoundIndex: %u", gs.currentRoundIndex);
+            ImGui::Text("LocalStageProgress: %u / %u", gs.localStageProgress, kMultiplayerStageCount);
+            ImGui::Text("OpponentStageProgress: %u / %u", gs.opponentStageProgress, kMultiplayerStageCount);
+        }
+
+        ImGui::Separator();
+    }
+
+    // 3. 流量统计
     if (ImGui::CollapsingHeader("Traffic Stats", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Columns(2, "traffic");
         ImGui::Text("Packets Sent:");  ImGui::NextColumn();
@@ -368,7 +426,7 @@ void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
 
     ImGui::Separator();
 
-    // 3. NetID 映射表
+    // 4. NetID 映射表
     if (ImGui::CollapsingHeader("NetID Map", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::BeginTable("netid_table", 3,
                               ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
@@ -395,7 +453,7 @@ void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
 
     ImGui::Separator();
 
-    // 4. 插值状态
+    // 5. 插值状态
     if (ImGui::CollapsingHeader("Interpolation Buffers")) {
         registry.view<C_D_NetworkIdentity, C_D_InterpBuffer>().each(
             [&](EntityID id, auto& net, auto& buffer) {

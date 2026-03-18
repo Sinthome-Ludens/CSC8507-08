@@ -1,3 +1,12 @@
+/**
+ * @file C_D_Collider.h
+ * @brief 碰撞体数据组件及配套枚举，描述 Jolt Physics 物理形状的创建参数。
+ *
+ * @details
+ * 支持 Box / Sphere / Capsule / TriMesh 四种形状类型，以及
+ * Manual（手工指定尺寸）与 MeshBoundsAuto（从渲染 mesh 包围盒自动推导）
+ * 两种拟合模式。
+ */
 #pragma once
 #include <cstdint>
 #include <vector>
@@ -13,6 +22,11 @@ enum class ColliderType : uint8_t {
     TriMesh = 3,   ///< 三角网格（仅用于静态体）
 };
 
+enum class ColliderFitMode : uint8_t {
+    Manual         = 0, ///< 直接使用 half_x / half_y / half_z
+    MeshBoundsAuto = 1, ///< 从渲染 mesh 局部包围盒自动推导尺寸
+};
+
 /**
  * @brief 碰撞体组件（数据组件）
  *
@@ -23,6 +37,7 @@ enum class ColliderType : uint8_t {
  */
 struct C_D_Collider {
     ColliderType type         = ColliderType::Box;
+    ColliderFitMode fit_mode  = ColliderFitMode::Manual;
 
     // --- 形状尺寸（含义取决于 type）---
     // Box:     (half_x, half_y, half_z) = 半尺寸
@@ -31,6 +46,13 @@ struct C_D_Collider {
     float half_x = 0.5f;
     float half_y = 0.5f;
     float half_z = 0.5f;
+
+    // --- 自动拟合参数 ---
+    // MeshBoundsAuto:
+    // Box     -> 使用 mesh 局部包围盒半尺寸
+    // Sphere  -> 使用 max(half_x, half_y, half_z) 作为半径
+    // Capsule -> 使用 max(half_x, half_z) 作为半径，half_y - radius 作为 capsule half_height
+    float fit_padding = 0.0f; ///< 自动拟合后额外扩张的安全边距（米）
 
     // --- 物理材质 ---
     float friction    = 0.5f;   ///< 摩擦系数（0=无摩擦，1=高摩擦）
