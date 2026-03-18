@@ -39,6 +39,8 @@
 #include "Game/Components/C_D_InterpBuffer.h"
 #include "Game/Components/C_D_RigidBody.h"
 
+#include <cstring>
+
 /**
  * @brief 进入联机场景并初始化网络、物理与 UI 系统。
  * @details 预热资源、创建网络上下文与初始同步实体，依据当前 PeerType 配置客户端插值表现，然后注册网络场景所需系统并唤醒它们。
@@ -57,7 +59,9 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     // 2. 注册网络资源
     auto& resNet = registry.ctx_emplace<ECS::Res_Network>();
     resNet.mode = m_Mode;
-    // 此处可扩展 IP/Port 存储
+    const char* targetIP = m_IP.empty() ? "127.0.0.1" : m_IP.c_str();
+    strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), targetIP, sizeof(resNet.serverIP) - 1);
+    resNet.serverPort = (m_Port == 0) ? 32499 : m_Port;
 
     if (!registry.has_ctx<Res_UIFlags>()) {
         registry.ctx_emplace<Res_UIFlags>();
@@ -142,7 +146,9 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     ECS::UI::PushToast(registry, "MULTIPLAYER CONNECTED", ECS::ToastType::Success, 2.5f);
 #endif
 
-    LOG_INFO("[Scene_NetworkGame] OnEnter complete. Mode=" << (m_Mode == ECS::PeerType::SERVER ? "SERVER" : "CLIENT"));
+    LOG_INFO("[Scene_NetworkGame] OnEnter complete. Mode="
+             << (m_Mode == ECS::PeerType::SERVER ? "SERVER" : "CLIENT")
+             << " target=" << resNet.serverIP << ":" << resNet.serverPort);
 }
 
 /**

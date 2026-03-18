@@ -209,16 +209,24 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     sceneManager.RequestSceneChange(new Scene_MainMenu());
                     break;
                 case ECS::SceneRequest::HostGame:
-                    sceneManager.RequestSceneChange(
-                        new Scene_NetworkGame(ECS::PeerType::SERVER));
-                    break;
-                case ECS::SceneRequest::JoinGame: {
-                    std::string ip = "127.0.0.1";
+                {
+                    uint16_t port = 32499;
                     if (reg.has_ctx<ECS::Res_LobbyState>()) {
-                        ip = reg.ctx<ECS::Res_LobbyState>().joinIP;
+                        port = reg.ctx<ECS::Res_LobbyState>().port;
                     }
                     sceneManager.RequestSceneChange(
-                        new Scene_NetworkGame(ECS::PeerType::CLIENT, ip));
+                        new Scene_NetworkGame(ECS::PeerType::SERVER, "127.0.0.1", port));
+                    break;
+                }
+                case ECS::SceneRequest::JoinGame: {
+                    std::string ip = "127.0.0.1";
+                    uint16_t port = 32499;
+                    if (reg.has_ctx<ECS::Res_LobbyState>()) {
+                        ip = reg.ctx<ECS::Res_LobbyState>().joinIP;
+                        port = reg.ctx<ECS::Res_LobbyState>().port;
+                    }
+                    sceneManager.RequestSceneChange(
+                        new Scene_NetworkGame(ECS::PeerType::CLIENT, ip, port));
                     break;
                 }
                 case ECS::SceneRequest::QuitApp:

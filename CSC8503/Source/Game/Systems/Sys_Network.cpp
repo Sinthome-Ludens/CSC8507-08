@@ -90,7 +90,7 @@ void Sys_Network::InitializeEvents(Registry& reg) {
 void Sys_Network::InitializeServer(Res_Network& resNet) {
     ENetAddress address;
     address.host = ENET_HOST_ANY;
-    address.port = 32499;
+    address.port = resNet.serverPort;
 
     resNet.host = enet_host_create(&address, 4, 2, 0, 0);
     if (resNet.host == nullptr) {
@@ -100,7 +100,7 @@ void Sys_Network::InitializeServer(Res_Network& resNet) {
     resNet.localClientID = 0;
     resNet.connected = true;
     m_NextClientID = 1; 
-    LOG_INFO("Network Server started on port 32499.");
+    LOG_INFO("Network Server started on port " << resNet.serverPort << ".");
 }
 
 /**
@@ -118,8 +118,11 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
     resNet.localClientID = UINT32_MAX;
 
     ENetAddress address;
-    enet_address_set_host(&address, "127.0.0.1");
-    address.port = 32499;
+    if (enet_address_set_host(&address, resNet.serverIP) != 0) {
+        LOG_ERROR("Failed to resolve server host: " << resNet.serverIP);
+        return;
+    }
+    address.port = resNet.serverPort;
 
     resNet.peer = enet_host_connect(resNet.host, &address, 2, 0);
     if (resNet.peer == nullptr) {
@@ -127,7 +130,7 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
         return;
     }
     m_LastInputMask = 0;
-    LOG_INFO("Network Client connecting to 127.0.0.1:32499...");
+    LOG_INFO("Network Client connecting to " << resNet.serverIP << ":" << resNet.serverPort << "...");
 }
 
 /**

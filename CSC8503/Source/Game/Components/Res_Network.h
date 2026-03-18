@@ -37,6 +37,9 @@ enum class PeerType {
 struct Res_Network {
     PeerType mode = PeerType::OFFLINE; ///< 当前网络模式（服务器/客户端/单机）
 
+    char     serverIP[16]   = "127.0.0.1"; ///< 目标服务器 IP（Server 模式下仅用于日志）
+    uint16_t serverPort     = 32499;       ///< 监听 / 连接端口
+
     _ENetHost* host = nullptr;         ///< ENet host 指针（本地端点）
     _ENetPeer* peer = nullptr;         ///< 客户端连接到服务器时的唯一 peer 指针
 
