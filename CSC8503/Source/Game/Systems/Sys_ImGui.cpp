@@ -9,6 +9,7 @@
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/C_D_RigidBody.h"
+#include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_UIState.h"
@@ -31,6 +32,31 @@
 using namespace NCL::Maths;
 
 namespace ECS {
+
+namespace {
+
+const char* MatchPhaseToString(MatchPhase phase) {
+    switch (phase) {
+        case MatchPhase::WaitingForPeer: return "WaitingForPeer";
+        case MatchPhase::Starting:       return "Starting";
+        case MatchPhase::Running:        return "Running";
+        case MatchPhase::Finished:       return "Finished";
+        default:                         return "Unknown";
+    }
+}
+
+const char* MatchResultToString(MatchResult result) {
+    switch (result) {
+        case MatchResult::None:         return "None";
+        case MatchResult::LocalWin:     return "LocalWin";
+        case MatchResult::OpponentWin:  return "OpponentWin";
+        case MatchResult::Draw:         return "Draw";
+        case MatchResult::Disconnected: return "Disconnected";
+        default:                        return "Unknown";
+    }
+}
+
+}
 
 // ============================================================
 // OnAwake / OnDestroy
@@ -352,7 +378,22 @@ void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
 
     ImGui::Separator();
 
-    // 2. 流量统计
+    // 2. 比赛状态
+    if (registry.has_ctx<Res_GameState>()) {
+        auto& gs = registry.ctx<Res_GameState>();
+        if (ImGui::CollapsingHeader("Match State", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Text("Is Multiplayer: %s", gs.isMultiplayer ? "true" : "false");
+            ImGui::Text("MatchPhase: %s", MatchPhaseToString(gs.matchPhase));
+            ImGui::Text("MatchResult: %s", MatchResultToString(gs.matchResult));
+            ImGui::Text("CurrentRoundIndex: %u", gs.currentRoundIndex);
+            ImGui::Text("LocalStageProgress: %u / %u", gs.localStageProgress, kMultiplayerStageCount);
+            ImGui::Text("OpponentStageProgress: %u / %u", gs.opponentStageProgress, kMultiplayerStageCount);
+        }
+
+        ImGui::Separator();
+    }
+
+    // 3. 流量统计
     if (ImGui::CollapsingHeader("Traffic Stats", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::Columns(2, "traffic");
         ImGui::Text("Packets Sent:");  ImGui::NextColumn();
@@ -368,7 +409,7 @@ void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
 
     ImGui::Separator();
 
-    // 3. NetID 映射表
+    // 4. NetID 映射表
     if (ImGui::CollapsingHeader("NetID Map", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::BeginTable("netid_table", 3,
                               ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
@@ -395,7 +436,7 @@ void Sys_ImGui::RenderNetworkDebugWindow(Registry& registry) {
 
     ImGui::Separator();
 
-    // 4. 插值状态
+    // 5. 插值状态
     if (ImGui::CollapsingHeader("Interpolation Buffers")) {
         registry.view<C_D_NetworkIdentity, C_D_InterpBuffer>().each(
             [&](EntityID id, auto& net, auto& buffer) {

@@ -27,8 +27,10 @@ struct C_D_Input {
     // ── 上升沿标志（本帧刚按下） ──
     bool  crouchJustPressed   = false;  ///< C 键
     bool  standJustPressed    = false;  ///< V 键
-    bool  disguiseJustPressed = false;  ///< E 键
+    bool  disguiseJustPressed = false;  ///< G 键
     bool  cqcJustPressed      = false;  ///< F 键
+    bool  gadgetUseJustPressed = false; ///< Q 键 — 使用激活的道具
+    bool  weaponUseJustPressed = false; ///< E 键 — 使用激活的武器
 
     // ── 道具使用上升沿（本帧刚按下，由 Sys_InputDispatch 填入） ──
     bool  item1JustPressed = false; ///< 数字键 1 → 全息诱饵炸弹 (ItemID::HoloBait)

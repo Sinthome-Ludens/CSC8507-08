@@ -175,6 +175,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
     if (reg.has_ctx<Res_UIFlags>()) {
         auto& flags = reg.ctx<Res_UIFlags>();
         if (flags.debugSceneIndex >= 0) {
+            const int debugSceneIndex = flags.debugSceneIndex;
             switch (flags.debugSceneIndex) {
                 case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());    break;
                 case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest()); break;
@@ -189,15 +190,17 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         new Scene_NetworkGame(ECS::PeerType::SERVER));        break;
                 default: break;
             }
-            if (flags.debugSceneIndex >= 0 && flags.debugSceneIndex <= 8) {
+
+            if (debugSceneIndex >= 0 && debugSceneIndex <= 8) {
                 ClearNetworkMode(reg);
             }
-            flags.debugSceneIndex = -1;
-
-            // 清除同帧的 UI 请求
             if (reg.has_ctx<ECS::Res_UIState>()) {
-                reg.ctx<ECS::Res_UIState>().pendingSceneRequest = ECS::SceneRequest::None;
+                auto& uiDbg = reg.ctx<ECS::Res_UIState>();
+                uiDbg.mapSequenceGenerated = false;
+                uiDbg.debugCurrentScene    = static_cast<int8_t>(debugSceneIndex);
+                uiDbg.pendingSceneRequest  = ECS::SceneRequest::None;
             }
+            flags.debugSceneIndex = -1;
         }
     }
 
@@ -208,12 +211,41 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
         if (ui.pendingSceneRequest != ECS::SceneRequest::None) {
             switch (ui.pendingSceneRequest) {
                 case ECS::SceneRequest::StartGame:
-                case ECS::SceneRequest::RestartLevel:
                     ClearNetworkMode(reg);
-                    // 每次开始 / 重试都重新随机 5 抽 3 序列
+
+                    // 正常开始游戏：生成新的 5 抽 3 序列，退出 debug 模式
+                    ui.debugCurrentScene = -1;
+                    ui.totalPlayTime = 0.0f;
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
                         CreateMapScene(ui.mapSequence[0]));
+                    break;
+                case ECS::SceneRequest::RestartLevel:
+                    if (ui.debugCurrentScene >= 0) {
+                        // Debug 模式：重启当前 debug 场景，不使用地图池
+                        if (ui.debugCurrentScene >= 0 && ui.debugCurrentScene <= 8) {
+                            ClearNetworkMode(reg);
+                        }
+                        switch (ui.debugCurrentScene) {
+                            case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());       break;
+                            case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest());    break;
+                            case 2: sceneManager.RequestSceneChange(new Scene_NavTest());        break;
+                            case 3: sceneManager.RequestSceneChange(new Scene_TutorialLevel());  break;
+                            case 4: sceneManager.RequestSceneChange(new Scene_HangerA());        break;
+                            case 5: sceneManager.RequestSceneChange(new Scene_HangerB());        break;
+                            case 6: sceneManager.RequestSceneChange(new Scene_Helipad());        break;
+                            case 7: sceneManager.RequestSceneChange(new Scene_Lab());            break;
+                            case 8: sceneManager.RequestSceneChange(new Scene_Dock());           break;
+                            case 9: sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::SERVER)); break;
+                            default: sceneManager.RequestSceneChange(new Scene_MainMenu());      break;
+                        }
+                    } else {
+                        // 正常流程：重新随机 5 抽 3 序列，从头开始
+                        ClearNetworkMode(reg);
+                        GenerateMapSequence(ui);
+                        sceneManager.RequestSceneChange(
+                            CreateMapScene(ui.mapSequence[0]));
+                    }
                     break;
                 case ECS::SceneRequest::NextLevel:
                     ClearNetworkMode(reg);
@@ -252,6 +284,10 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     sceneManager.RequestSceneChange(new Scene_HangerA());
                     break;
                 }
+                case ECS::SceneRequest::StartTutorial:
+                    ClearNetworkMode(reg);
+                    sceneManager.RequestSceneChange(new Scene_TutorialLevel());
+                    break;
                 case ECS::SceneRequest::QuitApp:
                     running = false;
                     break;

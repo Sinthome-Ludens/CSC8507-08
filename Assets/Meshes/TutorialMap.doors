@@ -1,0 +1,16 @@
+# Unity Door & Key Export (Right-Handed)
+# Root Space: TutorialLevel
+doorCount 1
+keyCount 1
+
+door 0
+name Door
+position -8.500000 1.740000 -8.955000
+scale 5.000000 2.500000 0.500000
+keyId 1
+
+key 0
+name Key
+position -17.000000 1.380000 10.000000
+keyId 1
+

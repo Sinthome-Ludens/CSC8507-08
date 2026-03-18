@@ -15,6 +15,7 @@
 #include "Game/Utils/Assert.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Time.h"
+#include "Game/Components/Res_GameState.h"
 
 namespace ECS {
 
@@ -68,19 +69,24 @@ void SceneManager::Update(float dt) {
 
     m_Systems.UpdateAll(m_Registry, dt);
 
-    // 固定步长物理帧驱动（由 Res_Time::fixedDeltaTime 决定，最多步进 4 次防止螺旋死亡）
-    // 使用 Res_Time 作为单一数据来源，与 Sys_Physics::FIXED_DT 保持一致
-    const float fixedDt = time.fixedDeltaTime;
-    m_FixedAccumulator += dt;
-    // clamp：防止过载时累加器无界积压（上限 = 4 步）
-    if (m_FixedAccumulator > fixedDt * 4.0f) {
-        m_FixedAccumulator = fixedDt * 4.0f;
-    }
-    int steps = 0;
-    while (m_FixedAccumulator >= fixedDt && steps < 4) {
-        m_Systems.FixedUpdateAll(m_Registry, fixedDt);
-        m_FixedAccumulator -= fixedDt;
-        ++steps;
+    // ── 全局暂停：跳过固定步长（物理/碰撞），防止累加器堆积 ──
+    bool gamePaused = m_Registry.has_ctx<Res_GameState>()
+                   && m_Registry.ctx<Res_GameState>().isPaused;
+    if (!gamePaused) {
+        // 固定步长物理帧驱动（由 Res_Time::fixedDeltaTime 决定，最多步进 4 次防止螺旋死亡）
+        // 使用 Res_Time 作为单一数据来源，与 Sys_Physics::FIXED_DT 保持一致
+        const float fixedDt = time.fixedDeltaTime;
+        m_FixedAccumulator += dt;
+        // clamp：防止过载时累加器无界积压（上限 = 4 步）
+        if (m_FixedAccumulator > fixedDt * 4.0f) {
+            m_FixedAccumulator = fixedDt * 4.0f;
+        }
+        int steps = 0;
+        while (m_FixedAccumulator >= fixedDt && steps < 4) {
+            m_Systems.FixedUpdateAll(m_Registry, fixedDt);
+            m_FixedAccumulator -= fixedDt;
+            ++steps;
+        }
     }
 
     // 刷新延迟事件队列（在所有更新完成后统一 flush）

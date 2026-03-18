@@ -4,6 +4,7 @@
  */
 
 #include "Sys_Animation.h"
+#include "Game/Utils/PauseGuard.h"
 #include "Core/Bridge/AssetManager.h"
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Utils/Log.h"
@@ -33,6 +34,7 @@ void Sys_Animation::OnFixedUpdate(Registry& registry, float fixedDt) {
 }
 
 void Sys_Animation::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     auto& am = AssetManager::Instance();
 
     registry.view<C_D_Animation, C_D_MeshRenderer>().each(

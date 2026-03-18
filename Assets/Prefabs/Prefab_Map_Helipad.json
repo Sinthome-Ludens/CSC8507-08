@@ -26,6 +26,7 @@
       "finishMesh":    "Helipad_finish.obj",
       "startPoints":   "Helipad.startpoints",
       "enemySpawns":   "Helipad.enemyspawns",
+      "itemSpawns":    "Helipad.itemspawns",
       "mapScale":      1.0,
       "yOffset":       -6.0,
       "flipWinding":   true

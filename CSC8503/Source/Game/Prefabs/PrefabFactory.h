@@ -10,9 +10,12 @@
 #include "Core/ECS/Registry.h"
 #include "Core/Bridge/AssetManager.h"
 #include "Game/Components/C_D_Item.h"
+#include <cstdint>
+#include "RuntimeOverrides.h"
 #include "Vector.h"
 #include "Quaternion.h"
 #include <vector>
+#include <string>
 
 /**
  * @brief 实体预制体工厂（JSON 数据驱动 + 硬编码回退）
@@ -47,6 +50,43 @@ class PrefabFactory {
 public:
     PrefabFactory()  = delete; // 纯静态工厂，禁止实例化
     ~PrefabFactory() = delete;
+
+    // ============================================================
+    // 通用数据驱动创建入口
+    // ============================================================
+
+    /**
+     * @brief 通用 Prefab 创建入口（数据驱动）
+     *
+     * 从 JSON 蓝图的 "Components" 字典中读取组件列表，
+     * 通过 ComponentRegistry 查表 Emplace 各组件。
+     *
+     * @param reg             ECS Registry
+     * @param prefabJsonFile  JSON 蓝图文件名（如 "Prefab_Player.json"）
+     * @param overrides       运行时参数覆盖（mesh 句柄、位置等）
+     * @return 创建的实体 ID，或 Entity::NULL_ENTITY（失败时）
+     */
+    static ECS::EntityID Create(
+        ECS::Registry&          reg,
+        const std::string&      prefabJsonFile,
+        const ECS::RuntimeOverrides& overrides = {}
+    );
+
+    /**
+     * @brief 从 JSON 蓝图的 "Variants" 中创建指定变体实体
+     *
+     * @param reg             ECS Registry
+     * @param prefabJsonFile  JSON 蓝图文件名
+     * @param variantName     变体名称（如 "Mesh", "Render", "Detect"）
+     * @param overrides       运行时参数覆盖
+     * @return 创建的实体 ID，或 Entity::NULL_ENTITY（失败时）
+     */
+    static ECS::EntityID CreateVariant(
+        ECS::Registry&          reg,
+        const std::string&      prefabJsonFile,
+        const std::string&      variantName,
+        const ECS::RuntimeOverrides& overrides = {}
+    );
 
     // ============================================================
     // 相机
@@ -454,6 +494,29 @@ public:
     // ============================================================
 
     /**
+     * @brief 创建地图道具拾取实体（PREFAB_ITEM_PICKUP）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_T_ItemPickup, C_D_DebugName
+     * 无物理碰撞体 — 拾取依赖 Sys_Item::DetectPickup 的 XZ 距离检测。
+     *
+     * @param reg        ECS Registry
+     * @param cubeMesh   立方体网格句柄
+     * @param itemId     道具 ID
+     * @param quantity   拾取数量
+     * @param spawnIndex 生成序号（用于 DebugName）
+     * @param spawnPos   生成位置（世界坐标）
+     * @return 拾取实体 ID
+     */
+    static ECS::EntityID CreateItemPickup(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     cubeMesh,
+        ECS::ItemID         itemId,
+        uint8_t             quantity,
+        int                 spawnIndex,
+        NCL::Maths::Vector3 spawnPos
+    );
+
+    /**
      * @brief 创建全息诱饵实体（PREFAB_HOLO_BAIT）
      *
      * 挂载：C_D_Transform, C_D_HoloBaitState, C_D_DebugName
@@ -479,5 +542,48 @@ public:
     static ECS::EntityID CreateRoamAI(
         ECS::Registry&      reg,
         NCL::Maths::Vector3 targetPos
+    );
+
+    // ============================================================
+    // 钥匙卡 & 锁门
+    // ============================================================
+
+    /**
+     * @brief 创建钥匙卡拾取物实体（PREFAB_KEY_CARD）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_T_KeyCard, C_D_DebugName
+     *
+     * @param reg       ECS Registry
+     * @param cubeMesh  立方体网格句柄
+     * @param keyId     钥匙 ID（用于配对门）
+     * @param position  世界坐标
+     * @return 钥匙卡实体 ID
+     */
+    static ECS::EntityID CreateKeyCard(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     cubeMesh,
+        uint8_t             keyId,
+        NCL::Maths::Vector3 position
+    );
+
+    /**
+     * @brief 创建锁门实体（PREFAB_LOCKED_DOOR）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_D_RigidBody(static),
+     *       C_D_Collider(Box), C_D_DoorLocked, C_D_DebugName
+     *
+     * @param reg         ECS Registry
+     * @param cubeMesh    立方体网格句柄
+     * @param keyId       需要的钥匙 ID
+     * @param position    世界坐标
+     * @param halfExtents Box 碰撞体半尺寸
+     * @return 锁门实体 ID
+     */
+    static ECS::EntityID CreateLockedDoor(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     cubeMesh,
+        uint8_t             keyId,
+        NCL::Maths::Vector3 position,
+        NCL::Maths::Vector3 halfExtents
     );
 };

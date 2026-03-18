@@ -23,6 +23,8 @@ private:
     bool m_VWasPressed = false;
     bool m_EWasPressed = false;
     bool m_FWasPressed = false;
+    bool m_QWasPressed = false;
+    bool m_GWasPressed = false;
 
     // ── 道具使用键 1-5 上升沿检测状态 ──
     bool m_Key1WasPressed = false; ///< 数字键 1（全息诱饵炸弹）

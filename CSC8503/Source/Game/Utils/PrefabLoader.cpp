@@ -81,7 +81,7 @@ static const json* LoadJSON(const std::string& filename) {
 /* ================================================================
  * ReadVec3 — 从 JSON 数组 [x, y, z] 读取 Vector3
  * ================================================================ */
-static void ReadVec3(const json& j, const char* key, Vector3& out) {
+void ReadVec3(const json& j, const char* key, Vector3& out) {
     if (!j.contains(key)) return;
     auto& arr = j[key];
     if (!arr.is_array() || arr.size() < 3) return;
@@ -94,7 +94,21 @@ static void ReadVec3(const json& j, const char* key, Vector3& out) {
 /* ================================================================
  * ReadVec4 — 从 JSON 数组 [x, y, z, w] 读取 Vector4
  * ================================================================ */
-static void ReadVec4(const json& j, const char* key, Vector4& out) {
+void ReadVec4(const json& j, const char* key, Vector4& out) {
+    if (!j.contains(key)) return;
+    auto& arr = j[key];
+    if (!arr.is_array() || arr.size() < 4) return;
+    if (!arr[0].is_number() || !arr[1].is_number() || !arr[2].is_number() || !arr[3].is_number()) return;
+    out.x = arr[0].get<float>();
+    out.y = arr[1].get<float>();
+    out.z = arr[2].get<float>();
+    out.w = arr[3].get<float>();
+}
+
+/* ================================================================
+ * ReadQuat — 从 JSON 数组 [x, y, z, w] 读取 Quaternion
+ * ================================================================ */
+void ReadQuat(const json& j, const char* key, NCL::Maths::Quaternion& out) {
     if (!j.contains(key)) return;
     auto& arr = j[key];
     if (!arr.is_array() || arr.size() < 4) return;
@@ -108,7 +122,7 @@ static void ReadVec4(const json& j, const char* key, Vector4& out) {
 /* ================================================================
  * ReadRigidBody — 从 "C_D_RigidBody" JSON 对象填充 C_D_RigidBody
  * ================================================================ */
-static void ReadRigidBody(const json& j, C_D_RigidBody& rb) {
+void ReadRigidBody(const json& j, C_D_RigidBody& rb) {
     try {
         if (j.contains("mass")            && j["mass"].is_number())            rb.mass            = j["mass"].get<float>();
         if (j.contains("linear_damping")  && j["linear_damping"].is_number())  rb.linear_damping  = j["linear_damping"].get<float>();
@@ -130,8 +144,9 @@ static void ReadRigidBody(const json& j, C_D_RigidBody& rb) {
  * JSON 中 Capsule 使用 "radius" / "half_height" 字段名，
  * 映射到 C_D_Collider 的 half_x(radius) / half_y(half_height)。
  * Box/Sphere 使用 "half_x", "half_y", "half_z"。
+ * 可选字段 "fit_mode"（"Manual" / "MeshBoundsAuto"）与 "fit_padding"。
  * ================================================================ */
-static void ReadCollider(const json& j, C_D_Collider& col) {
+void ReadCollider(const json& j, C_D_Collider& col) {
     try {
         if (j.contains("type") && j["type"].is_string()) {
             std::string t = j["type"].get<std::string>();
@@ -140,6 +155,15 @@ static void ReadCollider(const json& j, C_D_Collider& col) {
             else if (t == "Capsule") col.type = ColliderType::Capsule;
             else if (t == "TriMesh") col.type = ColliderType::TriMesh;
         }
+
+        if (j.contains("fit_mode") && j["fit_mode"].is_string()) {
+            std::string fm = j["fit_mode"].get<std::string>();
+            if      (fm == "Manual")         col.fit_mode = ColliderFitMode::Manual;
+            else if (fm == "MeshBoundsAuto") col.fit_mode = ColliderFitMode::MeshBoundsAuto;
+        }
+
+        if (j.contains("fit_padding") && j["fit_padding"].is_number())
+            col.fit_padding = j["fit_padding"].get<float>();
 
         if (col.type == ColliderType::Capsule) {
             if (j.contains("radius")      && j["radius"].is_number())      col.half_x = j["radius"].get<float>();
@@ -162,7 +186,7 @@ static void ReadCollider(const json& j, C_D_Collider& col) {
 /* ================================================================
  * ReadCamera — 从 "C_D_Camera" JSON 对象填充 C_D_Camera
  * ================================================================ */
-static void ReadCamera(const json& j, C_D_Camera& cam) {
+void ReadCamera(const json& j, C_D_Camera& cam) {
     try {
         if (j.contains("fov")         && j["fov"].is_number())         cam.fov         = j["fov"].get<float>();
         if (j.contains("near_z")      && j["near_z"].is_number())      cam.near_z      = j["near_z"].get<float>();
@@ -174,6 +198,20 @@ static void ReadCamera(const json& j, C_D_Camera& cam) {
     } catch (const json::exception& e) {
         LOG_WARN("[PrefabLoader] ReadCamera type error: " << e.what());
     }
+}
+
+/**
+ * @brief 公开接口：读取并缓存 JSON 蓝图文件。
+ *
+ * 委托内部 LoadJSON() 实现。返回的指针指向 s_cache 中的条目，
+ * 生命周期持续到 ClearCache() 被调用（通常在场景切换时）。
+ * 文件不存在时由 LoadJSON 输出 LOG_WARN，解析失败时输出 LOG_ERROR。
+ *
+ * @param filename JSON 文件名（相对于 PrefabDir()，如 "Prefab_Player.json"）
+ * @return 指向缓存中 JSON 文档的 const 指针，或 nullptr（失败时）
+ */
+const json* LoadBlueprint(const std::string& filename) {
+    return LoadJSON(filename);
 }
 
 /* ================================================================
@@ -220,6 +258,14 @@ bool LoadMapConfig(const std::string& prefabName, MapLoadConfig& out) {
     if (mc.contains("enemySpawns")) {
         std::string v = mc["enemySpawns"].get<std::string>();
         strncpy_s(out.enemySpawns, sizeof(out.enemySpawns), v.c_str(), sizeof(out.enemySpawns) - 1);
+    }
+    if (mc.contains("doorKeys")) {
+        std::string v = mc["doorKeys"].get<std::string>();
+        strncpy_s(out.doorKeys, sizeof(out.doorKeys), v.c_str(), sizeof(out.doorKeys) - 1);
+    }
+    if (mc.contains("itemSpawns")) {
+        std::string v = mc["itemSpawns"].get<std::string>();
+        strncpy_s(out.itemSpawns, sizeof(out.itemSpawns), v.c_str(), sizeof(out.itemSpawns) - 1);
     }
     if (mc.contains("mapScale"))     out.mapScale     = mc["mapScale"].get<float>();
     if (mc.contains("yOffset"))      out.yOffset      = mc["yOffset"].get<float>();
@@ -546,6 +592,66 @@ bool LoadRoamAIDefaults(PrefabRoamAIDefaults& out) {
     }
 
     LOG_INFO("[PrefabLoader] LoadRoamAIDefaults OK");
+    return true;
+}
+
+/* ================================================================
+ * LoadKeyCardDefaults — Prefab_KeyCard.json
+ * ================================================================ */
+bool LoadKeyCardDefaults(PrefabKeyCardDefaults& out) {
+    const json* doc = LoadJSON("Prefab_KeyCard.json");
+    if (!doc) return false;
+
+    const json* comps = GetComponents(*doc);
+    if (!comps) return false;
+
+    if (comps->contains("C_D_Transform")) {
+        auto& tf = (*comps)["C_D_Transform"];
+        ReadVec3(tf, "scale", out.scale);
+    }
+
+    if (comps->contains("C_D_Material")) {
+        auto& mat = (*comps)["C_D_Material"];
+        ReadVec4(mat, "baseColour", out.baseColour);
+    }
+
+    LOG_INFO("[PrefabLoader] LoadKeyCardDefaults OK");
+    return true;
+}
+
+/* ================================================================
+ * LoadLockedDoorDefaults — Prefab_LockedDoor.json
+ * ================================================================ */
+bool LoadLockedDoorDefaults(PrefabLockedDoorDefaults& out) {
+    // Hardcoded defaults matching PrefabFactory before JSON override
+    out.rb.is_static = true;
+    out.col.type        = ColliderType::Box;
+    out.col.half_x      = 0.5f;
+    out.col.half_y      = 0.5f;
+    out.col.half_z      = 0.5f;
+    out.col.friction    = 0.5f;
+    out.col.restitution = 0.0f;
+
+    const json* doc = LoadJSON("Prefab_LockedDoor.json");
+    if (!doc) return false;
+
+    const json* comps = GetComponents(*doc);
+    if (!comps) return false;
+
+    if (comps->contains("C_D_RigidBody")) {
+        ReadRigidBody((*comps)["C_D_RigidBody"], out.rb);
+    }
+
+    if (comps->contains("C_D_Collider")) {
+        ReadCollider((*comps)["C_D_Collider"], out.col);
+    }
+
+    if (comps->contains("C_D_Material")) {
+        auto& mat = (*comps)["C_D_Material"];
+        ReadVec4(mat, "baseColour", out.baseColour);
+    }
+
+    LOG_INFO("[PrefabLoader] LoadLockedDoorDefaults OK");
     return true;
 }
 

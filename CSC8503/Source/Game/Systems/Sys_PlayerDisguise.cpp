@@ -6,6 +6,7 @@
  * 处理伪装开启/关闭条件检查，并读取 EntityID 语义的物理速度用于判定。
  */
 #include "Sys_PlayerDisguise.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_RigidBody.h"
@@ -26,6 +27,7 @@ namespace ECS {
  * @param dt 本帧时间步长（当前实现未直接使用）
  */
 void Sys_PlayerDisguise::OnUpdate(Registry& registry, float /*dt*/) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Sys_Physics*>()) return;
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;

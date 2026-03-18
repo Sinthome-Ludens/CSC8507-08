@@ -1,0 +1,21 @@
+{
+  "PrefabID": "PREFAB_ENV_NAVMESH_FLOOR",
+  "Name": "Env_NavMeshFloor",
+  "Description": "Static TriMesh floor collision from NavMesh walkable triangles.",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_RigidBody": {
+      "is_static": true
+    },
+    "C_D_Collider": {
+      "type":        "TriMesh",
+      "friction":    0.5,
+      "restitution": 0.0
+    },
+    "C_D_DebugName": { "name": "ENTITY_Env_NavMeshFloor" }
+  }
+}
