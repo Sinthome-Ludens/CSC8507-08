@@ -150,8 +150,10 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                             ui.activeScreen = UIScreen::GameOver;
                             ui.gameOverSelectedIndex = 0;
                         }
-                        UI::PushToast(registry, "MISSION COMPLETE",
-                                      ToastType::Success, 3.0f);
+                        UI::PushToast(registry,
+                                      ui.campaignScore > 500 ? "MISSION COMPLETE" : "MISSION FAILED",
+                                      ui.campaignScore > 500 ? ToastType::Success : ToastType::Warning,
+                                      3.0f);
                     }
                 }
 #else

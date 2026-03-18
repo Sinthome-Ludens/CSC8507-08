@@ -1,6 +1,6 @@
 /**
  * @file UI_ActionNotify.cpp
- * @brief 动作通知系统实现（右上角圆角卡片 + 积分同步）。
+ * @brief 动作通知系统实现（右上角圆角卡片）。
  */
 #include "UI_ActionNotify.h"
 #ifdef USE_IMGUI
