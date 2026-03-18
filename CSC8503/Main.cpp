@@ -172,12 +172,14 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         new Scene_NetworkGame(ECS::PeerType::SERVER));        break;
                 default: break;
             }
-            flags.debugSceneIndex = -1;
-
-            // 清除同帧的 UI 请求
+            // 进入 debug 模式：禁用地图池序列，记录当前 debug 场景
             if (reg.has_ctx<ECS::Res_UIState>()) {
-                reg.ctx<ECS::Res_UIState>().pendingSceneRequest = ECS::SceneRequest::None;
+                auto& uiDbg = reg.ctx<ECS::Res_UIState>();
+                uiDbg.mapSequenceGenerated = false;
+                uiDbg.debugCurrentScene    = flags.debugSceneIndex;
+                uiDbg.pendingSceneRequest  = ECS::SceneRequest::None;
             }
+            flags.debugSceneIndex = -1;
         }
     }
 
@@ -188,12 +190,34 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
         if (ui.pendingSceneRequest != ECS::SceneRequest::None) {
             switch (ui.pendingSceneRequest) {
                 case ECS::SceneRequest::StartGame:
-                case ECS::SceneRequest::RestartLevel:
-                    // 每次开始 / 重试都重新随机 5 抽 3 序列
+                    // 正常开始游戏：生成新的 5 抽 3 序列，退出 debug 模式
+                    ui.debugCurrentScene = -1;
                     ui.totalPlayTime = 0.0f;
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
                         CreateMapScene(ui.mapSequence[0]));
+                    break;
+                case ECS::SceneRequest::RestartLevel:
+                    if (ui.debugCurrentScene >= 0) {
+                        // Debug 模式：重启当前 debug 场景，不使用地图池
+                        switch (ui.debugCurrentScene) {
+                            case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());       break;
+                            case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest());    break;
+                            case 2: sceneManager.RequestSceneChange(new Scene_NavTest());        break;
+                            case 3: sceneManager.RequestSceneChange(new Scene_TutorialLevel());  break;
+                            case 4: sceneManager.RequestSceneChange(new Scene_HangerA());        break;
+                            case 5: sceneManager.RequestSceneChange(new Scene_HangerB());        break;
+                            case 6: sceneManager.RequestSceneChange(new Scene_Helipad());        break;
+                            case 7: sceneManager.RequestSceneChange(new Scene_Lab());            break;
+                            case 8: sceneManager.RequestSceneChange(new Scene_Dock());           break;
+                            default: sceneManager.RequestSceneChange(new Scene_MainMenu());      break;
+                        }
+                    } else {
+                        // 正常流程：重新随机 5 抽 3 序列，从头开始
+                        GenerateMapSequence(ui);
+                        sceneManager.RequestSceneChange(
+                            CreateMapScene(ui.mapSequence[0]));
+                    }
                     break;
                 case ECS::SceneRequest::NextLevel:
                     // 序列内前进到下一张地图

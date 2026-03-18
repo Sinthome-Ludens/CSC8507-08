@@ -289,6 +289,17 @@ struct PrefabRoamAIDefaults {
     float detectRadius      = 1.5f;
 };
 
+struct PrefabKeyCardDefaults {
+    NCL::Maths::Vector3 scale{0.5f, 0.5f, 0.5f};
+    NCL::Maths::Vector4 baseColour{1.0f, 1.0f, 0.0f, 1.0f}; // yellow
+};
+
+struct PrefabLockedDoorDefaults {
+    C_D_RigidBody rb{};      // is_static = true (set in Load function)
+    C_D_Collider  col{};     // Box (set in Load function)
+    NCL::Maths::Vector4 baseColour{0.6f, 0.3f, 0.1f, 1.0f}; // brown
+};
+
 /* ================================================================
  * Load 函数声明
  * 返回 true 表示 JSON 文件读取成功（字段可能部分覆盖）；
@@ -310,6 +321,8 @@ bool LoadDeathZoneDefaults(PrefabDeathZoneDefaults& out);
 bool LoadTriggerZoneDefaults(PrefabTriggerZoneDefaults& out);
 bool LoadHoloBaitDefaults(PrefabHoloBaitDefaults& out);
 bool LoadRoamAIDefaults(PrefabRoamAIDefaults& out);
+bool LoadKeyCardDefaults(PrefabKeyCardDefaults& out);
+bool LoadLockedDoorDefaults(PrefabLockedDoorDefaults& out);
 
 } // namespace PrefabLoader
 } // namespace ECS

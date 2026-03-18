@@ -1,0 +1,31 @@
+{
+  "PrefabID": "PREFAB_LOCKED_DOOR",
+  "Name": "LockedDoor",
+  "Description": "Static locked door entity. Brown box with C_D_DoorLocked requiring a matching key.",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle": "Cube.obj",
+      "materialHandle": 0
+    },
+    "C_D_Material": {
+      "baseColour": [0.6, 0.3, 0.1, 1.0]
+    },
+    "C_D_RigidBody": {
+      "is_static": true
+    },
+    "C_D_Collider": {
+      "type": "Box",
+      "half_x": 0.5, "half_y": 0.5, "half_z": 0.5,
+      "friction": 0.5, "restitution": 0.0
+    },
+    "C_D_DoorLocked": {
+      "requiredKeyId": 0
+    },
+    "C_D_DebugName": { "name": "ENTITY_Door_XX" }
+  }
+}

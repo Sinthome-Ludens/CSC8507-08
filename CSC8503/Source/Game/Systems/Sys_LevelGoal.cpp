@@ -74,11 +74,18 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                 if (registry.has_ctx<Res_UIState>()) {
                     auto& ui = registry.ctx<Res_UIState>();
 
-                    // 判断是否为序列中的最后一张地图
-                    bool isFinalMap = !ui.mapSequenceGenerated
-                                   || ui.mapSequenceIndex >= Res_UIState::MAP_SEQUENCE_LENGTH - 1;
-
-                    if (!isFinalMap) {
+                    if (ui.debugCurrentScene >= 0) {
+                        // ── Debug 模式：直接重启当前地图，不使用地图池 ──
+                        if (registry.has_ctx<Res_GameState>()) {
+                            registry.ctx<Res_GameState>().isGameOver = true;
+                        }
+                        ui.pendingSceneRequest = SceneRequest::RestartLevel;
+                        UI::PushToast(registry, "AREA CLEAR - RESTARTING",
+                                      ToastType::Success, 2.0f);
+                        LOG_INFO("[Sys_LevelGoal] Debug mode -> RestartLevel (debugScene="
+                                 << (int)ui.debugCurrentScene << ")");
+                    } else if (ui.mapSequenceGenerated
+                               && ui.mapSequenceIndex < Res_UIState::MAP_SEQUENCE_LENGTH - 1) {
                         // ── 非最终关：冻结游戏，累加时间，触发 NextLevel ──
                         if (registry.has_ctx<Res_GameState>()) {
                             auto& gs = registry.ctx<Res_GameState>();

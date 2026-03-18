@@ -4,7 +4,7 @@ mtllib Helipad_finish.mtl
 
 # FinishPoint: finish
 g finish_0
-usemtl Lit_0
+usemtl Red_0
 v -16.372890 8.585787 -26.952890
 v -17.787110 8.585787 -28.367110
 v -15.372890 10.000000 -27.952890

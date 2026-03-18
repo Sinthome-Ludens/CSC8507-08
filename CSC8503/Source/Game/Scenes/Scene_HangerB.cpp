@@ -38,6 +38,7 @@
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
+#include "Game/Systems/Sys_Door.h"
 #include "Game/Systems/Sys_LevelGoal.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/MapLoader.h"
@@ -134,6 +135,7 @@ void Scene_HangerB::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Render>          (200);
     systems.Register<ECS::Sys_Item>            (250);
     systems.Register<ECS::Sys_ItemEffects>     (260);
+    systems.Register<ECS::Sys_Door>            (270);
 
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>             (300);
