@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core/ECS/BaseSystem.h"
-#include "Vector.h"
 
 namespace ECS {
 
@@ -17,14 +16,6 @@ namespace ECS {
 class Sys_PlayerCamera : public ISystem {
 public:
     void OnUpdate(Registry& registry, float dt) override;
-
-private:
-    static constexpr float SMOOTH_SPEED = 17.0f;   ///< 插值速度因子
-    static constexpr float FIXED_PITCH  = -75.0f;  ///< 固定俯仰角（度）
-    static constexpr float FIXED_YAW    = 0.0f;    ///< 固定偏航角（度）
-
-    /// 相机相对于玩家的偏移（世界坐标）
-    const NCL::Maths::Vector3 CAMERA_OFFSET{0.0f, 25.0f, 6.7f};
 };
 
 } // namespace ECS

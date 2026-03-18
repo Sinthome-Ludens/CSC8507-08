@@ -112,6 +112,25 @@ static IScene* CreateMapScene(uint8_t mapId) {
     }
 }
 
+/// 根据 debug 场景索引创建对应场景实例
+/// Debug scene IDs: 0=MainMenu, 1=PhysicsTest, 2=NavTest, 3=Tutorial,
+/// 4=HangerA, 5=HangerB, 6=Helipad, 7=Lab, 8=Dock, 9=NetworkServer
+static IScene* CreateDebugScene(int index) {
+    switch (index) {
+        case 0: return new Scene_MainMenu();
+        case 1: return new Scene_PhysicsTest();
+        case 2: return new Scene_NavTest();
+        case 3: return new Scene_TutorialLevel();
+        case 4: return new Scene_HangerA();
+        case 5: return new Scene_HangerB();
+        case 6: return new Scene_Helipad();
+        case 7: return new Scene_Lab();
+        case 8: return new Scene_Dock();
+        case 9: return new Scene_NetworkGame(ECS::PeerType::SERVER);
+        default: return new Scene_MainMenu();
+    }
+}
+
 /// 地图名称（调试用）
 static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock" };
 
@@ -158,20 +177,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
     if (reg.has_ctx<Res_UIFlags>()) {
         auto& flags = reg.ctx<Res_UIFlags>();
         if (flags.debugSceneIndex >= 0) {
-            switch (flags.debugSceneIndex) {
-                case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());    break;
-                case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest()); break;
-                case 2: sceneManager.RequestSceneChange(new Scene_NavTest());     break;
-                case 3: sceneManager.RequestSceneChange(new Scene_TutorialLevel()); break;
-                case 4: sceneManager.RequestSceneChange(new Scene_HangerA());     break;
-                case 5: sceneManager.RequestSceneChange(new Scene_HangerB());     break;
-                case 6: sceneManager.RequestSceneChange(new Scene_Helipad());     break;
-                case 7: sceneManager.RequestSceneChange(new Scene_Lab());         break;
-                case 8: sceneManager.RequestSceneChange(new Scene_Dock());        break;
-                case 9: sceneManager.RequestSceneChange(
-                        new Scene_NetworkGame(ECS::PeerType::SERVER));        break;
-                default: break;
-            }
+            sceneManager.RequestSceneChange(CreateDebugScene(flags.debugSceneIndex));
             // 进入 debug 模式：禁用地图池序列，记录当前 debug 场景
             if (reg.has_ctx<ECS::Res_UIState>()) {
                 auto& uiDbg = reg.ctx<ECS::Res_UIState>();
@@ -200,18 +206,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                 case ECS::SceneRequest::RestartLevel:
                     if (ui.debugCurrentScene >= 0) {
                         // Debug 模式：重启当前 debug 场景，不使用地图池
-                        switch (ui.debugCurrentScene) {
-                            case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());       break;
-                            case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest());    break;
-                            case 2: sceneManager.RequestSceneChange(new Scene_NavTest());        break;
-                            case 3: sceneManager.RequestSceneChange(new Scene_TutorialLevel());  break;
-                            case 4: sceneManager.RequestSceneChange(new Scene_HangerA());        break;
-                            case 5: sceneManager.RequestSceneChange(new Scene_HangerB());        break;
-                            case 6: sceneManager.RequestSceneChange(new Scene_Helipad());        break;
-                            case 7: sceneManager.RequestSceneChange(new Scene_Lab());            break;
-                            case 8: sceneManager.RequestSceneChange(new Scene_Dock());           break;
-                            default: sceneManager.RequestSceneChange(new Scene_MainMenu());      break;
-                        }
+                        sceneManager.RequestSceneChange(CreateDebugScene(ui.debugCurrentScene));
                     } else {
                         // 正常流程：重新随机 5 抽 3 序列，从头开始
                         GenerateMapSequence(ui);

@@ -14,6 +14,7 @@
 #include "Game/Components/Res_NCL_Pointers.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 #include "Core/Bridge/ImGuiAdapter.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/Log.h"
@@ -83,6 +84,9 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
     const bool windowActive = (win != nullptr) && win->IsActiveWindow();
     const auto& input = registry.ctx<Res_Input>();
 
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
+
     // ── 读取 UI 状态（Linyn-UIdesign）────────────────────────────
     bool uiBlocking     = false;
     bool itemWheelOpen  = false;
@@ -116,7 +120,7 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
             // ── Alt 键：切换鼠标自由模式（按住 Alt 显示光标，不旋转相机）──
             // 始终可用，不受 Debug 模式限制
             if (windowActive) {
-                cam.cursor_free = input.keyStates[KeyCodes::MENU];
+                cam.cursor_free = input.keyStates[uiCfg.keyCursorFree];
             }
 
             // ── Debug 模式：WASD/鼠标自由飞行（默认关闭）────────────────────
@@ -147,12 +151,12 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                     const Vector3 up(0.0f, 1.0f, 0.0f);
 
                     const float speed = cam.move_speed * dt;
-                    if (input.keyStates[KeyCodes::W]) tf.position += forward * speed;
-                    if (input.keyStates[KeyCodes::S]) tf.position -= forward * speed;
-                    if (input.keyStates[KeyCodes::A]) tf.position -= right   * speed;
-                    if (input.keyStates[KeyCodes::D]) tf.position += right   * speed;
-                    if (input.keyStates[KeyCodes::Q]) tf.position -= up      * speed;
-                    if (input.keyStates[KeyCodes::E]) tf.position += up      * speed;
+                    if (input.keyStates[uiCfg.keyCamForward])  tf.position += forward * speed;
+                    if (input.keyStates[uiCfg.keyCamBackward]) tf.position -= forward * speed;
+                    if (input.keyStates[uiCfg.keyCamLeft])     tf.position -= right   * speed;
+                    if (input.keyStates[uiCfg.keyCamRight])    tf.position += right   * speed;
+                    if (input.keyStates[uiCfg.keyCamDown])     tf.position -= up      * speed;
+                    if (input.keyStates[uiCfg.keyCamUp])       tf.position += up      * speed;
                 }
             }
 
