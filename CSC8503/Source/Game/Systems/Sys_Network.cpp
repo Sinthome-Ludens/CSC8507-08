@@ -975,10 +975,6 @@ void Sys_Network::OnDestroy(Registry& reg) {
     }
 
     auto& resNet = reg.ctx<Res_Network>();
-    if (resNet.mode != PeerType::OFFLINE && resNet.host != nullptr) {
-        LOG_INFO("[Sys_Network] Preserving ENet session across scene teardown.");
-        return;
-    }
 
     if (resNet.host) {
         enet_host_destroy(resNet.host);
