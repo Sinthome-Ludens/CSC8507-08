@@ -25,10 +25,10 @@ namespace ECS {
 
 // ── 警戒等级枚举 ──────────────────────────────────────────────
 enum class AlertStatus : uint8_t {
-    Safe   = 0,   // 0 ~ 15
-    Search = 1,   // 16 ~ 30
-    Alert  = 2,   // 31 ~ 50
-    Hunt   = 3,   // 51 ~ 100
+    Safe   = 0,   // 0 ~ 25
+    Search = 1,   // 26 ~ 50
+    Alert  = 2,   // 51 ~ 75
+    Hunt   = 3,   // 76 ~ 100
 };
 
 /**
@@ -37,9 +37,9 @@ enum class AlertStatus : uint8_t {
  * @return 对应的 AlertStatus 值（Safe/Search/Alert/Hunt）
  */
 inline AlertStatus GetAlertStatus(float alertLevel) {
-    if (alertLevel <= 15.0f)  return AlertStatus::Safe;
-    if (alertLevel <= 30.0f)  return AlertStatus::Search;
-    if (alertLevel <= 50.0f)  return AlertStatus::Alert;
+    if (alertLevel <= 25.0f)  return AlertStatus::Safe;
+    if (alertLevel <= 50.0f)  return AlertStatus::Search;
+    if (alertLevel <= 75.0f)  return AlertStatus::Alert;
     return AlertStatus::Hunt;
 }
 

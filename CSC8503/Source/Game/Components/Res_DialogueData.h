@@ -27,9 +27,9 @@ struct DialogueSequence {
 
 /// Registry context resource — 对话数据（3 个模式各一组对话序列）
 struct Res_DialogueData {
-    DialogueSequence proactive;    ///< chatMode 0: alertLevel 0-30
-    DialogueSequence mixed;        ///< chatMode 1: alertLevel 31-50
-    DialogueSequence passive;      ///< chatMode 2: alertLevel 51+
+    DialogueSequence proactive;    ///< chatMode 0: alertLevel 0-50
+    DialogueSequence mixed;        ///< chatMode 1: alertLevel 51-75
+    DialogueSequence passive;      ///< chatMode 2: alertLevel 76+
     bool loaded = false;           ///< 数据是否已从 JSON 加载
 };
 

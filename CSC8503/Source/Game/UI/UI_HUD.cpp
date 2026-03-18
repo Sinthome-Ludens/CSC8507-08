@@ -108,9 +108,9 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     // 4-segment thresholds and colors (no Raid)
     struct Segment { float threshold; ImU32 color; };
     Segment segments[] = {
-        { 15.0f,  IM_COL32(80, 200, 120, 220) },   // Safe: green
-        { 30.0f,  IM_COL32(220, 200, 0, 220) },     // Search: yellow
-        { 50.0f,  IM_COL32(252, 111, 41, 220) },    // Alert: orange
+        { 25.0f,  IM_COL32(80, 200, 120, 220) },   // Safe: green
+        { 50.0f,  IM_COL32(220, 200, 0, 220) },     // Search: yellow
+        { 75.0f,  IM_COL32(252, 111, 41, 220) },    // Alert: orange
         { 100.0f, IM_COL32(220, 60, 40, 220) },     // Hunt: red
     };
 
