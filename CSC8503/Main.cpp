@@ -120,27 +120,35 @@ static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock
 
 /**
  * @brief 清除当前场景图中的联机模式配置。
- * @details 仅移除 `Res_Network`，不触碰其他 UI 或玩法资源。
+ * @details 将 `Res_Network` 标记为离线状态，但不从上下文中移除，交由网络系统统一回收 ENet 资源。
  * @param reg 当前场景注册表
  */
 static void ClearNetworkMode(ECS::Registry& reg) {
     if (reg.has_ctx<ECS::Res_Network>()) {
-        reg.ctx_erase<ECS::Res_Network>();
+        auto& resNet = reg.ctx_get<ECS::Res_Network>();
+        resNet.mode = ECS::PeerType::OFFLINE;
+        resNet.serverIP[0] = '\0';
+        resNet.serverPort = 0;
     }
 }
 
 /**
  * @brief 以指定角色与地址重建联机配置资源。
- * @details 会先清除旧的 `Res_Network`，再创建新的网络上下文。
+ * @details 若 `Res_Network` 已存在则复用并覆盖配置，否则创建新的网络上下文。
  * @param reg 当前场景注册表
  * @param mode 节点网络角色
  * @param ip 目标 IP；服务端模式下仅用于填充默认值
  * @param port 使用的监听或连接端口
  */
 static void ConfigureNetworkMode(ECS::Registry& reg, ECS::PeerType mode, const char* ip, uint16_t port) {
-    ClearNetworkMode(reg);
+    ECS::Res_Network* resNetPtr = nullptr;
+    if (reg.has_ctx<ECS::Res_Network>()) {
+        resNetPtr = &reg.ctx_get<ECS::Res_Network>();
+    } else {
+        resNetPtr = &reg.ctx_emplace<ECS::Res_Network>();
+    }
 
-    auto& resNet = reg.ctx_emplace<ECS::Res_Network>();
+    ECS::Res_Network& resNet = *resNetPtr;
     resNet.mode = mode;
     strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), ip ? ip : "127.0.0.1", sizeof(resNet.serverIP) - 1);
     resNet.serverPort = port;
