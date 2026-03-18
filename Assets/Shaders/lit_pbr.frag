@@ -205,32 +205,46 @@ float ComputeCascadeShadow(vec3 worldPos, float viewDepth) {
     // 相邻级联过渡混合宽度（世界单位）；在此区间内双倍采样并插值
     const float blendRange = 4.0;
 
+    // 保存原始 bias，按级联 texel 密度缩放后恢复
+    float baseBias = g_shadowBias;
+
     vec4 sc0 = shadowMatrix0 * vec4(worldPos, 1.0);
     vec4 sc1 = shadowMatrix1 * vec4(worldPos, 1.0);
     vec4 sc2 = shadowMatrix2 * vec4(worldPos, 1.0);
 
     if (viewDepth < cascadeSplits[0]) {
+        g_shadowBias = baseBias;          // C0 (4096): 1.0x
         float s0 = SampleShadowPCSS(shadowTex0, sc0, 4096, false);
         // 接近 C0→C1 边界：与 C1 混合
         float blendStart = cascadeSplits[0] - blendRange;
         if (viewDepth > blendStart) {
             float t  = (viewDepth - blendStart) / blendRange;
+            g_shadowBias = baseBias * 2.0; // C1 (2048): 2.0x
             float s1 = SampleShadowPCSS(shadowTex1, sc1, 2048, false);
+            g_shadowBias = baseBias;
             return mix(s0, s1, t);
         }
+        g_shadowBias = baseBias;
         return s0;
     } else if (viewDepth < cascadeSplits[1]) {
+        g_shadowBias = baseBias * 2.0;    // C1 (2048): 2.0x
         float s1 = SampleShadowPCSS(shadowTex1, sc1, 2048, false);
         // 接近 C1→C2 边界：与 C2 混合
         float blendStart = cascadeSplits[1] - blendRange;
         if (viewDepth > blendStart) {
             float t  = (viewDepth - blendStart) / blendRange;
+            g_shadowBias = baseBias * 4.0; // C2 (1024): 4.0x
             float s2 = SampleShadowPCSS(shadowTex2, sc2, 1024, true);
+            g_shadowBias = baseBias;
             return mix(s1, s2, t);
         }
+        g_shadowBias = baseBias;
         return s1;
     } else {
-        return SampleShadowPCSS(shadowTex2, sc2, 1024, true);
+        g_shadowBias = baseBias * 4.0;    // C2 (1024): 4.0x
+        float result = SampleShadowPCSS(shadowTex2, sc2, 1024, true);
+        g_shadowBias = baseBias;
+        return result;
     }
 }
 

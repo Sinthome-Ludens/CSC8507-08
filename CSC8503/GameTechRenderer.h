@@ -67,6 +67,12 @@ namespace NCL {
             void SetShadowBiasSlope(float v)      { m_shadowBiasSlope = v; }
             /// @brief 设置 constant shadow bias，防止 shadow acne（单位：光照空间深度偏移量）
             void SetShadowBiasConstant(float v)   { m_shadowBiasConstant = v; }
+            /// @brief 设置 shadow near buffer（级联深度范围扩展，单位：世界空间）
+            void SetShadowNearBuffer(float v)     { m_shadowNearBuffer = v; }
+            /// @brief 设置 shadow far buffer（级联深度范围扩展，单位：世界空间）
+            void SetShadowFarBuffer(float v)      { m_shadowFarBuffer = v; }
+            /// @brief 设置 normal offset 缩放系数（sender-side bias，单位：texel 倍数）
+            void SetShadowNormalOffsetScale(float v) { m_shadowNormalOffsetScale = v; }
 
             // ── Shadow debug getters ────────────────────────────
             static constexpr int GetNumCascades()       { return NUM_CASCADES; }
@@ -162,6 +168,11 @@ namespace NCL {
             float m_shadowBiasSlope    = 0.00002f;
             float m_shadowBiasConstant = 0.000015f;
 
+            // ── Shadow Buffer & Normal Offset ─────────────────
+            float m_shadowNearBuffer = 50.0f;
+            float m_shadowFarBuffer  = 20.0f;
+            float m_shadowNormalOffsetScale = 0.5f;
+
             // ── Debug flags ──────────────────────────────────
             bool  m_debugCascades   = false;
             bool  m_showSSAOBuffer  = false;
@@ -218,7 +229,10 @@ namespace NCL {
             GLuint m_fullscreenVAO = 0;
 
             // ── Fallback 纹理 ─────────────────────────────────
-            GLuint m_fallbackWhiteTex = 0; ///< 1×1 RGBA 白色纹理，替代绑定 0
+            GLuint m_fallbackWhiteTex  = 0; ///< 1×1 RGBA (255,255,255) — albedo 默认白色
+            GLuint m_fallbackNormalTex = 0; ///< 1×1 RGBA (128,128,255) — 中性法线 (0,0,1)
+            GLuint m_fallbackOrmTex    = 0; ///< 1×1 RGBA (255,128,0)   — AO=1, roughness=0.5, metallic=0
+            GLuint m_fallbackBlackTex  = 0; ///< 1×1 RGBA (0,0,0)       — emissive 默认黑色
 
             // ── 辅助绘制方法 ─────────────────────────────────
             void DrawObject(OGLShader* shader, const RenderObject* o);
