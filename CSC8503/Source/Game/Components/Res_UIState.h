@@ -147,6 +147,22 @@ struct Res_UIState {
 
     // ── Debug mode (bypass map sequence) ──
     int8_t    debugCurrentScene        = -1;  ///< >=0 表示当前为 debug 模式进入的场景 index，-1 表示正常流程
+
+    // ── Campaign score (跨场景持久化) ──────────────────────────
+    int32_t campaignScore                 = 1000;  ///< 战役积分（初始1000, 纯扣减制）
+    float   scoreDecayAccum               = 0.0f;  ///< 时间衰减子秒累加器
+    bool    countdownScorePenaltyApplied  = false;  ///< 倒计时-200已施加
+    bool    failureScorePenaltyApplied    = false;  ///< 失败-500已施加
+    int8_t  lastScoreRatingTier           = 7;     ///< 上一帧评级档位(0=F..7=SSS), 用于降级检测
+
+    // ── Score breakdown (分项追踪, 供 GameOver 明细) ──────────
+    int32_t scoreLost_time      = 0;   ///< 累计时间扣分
+    int32_t scoreLost_kills     = 0;   ///< 累计击杀扣分
+    int32_t scoreLost_items     = 0;   ///< 累计道具使用扣分
+    int32_t scoreLost_countdown = 0;   ///< 倒计时扣分 (0 或 200)
+    int32_t scoreLost_failure   = 0;   ///< 失败扣分 (0 或 500)
+    int16_t scoreKillCount      = 0;   ///< 击杀次数
+    int16_t scoreItemUseCount   = 0;   ///< 道具使用次数
 };
 
 } // namespace ECS

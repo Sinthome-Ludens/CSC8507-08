@@ -168,51 +168,79 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     draw->AddLine(ImVec2(cx - 120.0f, lineY), ImVec2(cx + 120.0f, lineY),
         IM_COL32(200, 200, 200, 120), 1.0f);
 
-    // ── Rating ────────────────────────────────────────────
-    ImFont* bodyFont = UITheme::GetFont_Body();
-    if (bodyFont) ImGui::PushFont(bodyFont);
+    // ── Score + Rating (campaignScore-based) ────────────────
+    int32_t finalScore = 0;
+    const Res_UIState* uiPtr = &ui;
+    finalScore = uiPtr->campaignScore;
+    const char* rating = GetScoreRating(finalScore);
+    int8_t ratingTier = GetScoreRatingTier(finalScore);
 
-    const char* rating;
+    // Multiplayer: override rating with match result string
     if (isMultiplayer) {
         switch (matchResult) {
-            case MatchResult::LocalWin:    rating = "RESULT: WIN"; break;
-            case MatchResult::OpponentWin: rating = "RESULT: LOSS"; break;
-            case MatchResult::Draw:        rating = "RESULT: DRAW"; break;
-            case MatchResult::Disconnected:rating = "RESULT: DISCONNECTED"; break;
+            case MatchResult::LocalWin:    rating = "WIN"; break;
+            case MatchResult::OpponentWin: rating = "LOSS"; break;
+            case MatchResult::Draw:        rating = "DRAW"; break;
+            case MatchResult::Disconnected:rating = "DISCONNECTED"; break;
             case MatchResult::None:
-            default:                       rating = "RESULT: UNKNOWN"; break;
+            default:                       rating = "UNKNOWN"; break;
         }
-    } else if (!isSuccess) {
-        rating = "RATING: F";
-    } else if (alertLevel < 30.0f) {
-        rating = "RATING: S";
-    } else if (alertLevel < 75.0f) {
-        rating = "RATING: A";
     } else {
-        rating = "RATING: B";
+        // 通关但积分≤500 → 仍判失败
+        if (isSuccess && finalScore <= 500) {
+            resultTitle    = "MISSION FAILED";
+            resultSubtitle = "INSUFFICIENT SCORE";
+            titleColor     = IM_COL32(220, 60, 40, 255);
+            isSuccess      = false;
+            // 重绘 title (覆盖)
+            if (titleFont) ImGui::PushFont(titleFont);
+            ImVec2 ts2 = ImGui::CalcTextSize(resultTitle);
+            draw->AddRectFilled(ImVec2(vpPos.x, titleY - 2.0f),
+                ImVec2(vpPos.x + vpSize.x, titleY + ts2.y + 2.0f),
+                IM_COL32(245, 238, 232, 255));
+            draw->AddText(ImVec2(cx - ts2.x * 0.5f, titleY), titleColor, resultTitle);
+            if (titleFont) ImGui::PopFont();
+            if (termFont) ImGui::PushFont(termFont);
+            ImVec2 ss2 = ImGui::CalcTextSize(resultSubtitle);
+            draw->AddText(ImVec2(cx - ss2.x * 0.5f, titleY + titleSize.y + 6.0f),
+                IM_COL32(16, 13, 10, 180), resultSubtitle);
+            if (termFont) ImGui::PopFont();
+        }
     }
 
-    ImVec2 ratingSize = ImGui::CalcTextSize(rating);
+    // 评级颜色
+    ImU32 ratingCol;
+    if      (ratingTier >= 5) ratingCol = IM_COL32(80, 200, 120, 255);   // S+ green
+    else if (ratingTier >= 3) ratingCol = IM_COL32(220, 200, 0, 255);    // B+ yellow
+    else if (ratingTier >= 1) ratingCol = IM_COL32(252, 111, 41, 255);   // D+ orange
+    else                      ratingCol = IM_COL32(220, 60, 40, 255);    // F red
+
+    ImFont* bodyFont = UITheme::GetFont_Body();
+    if (bodyFont) ImGui::PushFont(bodyFont);
+    char ratingStr[32];
+    snprintf(ratingStr, sizeof(ratingStr), "RATING: [%s]", rating);
+    ImVec2 ratingSize = ImGui::CalcTextSize(ratingStr);
     float ratingY = lineY + 16.0f;
-    draw->AddText(ImVec2(cx - ratingSize.x * 0.5f, ratingY),
-        IM_COL32(252, 111, 41, 255), rating);
+    draw->AddText(ImVec2(cx - ratingSize.x * 0.5f, ratingY), ratingCol, ratingStr);
     if (bodyFont) ImGui::PopFont();
 
-    // ── Statistics panel ──────────────────────────────────
+    // ── Score Breakdown ──────────────────────────────────
     if (termFont) ImGui::PushFont(termFont);
 
     float statsY = ratingY + 46.0f;
-    float statsX = cx - 110.0f;
+    float statsX = cx - 140.0f;
+    float valX   = cx + 40.0f;  // 右对齐值列
+    char buf[64];
+    ImU32 labelCol  = IM_COL32(16, 13, 10, 220);
+    ImU32 deductCol = IM_COL32(220, 60, 40, 220);
 
     // Play time MM:SS
     int totalSec = (int)playTime;
     int mm = totalSec / 60;
     int ss = totalSec % 60;
-    char buf[64];
 
-    snprintf(buf, sizeof(buf), "TIME:      %02d:%02d", mm, ss);
-    draw->AddText(ImVec2(statsX, statsY),
-        IM_COL32(16, 13, 10, 220), buf);
+    snprintf(buf, sizeof(buf), "TIME:        %02d:%02d", mm, ss);
+    draw->AddText(ImVec2(statsX, statsY), labelCol, buf);
 
     if (isMultiplayer) {
         snprintf(buf, sizeof(buf), "LOCAL:     %d / %d",
@@ -225,20 +253,73 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         draw->AddText(ImVec2(statsX, statsY + 56.0f),
             IM_COL32(16, 13, 10, 220), buf);
     } else {
-        snprintf(buf, sizeof(buf), "ALERT:     %.0f / %.0f", alertLevel, alertMax);
-        draw->AddText(ImVec2(statsX, statsY + 28.0f),
-            IM_COL32(16, 13, 10, 220), buf);
+        // INITIAL
+        draw->AddText(ImVec2(statsX, statsY + 28.0f), labelCol, "INITIAL:");
+        draw->AddText(ImVec2(valX, statsY + 28.0f), IM_COL32(80, 200, 120, 220), "1000");
 
-        const char* detectedStr = (reason == 2) ? "YES" : "NO";
-        snprintf(buf, sizeof(buf), "DETECTED:  %s", detectedStr);
-        draw->AddText(ImVec2(statsX, statsY + 56.0f),
-            IM_COL32(16, 13, 10, 220), buf);
+        // TIME penalty
+        snprintf(buf, sizeof(buf), "TIME (-1/s):");
+        draw->AddText(ImVec2(statsX, statsY + 52.0f), labelCol, buf);
+        if (uiPtr->scoreLost_time > 0) {
+            snprintf(buf, sizeof(buf), "-%d", uiPtr->scoreLost_time);
+            draw->AddText(ImVec2(valX, statsY + 52.0f), deductCol, buf);
+        } else {
+            draw->AddText(ImVec2(valX, statsY + 52.0f), labelCol, "0");
+        }
+
+        // KILLS
+        snprintf(buf, sizeof(buf), "KILLS (x%d):", uiPtr->scoreKillCount);
+        draw->AddText(ImVec2(statsX, statsY + 76.0f), labelCol, buf);
+        if (uiPtr->scoreLost_kills > 0) {
+            snprintf(buf, sizeof(buf), "-%d", uiPtr->scoreLost_kills);
+            draw->AddText(ImVec2(valX, statsY + 76.0f), deductCol, buf);
+        } else {
+            draw->AddText(ImVec2(valX, statsY + 76.0f), labelCol, "0");
+        }
+
+        // ITEMS
+        snprintf(buf, sizeof(buf), "ITEMS (x%d):", uiPtr->scoreItemUseCount);
+        draw->AddText(ImVec2(statsX, statsY + 100.0f), labelCol, buf);
+        if (uiPtr->scoreLost_items > 0) {
+            snprintf(buf, sizeof(buf), "-%d", uiPtr->scoreLost_items);
+            draw->AddText(ImVec2(valX, statsY + 100.0f), deductCol, buf);
+        } else {
+            draw->AddText(ImVec2(valX, statsY + 100.0f), labelCol, "0");
+        }
+
+        // COUNTDOWN
+        draw->AddText(ImVec2(statsX, statsY + 124.0f), labelCol, "COUNTDOWN:");
+        if (uiPtr->scoreLost_countdown > 0) {
+            snprintf(buf, sizeof(buf), "-%d", uiPtr->scoreLost_countdown);
+            draw->AddText(ImVec2(valX, statsY + 124.0f), deductCol, buf);
+        } else {
+            draw->AddText(ImVec2(valX, statsY + 124.0f), labelCol, "0");
+        }
+
+        // FAILURE
+        draw->AddText(ImVec2(statsX, statsY + 148.0f), labelCol, "FAILURE:");
+        if (uiPtr->scoreLost_failure > 0) {
+            snprintf(buf, sizeof(buf), "-%d", uiPtr->scoreLost_failure);
+            draw->AddText(ImVec2(valX, statsY + 148.0f), deductCol, buf);
+        } else {
+            draw->AddText(ImVec2(valX, statsY + 148.0f), labelCol, "0");
+        }
+
+        // Separator line
+        draw->AddLine(ImVec2(statsX, statsY + 172.0f), ImVec2(valX + 60.0f, statsY + 172.0f),
+            IM_COL32(200, 200, 200, 120), 1.0f);
+
+        // FINAL SCORE
+        snprintf(buf, sizeof(buf), "FINAL SCORE:");
+        draw->AddText(ImVec2(statsX, statsY + 180.0f), labelCol, buf);
+        snprintf(buf, sizeof(buf), "%d  [%s]", std::max(0, finalScore), rating);
+        draw->AddText(ImVec2(valX, statsY + 180.0f), ratingCol, buf);
     }
 
     if (termFont) ImGui::PopFont();
 
     // ── Separator before menu ─────────────────────────────
-    float sepY = statsY + 100.0f;
+    float sepY = statsY + 210.0f;
     draw->AddLine(ImVec2(cx - 80.0f, sepY), ImVec2(cx + 80.0f, sepY),
         IM_COL32(200, 200, 200, 100), 1.0f);
 

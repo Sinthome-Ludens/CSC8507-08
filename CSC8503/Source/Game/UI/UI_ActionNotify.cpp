@@ -7,9 +7,7 @@
 
 #include <imgui.h>
 #include <cstdio>
-#include <algorithm>
 #include "Game/Components/Res_ActionNotifyState.h"
-#include "Game/Components/Res_GameState.h"
 
 namespace ECS::UI {
 
@@ -33,7 +31,7 @@ static ImU32 TypeColor(ActionNotifyType type, uint8_t a) {
     }
 }
 
-/** @brief 推入一条动作通知并同步积分到 Res_GameState。 */
+/** @brief 推入一条动作通知（纯通知，不修改积分）。 */
 void PushActionNotify(Registry& registry, const char* verb, const char* target,
                       int scoreDelta, ActionNotifyType type, float lifetime) {
     if (!registry.has_ctx<Res_ActionNotifyState>()) return;
@@ -50,14 +48,6 @@ void PushActionNotify(Registry& registry, const char* verb, const char* target,
     entry.type       = type;
     entry.active     = true;
     state.nextSlot   = (state.nextSlot + 1) % Res_ActionNotifyState::kMaxEntries;
-
-    // B1：同步积分（用 int64_t 中间值防止 uint32_t 溢出 UB）
-    if (scoreDelta != 0 && registry.has_ctx<Res_GameState>()) {
-        auto& gs = registry.ctx<Res_GameState>();
-        gs.score = static_cast<uint32_t>(
-            std::clamp(static_cast<int64_t>(gs.score) + scoreDelta,
-                       0LL, static_cast<int64_t>(UINT32_MAX)));
-    }
 }
 
 /** @brief 渲染右上角动作通知卡片列表（淡入 → 持续 → 淡出）。 */

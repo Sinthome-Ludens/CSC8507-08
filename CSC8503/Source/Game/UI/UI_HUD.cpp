@@ -137,6 +137,46 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
 }
 
 // ============================================================
+// 2b. RenderHUD_Score — 警戒条下方积分 + 评级
+// ============================================================
+/// @brief 渲染警戒条下方积分 + 实时评级（如 "SCORE: 850  [A]"）。
+static void RenderHUD_Score(ImDrawList* draw, int32_t score, float gameW) {
+    ImFont* termFont = UITheme::GetFont_Terminal();
+
+    const char* rating = GetScoreRating(score);
+    int8_t tier = GetScoreRatingTier(score);
+
+    // 积分颜色随评级档位变化
+    ImU32 scoreCol;
+    if      (tier >= 5) scoreCol = IM_COL32(80, 200, 120, 220);   // S+ green
+    else if (tier >= 3) scoreCol = IM_COL32(220, 200, 0, 220);    // B+ yellow
+    else if (tier >= 1) scoreCol = IM_COL32(252, 111, 41, 220);   // D+ orange
+    else                scoreCol = IM_COL32(220, 60, 40, 220);    // F  red
+
+    if (termFont) ImGui::PushFont(termFont);
+
+    char scoreBuf[24];
+    snprintf(scoreBuf, sizeof(scoreBuf), "SCORE: %d", std::max(0, score));
+    ImVec2 scoreSize = ImGui::CalcTextSize(scoreBuf);
+
+    char ratingBuf[8];
+    snprintf(ratingBuf, sizeof(ratingBuf), "[%s]", rating);
+    ImVec2 ratingSize = ImGui::CalcTextSize(ratingBuf);
+
+    float rightEdge = gameW - 20.0f;
+    float scoreY = 60.0f;  // 警戒条 bar 底部下方
+
+    float totalW = scoreSize.x + 8.0f + ratingSize.x;
+    float startX = rightEdge - totalW;
+
+    draw->AddText(ImVec2(startX, scoreY), scoreCol, scoreBuf);
+    draw->AddText(ImVec2(startX + scoreSize.x + 8.0f, scoreY),
+                  scoreCol, ratingBuf);
+
+    if (termFont) ImGui::PopFont();
+}
+
+// ============================================================
 // 3. RenderHUD_Countdown — 上方中央倒计时
 // ============================================================
 /// @brief 渲染上方居中倒计时（MM:SS），仅在 countdownActive 时显示，脉冲动画随 globalTime。
@@ -631,6 +671,8 @@ void RenderHUD(Registry& registry, float dt) {
     // Render all sub-panels (7 base + 3 multiplayer)
     RenderHUD_MissionPanel(draw, gs, gameW);
     RenderHUD_AlertGauge(draw, gs, gameW);
+    if (!gs.isMultiplayer)
+        RenderHUD_Score(draw, ui.campaignScore, gameW);
     RenderHUD_Countdown(draw, gs, gameW, ui.globalTime);
     RenderHUD_PlayerState(draw, gs, displayH);
     RenderHUD_NoiseIndicator(draw, gs, displayH, ui.globalTime);

@@ -45,6 +45,7 @@
 #include <vector>
 
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_GameState.h"
 #ifdef USE_IMGUI
 #include "Game/UI/UI_ActionNotify.h"
 #endif
@@ -85,7 +86,9 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
                         ECS::UI::PushActionNotify(registry, "USED", usedName,
                                                   -5, ActionNotifyType::Alert);
 #endif
-                        if (registry.has_ctx<Res_UIState>()) {
+                        if (registry.has_ctx<Res_UIState>()
+                            && registry.has_ctx<Res_GameState>()
+                            && !registry.ctx<Res_GameState>().isMultiplayer) {
                             auto& uiS = registry.ctx<Res_UIState>();
                             uiS.campaignScore = std::max(0, uiS.campaignScore - 5);
                             uiS.scoreLost_items += 5;

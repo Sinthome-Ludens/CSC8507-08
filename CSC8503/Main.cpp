@@ -274,6 +274,15 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     // 正常开始游戏：生成新的 5 抽 3 序列，退出 debug 模式
                     ui.debugCurrentScene = -1;
                     ui.totalPlayTime = 0.0f;
+                    // 积分初始化
+                    ui.campaignScore = 1000;
+                    ui.scoreDecayAccum = 0.0f;
+                    ui.countdownScorePenaltyApplied = false;
+                    ui.failureScorePenaltyApplied   = false;
+                    ui.lastScoreRatingTier          = 7;  // SSS
+                    ui.scoreLost_time = ui.scoreLost_kills = ui.scoreLost_items = 0;
+                    ui.scoreLost_countdown = ui.scoreLost_failure = 0;
+                    ui.scoreKillCount = ui.scoreItemUseCount = 0;
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
                         CreateMapScene(ui.mapSequence[0]));
@@ -312,6 +321,16 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                             InitializeMultiplayerMapSequence(ui);
                         } else {
                             ClearNetworkMode(reg);
+                            // 积分重置（单人 RETRY）
+                            ui.totalPlayTime = 0.0f;
+                            ui.campaignScore = 1000;
+                            ui.scoreDecayAccum = 0.0f;
+                            ui.countdownScorePenaltyApplied = false;
+                            ui.failureScorePenaltyApplied   = false;
+                            ui.lastScoreRatingTier          = 7;
+                            ui.scoreLost_time = ui.scoreLost_kills = ui.scoreLost_items = 0;
+                            ui.scoreLost_countdown = ui.scoreLost_failure = 0;
+                            ui.scoreKillCount = ui.scoreItemUseCount = 0;
                             GenerateMapSequence(ui);
                         }
                         sceneManager.RequestSceneChange(
@@ -328,7 +347,9 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     } else {
                         PreserveNetworkSession(reg);
                     }
-                    // 序列内前进到下一张地图
+                    // 序列内前进到下一张地图（积分不重置，仅清除单次惩罚标记）
+                    ui.countdownScorePenaltyApplied = false;
+                    ui.failureScorePenaltyApplied   = false;
                     ui.mapSequenceIndex++;
                     if (ui.mapSequenceIndex < ECS::Res_UIState::MAP_SEQUENCE_LENGTH) {
                         sceneManager.RequestSceneChange(
