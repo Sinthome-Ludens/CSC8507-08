@@ -39,6 +39,7 @@
 #include <random>
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 using namespace NCL;
 using namespace Rendering;
@@ -93,6 +94,11 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, m_shadowTex[c], 0);
         glDrawBuffer(GL_NONE);
         glReadBuffer(GL_NONE);
+        {
+            GLenum s = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (s != GL_FRAMEBUFFER_COMPLETE)
+                std::cout << "[Renderer] Shadow FBO " << c << " incomplete: 0x" << std::hex << s << std::dec << "\n";
+        }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
@@ -123,6 +129,8 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
         glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, w, h, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
         glGenFramebuffers(1, &m_hdrFBO);
         glBindFramebuffer(GL_FRAMEBUFFER, m_hdrFBO);
@@ -131,6 +139,11 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,  GL_TEXTURE_2D, m_hdrDepthTex, 0);
         GLenum drawBuffers[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
         glDrawBuffers(2, drawBuffers);
+        {
+            GLenum s = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (s != GL_FRAMEBUFFER_COMPLETE)
+                std::cout << "[Renderer] HDR FBO incomplete: 0x" << std::hex << s << std::dec << "\n";
+        }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
@@ -150,6 +163,11 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
         glGenFramebuffers(1, &m_ssaoFBO);
         glBindFramebuffer(GL_FRAMEBUFFER, m_ssaoFBO);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ssaoTex, 0);
+        {
+            GLenum s = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (s != GL_FRAMEBUFFER_COMPLETE)
+                std::cout << "[Renderer] SSAO FBO incomplete: 0x" << std::hex << s << std::dec << "\n";
+        }
 
         glGenTextures(1, &m_ssaoBlurTex);
         glBindTexture(GL_TEXTURE_2D, m_ssaoBlurTex);
@@ -161,6 +179,11 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
         glGenFramebuffers(1, &m_ssaoBlurFBO);
         glBindFramebuffer(GL_FRAMEBUFFER, m_ssaoBlurFBO);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ssaoBlurTex, 0);
+        {
+            GLenum s = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+            if (s != GL_FRAMEBUFFER_COMPLETE)
+                std::cout << "[Renderer] SSAO Blur FBO incomplete: 0x" << std::hex << s << std::dec << "\n";
+        }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -209,6 +232,11 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
             glGenFramebuffers(1, &m_ppFBO[i]);
             glBindFramebuffer(GL_FRAMEBUFFER, m_ppFBO[i]);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_ppTex[i], 0);
+            {
+                GLenum s = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+                if (s != GL_FRAMEBUFFER_COMPLETE)
+                    std::cout << "[Renderer] PP FBO " << i << " incomplete: 0x" << std::hex << s << std::dec << "\n";
+            }
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glBindTexture(GL_TEXTURE_2D, 0);
@@ -290,6 +318,23 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
     // ── 全屏三角形 VAO（无 VBO，仅需 gl_VertexID）────────
     glGenVertexArrays(1, &m_fullscreenVAO);
 
+    // ── 1×1 语义 fallback 纹理 ────────────────────────
+    {
+        auto makeFallback = [](GLuint& tex, unsigned char r, unsigned char g, unsigned char b, unsigned char a) {
+            unsigned char px[4] = { r, g, b, a };
+            glGenTextures(1, &tex);
+            glBindTexture(GL_TEXTURE_2D, tex);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, px);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        };
+        makeFallback(m_fallbackWhiteTex,  255, 255, 255, 255); // albedo: 白色
+        makeFallback(m_fallbackNormalTex, 128, 128, 255, 255); // normal: 中性法线 (0,0,1) in tangent space
+        makeFallback(m_fallbackOrmTex,    255, 128,   0, 255); // ORM: AO=1.0, roughness=0.5, metallic=0.0
+        makeFallback(m_fallbackBlackTex,    0,   0,   0, 255); // emissive: 黑色（无自发光）
+    }
+
     SetDebugStringBufferSizes(10000);
     SetDebugLineBufferSizes(1000);
 }
@@ -315,6 +360,10 @@ GameTechRenderer::~GameTechRenderer() {
     glDeleteTextures(1, &m_irradianceMap);
     glDeleteTextures(1, &m_prefilterMap);
     glDeleteTextures(1, &m_brdfLUT);
+    glDeleteTextures(1, &m_fallbackWhiteTex);
+    glDeleteTextures(1, &m_fallbackNormalTex);
+    glDeleteTextures(1, &m_fallbackOrmTex);
+    glDeleteTextures(1, &m_fallbackBlackTex);
     glDeleteVertexArrays(1, &m_fullscreenVAO);
 }
 
@@ -553,7 +602,7 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
         float rangeY   = maxLS.y - minLS.y;
         float maxRange = std::max(rangeX, rangeY);
         float texelSize = maxRange / (float)m_shadowRes[c];
-        m_shadowNormalOffset[c] = texelSize * 0.5f;
+        m_shadowNormalOffset[c] = texelSize * m_shadowNormalOffsetScale;
 
         float centerX = std::round(((minLS.x + maxLS.x) * 0.5f) / texelSize) * texelSize;
         float centerY = std::round(((minLS.y + maxLS.y) * 0.5f) / texelSize) * texelSize;
@@ -563,8 +612,8 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
         minLS.y = centerY - halfExt;
         maxLS.y = centerY + halfExt;
 
-        float shadowNear = std::max(0.1f, -(maxLS.z + 500.0f));
-        float shadowFar  = -(minLS.z - 100.0f);
+        float shadowNear = std::max(0.1f, -(maxLS.z + m_shadowNearBuffer));
+        float shadowFar  = -(minLS.z - m_shadowFarBuffer);
         if (shadowFar <= shadowNear) shadowFar = shadowNear + 100.0f;
         m_lightProjMat[c] = Matrix::Orthographic(minLS.x, maxLS.x,
                                                   minLS.y, maxLS.y,
@@ -592,7 +641,7 @@ void GameTechRenderer::RenderFrame() {
 
     // ── 1. CSM Shadow Pass ────────────────────────────
     ComputeCascadeMatrices(viewMatrix, projMatrix);
-    {
+    if (!opaqueObjects.empty() || !transparentObjects.empty()) {
         OGLDebugScope scope("CSM Shadow Pass");
         RenderShadowMapPass(opaqueObjects);
     }
@@ -603,7 +652,7 @@ void GameTechRenderer::RenderFrame() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (!opaqueObjects.empty() || !transparentObjects.empty()) {
+    {
         OGLDebugScope scope("Skybox Pass");
         RenderSkyboxPass();
     }
@@ -689,11 +738,8 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
-    glCullFace(GL_FRONT);  // 渲染背面到 shadow map：消除自阴影 acne（标准 CSM 技术）
+    glCullFace(GL_BACK);
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-
-    UseShader(*shadowShader);
-    int mvpLoc = glGetUniformLocation(shadowShader->GetProgramID(), "mvpMatrix");
 
     for (int c = 0; c < NUM_CASCADES; c++) {
         glBindFramebuffer(GL_FRAMEBUFFER, m_shadowFBO[c]);
@@ -704,25 +750,38 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
 
         for (const auto& i : list) {
             const RenderObject* o = i.object;
+            Matrix4 model = o->GetTransform().GetMatrix();
+
             if (o->GetMaterial().alphaMode == AlphaMode::Mask) {
                 UseShader(*m_shadowAlphaTestShader);
-                int mvpLoc2 = glGetUniformLocation(m_shadowAlphaTestShader->GetProgramID(), "mvpMatrix");
-                Matrix4 mvp = lvp * o->GetTransform().GetMatrix();
-                glUniformMatrix4fv(mvpLoc2, 1, false, (float*)&mvp);
-                int cutoffLoc = glGetUniformLocation(m_shadowAlphaTestShader->GetProgramID(), "alphaCutoff");
-                glUniform1f(cutoffLoc, o->GetMaterial().alphaCutoff);
+                GLint curProg = m_shadowAlphaTestShader->GetProgramID();
+                glUniform1i(glGetUniformLocation(curProg, "useModelMatrix"), 1);
+                glUniformMatrix4fv(glGetUniformLocation(curProg, "lightVPMatrix"), 1, false, (float*)&lvp);
+                glUniform1f(glGetUniformLocation(curProg, "normalOffsetBias"), m_shadowNormalOffset[c]);
+                glUniformMatrix4fv(glGetUniformLocation(curProg, "modelMatrix"), 1, false, (float*)&model);
+                glUniform1f(glGetUniformLocation(curProg, "alphaCutoff"), o->GetMaterial().alphaCutoff);
                 if (o->GetMaterial().diffuseTex) {
                     OGLTexture* t = (OGLTexture*)o->GetMaterial().diffuseTex;
                     glActiveTexture(GL_TEXTURE0);
                     glBindTexture(GL_TEXTURE_2D, t->GetObjectID());
-                    int albedoLoc = glGetUniformLocation(m_shadowAlphaTestShader->GetProgramID(), "albedoTex");
-                    glUniform1i(albedoLoc, 0);
+                    glUniform1i(glGetUniformLocation(curProg, "albedoTex"), 0);
                 }
             } else {
                 UseShader(*shadowShader);
-                mvpLoc = glGetUniformLocation(shadowShader->GetProgramID(), "mvpMatrix");
-                Matrix4 mvp = lvp * o->GetTransform().GetMatrix();
-                glUniformMatrix4fv(mvpLoc, 1, false, (float*)&mvp);
+                GLint curProg = shadowShader->GetProgramID();
+                glUniform1i(glGetUniformLocation(curProg, "useModelMatrix"), 1);
+                glUniformMatrix4fv(glGetUniformLocation(curProg, "lightVPMatrix"), 1, false, (float*)&lvp);
+                glUniform1f(glGetUniformLocation(curProg, "normalOffsetBias"), m_shadowNormalOffset[c]);
+                glUniformMatrix4fv(glGetUniformLocation(curProg, "modelMatrix"), 1, false, (float*)&model);
+            }
+
+            GLint curProg = 0;
+            glGetIntegerv(GL_CURRENT_PROGRAM, &curProg);
+            glUniform1i(glGetUniformLocation(curProg, "useSkinning"), o->useSkinning ? 1 : 0);
+            if (o->useSkinning && !o->skinBoneMatrices.empty()) {
+                glUniformMatrix4fv(glGetUniformLocation(curProg, "boneMatrices"),
+                                   (int)o->skinBoneMatrices.size(), false,
+                                   (float*)o->skinBoneMatrices.data());
             }
 
             BindMesh((OGLMesh&)*o->GetMesh());
@@ -815,14 +874,27 @@ static void BindCommonSceneUniforms(
     glUniform1i(ul("prefilterMap"),  9);
     glUniform1i(ul("brdfLUT"),       10);
     glUniform1f(ul("iblIntensity"),  iblIntensity);
+    glUniform1i(ul("useIBL"), (irradianceMap != 0 && prefilterMap != 0 && brdfLUT != 0) ? 1 : 0);
 }
 
 // ============================================================
 // DrawObject — 绑定材质纹理并绘制单个物体
 // ============================================================
 
+/**
+ * @brief 绑定单个 RenderObject 的材质参数、纹理、骨骼蒙皮数据后提交绘制。
+ *
+ * @details
+ * 纹理绑定使用语义正确的 fallback 纹理（Phase 6B）：
+ *   - slot 0 albedo   → m_fallbackWhiteTex  (255,255,255)
+ *   - slot 1 normal   → m_fallbackNormalTex  (128,128,255) 中性法线
+ *   - slot 2 ORM      → m_fallbackOrmTex     (255,128,0)   AO=1/rough=0.5/metal=0
+ *   - slot 3 emissive → m_fallbackBlackTex   (0,0,0)       无自发光
+ *
+ * doubleSided 材质会临时 glDisable(GL_CULL_FACE)，绘制完毕后恢复。
+ */
 void GameTechRenderer::DrawObject(OGLShader* shader,
-                                  const RenderObject* o, const Matrix4& viewMatrix)
+                                  const RenderObject* o)
 {
     GLuint pid = shader->GetProgramID();
     auto ul = [&](const char* n) { return glGetUniformLocation(pid, n); };
@@ -846,10 +918,10 @@ void GameTechRenderer::DrawObject(OGLShader* shader,
         glUniform1i(ul(samplerName), unit);
     };
 
-    bindTex(mat.diffuseTex,  "albedoTex",   0, 0);
-    bindTex(mat.bumpTex,     "normalTex",   1, 0);
-    bindTex(mat.ormTex,      "ormTex",      2, 0);
-    bindTex(mat.emissiveTex, "emissiveTex", 3, 0);
+    bindTex(mat.diffuseTex,  "albedoTex",   0, m_fallbackWhiteTex);
+    bindTex(mat.bumpTex,     "normalTex",   1, m_fallbackNormalTex);
+    bindTex(mat.ormTex,      "ormTex",      2, m_fallbackOrmTex);
+    bindTex(mat.emissiveTex, "emissiveTex", 3, m_fallbackBlackTex);
 
     glUniform1i(ul("hasTexture"),    mat.diffuseTex  ? 1 : 0);
     glUniform1i(ul("hasBumpTex"),    mat.bumpTex     ? 1 : 0);
@@ -873,6 +945,7 @@ void GameTechRenderer::DrawObject(OGLShader* shader,
 
     // 双面渲染
     if (mat.doubleSided) glDisable(GL_CULL_FACE);
+    glUniform1i(ul("doubleSided"), mat.doubleSided ? 1 : 0);
 
     // 骨骼蒙皮
     glUniform1i(ul("useSkinning"), o->useSkinning ? 1 : 0);
@@ -933,7 +1006,7 @@ void GameTechRenderer::RenderOpaquePass(std::vector<ObjectSortState>& list) {
             lastShader = shader;
         }
 
-        DrawObject(shader, o, viewMatrix);
+        DrawObject(shader, o);
     }
 
     if (m_wireframeMode) {
@@ -975,7 +1048,7 @@ void GameTechRenderer::RenderAlphaMaskPass(std::vector<ObjectSortState>& list) {
             lastShader = shader;
         }
 
-        DrawObject(shader, o, viewMatrix);
+        DrawObject(shader, o);
     }
 }
 
@@ -983,6 +1056,15 @@ void GameTechRenderer::RenderAlphaMaskPass(std::vector<ObjectSortState>& list) {
 // RenderTransparentPass — 半透明（back-to-front）
 // ============================================================
 
+/**
+ * @brief 半透明物体渲染 pass，按距离从远到近排序后逐物体绘制。
+ *
+ * @details
+ * 对单面透明物体采用经典 OIT-lite 两 pass 策略：先 cull front（画背面），再 cull back（画正面），
+ * 保证内层表面先写入 framebuffer，外层表面在其上混合。
+ * 对双面透明物体只调用一次 DrawObject — DrawObject 内部已 glDisable(GL_CULL_FACE)，
+ * 避免 4× 几何开销（Phase 6A 修复）。
+ */
 void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -1018,11 +1100,19 @@ void GameTechRenderer::RenderTransparentPass(std::vector<ObjectSortState>& list)
         }
 
         if (!m_wireframeMode) {
-            glCullFace(GL_FRONT);
-            DrawObject(shader, o, viewMatrix);
-            glCullFace(GL_BACK);
+            if (mat.doubleSided) {
+                // 双面：DrawObject 内部已 disable cull，一次绘制即渲染两面
+                DrawObject(shader, o);
+            } else {
+                // 单面：先背面后正面，经典 OIT-lite 两 pass
+                glCullFace(GL_FRONT);
+                DrawObject(shader, o);
+                glCullFace(GL_BACK);
+                DrawObject(shader, o);
+            }
+        } else {
+            DrawObject(shader, o);
         }
-        DrawObject(shader, o, viewMatrix);
     }
 
     glDepthMask(GL_TRUE);

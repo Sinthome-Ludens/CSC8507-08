@@ -24,7 +24,7 @@ vec3 ACES(vec3 x) {
 void main() {
     vec3 hdr = texture(hdrTex, vTexCoord).rgb;
 
-    // SSAO 环境遮蔽（仅压暗 ambient 项）
+    // SSAO 环境遮蔽（当前应用于全 HDR；精确 ambient-only 需 G-buffer 分离）
     if (ssaoEnabled != 0) {
         float ao = texture(ssaoTex, vTexCoord).r;
         hdr *= ao;
