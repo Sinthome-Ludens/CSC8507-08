@@ -165,8 +165,8 @@ namespace NCL {
             float m_pcssLightSize = 3.0f;
 
             // ── Shadow Bias ───────────────────────────────────
-            float m_shadowBiasSlope    = 0.00002f;
-            float m_shadowBiasConstant = 0.000015f;
+            float m_shadowBiasSlope    = 0.0001f;
+            float m_shadowBiasConstant = 0.00005f;
 
             // ── Shadow Buffer & Normal Offset ─────────────────
             float m_shadowNearBuffer = 50.0f;

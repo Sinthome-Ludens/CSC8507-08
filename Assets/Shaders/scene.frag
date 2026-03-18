@@ -51,8 +51,8 @@ uniform float alphaCutoff = 0.5;
 uniform bool  doubleSided = false;
 
 // ── 阴影偏置（可通过 ImGui 动态调整）────────────────────────
-uniform float shadowBiasSlope    = 0.00002;
-uniform float shadowBiasConstant = 0.000015;
+uniform float shadowBiasSlope    = 0.0001;
+uniform float shadowBiasConstant = 0.00005;
 
 // ── 斜率自适应阴影偏置（在 main() 中基于 N·L 设定）──────────────
 float g_shadowBias = 0.0003;

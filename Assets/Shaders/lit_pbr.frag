@@ -58,8 +58,8 @@ uniform bool  doubleSided = false;
 uniform float pcssLightSize = 3.0; // 光源尺寸（光照空间单位）
 
 // ── 阴影偏置（可通过 ImGui 动态调整）────────────────────────
-uniform float shadowBiasSlope    = 0.00002; // tan(theta) 系数：掠射面自动增大
-uniform float shadowBiasConstant = 0.000015; // 基础常量偏置：避免 contact shadow 失效
+uniform float shadowBiasSlope    = 0.0001; // tan(theta) 系数：掠射面自动增大
+uniform float shadowBiasConstant = 0.00005; // 基础常量偏置：避免 contact shadow 失效
 
 // ── 斜率自适应阴影偏置（在 main() 中基于 N·L 设定，helper 函数直接引用）──
 // 正对光时接近零，掠射角时增大，防止自阴影 acne 同时避免 Peter Panning

@@ -120,10 +120,10 @@ void Sys_ImGuiRenderDebug::DrawShadowSection(void* rendererPtr) {
 
     ImGui::Spacing();
     ImGui::TextDisabled("Shadow Bias");
-    if (ImGui::SliderFloat("Bias Slope",    &m_shadowBiasSlope,    0.0f, 0.0002f, "%.6f")) {
+    if (ImGui::SliderFloat("Bias Slope",    &m_shadowBiasSlope,    0.0f, 0.001f, "%.6f")) {
         r->SetShadowBiasSlope(m_shadowBiasSlope);
     }
-    if (ImGui::SliderFloat("Bias Constant", &m_shadowBiasConstant, 0.0f, 0.0002f, "%.6f")) {
+    if (ImGui::SliderFloat("Bias Constant", &m_shadowBiasConstant, 0.0f, 0.001f, "%.6f")) {
         r->SetShadowBiasConstant(m_shadowBiasConstant);
     }
 

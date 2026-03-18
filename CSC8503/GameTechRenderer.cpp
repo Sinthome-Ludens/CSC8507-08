@@ -738,7 +738,7 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LESS);
-    glCullFace(GL_FRONT);
+    glCullFace(GL_BACK);
     glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
     for (int c = 0; c < NUM_CASCADES; c++) {
