@@ -16,10 +16,11 @@
     },
     "C_D_Collider": {
       "type":   "Box",
-      "half_x": 25.0,
-      "half_y": 0.5,
-      "half_z": 25.0
+      "half_x": 50.0,
+      "half_y": 1.0,
+      "half_z": 50.0
     },
+    "C_D_Material": {},
     "C_D_DebugName": { "name": "ENTITY_Env_Floor_Main" }
   }
 }

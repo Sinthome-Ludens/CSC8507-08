@@ -1,0 +1,62 @@
+{
+  "PrefabID": "PREFAB_ENV_FINISH_ZONE",
+  "Name": "Env_FinishZone",
+  "Variants": {
+    "Mesh": {
+      "Components": {
+        "C_D_Transform": {
+          "position": [0.0, 0.0, 0.0],
+          "rotation": [0.0, 0.0, 0.0, 1.0],
+          "scale":    [1.0, 1.0, 1.0]
+        },
+        "C_D_MeshRenderer": {
+          "meshHandle":     "",
+          "materialHandle": 0
+        },
+        "C_D_RigidBody": {
+          "is_static": true
+        },
+        "C_D_Collider": {
+          "type":        "TriMesh",
+          "is_trigger":  true,
+          "friction":    0.0,
+          "restitution": 0.0
+        },
+        "C_T_TriggerZone": {},
+        "C_T_FinishZone": {},
+        "C_D_Material": {
+          "baseColour": [1.0, 0.0, 0.0, 1.0]
+        },
+        "C_D_DebugName": { "name": "ENTITY_Env_FinishZone" }
+      }
+    },
+    "Render": {
+      "Components": {
+        "C_D_Transform": {
+          "position": [0.0, 0.0, 0.0],
+          "rotation": [0.0, 0.0, 0.0, 1.0],
+          "scale":    [1.0, 1.0, 1.0]
+        },
+        "C_D_MeshRenderer": {
+          "meshHandle":     "",
+          "materialHandle": 0
+        },
+        "C_D_Material": {
+          "baseColour": [1.0, 0.0, 0.0, 1.0]
+        },
+        "C_D_DebugName": { "name": "ENTITY_Env_FinishZoneRender" }
+      }
+    },
+    "Detect": {
+      "Components": {
+        "C_D_Transform": {
+          "position": [0.0, 0.0, 0.0],
+          "rotation": [0.0, 0.0, 0.0, 1.0],
+          "scale":    [1.0, 1.0, 1.0]
+        },
+        "C_T_FinishZone": {},
+        "C_D_DebugName": { "name": "ENTITY_Env_FinishZoneDetect" }
+      }
+    }
+  }
+}

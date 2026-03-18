@@ -16,6 +16,7 @@
 #include "Game/Components/Res_CQCConfig.h"
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_VisionConfig.h"
+#include "Game/Components/Res_AIConfig.h"
 #include "Game/Systems/Sys_Countdown.h"
 #include "Game/Systems/Sys_DeathJudgment.h"
 #include "Game/Systems/Sys_DeathEffect.h"
@@ -141,6 +142,10 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     // 视野检测配置资源（数据驱动）
     if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
         registry.ctx_emplace<ECS::Res_VisionConfig>(ECS::Res_VisionConfig{});
+    }
+
+    if (!registry.has_ctx<ECS::Res_AIConfig>()) {
+        registry.ctx_emplace<ECS::Res_AIConfig>(ECS::Res_AIConfig{});
     }
 
     // ── 3. 初始实体生成：通过 PrefabFactory 创建静态地板 + 玩家 ──────────
@@ -284,6 +289,7 @@ void Scene_PhysicsTest::OnExit(ECS::Registry&       registry,
     if (registry.has_ctx<Res_UIFlags>())              registry.ctx_erase<Res_UIFlags>();
     if (registry.has_ctx<ECS::Res_DeathConfig>())     registry.ctx_erase<ECS::Res_DeathConfig>();
     if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
+    if (registry.has_ctx<ECS::Res_AIConfig>())       registry.ctx_erase<ECS::Res_AIConfig>();
     if (registry.has_ctx<ECS::Res_CQCConfig>())       registry.ctx_erase<ECS::Res_CQCConfig>();
     if (registry.has_ctx<Res_TestState>())      registry.ctx_erase<Res_TestState>();
     if (registry.has_ctx<Res_EnemyTestState>()) registry.ctx_erase<Res_EnemyTestState>();

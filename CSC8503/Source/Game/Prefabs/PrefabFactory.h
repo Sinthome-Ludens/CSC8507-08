@@ -10,12 +10,14 @@
 #include "Core/ECS/Registry.h"
 #include "Core/Bridge/AssetManager.h"
 #include "Game/Components/C_D_Item.h"
+#include "RuntimeOverrides.h"
 #include "Vector.h"
 #include "Quaternion.h"
 #include <vector>
+#include <string>
 
 /**
- * @brief 实体预制体工厂（硬编码模式）
+ * @brief 实体预制体工厂（JSON 数据驱动 + 硬编码回退）
  *
  * 提供所有游戏实体的统一创建入口。
  *
@@ -23,18 +25,67 @@
  *  严禁在 System 业务逻辑中直接调用 registry.Create()。
  *  所有实体创建必须通过此工厂的静态方法进行。
  *
- * 当前为"硬编码工厂"模式；对应 JSON 蓝图位于 Assets/Prefabs/，
- * 待反射系统完成后将迁移为 JSON 数据驱动模式。
+ * 各 Create* 方法通过 PrefabLoader 从 Assets/Prefabs/ 的 JSON 蓝图读取默认参数，
+ * 运行时参数（spawnPos, meshHandle 等）从函数参数覆盖。
+ * 若 JSON 文件缺失或解析失败，自动回退到结构体内置默认值（与原硬编码一致）。
  *
  * @see Assets/Prefabs/Prefab_Camera_Main.json
  * @see Assets/Prefabs/Prefab_Env_Floor.json
+ * @see Assets/Prefabs/Prefab_Player.json
  * @see Assets/Prefabs/Prefab_Physics_Cube.json
  * @see Assets/Prefabs/Prefab_Physics_Capsule.json
+ * @see Assets/Prefabs/Prefab_Physics_Enemy.json
+ * @see Assets/Prefabs/Prefab_Nav_Enemy.json
+ * @see Assets/Prefabs/Prefab_Nav_Target.json
+ * @see Assets/Prefabs/Prefab_Env_InvisibleWall.json
+ * @see Assets/Prefabs/Prefab_Env_DeathZone.json
+ * @see Assets/Prefabs/Prefab_TriggerZone.json
+ * @see Assets/Prefabs/Prefab_Env_FinishZone.json
+ * @see Assets/Prefabs/Prefab_HoloBait.json
+ * @see Assets/Prefabs/Prefab_RoamAI.json
+ * @see Assets/Prefabs/Prefab_Map_*.json
  */
 class PrefabFactory {
 public:
     PrefabFactory()  = delete; // 纯静态工厂，禁止实例化
     ~PrefabFactory() = delete;
+
+    // ============================================================
+    // 通用数据驱动创建入口
+    // ============================================================
+
+    /**
+     * @brief 通用 Prefab 创建入口（数据驱动）
+     *
+     * 从 JSON 蓝图的 "Components" 字典中读取组件列表，
+     * 通过 ComponentRegistry 查表 Emplace 各组件。
+     *
+     * @param reg             ECS Registry
+     * @param prefabJsonFile  JSON 蓝图文件名（如 "Prefab_Player.json"）
+     * @param overrides       运行时参数覆盖（mesh 句柄、位置等）
+     * @return 创建的实体 ID，或 Entity::NULL_ENTITY（失败时）
+     */
+    static ECS::EntityID Create(
+        ECS::Registry&          reg,
+        const std::string&      prefabJsonFile,
+        const ECS::RuntimeOverrides& overrides = {}
+    );
+
+    /**
+     * @brief 从 JSON 蓝图的 "Variants" 中创建指定变体实体
+     *
+     * @param reg             ECS Registry
+     * @param prefabJsonFile  JSON 蓝图文件名
+     * @param variantName     变体名称（如 "Mesh", "Render", "Detect"）
+     * @param overrides       运行时参数覆盖
+     * @return 创建的实体 ID，或 Entity::NULL_ENTITY（失败时）
+     */
+    static ECS::EntityID CreateVariant(
+        ECS::Registry&          reg,
+        const std::string&      prefabJsonFile,
+        const std::string&      variantName,
+        const ECS::RuntimeOverrides& overrides = {}
+    );
 
     // ============================================================
     // 相机

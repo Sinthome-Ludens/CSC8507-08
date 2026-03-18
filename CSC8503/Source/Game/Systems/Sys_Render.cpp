@@ -207,13 +207,16 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
         .SetScale(tf.scale)
         .SetOrientation(tf.rotation);
 
-    // 每帧同步材质参数（支持 ImGui 实时调参）
+    // 每帧同步材质参数（支持 ImGui 实时调参）+ 每帧从 alphaMode 重算 MaterialType
     if (reg.Has<C_D_Material>(id)) {
         auto* ro = proxy->GetRenderObject();
         if (ro) {
             const auto& ecsMat = reg.Get<C_D_Material>(id);
             SyncMaterial(ro->GetMaterial(), ecsMat);
             ro->SetColour(ecsMat.baseColour);
+            ro->GetMaterial().type = (ecsMat.alphaMode == AlphaMode::Blend)
+                                   ? MaterialType::Transparent
+                                   : MaterialType::Opaque;
         }
     }
 

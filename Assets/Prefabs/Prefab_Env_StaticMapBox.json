@@ -1,0 +1,27 @@
+{
+  "PrefabID": "PREFAB_ENV_STATIC_MAP_BOX",
+  "Name": "Env_StaticMapBox",
+  "Description": "Static map with Box collider (legacy CreateStaticMap). TriMesh version: Prefab_Env_StaticMap.json.",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, -6.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle": "",
+      "materialHandle": 0
+    },
+    "C_D_RigidBody": { "is_static": true },
+    "C_D_Collider": {
+      "type":        "Box",
+      "half_x":      25.0,
+      "half_y":      0.6,
+      "half_z":      25.0,
+      "friction":    0.5,
+      "restitution": 0.0
+    },
+    "C_D_Material": {},
+    "C_D_DebugName": { "name": "ENTITY_Env_TutorialMap" }
+  }
+}

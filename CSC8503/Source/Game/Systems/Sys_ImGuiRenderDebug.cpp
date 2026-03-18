@@ -120,11 +120,26 @@ void Sys_ImGuiRenderDebug::DrawShadowSection(void* rendererPtr) {
 
     ImGui::Spacing();
     ImGui::TextDisabled("Shadow Bias");
-    if (ImGui::SliderFloat("Bias Slope",    &m_shadowBiasSlope,    0.0f, 0.0002f, "%.6f")) {
+    if (ImGui::SliderFloat("Bias Slope",    &m_shadowBiasSlope,    0.0f, 0.001f, "%.6f")) {
         r->SetShadowBiasSlope(m_shadowBiasSlope);
     }
-    if (ImGui::SliderFloat("Bias Constant", &m_shadowBiasConstant, 0.0f, 0.0002f, "%.6f")) {
+    if (ImGui::SliderFloat("Bias Constant", &m_shadowBiasConstant, 0.0f, 0.001f, "%.6f")) {
         r->SetShadowBiasConstant(m_shadowBiasConstant);
+    }
+
+    ImGui::Spacing();
+    ImGui::TextDisabled("Normal Offset (Sender-side)");
+    if (ImGui::SliderFloat("Normal Offset Scale", &m_shadowNormalOffsetScale, 0.0f, 2.0f, "%.2f texel")) {
+        r->SetShadowNormalOffsetScale(m_shadowNormalOffsetScale);
+    }
+
+    ImGui::Spacing();
+    ImGui::TextDisabled("Cascade Depth Buffer");
+    if (ImGui::SliderFloat("Near Buffer", &m_shadowNearBuffer, 10.0f, 200.0f, "%.0f")) {
+        r->SetShadowNearBuffer(m_shadowNearBuffer);
+    }
+    if (ImGui::SliderFloat("Far Buffer", &m_shadowFarBuffer, 5.0f, 100.0f, "%.0f")) {
+        r->SetShadowFarBuffer(m_shadowFarBuffer);
     }
 
     if (ImGui::Checkbox("Debug Cascades", &m_debugCascades)) {

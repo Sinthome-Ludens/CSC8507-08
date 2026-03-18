@@ -26,6 +26,7 @@
       "finishMesh":    "HangerB_finish.obj",
       "startPoints":   "HangerB.startpoints",
       "enemySpawns":   "HangerB.enemyspawns",
+      "itemSpawns":    "HangerB.itemspawns",
       "mapScale":      1.0,
       "yOffset":       -6.0,
       "flipWinding":   true

@@ -1,0 +1,26 @@
+{
+  "PrefabID": "PREFAB_ROAM_AI",
+  "Name": "RoamAI",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.5, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [0.4, 0.4, 0.4]
+    },
+    "C_T_RoamAI": {},
+    "C_D_RoamAI": {
+      "roamSpeed":        6.0,
+      "waypointInterval": 2.0,
+      "detectRadius":     1.5,
+      "active":           true
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle": "cube.obj",
+      "materialHandle": 0
+    },
+    "C_D_Material": {
+      "baseColour": [0.2, 0.85, 0.2, 1.0]
+    },
+    "C_D_DebugName": { "name": "ENTITY_RoamAI" }
+  }
+}

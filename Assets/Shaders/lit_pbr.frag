@@ -29,10 +29,10 @@ uniform mat4 shadowMatrix1;
 uniform mat4 shadowMatrix2;
 uniform float cascadeSplits[3]; // = {15, 60, 300}（视空间 z）
 
-// ── IBL（unit 8-10，Stage 3 接入后取消注释）─────────────────
-// uniform samplerCube irradianceMap;  // unit 8
-// uniform samplerCube prefilterMap;   // unit 9
-// uniform sampler2D   brdfLUT;        // unit 10
+// ── IBL（unit 8-10）─────────────────────────────────────────
+uniform samplerCube irradianceMap;  // unit 8
+uniform samplerCube prefilterMap;   // unit 9
+uniform sampler2D   brdfLUT;        // unit 10
 uniform float iblIntensity = 1.0;
 uniform bool  useIBL       = false;
 
@@ -58,8 +58,8 @@ uniform bool  doubleSided = false;
 uniform float pcssLightSize = 3.0; // 光源尺寸（光照空间单位）
 
 // ── 阴影偏置（可通过 ImGui 动态调整）────────────────────────
-uniform float shadowBiasSlope    = 0.00002; // tan(theta) 系数：掠射面自动增大
-uniform float shadowBiasConstant = 0.000015; // 基础常量偏置：避免 contact shadow 失效
+uniform float shadowBiasSlope    = 0.0001; // tan(theta) 系数：掠射面自动增大
+uniform float shadowBiasConstant = 0.00005; // 基础常量偏置：避免 contact shadow 失效
 
 // ── 斜率自适应阴影偏置（在 main() 中基于 N·L 设定，helper 函数直接引用）──
 // 正对光时接近零，掠射角时增大，防止自阴影 acne 同时避免 Peter Panning
@@ -205,32 +205,46 @@ float ComputeCascadeShadow(vec3 worldPos, float viewDepth) {
     // 相邻级联过渡混合宽度（世界单位）；在此区间内双倍采样并插值
     const float blendRange = 4.0;
 
+    // 保存原始 bias，按级联 texel 密度缩放后恢复
+    float baseBias = g_shadowBias;
+
     vec4 sc0 = shadowMatrix0 * vec4(worldPos, 1.0);
     vec4 sc1 = shadowMatrix1 * vec4(worldPos, 1.0);
     vec4 sc2 = shadowMatrix2 * vec4(worldPos, 1.0);
 
     if (viewDepth < cascadeSplits[0]) {
+        g_shadowBias = baseBias;          // C0 (4096): 1.0x
         float s0 = SampleShadowPCSS(shadowTex0, sc0, 4096, false);
         // 接近 C0→C1 边界：与 C1 混合
         float blendStart = cascadeSplits[0] - blendRange;
         if (viewDepth > blendStart) {
             float t  = (viewDepth - blendStart) / blendRange;
+            g_shadowBias = baseBias * 2.0; // C1 (2048): 2.0x
             float s1 = SampleShadowPCSS(shadowTex1, sc1, 2048, false);
+            g_shadowBias = baseBias;
             return mix(s0, s1, t);
         }
+        g_shadowBias = baseBias;
         return s0;
     } else if (viewDepth < cascadeSplits[1]) {
+        g_shadowBias = baseBias * 2.0;    // C1 (2048): 2.0x
         float s1 = SampleShadowPCSS(shadowTex1, sc1, 2048, false);
         // 接近 C1→C2 边界：与 C2 混合
         float blendStart = cascadeSplits[1] - blendRange;
         if (viewDepth > blendStart) {
             float t  = (viewDepth - blendStart) / blendRange;
+            g_shadowBias = baseBias * 4.0; // C2 (1024): 4.0x
             float s2 = SampleShadowPCSS(shadowTex2, sc2, 1024, true);
+            g_shadowBias = baseBias;
             return mix(s1, s2, t);
         }
+        g_shadowBias = baseBias;
         return s1;
     } else {
-        return SampleShadowPCSS(shadowTex2, sc2, 1024, true);
+        g_shadowBias = baseBias * 4.0;    // C2 (1024): 4.0x
+        float result = SampleShadowPCSS(shadowTex2, sc2, 1024, true);
+        g_shadowBias = baseBias;
+        return result;
     }
 }
 
@@ -270,7 +284,7 @@ void main() {
     // ── 太阳光直接照明（Cook-Torrance BRDF）────────────────
     vec3 Lo = vec3(0.0);
     {
-        vec3 L = normalize(sunPos - IN.worldPos); // 点光源；若定向光则 L = normalize(sunPos)
+        vec3 L = normalize(sunPos); // 方向光：sunPos 实际为光照方向向量
         vec3 H = normalize(V + L);
         float NdotL = max(dot(N, L), 0.0);
         float NdotV = max(dot(N, V), 0.001);
@@ -302,9 +316,8 @@ void main() {
         Lo += (kD * albedo / PI + specular) * sunColour * NdotL * shadow;
     }
 
-    // ── IBL 环境光（Stage 3 接通后取消注释）─────────────────
+    // ── IBL 环境光 ─────────────────────────────────────────────
     vec3 ambient = vec3(0.03) * albedo * matAo;
-    /*
     if (useIBL) {
         float NdotV = max(dot(N, V), 0.0);
         vec3  F = F_SchlickRoughness(NdotV, F0, roughness);
@@ -322,7 +335,6 @@ void main() {
 
         ambient = (diffIBL + specIBL) * matAo * iblIntensity;
     }
-    */
 
     // ── 自发光 ────────────────────────────────────────────────
     vec3 emissive = texture(emissiveTex, IN.texCoord).rgb * emissiveColor * emissiveStrength;

@@ -21,6 +21,7 @@
 #include "Mesh.h"
 
 #include <unordered_map>
+#include <queue>
 
 using namespace NCL;
 using namespace NCL::Rendering;
@@ -491,12 +492,39 @@ MeshAnimation* AssimpLoader::LoadAnimation(const std::string& path, OGLMesh* mes
                 }
             }
 
+            // 从 aiScene 节点树构建 jointParents
+            {
+                std::unordered_map<std::string, int> boneNameToIdx;
+                for (unsigned int b = 0; b < aiMesh->mNumBones; b++) {
+                    boneNameToIdx[jointNames[b]] = (int)b;
+                }
+                // BFS 遍历节点树
+                std::queue<const aiNode*> bfsQueue;
+                bfsQueue.push(scene->mRootNode);
+                while (!bfsQueue.empty()) {
+                    const aiNode* node = bfsQueue.front();
+                    bfsQueue.pop();
+                    std::string nodeName(node->mName.C_Str());
+                    auto parentIt = boneNameToIdx.find(nodeName);
+                    for (unsigned int c = 0; c < node->mNumChildren; c++) {
+                        const aiNode* child = node->mChildren[c];
+                        std::string childName(child->mName.C_Str());
+                        auto childIt = boneNameToIdx.find(childName);
+                        if (childIt != boneNameToIdx.end() && parentIt != boneNameToIdx.end()) {
+                            jointParents[childIt->second] = parentIt->second;
+                        }
+                        bfsQueue.push(child);
+                    }
+                }
+            }
+
             meshToFill->SetJointNames(jointNames);
             meshToFill->SetJointParents(jointParents);
             meshToFill->SetBindPose(bindPose);
             meshToFill->SetInverseBindPose(invBind);
             meshToFill->SetVertexSkinWeights(skinWeights);
             meshToFill->SetVertexSkinIndices(skinIndices);
+            meshToFill->UploadSkinBuffers();
         }
     }
 
@@ -504,29 +532,72 @@ MeshAnimation* AssimpLoader::LoadAnimation(const std::string& path, OGLMesh* mes
     size_t numJoints = jointIndexMap.empty() ? 1 : jointIndexMap.size();
     std::vector<Matrix4> allJoints(frameCount * numJoints);
 
-    // 构建节点→本地变换（简化版：对每帧采样每个通道）
+    // 构建节点树的默认本地变换 + 父子关系（用于层级累乘）
+    struct NodeInfo {
+        std::string name;
+        int         parentIdx = -1;   // index into nodeList
+        Matrix4     defaultLocal;     // 节点默认本地变换
+        int         jointIdx  = -1;   // jointIndexMap 中的索引，-1 表示非骨骼中间节点
+    };
+    std::vector<NodeInfo> nodeList;
+    std::unordered_map<std::string, int> nodeNameToListIdx;
+
+    // BFS 构建扁平化节点列表（保证 parent 在 child 之前 = 拓扑序）
+    {
+        std::queue<std::pair<const aiNode*, int>> bfs;
+        bfs.push({scene->mRootNode, -1});
+        while (!bfs.empty()) {
+            auto [node, parentListIdx] = bfs.front();
+            bfs.pop();
+            int curIdx = (int)nodeList.size();
+            NodeInfo info;
+            info.name = node->mName.C_Str();
+            info.parentIdx = parentListIdx;
+            // 默认本地变换
+            aiMatrix4x4 t = node->mTransformation;
+            info.defaultLocal.array[0][0] = t.a1; info.defaultLocal.array[1][0] = t.a2; info.defaultLocal.array[2][0] = t.a3; info.defaultLocal.array[3][0] = t.a4;
+            info.defaultLocal.array[0][1] = t.b1; info.defaultLocal.array[1][1] = t.b2; info.defaultLocal.array[2][1] = t.b3; info.defaultLocal.array[3][1] = t.b4;
+            info.defaultLocal.array[0][2] = t.c1; info.defaultLocal.array[1][2] = t.c2; info.defaultLocal.array[2][2] = t.c3; info.defaultLocal.array[3][2] = t.c4;
+            info.defaultLocal.array[0][3] = t.d1; info.defaultLocal.array[1][3] = t.d2; info.defaultLocal.array[2][3] = t.d3; info.defaultLocal.array[3][3] = t.d4;
+            auto jit = jointIndexMap.find(info.name);
+            info.jointIdx = (jit != jointIndexMap.end()) ? jit->second : -1;
+            nodeList.push_back(info);
+            nodeNameToListIdx[info.name] = curIdx;
+            for (unsigned int c = 0; c < node->mNumChildren; c++) {
+                bfs.push({node->mChildren[c], curIdx});
+            }
+        }
+    }
+
+    // 每帧：先采样动画通道到 localTransforms，再按拓扑序累乘
+    std::vector<Matrix4> localTransforms(nodeList.size());
+    std::vector<Matrix4> globalTransforms(nodeList.size());
+
     for (size_t frame = 0; frame < frameCount; frame++) {
         float tick = (float)frame;
+
+        // 初始化所有节点为默认本地变换
+        for (size_t n = 0; n < nodeList.size(); n++) {
+            localTransforms[n] = nodeList[n].defaultLocal;
+        }
+
+        // 用动画通道覆盖有动画的节点
         for (unsigned int c = 0; c < anim->mNumChannels; c++) {
             const aiNodeAnim* channel = anim->mChannels[c];
             std::string nodeName(channel->mNodeName.C_Str());
-            auto it = jointIndexMap.find(nodeName);
-            if (it == jointIndexMap.end()) continue;
-            int jIdx = it->second;
+            auto nit = nodeNameToListIdx.find(nodeName);
+            if (nit == nodeNameToListIdx.end()) continue;
 
-            // 位置（最近帧）
             aiVector3D pos(0, 0, 0);
             for (unsigned int k = 0; k < channel->mNumPositionKeys; k++) {
                 if (channel->mPositionKeys[k].mTime <= tick) pos = channel->mPositionKeys[k].mValue;
                 else break;
             }
-            // 旋转（最近帧）
             aiQuaternion rot(1, 0, 0, 0);
             for (unsigned int k = 0; k < channel->mNumRotationKeys; k++) {
                 if (channel->mRotationKeys[k].mTime <= tick) rot = channel->mRotationKeys[k].mValue;
                 else break;
             }
-            // 缩放（最近帧）
             aiVector3D scl(1, 1, 1);
             for (unsigned int k = 0; k < channel->mNumScalingKeys; k++) {
                 if (channel->mScalingKeys[k].mTime <= tick) scl = channel->mScalingKeys[k].mValue;
@@ -541,14 +612,24 @@ MeshAnimation* AssimpLoader::LoadAnimation(const std::string& path, OGLMesh* mes
             aiMatrix4x4::Scaling(scl, sclMat);
             mat = mat * sclMat;
 
-            int frameOffset = (int)(frame * numJoints + jIdx);
-            {
-                Matrix4 m;
-                m.array[0][0] = mat.a1; m.array[1][0] = mat.a2; m.array[2][0] = mat.a3; m.array[3][0] = mat.a4;
-                m.array[0][1] = mat.b1; m.array[1][1] = mat.b2; m.array[2][1] = mat.b3; m.array[3][1] = mat.b4;
-                m.array[0][2] = mat.c1; m.array[1][2] = mat.c2; m.array[2][2] = mat.c3; m.array[3][2] = mat.c4;
-                m.array[0][3] = mat.d1; m.array[1][3] = mat.d2; m.array[2][3] = mat.d3; m.array[3][3] = mat.d4;
-                allJoints[frameOffset] = m;
+            Matrix4 m;
+            m.array[0][0] = mat.a1; m.array[1][0] = mat.a2; m.array[2][0] = mat.a3; m.array[3][0] = mat.a4;
+            m.array[0][1] = mat.b1; m.array[1][1] = mat.b2; m.array[2][1] = mat.b3; m.array[3][1] = mat.b4;
+            m.array[0][2] = mat.c1; m.array[1][2] = mat.c2; m.array[2][2] = mat.c3; m.array[3][2] = mat.c4;
+            m.array[0][3] = mat.d1; m.array[1][3] = mat.d2; m.array[2][3] = mat.d3; m.array[3][3] = mat.d4;
+            localTransforms[nit->second] = m;
+        }
+
+        // 拓扑序累乘：globalTransform[n] = globalTransform[parent] * localTransform[n]
+        for (size_t n = 0; n < nodeList.size(); n++) {
+            if (nodeList[n].parentIdx >= 0) {
+                globalTransforms[n] = globalTransforms[nodeList[n].parentIdx] * localTransforms[n];
+            } else {
+                globalTransforms[n] = localTransforms[n];
+            }
+            // 写入 allJoints（仅骨骼节点）
+            if (nodeList[n].jointIdx >= 0) {
+                allJoints[frame * numJoints + nodeList[n].jointIdx] = globalTransforms[n];
             }
         }
     }

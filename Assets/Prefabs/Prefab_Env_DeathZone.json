@@ -1,0 +1,22 @@
+{
+  "PrefabID": "PREFAB_ENV_DEATH_ZONE",
+  "Name": "Env_DeathZone",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_RigidBody": {
+      "is_static": true
+    },
+    "C_D_Collider": {
+      "type":        "Box",
+      "is_trigger":  true,
+      "friction":    0.0,
+      "restitution": 0.0
+    },
+    "C_T_DeathZone": {},
+    "C_D_DebugName": { "name": "ENTITY_Env_DeathZone_XX" }
+  }
+}

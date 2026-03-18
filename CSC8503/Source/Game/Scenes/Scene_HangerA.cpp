@@ -16,6 +16,7 @@
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_VisionConfig.h"
+#include "Game/Components/Res_AIConfig.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Countdown.h"
@@ -23,6 +24,7 @@
 #include "Game/Systems/Sys_DeathEffect.h"
 #include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_InputDispatch.h"
+#include "Game/Systems/Sys_Animation.h"
 #include "Game/Systems/Sys_PlayerDisguise.h"
 #include "Game/Systems/Sys_PlayerStance.h"
 #include "Game/Systems/Sys_StealthMetrics.h"
@@ -39,6 +41,7 @@
 #include "Game/Systems/Sys_LevelGoal.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/MapLoader.h"
+#include "Game/Utils/PrefabLoader.h"
 #include "Game/Utils/SaveManager.h"
 #include "Game/Utils/ItemEquipSync.h"
 
@@ -89,6 +92,11 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
     if (!registry.has_ctx<ECS::Res_VisionConfig>()) {
         registry.ctx_emplace<ECS::Res_VisionConfig>(ECS::Res_VisionConfig{});
     }
+
+    if (!registry.has_ctx<ECS::Res_AIConfig>()) {
+        registry.ctx_emplace<ECS::Res_AIConfig>(ECS::Res_AIConfig{});
+    }
+
     {
         Res_NavTestState navState;
         navState.enemyMeshHandle  = cubeMesh;
@@ -98,21 +106,16 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
 
     // ── 3. Map loading (MapLoadConfig driven) ───────────────────────────
     MapLoadConfig mapConfig{};
-    strncpy_s(mapConfig.renderMesh,    sizeof(mapConfig.renderMesh),    "HangerA.obj", _TRUNCATE);
-    strncpy_s(mapConfig.collisionMesh, sizeof(mapConfig.collisionMesh), "HangerA_collision.obj", _TRUNCATE);
-    strncpy_s(mapConfig.navmesh,       sizeof(mapConfig.navmesh),       "HangerA.navmesh", _TRUNCATE);
-    strncpy_s(mapConfig.finishMesh,    sizeof(mapConfig.finishMesh),    "HangerA_finish.obj", _TRUNCATE);
-    strncpy_s(mapConfig.startPoints,   sizeof(mapConfig.startPoints),   "HangerA.startpoints", _TRUNCATE);
-    strncpy_s(mapConfig.enemySpawns,   sizeof(mapConfig.enemySpawns),   "HangerA.enemyspawns", _TRUNCATE);
-    strncpy_s(mapConfig.itemSpawns,    sizeof(mapConfig.itemSpawns),    "HangerA.itemspawns", _TRUNCATE);
-    mapConfig.mapScale    = 1.0f;
-    mapConfig.yOffset     = -6.0f;
-    mapConfig.flipWinding = true;
+    if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_HangerA.json", mapConfig)) {
+        LOG_ERROR("[Scene_HangerA] Failed to load map config from Prefab_Map_HangerA.json");
+        return;
+    }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
 
     // ── 4. System registration (priority ascending) ─────────────────────
     systems.Register<ECS::Sys_Input>           ( 10);
+    systems.Register<ECS::Sys_Animation>       ( 50);
     systems.Register<ECS::Sys_InputDispatch>   ( 55);
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);
     systems.Register<ECS::Sys_PlayerStance>    ( 60);
@@ -212,6 +215,7 @@ void Scene_HangerA::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_CQCConfig>())       registry.ctx_erase<ECS::Res_CQCConfig>();
     if (registry.has_ctx<ECS::Res_DeathConfig>())     registry.ctx_erase<ECS::Res_DeathConfig>();
     if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
+    if (registry.has_ctx<ECS::Res_AIConfig>())        registry.ctx_erase<ECS::Res_AIConfig>();
     if (registry.has_ctx<ECS::Res_ItemInventory2>())  registry.ctx_erase<ECS::Res_ItemInventory2>();
     if (registry.has_ctx<ECS::Res_RadarState>())      registry.ctx_erase<ECS::Res_RadarState>();
     if (registry.has_ctx<ECS::Res_GameState>())       registry.ctx_erase<ECS::Res_GameState>();

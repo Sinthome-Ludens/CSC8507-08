@@ -1,0 +1,28 @@
+{
+  "PrefabID": "PREFAB_NAV_TARGET",
+  "Name": "Nav_Target",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [0.5, 0.5, 0.5]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle":     "",
+      "materialHandle": 0
+    },
+    "C_D_RigidBody": {
+      "is_static": true
+    },
+    "C_D_Collider": {
+      "type":   "Box",
+      "half_x": 0.5,
+      "half_y": 0.5,
+      "half_z": 0.5
+    },
+    "C_T_NavTarget": {
+      "target_type": "Player"
+    },
+    "C_D_DebugName": { "name": "ENTITY_Nav_Target_XX" }
+  }
+}

@@ -80,41 +80,40 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
 
     NCL::Maths::Vector3 targetPoint = agent.path_waypoints[agent.current_waypoint_index];
     NCL::Maths::Vector3 dir = targetPoint - tf.position;
-    // 不再清零 dir.y，保留 3D 方向以支持斜坡移动
 
-    float distSq = dir.x*dir.x + dir.y*dir.y + dir.z*dir.z;  // 3D 距离
+    float distSq = dir.x*dir.x + dir.y*dir.y + dir.z*dir.z;
+    float xzCurSq = dir.x*dir.x + dir.z*dir.z;
     bool isLastWaypoint = (agent.current_waypoint_index == agent.path_length - 1);
 
-    // ── 前瞻跳跃：若下一路点比当前路点更近，说明 agent 已越过当前路点 ──────────
-    // 原因：agent 以全速运动时可能略微冲过路点，此时当前路点已在身后或侧方，
-    // 继续朝它移动会产生向后偏转。直接跳到最近的后续路点（保留终点不跳过）。
+    // ── 前瞻跳跃：使用 XZ 距离比较，Y 高度差不干扰路点推进 ──────────
     while (!isLastWaypoint) {
         const NCL::Maths::Vector3& nxt =
             agent.path_waypoints[agent.current_waypoint_index + 1];
         float ndx = nxt.x - tf.position.x;
         float ndy = nxt.y - tf.position.y;
         float ndz = nxt.z - tf.position.z;
-        float nDistSq = ndx*ndx + ndy*ndy + ndz*ndz;  // 3D 距离
-        if (nDistSq < distSq) {
+        float nXZSq = ndx*ndx + ndz*ndz;
+        if (nXZSq < xzCurSq) {
             agent.current_waypoint_index++;
             targetPoint  = nxt;
             dir.x = ndx; dir.y = ndy; dir.z = ndz;
-            distSq = nDistSq;
+            distSq = ndx*ndx + ndy*ndy + ndz*ndz;
+            xzCurSq = nXZSq;
             isLastWaypoint = (agent.current_waypoint_index == agent.path_length - 1);
         } else {
             break;
         }
     }
 
-    // 到达阈值：终点使用 stopping_distance，中间路点 0.36m²（0.6m 半径，3D 空间）
+    // 到达阈值：XZ 平面距离判定，Y 高度差不阻止路点推进
+    float xzDistSq = dir.x * dir.x + dir.z * dir.z;
     float arrivalSq = isLastWaypoint
         ? (agent.stopping_distance * agent.stopping_distance)
         : 0.36f;
 
-    if (distSq < arrivalSq) {
+    if (xzDistSq < arrivalSq) {
         if (!isLastWaypoint) {
             agent.current_waypoint_index++;
-            // 清零速度，防止转角处惯性冲进墙体
             if (physics && rb.body_created) {
                 physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
             }
@@ -145,18 +144,54 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
         }
     }
 
-    // 接近中间路点时降速（防止转角冲过头卡进墙角）
+    /**
+     * 前方障碍避让（墙面滑移版）：
+     * 在移动方向前方 1.5m 发射水平射线，命中非自身障碍物时
+     * 将移动方向投影到墙面切线方向（滑移），避免拐角处
+     * "停止-重规划"死循环。仅在完全正对墙面无法滑移时才清零速度。
+     * 使用 Sys_Physics::CastRayIgnoring（Jolt），不走 NCLGL。
+     */
+    if (physics && rb.body_created && dist > 0.5f) {
+        auto fwdHit = physics->CastRayIgnoring(
+            tf.position.x, tf.position.y + 0.5f, tf.position.z,
+            dir.x, 0.0f, dir.z,
+            1.5f, entity);
+        if (fwdHit.hit && fwdHit.entity != entity) {
+            float nx = fwdHit.normalX;
+            float nz = fwdHit.normalZ;
+            float nLen = sqrtf(nx * nx + nz * nz);
+            if (nLen > 0.001f) {
+                nx /= nLen;
+                nz /= nLen;
+                float dot = dir.x * nx + dir.z * nz;
+                if (dot < 0.0f) {
+                    dir.x -= dot * nx;
+                    dir.z -= dot * nz;
+                    float newLen = sqrtf(dir.x * dir.x + dir.z * dir.z);
+                    if (newLen > 0.001f) {
+                        dir.x /= newLen;
+                        dir.z /= newLen;
+                    } else {
+                        physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
+                        agent.timer = agent.update_frequency;
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     float speed = agent.speed;
-    if (!isLastWaypoint && dist < 1.5f) {
-        speed *= std::max(0.4f, dist / 1.5f);
+    if (!isLastWaypoint && agent.corner_decel_range > 0.001f && dist < agent.corner_decel_range) {
+        speed *= std::max(0.4f, dist / agent.corner_decel_range);
     }
 
     if (physics && rb.body_created) {
-        // 3D 速度，Y 分量限幅防止飞天（±8 m/s 足够爬坡）
         float vy = std::clamp(dir.y * speed, -8.0f, 8.0f);
         physics->SetLinearVelocity(entity,
             dir.x * speed, vy, dir.z * speed);
     }
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -189,9 +224,8 @@ static void SkipReachedWaypoints(C_D_NavAgent& agent, const C_D_Transform& tf)
         const NCL::Maths::Vector3& wp =
             agent.path_waypoints[agent.current_waypoint_index];
         float dx = wp.x - tf.position.x;
-        float dy = wp.y - tf.position.y;
         float dz = wp.z - tf.position.z;
-        if (dx*dx + dy*dy + dz*dz < 0.36f) {   // 3D 距离，0.6m 半径
+        if (dx*dx + dz*dz < 0.36f) {
             agent.current_waypoint_index++;
         } else {
             break;
@@ -219,12 +253,10 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
         physics = registry.ctx<Sys_Physics*>();
     }
 
-    // 预收集所有 NavTarget，避免在 agent 循环内重复 ECS 视图扫描（O(n×m) → O(n+m)）
-    struct TargetEntry { const char* type; NCL::Maths::Vector3 pos; };
-    std::vector<TargetEntry> allTargets;
+    m_TargetCache.clear();
     registry.view<C_T_NavTarget, C_D_Transform>().each(
         [&](EntityID, C_T_NavTarget& tTag, C_D_Transform& tTf) {
-            allTargets.push_back({ tTag.target_type, tTf.position });
+            m_TargetCache.push_back({ tTag.target_type, tTf.position });
         });
 
     auto agents = registry.view<C_T_Pathfinder, C_D_NavAgent, C_D_Transform, C_D_RigidBody>();
@@ -240,7 +272,7 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
         bool targetFound = false;
         float minDistanceSq = 1e10f;
 
-        for (const auto& entry : allTargets) {
+        for (const auto& entry : m_TargetCache) {
             if (std::strcmp(entry.type, agent.search_tag) == 0) {
                 NCL::Maths::Vector3 diff = entry.pos - tf.position;
                 float dSq = diff.x*diff.x + diff.y*diff.y + diff.z*diff.z;
@@ -295,9 +327,9 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
             // 需要规划到当前巡逻路点的路径
             if (patrol->needs_path) {
                 const NCL::Maths::Vector3& dest = patrol->waypoints[patrol->current_index];
-                std::vector<NCL::Maths::Vector3> tempPath;
-                if (m_Pathfinder->FindPath(tf.position, dest, tempPath)) {
-                    CopyPathToAgent(agent, tempPath);
+                m_ScratchPath.clear();
+                if (m_Pathfinder->FindPath(tf.position, dest, m_ScratchPath)) {
+                    CopyPathToAgent(agent, m_ScratchPath);
                     SkipReachedWaypoints(agent, tf);
                     patrol->needs_path = false;  // 成功时才清除，失败下帧重试
                 }
@@ -309,18 +341,49 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
             break;
         }
 
-        // ── Search：停止移动，朝向最后已知目标位置旋转 ──────────────────
+        /**
+         * Search：两阶段行为（借鉴 ai/ RETURN 概念）
+         * 阶段一：首次进入 Search 且有最后已知位置 → 寻路到该位置（patrol_speed）
+         * 阶段二：到达调查点后 → 停止移动，朝向最后已知位置旋转
+         * 离开 Search 时重置 search_arrived 标志
+         */
         case EnemyState::Search: {
-            // 进入 Search 时停止并清路径
-            agent.path_length              = 0;
-            agent.current_waypoint_index   = 0;
-            agent.is_active                = false;
-            if (physics && rb.body_created) {
-                physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
+            if (agent.prev_state != EnemyState::Search) {
+                agent.search_arrived = false;
+                if (agent.has_last_known_pos) {
+                    m_ScratchPath.clear();
+                    if (m_Pathfinder->FindPath(tf.position, agent.last_known_target_pos, m_ScratchPath)) {
+                        CopyPathToAgent(agent, m_ScratchPath);
+                        SkipReachedWaypoints(agent, tf);
+                    } else {
+                        agent.path_waypoints[0]      = agent.last_known_target_pos;
+                        agent.path_length            = 1;
+                        agent.current_waypoint_index = 0;
+                        agent.is_active              = true;
+                    }
+                } else {
+                    agent.search_arrived = true;
+                }
             }
-            if (agent.smooth_rotation && agent.has_last_known_pos) {
-                ApplyRotationToward(entity, agent, tf, rb, physics,
-                                    agent.last_known_target_pos, dt);
+
+            if (!agent.search_arrived) {
+                { float saved = agent.speed; agent.speed = agent.patrol_speed;
+                FollowPath(entity, agent, tf, rb, physics, dt);
+                agent.speed = saved; }
+                if (!agent.is_active) {
+                    agent.search_arrived = true;
+                }
+            } else {
+                agent.path_length            = 0;
+                agent.current_waypoint_index = 0;
+                agent.is_active              = false;
+                if (physics && rb.body_created) {
+                    physics->SetLinearVelocity(entity, 0.0f, 0.0f, 0.0f);
+                }
+                if (agent.smooth_rotation && agent.has_last_known_pos) {
+                    ApplyRotationToward(entity, agent, tf, rb, physics,
+                                        agent.last_known_target_pos, dt);
+                }
             }
             break;
         }
@@ -330,9 +393,9 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
             if (agent.prev_state != EnemyState::Alert && agent.has_last_known_pos) {
                 // 首次进入：对当前最后已知位置做快照，立即规划路径
                 agent.alert_snapshot_pos = agent.last_known_target_pos;
-                std::vector<NCL::Maths::Vector3> tempPath;
-                if (m_Pathfinder->FindPath(tf.position, agent.alert_snapshot_pos, tempPath)) {
-                    CopyPathToAgent(agent, tempPath);
+                m_ScratchPath.clear();
+                if (m_Pathfinder->FindPath(tf.position, agent.alert_snapshot_pos, m_ScratchPath)) {
+                    CopyPathToAgent(agent, m_ScratchPath);
                     SkipReachedWaypoints(agent, tf);
                 }
             }
@@ -362,20 +425,29 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
 
             bool justEntered = (agent.prev_state != EnemyState::Hunt);
             if (justEntered) {
-                // 首次进入 Hunt：立即规划路径，不等待计时器
-                std::vector<NCL::Maths::Vector3> tempPath;
-                if (m_Pathfinder->FindPath(tf.position, liveTargetPos, tempPath)) {
-                    CopyPathToAgent(agent, tempPath);
+                m_ScratchPath.clear();
+                if (m_Pathfinder->FindPath(tf.position, liveTargetPos, m_ScratchPath)) {
+                    CopyPathToAgent(agent, m_ScratchPath);
                     SkipReachedWaypoints(agent, tf);
+                } else {
+                    agent.path_waypoints[0]      = liveTargetPos;
+                    agent.path_length            = 1;
+                    agent.current_waypoint_index = 0;
+                    agent.is_active              = true;
                 }
                 agent.timer = 0.0f;
             } else {
                 agent.timer += dt;
                 if (agent.timer >= agent.update_frequency) {
-                    std::vector<NCL::Maths::Vector3> tempPath;
-                    if (m_Pathfinder->FindPath(tf.position, liveTargetPos, tempPath)) {
-                        CopyPathToAgent(agent, tempPath);
+                    m_ScratchPath.clear();
+                    if (m_Pathfinder->FindPath(tf.position, liveTargetPos, m_ScratchPath)) {
+                        CopyPathToAgent(agent, m_ScratchPath);
                         SkipReachedWaypoints(agent, tf);
+                    } else {
+                        agent.path_waypoints[0]      = liveTargetPos;
+                        agent.path_length            = 1;
+                        agent.current_waypoint_index = 0;
+                        agent.is_active              = true;
                     }
                     agent.timer = 0.0f;
                 }

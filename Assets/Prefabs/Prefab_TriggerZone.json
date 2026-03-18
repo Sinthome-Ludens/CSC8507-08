@@ -1,0 +1,20 @@
+{
+  "PrefabID": "PREFAB_TRIGGER_ZONE",
+  "Name": "TriggerZone",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_RigidBody": {
+      "is_static": true
+    },
+    "C_D_Collider": {
+      "type":       "Box",
+      "is_trigger": true
+    },
+    "C_T_TriggerZone": {},
+    "C_D_DebugName": { "name": "ENTITY_Trigger_Zone" }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "PrefabID": "PREFAB_PLAYER",
+  "Name": "Player_Main",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, -3.5, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle":     "cube.obj",
+      "materialHandle": 0
+    },
+    "C_D_RigidBody": {
+      "mass":            5.0,
+      "gravity_factor":  1.0,
+      "linear_damping":  0.5,
+      "angular_damping": 0.05,
+      "is_static":       false,
+      "lock_rotation_x": true,
+      "lock_rotation_y": true,
+      "lock_rotation_z": true
+    },
+    "C_D_Collider": {
+      "type":        "Capsule",
+      "radius":      0.5,
+      "half_height": 1.0,
+      "friction":    0.5,
+      "restitution": 0.0
+    },
+    "C_T_Player": {},
+    "C_D_PlayerState": {},
+    "C_D_Input": {},
+    "C_D_CQCState": {},
+    "C_D_Health": {
+      "hp":    100.0,
+      "maxHp": 100.0
+    },
+    "C_T_NavTarget": {
+      "target_type": "Player"
+    },
+    "C_D_DebugName": { "name": "ENTITY_Player_Main" }
+  }
+}

@@ -124,10 +124,39 @@ void OGLMesh::UpdateGPUBuffers(unsigned int startVertex, unsigned int vertexCoun
 	}
 
 	if (!GetSkinIndexData().empty()) {	//Skeleton joint indices
-		glBindBuffer(GL_ARRAY_BUFFER, attributeBuffers[VertexAttribute::TextureCoords]);
+		glBindBuffer(GL_ARRAY_BUFFER, attributeBuffers[VertexAttribute::JointIndices]);
 		glBufferSubData(GL_ARRAY_BUFFER, startVertex * sizeof(Vector4i), vertexCount * sizeof(Vector4i), (char*)&GetSkinIndexData()[startVertex]);
 	}
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void OGLMesh::UploadSkinBuffers() {
+	if (vao == 0) return;
+	glBindVertexArray(vao);
+	int numVertices = GetVertexCount();
+
+	if (!GetSkinWeightData().empty()) {
+		if (attributeBuffers[VertexAttribute::JointWeights] == 0) {
+			CreateVertexBuffer(attributeBuffers[VertexAttribute::JointWeights], numVertices * sizeof(Vector4), (char*)GetSkinWeightData().data());
+			BindVertexAttribute(VertexAttribute::JointWeights, attributeBuffers[VertexAttribute::JointWeights], VertexAttribute::JointWeights, 4, sizeof(Vector4), 0);
+		} else {
+			glBindBuffer(GL_ARRAY_BUFFER, attributeBuffers[VertexAttribute::JointWeights]);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, numVertices * sizeof(Vector4), (char*)GetSkinWeightData().data());
+		}
+	}
+
+	if (!GetSkinIndexData().empty()) {
+		if (attributeBuffers[VertexAttribute::JointIndices] == 0) {
+			CreateVertexBuffer(attributeBuffers[VertexAttribute::JointIndices], numVertices * sizeof(Vector4), (char*)GetSkinIndexData().data());
+			BindVertexAttribute(VertexAttribute::JointIndices, attributeBuffers[VertexAttribute::JointIndices], VertexAttribute::JointIndices, 4, sizeof(Vector4), 0);
+		} else {
+			glBindBuffer(GL_ARRAY_BUFFER, attributeBuffers[VertexAttribute::JointIndices]);
+			glBufferSubData(GL_ARRAY_BUFFER, 0, numVertices * sizeof(Vector4), (char*)GetSkinIndexData().data());
+		}
+	}
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 }
 
 
