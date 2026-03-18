@@ -12,6 +12,7 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_InventoryState.h"
 #include "Game/UI/UITheme.h"
+#include "Game/UI/UI_ItemIcons.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
 
@@ -138,12 +139,18 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
             // Slot content
             const auto& item = inv.slots[idx];
             if (!item.isEmpty) {
+                // Geometric icon (center-top area)
+                DrawItemIcon(draw,
+                    ImVec2(cardX + kCardW * 0.5f, cardY + 36.0f),
+                    14.0f, static_cast<ItemID>(item.itemId),
+                    isSelected ? IM_COL32(252, 111, 41, 220) : IM_COL32(16, 13, 10, 160));
+
                 if (termFont) ImGui::PushFont(termFont);
                 draw->AddText(ImVec2(cardX + 8.0f, cardY + 8.0f),
                     IM_COL32(16, 13, 10, 220), item.name);
                 if (termFont) ImGui::PopFont();
 
-                if (item.quantity > 1) {
+                if (item.quantity > 0) {
                     if (smallFont) ImGui::PushFont(smallFont);
                     char qtyBuf[8];
                     snprintf(qtyBuf, sizeof(qtyBuf), "x%u", item.quantity);

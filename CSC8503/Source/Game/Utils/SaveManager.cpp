@@ -27,7 +27,12 @@
 
 namespace ECS {
 
-static constexpr int kSaveVersion = 1;
+static_assert(std::size(Res_UIState{}.savedStoreCount) >= Res_ItemInventory2::kItemCount,
+              "savedStoreCount array must cover all ItemIDs");
+static_assert(std::size(Res_UIState{}.savedUnlocked) >= Res_ItemInventory2::kItemCount,
+              "savedUnlocked array must cover all ItemIDs");
+
+static constexpr int kSaveVersion = 2;
 
 /**
  * @brief 返回存档文件的完整路径。
@@ -85,7 +90,8 @@ bool SaveGame(Registry& registry) {
             for (int i = 0; i < inv.kItemCount; ++i) {
                 arr.push_back({
                     {"itemId",     static_cast<int>(inv.slots[i].itemId)},
-                    {"storeCount", inv.slots[i].storeCount}
+                    {"storeCount", inv.slots[i].storeCount},
+                    {"unlocked",   inv.slots[i].unlocked}
                 });
             }
             root["inventory"] = arr;
@@ -147,7 +153,7 @@ bool LoadGame(Registry& registry, bool restoreMission) {
         nlohmann::json root = nlohmann::json::parse(file);
 
         int version = root.value("version", 0);
-        if (version != kSaveVersion) {
+        if (version != kSaveVersion && version != 1) {
             LOG_WARN("[SaveManager] Unsupported save version: " << version);
             return false;
         }
@@ -173,6 +179,7 @@ bool LoadGame(Registry& registry, bool restoreMission) {
                     int id = entry.value("itemId", -1);
                     if (id < 0 || id >= inv.kItemCount) continue;
                     inv.slots[id].storeCount = entry.value("storeCount", static_cast<uint8_t>(0));
+                    inv.slots[id].unlocked   = entry.value("unlocked", false);
                 }
             }
 
@@ -183,6 +190,7 @@ bool LoadGame(Registry& registry, bool restoreMission) {
                     int id = entry.value("itemId", -1);
                     if (id < 0 || id >= static_cast<int>(std::size(ui.savedStoreCount))) continue;
                     ui.savedStoreCount[id] = entry.value("storeCount", static_cast<uint8_t>(0));
+                    ui.savedUnlocked[id]   = entry.value("unlocked", false);
                 }
                 ui.hasSavedInventory = true;
             }

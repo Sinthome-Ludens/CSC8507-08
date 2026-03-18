@@ -9,6 +9,7 @@
  * FollowPath 使用 3D 速度以支持斜坡/多层地图移动。
  */
 #include "Sys_Navigation.h"
+#include "Game/Utils/PauseGuard.h"
 #include <cstring>
 #include <cmath>
 #include <vector>
@@ -240,6 +241,7 @@ static void SkipReachedWaypoints(C_D_NavAgent& agent, const C_D_Transform& tf)
  * @param dt       帧时间（秒）。
  */
 void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     if (!m_Pathfinder) {
         LOG_WARN("[Sys_Navigation] Pathfinder is null, skipping update.");
         return;

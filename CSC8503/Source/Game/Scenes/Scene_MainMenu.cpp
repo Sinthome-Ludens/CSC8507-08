@@ -62,7 +62,6 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
         ui.pendingSceneRequest     = ECS::SceneRequest::None;
 
         // New UI state fields
-        ui.loadoutSelectedIndex    = 0;
         ui.inventorySelectedSlot   = 0;
         ui.teamStartTime           = 0.0f;
         ui.itemWheelOpen           = false;

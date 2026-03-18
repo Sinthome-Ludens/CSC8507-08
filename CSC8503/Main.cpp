@@ -192,6 +192,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                 case ECS::SceneRequest::StartGame:
                     // 正常开始游戏：生成新的 5 抽 3 序列，退出 debug 模式
                     ui.debugCurrentScene = -1;
+                    ui.totalPlayTime = 0.0f;
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
                         CreateMapScene(ui.mapSequence[0]));
@@ -245,6 +246,9 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         new Scene_NetworkGame(ECS::PeerType::CLIENT, ip));
                     break;
                 }
+                case ECS::SceneRequest::StartTutorial:
+                    sceneManager.RequestSceneChange(new Scene_TutorialLevel());
+                    break;
                 case ECS::SceneRequest::QuitApp:
                     running = false;
                     break;

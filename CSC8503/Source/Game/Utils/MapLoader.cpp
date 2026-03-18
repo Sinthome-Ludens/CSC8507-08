@@ -16,6 +16,7 @@
 #include "Game/Utils/MapPointsLoader.h"
 #include "Game/Utils/EnemySpawnLoader.h"
 #include "Game/Utils/DoorKeyLoader.h"
+#include "Game/Utils/ItemSpawnLoader.h"
 #include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Utils/Log.h"
 
@@ -197,6 +198,26 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
                      << doorData.keys.size() << " keys.");
         } else {
             LOG_WARN("[MapLoader] .doors file configured but failed to load: " << config.doorKeys);
+        }
+    }
+
+    // ── Step 9: Item spawns from .itemspawns ───────────────────
+    if (config.itemSpawns[0] != '\0') {
+        auto itemData = LoadItemSpawns(NCL::Assets::MESHDIR + config.itemSpawns);
+        if (itemData.loaded) {
+            for (int i = 0; i < static_cast<int>(itemData.spawns.size()); ++i) {
+                const auto& spawn = itemData.spawns[i];
+                Vector3 itemPos(
+                    spawn.position.x * scale,
+                    spawn.position.y * scale + worldY + 1.5f,
+                    spawn.position.z * scale);
+                EntityID pickup = PrefabFactory::CreateItemPickup(
+                    reg, cubeMesh, spawn.itemId, spawn.quantity, i, itemPos);
+                result.itemPickups.push_back(pickup);
+            }
+            LOG_INFO("[MapLoader] Spawned " << itemData.spawns.size() << " item pickups.");
+        } else {
+            LOG_WARN("[MapLoader] Failed to load item spawns: " << config.itemSpawns);
         }
     }
 

@@ -20,6 +20,7 @@
       "half_y": 1.0,
       "half_z": 50.0
     },
+    "C_D_Material": {},
     "C_D_DebugName": { "name": "ENTITY_Env_Floor_Main" }
   }
 }

@@ -24,6 +24,7 @@
 #include "Game/Systems/Sys_DeathEffect.h"
 #include "Game/Systems/Sys_Input.h"
 #include "Game/Systems/Sys_InputDispatch.h"
+#include "Game/Systems/Sys_Animation.h"
 #include "Game/Systems/Sys_PlayerDisguise.h"
 #include "Game/Systems/Sys_PlayerStance.h"
 #include "Game/Systems/Sys_StealthMetrics.h"
@@ -43,6 +44,7 @@
 #include "Game/Utils/MapLoader.h"
 #include "Game/Utils/PrefabLoader.h"
 #include "Game/Utils/SaveManager.h"
+#include "Game/Utils/ItemEquipSync.h"
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
@@ -107,6 +109,7 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
 
     systems.Register<ECS::Sys_Input>           ( 10);
+    systems.Register<ECS::Sys_Animation>       ( 50);
     systems.Register<ECS::Sys_InputDispatch>   ( 55);
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);
     systems.Register<ECS::Sys_PlayerStance>    ( 60);
@@ -177,65 +180,7 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
         }
     }
 
-#ifdef USE_IMGUI
-    if (registry.has_ctx<ECS::Res_UIState>()
-     && registry.has_ctx<ECS::Res_GameState>()
-     && registry.has_ctx<ECS::Res_ItemInventory2>()) {
-        auto& ui  = registry.ctx<ECS::Res_UIState>();
-        auto& gs  = registry.ctx<ECS::Res_GameState>();
-        auto& inv = registry.ctx<ECS::Res_ItemInventory2>();
-
-        int gadgetIndices[5] = {};
-        int gadgetCount = 0;
-        int weaponIndices[5] = {};
-        int weaponCount = 0;
-        for (int i = 0; i < inv.kItemCount; ++i) {
-            if (inv.slots[i].itemType == ECS::ItemType::Gadget) {
-                if (gadgetCount < 5) gadgetIndices[gadgetCount++] = i;
-            } else {
-                if (weaponCount < 5) weaponIndices[weaponCount++] = i;
-            }
-        }
-
-        for (int s = 0; s < 2; ++s) {
-            int idx = ui.missionEquippedItems[s];
-            if (idx >= 0 && idx < gadgetCount) {
-                int invIdx = gadgetIndices[idx];
-                auto& slot = inv.slots[invIdx];
-                size_t len = strlen(slot.name);
-                if (len > sizeof(gs.itemSlots[s].name) - 1)
-                    len = sizeof(gs.itemSlots[s].name) - 1;
-                memcpy(gs.itemSlots[s].name, slot.name, len);
-                gs.itemSlots[s].name[len] = '\0';
-                gs.itemSlots[s].itemId  = static_cast<uint8_t>(slot.itemId);
-                gs.itemSlots[s].count   = slot.carriedCount;
-                gs.itemSlots[s].cooldown = 0.0f;
-            } else {
-                gs.itemSlots[s] = {};
-            }
-        }
-
-        for (int s = 0; s < 2; ++s) {
-            int idx = ui.missionEquippedWeapons[s];
-            if (idx >= 0 && idx < weaponCount) {
-                int invIdx = weaponIndices[idx];
-                auto& slot = inv.slots[invIdx];
-                size_t len = strlen(slot.name);
-                if (len > sizeof(gs.weaponSlots[s].name) - 1)
-                    len = sizeof(gs.weaponSlots[s].name) - 1;
-                memcpy(gs.weaponSlots[s].name, slot.name, len);
-                gs.weaponSlots[s].name[len] = '\0';
-                gs.weaponSlots[s].itemId  = static_cast<uint8_t>(slot.itemId);
-                gs.weaponSlots[s].count   = slot.carriedCount;
-                gs.weaponSlots[s].cooldown = 0.0f;
-            } else {
-                gs.weaponSlots[s] = {};
-            }
-        }
-
-        LOG_INFO("[Scene_Dock] Equipment synced from MissionSelect.");
-    }
-#endif
+    ECS::SyncEquipmentToGameState(registry);
 
     LOG_INFO("[Scene_Dock] OnEnter complete. "
              << systems.Count() << " systems awake.");

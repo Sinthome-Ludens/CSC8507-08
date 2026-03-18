@@ -27,6 +27,7 @@
       "startPoints":   "Lab.startpoints",
       "enemySpawns":   "Lab.enemyspawns",
       "doorKeys":      "Lab.doors",
+      "itemSpawns":    "Lab.itemspawns",
       "mapScale":      1.0,
       "yOffset":       -6.0,
       "flipWinding":   true

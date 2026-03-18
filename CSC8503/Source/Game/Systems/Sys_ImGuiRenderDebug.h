@@ -85,8 +85,11 @@ private:
     float m_cascadeSplits[3] = { 50.0f, 180.0f, 600.0f };
     float m_pcssLightSize    = 3.0f;
     float m_iblIntensity     = 1.0f;
-    float m_shadowBiasSlope    = 0.00002f;
-    float m_shadowBiasConstant = 0.000015f;
+    float m_shadowBiasSlope    = 0.0001f;
+    float m_shadowBiasConstant = 0.00005f;
+    float m_shadowNearBuffer = 50.0f;
+    float m_shadowFarBuffer  = 20.0f;
+    float m_shadowNormalOffsetScale = 0.5f;
     bool  m_ssaoEnabled      = true;
     float m_ssaoRadius       = 0.5f;
     float m_ssaoBias         = 0.025f;
