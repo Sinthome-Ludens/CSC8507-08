@@ -89,22 +89,29 @@ void Sys_ImGui::OnDestroy(Registry& /*registry*/) {
  * @param dt 本帧时间步长（秒）
  */
 void Sys_ImGui::OnUpdate(Registry& registry, float dt) {
-    // 开发者模式关闭时隐藏所有调试界面
-    if (registry.has_ctx<Res_UIState>()
-        && !registry.ctx<Res_UIState>().devMode) {
+    const bool devMode = registry.has_ctx<Res_UIState>()
+        && registry.ctx<Res_UIState>().devMode;
+    const bool showNetworkDebug = registry.has_ctx<Res_UIFlags>()
+        && registry.ctx<Res_UIFlags>().showNetworkDebug
+        && registry.has_ctx<Res_Network>();
+
+    // 多人联机调试面板不再依赖 devMode，其余 ImGui 调试界面仍由 devMode 控制。
+    if (!devMode && !showNetworkDebug) {
         return;
     }
 
-    RenderMainMenuBar(registry);
+    if (devMode) {
+        RenderMainMenuBar(registry);
 
-    if (m_ShowDemoWindow)  ImGui::ShowDemoWindow(&m_ShowDemoWindow);
-    if (m_ShowDebugWindow) RenderDebugWindow(registry, dt);
-    if (m_ShowNCLStatus)   RenderNCLStatus(registry);
+        if (m_ShowDemoWindow)  ImGui::ShowDemoWindow(&m_ShowDemoWindow);
+        if (m_ShowDebugWindow) RenderDebugWindow(registry, dt);
+        if (m_ShowNCLStatus)   RenderNCLStatus(registry);
+    }
 
     // 调试窗口：由 Res_UIFlags context 控制显隐
     if (registry.has_ctx<Res_UIFlags>()) {
         auto& flags = registry.ctx<Res_UIFlags>();
-        if (flags.showTestControls) RenderTestControlsWindow(registry);
+        if (devMode && flags.showTestControls) RenderTestControlsWindow(registry);
         if (flags.showNetworkDebug && registry.has_ctx<Res_Network>())
             RenderNetworkDebugWindow(registry);
     }
