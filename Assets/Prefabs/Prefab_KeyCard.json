@@ -1,0 +1,23 @@
+{
+  "PrefabID": "PREFAB_KEY_CARD",
+  "Name": "KeyCard",
+  "Description": "Collectible key card pickup. Yellow 0.5-scale cube with C_T_KeyCard tag.",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [0.5, 0.5, 0.5]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle": "Cube.obj",
+      "materialHandle": 0
+    },
+    "C_D_Material": {
+      "baseColour": [1.0, 1.0, 0.0, 1.0]
+    },
+    "C_T_KeyCard": {
+      "keyId": 0
+    },
+    "C_D_DebugName": { "name": "ENTITY_KeyCard_XX" }
+  }
+}

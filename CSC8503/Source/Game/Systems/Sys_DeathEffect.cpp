@@ -11,6 +11,7 @@
  *   6. 动画结束后收集实体 ID，循环外调用 registry.Destroy()
  */
 #include "Sys_DeathEffect.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include <algorithm>
 #include <cmath>
@@ -50,6 +51,7 @@ static uint32_t QuickHash(uint32_t seed, uint32_t salt) {
  * @param dt       帧时间（秒）
  */
 void Sys_DeathEffect::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     std::vector<EntityID> toDestroy;
 
     registry.view<C_D_Dying, C_D_Transform, C_D_DeathVisual>().each(

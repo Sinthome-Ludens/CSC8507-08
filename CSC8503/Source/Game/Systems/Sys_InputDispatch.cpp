@@ -3,6 +3,7 @@
  * @brief 输入分发系统实现：Res_Input → per-entity C_D_Input。
  */
 #include "Sys_InputDispatch.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Keyboard.h"
 
@@ -16,6 +17,7 @@
 namespace ECS {
 
 void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Res_Input>()) return;
     auto& res = registry.ctx<Res_Input>();
 
@@ -34,7 +36,7 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
     bool hasInput = (inputLen > 0.001f);
     bool shiftDown = res.keyStates[NCL::KeyCodes::SHIFT];
 
-    // ── C/V/E 上升沿检测 ──
+    // ── C/V/E/F/Q/G 上升沿检测 ──
     bool cDown = res.keyStates[NCL::KeyCodes::C];
     bool cPressed = cDown && !m_CWasPressed;
     m_CWasPressed = cDown;
@@ -50,6 +52,14 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
     bool fDown = res.keyStates[NCL::KeyCodes::F];
     bool fPressed = fDown && !m_FWasPressed;
     m_FWasPressed = fDown;
+
+    bool qDown = res.keyStates[NCL::KeyCodes::Q];
+    bool qPressed = qDown && !m_QWasPressed;
+    m_QWasPressed = qDown;
+
+    bool gDown = res.keyStates[NCL::KeyCodes::G];
+    bool gPressed = gDown && !m_GWasPressed;
+    m_GWasPressed = gDown;
 
     // ── 道具使用键 1-5 上升沿检测 ──
     bool key1Down = res.keyStates[NCL::KeyCodes::NUM1];
@@ -96,10 +106,12 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
             input.moveZ              = inputZ;
             input.hasInput           = hasInput;
             input.shiftDown          = shiftDown;
-            input.crouchJustPressed  = cPressed;
-            input.standJustPressed   = vPressed;
-            input.disguiseJustPressed = ePressed;
-            input.cqcJustPressed     = fPressed;
+            input.crouchJustPressed   = cPressed;
+            input.standJustPressed    = vPressed;
+            input.disguiseJustPressed = gPressed;   // G = disguise (was E)
+            input.cqcJustPressed      = fPressed;
+            input.gadgetUseJustPressed = qPressed;  // Q = use active gadget
+            input.weaponUseJustPressed = ePressed;  // E = use active weapon
             // ── 道具使用按键（数字键 1-5） ──
             input.item1JustPressed   = key1Pressed;
             input.item2JustPressed   = key2Pressed;

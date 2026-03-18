@@ -6,6 +6,7 @@
  * 负责站立/下蹲切换、碰撞体高度调整，以及相关姿态事件发布。
  */
 #include "Sys_PlayerStance.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_Transform.h"
@@ -31,6 +32,7 @@ namespace ECS {
  * @param dt 本帧时间步长（当前实现未直接使用）
  */
 void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Sys_Physics*>()) return;
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;

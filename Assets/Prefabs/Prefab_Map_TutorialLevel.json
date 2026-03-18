@@ -26,6 +26,8 @@
       "finishMesh":    "TutorialMap_finish.obj",
       "startPoints":   "TutorialMap.startpoints",
       "enemySpawns":   "TutorialMap.enemyspawns",
+      "doorKeys":      "TutorialMap.doors",
+      "itemSpawns":    "TutorialMap.itemspawns",
       "mapScale":      2.0,
       "yOffset":       -6.0,
       "flipWinding":   true

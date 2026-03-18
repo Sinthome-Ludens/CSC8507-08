@@ -4,7 +4,7 @@ mtllib Dock_finish.mtl
 
 # FinishPoint: finish
 g finish_0
-usemtl Lit_0
+usemtl Red_0
 v 1.007107 5.615787 -16.692890
 v -0.407107 5.615787 -18.107110
 v 2.007107 7.030001 -17.692890

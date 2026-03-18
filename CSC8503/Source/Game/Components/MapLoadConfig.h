@@ -1,5 +1,5 @@
 /**
- * @file C_D_MapConfig.h
+ * @file MapLoadConfig.h
  * @brief Map loading configuration struct: stores resource paths and parameters for MapLoader.
  */
 #pragma once
@@ -18,6 +18,8 @@ struct MapLoadConfig {
     char finishMesh[64]    = {};   ///< Finish zone OBJ ("HangerA_finish.obj")
     char startPoints[64]   = {};   ///< Spawn points file ("HangerA.startpoints")
     char enemySpawns[64]   = {};   ///< Enemy spawns file ("HangerA.enemyspawns")
+    char doorKeys[64]      = {};   ///< Door & key file ("HangerA.doors"), empty = skip
+    char itemSpawns[64]    = {};   ///< Item spawns file ("HangerA.itemspawns")
     float mapScale         = 1.0f; ///< Map scale factor
     float yOffset          = -6.0f;///< Y offset (multiplied by mapScale before use)
     bool  flipWinding      = true; ///< Whether to flip collision mesh winding order

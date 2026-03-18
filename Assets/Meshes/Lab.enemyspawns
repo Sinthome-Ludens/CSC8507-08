@@ -1,6 +1,6 @@
 # Unity Enemy Spawn Points Export (Right-Handed)
 # Root Space: Lab
-spawnCount 2
+spawnCount 3
 
 spawn 0
 name SpawnPoint (1)
@@ -20,4 +20,12 @@ patrol
 10.000000 0.641333 -18.666670
 -13.333330 0.641333 -19.333330
 -13.333330 0.641333 -28.000000
+
+spawn 2
+name SpawnPoint (3)
+position -3.416667 0.666667 -5.620001
+patrolCount 2
+patrol
+-3.416667 0.666667 -5.620001
+9.333334 0.641333 -5.333335
 

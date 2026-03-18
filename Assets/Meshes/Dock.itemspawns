@@ -1,0 +1,18 @@
+# Item spawns for Dock
+# Map range: X ~[-15, 16], Z ~[-16, 27], Y ~5.9
+spawnCount 3
+
+item 0
+itemId 2
+position -8.0 5.9 -8.0
+quantity 1
+
+item 1
+itemId 3
+position 10.0 5.9 5.0
+quantity 1
+
+item 2
+itemId 0
+position 0.0 5.9 20.0
+quantity 1

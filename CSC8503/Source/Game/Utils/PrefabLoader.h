@@ -17,7 +17,9 @@
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/MapLoadConfig.h"
 #include "Vector.h"
+#include "Quaternion.h"
 
+#include <nlohmann/json_fwd.hpp>
 #include <string>
 
 namespace ECS {
@@ -32,6 +34,70 @@ const std::string& PrefabDir();
  * @brief 清除内部 JSON 文件缓存（场景切换时调用，释放内存）。
  */
 void ClearCache();
+
+/* ================================================================
+ * 公开 Read 辅助函数（供 ComponentRegistry 使用）
+ * ================================================================ */
+
+/**
+ * @brief 从 JSON 对象中读取 [x,y,z] 数组到 Vector3。
+ * @param j    JSON 对象
+ * @param key  字段名
+ * @param out  目标向量；若 key 不存在或格式不符，保持原值不变
+ */
+void ReadVec3(const nlohmann::json& j, const char* key, NCL::Maths::Vector3& out);
+
+/**
+ * @brief 从 JSON 对象中读取 [x,y,z,w] 数组到 Vector4。
+ * @param j    JSON 对象
+ * @param key  字段名
+ * @param out  目标向量；若 key 不存在或格式不符，保持原值不变
+ */
+void ReadVec4(const nlohmann::json& j, const char* key, NCL::Maths::Vector4& out);
+
+/**
+ * @brief 从 JSON 对象中读取 [x,y,z,w] 数组到 Quaternion。
+ * @param j    JSON 对象
+ * @param key  字段名
+ * @param out  目标四元数；若 key 不存在或格式不符，保持原值不变
+ */
+void ReadQuat(const nlohmann::json& j, const char* key, NCL::Maths::Quaternion& out);
+
+/**
+ * @brief 从 JSON 对象中读取 RigidBody 各字段到 C_D_RigidBody。
+ * @param j   JSON 对象（应为 "C_D_RigidBody" 子对象）
+ * @param rb  目标刚体组件；缺失字段保持原值不变
+ */
+void ReadRigidBody(const nlohmann::json& j, C_D_RigidBody& rb);
+
+/**
+ * @brief 从 JSON 对象中读取 Collider 各字段到 C_D_Collider。
+ *
+ * Capsule 类型使用 "radius"/"half_height" 字段名，
+ * Box/Sphere 使用 "half_x"/"half_y"/"half_z"。
+ *
+ * @param j    JSON 对象（应为 "C_D_Collider" 子对象）
+ * @param col  目标碰撞组件；缺失字段保持原值不变
+ */
+void ReadCollider(const nlohmann::json& j, C_D_Collider& col);
+
+/**
+ * @brief 从 JSON 对象中读取 Camera 各字段到 C_D_Camera。
+ * @param j    JSON 对象（应为 "C_D_Camera" 子对象）
+ * @param cam  目标相机组件；缺失字段保持原值不变
+ */
+void ReadCamera(const nlohmann::json& j, C_D_Camera& cam);
+
+/**
+ * @brief 加载 JSON 蓝图文件（缓存机制），返回 JSON 文档指针。
+ *
+ * 返回的指针指向内部缓存，生命周期持续到 ClearCache() 被调用。
+ * 文件不存在或解析失败时返回 nullptr 并输出 LOG_WARN/LOG_ERROR。
+ *
+ * @param filename JSON 文件名（不含路径前缀，如 "Prefab_Player.json"）
+ * @return 指向缓存中 JSON 文档的指针，或 nullptr
+ */
+const nlohmann::json* LoadBlueprint(const std::string& filename);
 
 /* ================================================================
  * Prefab 默认值结构体
@@ -239,6 +305,17 @@ struct PrefabRoamAIDefaults {
     float detectRadius      = 1.5f;
 };
 
+struct PrefabKeyCardDefaults {
+    NCL::Maths::Vector3 scale{0.5f, 0.5f, 0.5f};
+    NCL::Maths::Vector4 baseColour{1.0f, 1.0f, 0.0f, 1.0f}; // yellow
+};
+
+struct PrefabLockedDoorDefaults {
+    C_D_RigidBody rb{};      // is_static = true (set in Load function)
+    C_D_Collider  col{};     // Box (set in Load function)
+    NCL::Maths::Vector4 baseColour{0.6f, 0.3f, 0.1f, 1.0f}; // brown
+};
+
 /* ================================================================
  * Load 函数声明
  * 返回 true 表示 JSON 文件读取成功（字段可能部分覆盖）；
@@ -260,6 +337,8 @@ bool LoadDeathZoneDefaults(PrefabDeathZoneDefaults& out);
 bool LoadTriggerZoneDefaults(PrefabTriggerZoneDefaults& out);
 bool LoadHoloBaitDefaults(PrefabHoloBaitDefaults& out);
 bool LoadRoamAIDefaults(PrefabRoamAIDefaults& out);
+bool LoadKeyCardDefaults(PrefabKeyCardDefaults& out);
+bool LoadLockedDoorDefaults(PrefabLockedDoorDefaults& out);
 
 } // namespace PrefabLoader
 } // namespace ECS
