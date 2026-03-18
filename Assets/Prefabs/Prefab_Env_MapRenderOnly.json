@@ -1,0 +1,18 @@
+{
+  "PrefabID": "PREFAB_ENV_MAP_RENDER_ONLY",
+  "Name": "Env_MapRenderOnly",
+  "Description": "Render-only map entity (no physics). Collision provided by NavMeshFloor.",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, -6.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle":     "",
+      "materialHandle": 0
+    },
+    "C_D_Material": {},
+    "C_D_DebugName": { "name": "ENTITY_Env_MapRenderOnly" }
+  }
+}
