@@ -141,6 +141,7 @@ EntityID Sys_ItemEffects::FindNearestEnemy(Registry& registry, const Vector3& or
 
     registry.view<C_T_Enemy, C_D_Transform>().each(
         [&](EntityID eid, C_T_Enemy&, C_D_Transform& tf) {
+            if (registry.Has<C_D_Dying>(eid)) return; // 已死亡，跳过
             float dx = tf.position.x - origin.x;
             float dy = tf.position.y - origin.y;
             float dz = tf.position.z - origin.z;
@@ -270,6 +271,12 @@ void Sys_ItemEffects::EffectTargetStrike(Registry& registry, const Evt_Item_Use&
         return;
     }
 
+    // 已在死亡流程中 — 跳过，防止误导通知和浪费道具
+    if (registry.Has<C_D_Dying>(target)) {
+        LOG_INFO("[Sys_ItemEffects] TargetStrike: target " << target << " already dying, skipped.");
+        return;
+    }
+
     if (registry.Has<C_D_Health>(target)) {
         auto& hp = registry.Get<C_D_Health>(target);
         hp.hp        = 0.0f;
@@ -385,6 +392,7 @@ void Sys_ItemEffects::UpdateRoamAI(Registry& registry, float dt) {
             registry.view<C_T_Enemy, C_D_Transform>().each(
                 [&](EntityID eid, C_T_Enemy&, C_D_Transform& etf) {
                     if (killed) return;
+                    if (registry.Has<C_D_Dying>(eid)) return; // 已死亡，跳过
                     float dx = etf.position.x - tf.position.x;
                     float dz = etf.position.z - tf.position.z;
                     if ((dx*dx + dz*dz) <= r2) {
