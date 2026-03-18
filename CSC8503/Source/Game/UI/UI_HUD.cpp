@@ -108,9 +108,9 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     // 4-segment thresholds and colors (no Raid)
     struct Segment { float threshold; ImU32 color; };
     Segment segments[] = {
-        { 15.0f,  IM_COL32(80, 200, 120, 220) },   // Safe: green
-        { 30.0f,  IM_COL32(220, 200, 0, 220) },     // Search: yellow
-        { 50.0f,  IM_COL32(252, 111, 41, 220) },    // Alert: orange
+        { 25.0f,  IM_COL32(80, 200, 120, 220) },   // Safe: green
+        { 50.0f,  IM_COL32(220, 200, 0, 220) },     // Search: yellow
+        { 75.0f,  IM_COL32(252, 111, 41, 220) },    // Alert: orange
         { 100.0f, IM_COL32(220, 60, 40, 220) },     // Hunt: red
     };
 
@@ -134,6 +134,41 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
         ImVec2(gaugeX + gaugeW, barY + gaugeH),
         IM_COL32(200, 200, 200, 100), 2.0f);
 
+}
+
+// ============================================================
+// 2b. RenderHUD_Score — 警戒条下方积分 + 评级
+// ============================================================
+/// @brief 渲染警戒条下方积分 + 实时评级（如 "SCORE: 850  [A]"）。
+static void RenderHUD_Score(ImDrawList* draw, int32_t score, float gameW) {
+    ImFont* termFont = UITheme::GetFont_Terminal();
+
+    const char* rating = GetScoreRating(score);
+    int8_t tier = GetScoreRatingTier(score);
+
+    const ImU32 scoreCol = UITheme::GetScoreRatingColor(tier, 220);
+
+    if (termFont) ImGui::PushFont(termFont);
+
+    char scoreBuf[24];
+    snprintf(scoreBuf, sizeof(scoreBuf), "SCORE: %d", std::max(0, score));
+    ImVec2 scoreSize = ImGui::CalcTextSize(scoreBuf);
+
+    char ratingBuf[8];
+    snprintf(ratingBuf, sizeof(ratingBuf), "[%s]", rating);
+    ImVec2 ratingSize = ImGui::CalcTextSize(ratingBuf);
+
+    float rightEdge = gameW - 20.0f;
+    float scoreY = 60.0f;  // 警戒条 bar 底部下方
+
+    float totalW = scoreSize.x + 8.0f + ratingSize.x;
+    float startX = rightEdge - totalW;
+
+    draw->AddText(ImVec2(startX, scoreY), scoreCol, scoreBuf);
+    draw->AddText(ImVec2(startX + scoreSize.x + 8.0f, scoreY),
+                  scoreCol, ratingBuf);
+
+    if (termFont) ImGui::PopFont();
 }
 
 // ============================================================
@@ -677,6 +712,9 @@ void RenderHUD(Registry& registry, float dt) {
     // Render all sub-panels (7 base + 3 multiplayer)
     RenderHUD_MissionPanel(draw, gs, gameW);
     RenderHUD_AlertGauge(draw, gs, gameW);
+    if (!gs.isMultiplayer) {
+        RenderHUD_Score(draw, ui.campaignScore, gameW);
+    }
     RenderHUD_Countdown(draw, gs, gameW, ui.globalTime);
     RenderHUD_PlayerState(draw, gs, displayH);
     RenderHUD_NoiseIndicator(draw, gs, displayH, ui.globalTime);
