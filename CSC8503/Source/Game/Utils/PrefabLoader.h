@@ -72,7 +72,9 @@ struct PrefabFloorDefaults {
 
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         50.0f, 1.0f, 50.0f,
+        0.0f,
         0.5f,
         0.0f,
         false,
@@ -93,7 +95,9 @@ struct PrefabPlayerDefaults {
 
     C_D_Collider col{
         ColliderType::Capsule,
+        ColliderFitMode::Manual,
         0.5f, 1.0f, 0.5f,
+        0.0f,
         0.5f,
         0.0f,
         false,
@@ -117,7 +121,9 @@ struct PrefabPhysicsCubeDefaults {
 
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         1.0f, 1.0f, 1.0f,
+        0.0f,
         0.5f,
         0.1f,
         false,
@@ -140,7 +146,9 @@ struct PrefabPhysicsCapsuleDefaults {
 
     C_D_Collider col{
         ColliderType::Capsule,
+        ColliderFitMode::Manual,
         0.5f, 0.5f, 0.5f,
+        0.0f,
         0.5f,
         0.0f,
         false,
@@ -170,7 +178,9 @@ struct PrefabNavTargetDefaults {
 
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         0.5f, 0.5f, 0.5f,
+        0.0f,
         0.5f,
         0.0f,
         false,
@@ -181,7 +191,9 @@ struct PrefabNavTargetDefaults {
 struct PrefabInvisibleWallDefaults {
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         0.5f, 0.5f, 0.5f,
+        0.0f,
         0.0f,
         0.0f,
         false,
@@ -192,7 +204,9 @@ struct PrefabInvisibleWallDefaults {
 struct PrefabDeathZoneDefaults {
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         0.5f, 0.5f, 0.5f,
+        0.0f,
         0.0f,
         0.0f,
         true,
@@ -203,7 +217,9 @@ struct PrefabDeathZoneDefaults {
 struct PrefabTriggerZoneDefaults {
     C_D_Collider col{
         ColliderType::Box,
+        ColliderFitMode::Manual,
         0.5f, 0.5f, 0.5f,
+        0.0f,
         0.5f,
         0.0f,
         true,

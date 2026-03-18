@@ -51,8 +51,10 @@ struct C_D_PlayerState {
     float noiseCooldown  = 0.0f;  ///< 噪音事件节流计时器
 
     // ── 碰撞体参数（当前姿态） ──
-    float colliderRadius     = 0.5f; ///< 胶囊半径
-    float colliderHalfHeight = 1.0f; ///< 胶囊半高
+    // 对 Capsule 表示 radius / half_height；
+    // 对 Box 则复用为 half_x / half_y，方便姿态系统统一记录当前尺寸。
+    float colliderRadius     = 0.5f;
+    float colliderHalfHeight = 1.0f;
 };
 
 } // namespace ECS

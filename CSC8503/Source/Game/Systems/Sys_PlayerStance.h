@@ -11,7 +11,7 @@ class Sys_Physics;
  *
  * 职责：
  *   - C 键蹲下 / V 键站起（Standing ↔ Crouching）
- *   - 碰撞体形状替换（Capsule 半高变化）
+ *   - 碰撞体形状替换（当前玩家使用 Box 的站立/下蹲变化）
  *   - 脚底位置保持（Y 轴偏移补偿）
  *   - 发布 Evt_Player_StanceChanged 事件
  *   - 处理 forceStandPending 标志（由伪装/奔跑系统设置）
@@ -24,10 +24,14 @@ public:
     void OnUpdate(Registry& registry, float dt) override;
 
 private:
-    // ── 碰撞体参数 ──
-    static constexpr float CAPSULE_RADIUS     = 0.5f;
-    static constexpr float STAND_HALF_HEIGHT  = 1.0f;
-    static constexpr float CROUCH_HALF_HEIGHT = 0.5f;
+    // ── 玩家 Box 碰撞体参数（与 cube.obj 外观对齐）──
+    static constexpr float STAND_HALF_X = 1.0f;
+    static constexpr float STAND_HALF_Y = 1.0f;
+    static constexpr float STAND_HALF_Z = 1.0f;
+
+    static constexpr float CROUCH_HALF_X = 1.0f;
+    static constexpr float CROUCH_HALF_Y = 0.5f;
+    static constexpr float CROUCH_HALF_Z = 1.0f;
 };
 
 } // namespace ECS

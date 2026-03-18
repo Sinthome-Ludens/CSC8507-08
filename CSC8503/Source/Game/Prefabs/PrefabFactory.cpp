@@ -472,11 +472,16 @@ EntityID PrefabFactory::CreatePlayer(
 
     reg.Emplace<C_D_RigidBody>(entity, defs.rb);
 
-    reg.Emplace<C_D_Collider>(entity, defs.col);
+    C_D_Collider col = defs.col;
+    col.type = ColliderType::Box;
+    col.fit_mode = ColliderFitMode::MeshBoundsAuto;
+    reg.Emplace<C_D_Collider>(entity, col);
 
     reg.Emplace<ECS::C_T_Player>(entity);
 
-    reg.Emplace<ECS::C_D_PlayerState>(entity, ECS::C_D_PlayerState{});
+    auto& ps = reg.Emplace<ECS::C_D_PlayerState>(entity, ECS::C_D_PlayerState{});
+    ps.colliderRadius = 1.0f;
+    ps.colliderHalfHeight = 1.0f;
 
     reg.Emplace<ECS::C_D_Input>(entity, ECS::C_D_Input{});
 
