@@ -9,7 +9,7 @@
 
 namespace ECS {
 
-/// 从 JSON 文件加载对话数据到 Res_DialogueData（纯工具函数，不依赖 Registry）
-bool LoadDialogueFromJSON(const std::string& filepath, Res_DialogueData& outData);
+/// 从单个 JSON 文件加载一个 DialogueSequence（一个警戒等级对应一个文件）
+bool LoadDialogueSequenceFromJSON(const std::string& filepath, DialogueSequence& outSeq);
 
 } // namespace ECS

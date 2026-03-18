@@ -1,9 +1,9 @@
 /**
  * @file Res_ChatState.h
- * @brief 聊天/对话系统状态资源：消息队列、回复选项、对话阶段
+ * @brief 聊天/对话系统状态资源：消息队列、回复选项、对话进度
  *
  * @details
- * Scene 级 ctx 资源，场景切换时在 OnExit 中清除。
+ * 跨场景保留（仅回主菜单时清除），对话进度在每次场景 OnAwake 时重置。
  */
 #pragma once
 
@@ -30,9 +30,9 @@ struct DirSequence {
 };
 
 struct ChatReplyOption {
-    char text[64]   = {};
-    bool enabled    = true;
-    int8_t effect   = 0;  // -1=bad, 0=neutral, 1=good
+    char text[64]    = {};
+    bool enabled     = true;
+    float alertDelta = 0.0f;  ///< 精确警戒度变化值（正=涨，负=降）
 };
 
 struct Res_ChatState {
@@ -57,7 +57,9 @@ struct Res_ChatState {
     bool    replyTimerActive = false;
 
     uint8_t chatMode         = 0;     // 0=proactive, 1=mixed, 2=passive
-    uint8_t dialoguePhase    = 0;
+    char    currentNodeId[32]= {};    ///< 网状图当前节点 ID（替代旧 dialoguePhase）
+    char    forcedTreeId[32] = {};    ///< 非空时强制使用指定 treeId（场景可设置）
+    bool    treeFinished     = false; ///< 对话树已正常结束，不再重启
 
     float   nextMessageTimer = 0.0f;
     float   nextMessageDelay = 8.0f;
@@ -115,7 +117,7 @@ inline void ChatState_ClearReplies(Res_ChatState& cs) {
     for (auto& r : cs.replies) {
         r.text[0] = '\0';
         r.enabled = true;
-        r.effect  = 0;
+        r.alertDelta = 0.0f;
     }
     cs.replyTimerActive = false;
     cs.replyTimer       = 0.0f;
@@ -124,12 +126,12 @@ inline void ChatState_ClearReplies(Res_ChatState& cs) {
 }
 
 /// @brief Add a reply option to the current dialogue node (drops silently if full).
-inline void ChatState_AddReply(Res_ChatState& cs, const char* text, int8_t effect = 0) {
+inline void ChatState_AddReply(Res_ChatState& cs, const char* text, float alertDelta = 0.0f) {
     if (cs.replyCount < Res_ChatState::kMaxReplies) {
         auto& r = cs.replies[cs.replyCount];
         strncpy(r.text, text, sizeof(r.text) - 1);
         r.text[sizeof(r.text) - 1] = '\0';
-        r.effect  = effect;
+        r.alertDelta = alertDelta;
         r.enabled = true;
         ++cs.replyCount;
     }
