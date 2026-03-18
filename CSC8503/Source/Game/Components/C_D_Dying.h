@@ -2,7 +2,7 @@
  * @file C_D_Dying.h
  * @brief 死亡标记 + 计时器组件，挂载后触发死亡特效动画。
  *
- * 由 Sys_DeathJudgment 在敌人 hp<=0 时 Emplace，
+ * 由 Sys_DeathJudgment（无主死亡）或 killer 系统（CQC / RoamAI / TargetStrike）直接 Emplace，
  * 由 Sys_DeathEffect 读取并推进计时器，动画结束后销毁实体。
  */
 #pragma once

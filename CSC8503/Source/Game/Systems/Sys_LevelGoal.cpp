@@ -143,13 +143,17 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                             gs.gameOverReason = 3;
                             ui.totalPlayTime += gs.playTime;
                         }
-                        if (ui.mapSequenceGenerated) {
+                        // 积分≤500 → 即使通关也判失败
+                        if (ui.mapSequenceGenerated && ui.campaignScore > 500) {
                             ui.activeScreen = UIScreen::Victory;
                         } else {
                             ui.activeScreen = UIScreen::GameOver;
+                            ui.gameOverSelectedIndex = 0;
                         }
-                        UI::PushToast(registry, "MISSION COMPLETE",
-                                      ToastType::Success, 3.0f);
+                        UI::PushToast(registry,
+                                      ui.campaignScore > 500 ? "MISSION COMPLETE" : "MISSION FAILED",
+                                      ui.campaignScore > 500 ? ToastType::Success : ToastType::Warning,
+                                      3.0f);
                     }
                 }
 #else

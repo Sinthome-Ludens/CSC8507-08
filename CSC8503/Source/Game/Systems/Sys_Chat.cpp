@@ -329,9 +329,9 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
 
     // ── Update chatMode based on alertLevel ───────────────
     uint8_t newMode;
-    if (alertLevel <= 30.0f) {
+    if (alertLevel <= 50.0f) {
         newMode = 0;
-    } else if (alertLevel <= 50.0f) {
+    } else if (alertLevel <= 75.0f) {
         newMode = 1;
     } else {
         newMode = 2;

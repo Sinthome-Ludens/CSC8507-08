@@ -13,7 +13,7 @@
 namespace ECS::UI {
 
 /**
- * @brief 向右上角推入一条动作通知，并更新 Res_GameState.score。
+ * @brief 向右上角推入一条动作通知（纯 UI 推送，不修改积分）。
  * @param registry   ECS 注册表
  * @param verb       动作动词（UTF-8），不可为 nullptr；空字符串表示不显示
  * @param target     目标名称（UTF-8），不可为 nullptr；空字符串表示不显示

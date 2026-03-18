@@ -523,7 +523,7 @@ EntityID PrefabFactory::CreateItemPickup(
     if (isWeapon) {
         actualMesh = ECS::AssetManager::Instance().LoadMesh(
             NCL::Assets::MESHDIR + "Capsule.obj");
-        pickupScale = Vector3(0.25f, 0.15f, 0.25f);
+        pickupScale = Vector3(0.3f, 0.3f, 0.3f);
     }
 
     reg.Emplace<C_D_Transform>(entity,

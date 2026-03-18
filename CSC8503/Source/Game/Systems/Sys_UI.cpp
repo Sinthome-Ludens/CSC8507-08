@@ -11,6 +11,7 @@
 #include "Sys_UI.h"
 #ifdef USE_IMGUI
 
+#include <algorithm>
 #include "Window.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/Res_UIState.h"
@@ -326,6 +327,34 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     if (ui.activeScreen == UIScreen::HUD && registry.has_ctx<Res_GameState>()) {
         auto& gs = registry.ctx<Res_GameState>();
         gs.playTime += dt;
+
+        // ── 积分系统（仅单人） ──
+        if (!gs.isMultiplayer) {
+            // 时间衰减：每秒 -1（静默）
+            if (ui.campaignScore > 0) {
+                ui.scoreDecayAccum += dt;
+                if (ui.scoreDecayAccum >= 1.0f) {
+                    int ticks = static_cast<int>(ui.scoreDecayAccum);
+                    ui.campaignScore = std::max(0, ui.campaignScore - ticks);
+                    ui.scoreLost_time += ticks;
+                    ui.scoreDecayAccum -= static_cast<float>(ticks);
+                }
+            }
+
+            // 评级降级检测
+            int8_t curTier = GetScoreRatingTier(ui.campaignScore);
+            if (curTier < ui.lastScoreRatingTier
+                && ui.lastScoreRatingTier >= 0
+                && ui.lastScoreRatingTier < 8) {
+                const char* oldRating = kScoreRatingNames[ui.lastScoreRatingTier];
+                const char* newRating = GetScoreRating(ui.campaignScore);
+                char dropBuf[32];
+                snprintf(dropBuf, sizeof(dropBuf), "%s > %s", oldRating, newRating);
+                ECS::UI::PushActionNotify(registry, "RATING DROP", dropBuf,
+                                          0, ActionNotifyType::Alert, 3.0f);
+            }
+            ui.lastScoreRatingTier = curTier;
+        }
     }
 
     // Dispatch to render functions

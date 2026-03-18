@@ -118,6 +118,22 @@ static IScene* CreateMapScene(uint8_t mapId) {
 /// 地图名称（调试用）
 static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock" };
 
+/// 重置战役积分到初始状态（1000 分，所有分项归零）。
+static void ResetCampaignScore(ECS::Res_UIState& ui) {
+    ui.campaignScore                = 1000;
+    ui.scoreDecayAccum              = 0.0f;
+    ui.countdownScorePenaltyApplied = false;
+    ui.failureScorePenaltyApplied   = false;
+    ui.lastScoreRatingTier          = 7;  // SSS
+    ui.scoreLost_time      = 0;
+    ui.scoreLost_kills     = 0;
+    ui.scoreLost_items     = 0;
+    ui.scoreLost_countdown = 0;
+    ui.scoreLost_failure   = 0;
+    ui.scoreKillCount      = 0;
+    ui.scoreItemUseCount   = 0;
+}
+
 /**
  * @brief 清除当前场景图中的联机模式配置。
  * @details 将 `Res_Network` 标记为离线状态，但不从上下文中移除，交由网络系统统一回收 ENet 资源。
@@ -274,6 +290,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     // 正常开始游戏：生成新的 5 抽 3 序列，退出 debug 模式
                     ui.debugCurrentScene = -1;
                     ui.totalPlayTime = 0.0f;
+                    ResetCampaignScore(ui);
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
                         CreateMapScene(ui.mapSequence[0]));
@@ -312,6 +329,8 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                             InitializeMultiplayerMapSequence(ui);
                         } else {
                             ClearNetworkMode(reg);
+                            ui.totalPlayTime = 0.0f;
+                            ResetCampaignScore(ui);
                             GenerateMapSequence(ui);
                         }
                         sceneManager.RequestSceneChange(
@@ -328,7 +347,9 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     } else {
                         PreserveNetworkSession(reg);
                     }
-                    // 序列内前进到下一张地图
+                    // 序列内前进到下一张地图（积分不重置，仅清除单次惩罚标记）
+                    ui.countdownScorePenaltyApplied = false;
+                    ui.failureScorePenaltyApplied   = false;
                     ui.mapSequenceIndex++;
                     if (ui.mapSequenceIndex < ECS::Res_UIState::MAP_SEQUENCE_LENGTH) {
                         sceneManager.RequestSceneChange(
