@@ -1080,7 +1080,6 @@ bool Sys_Network::CanReuseSession(const Res_Network& resNet) {
 void Sys_Network::ResetSceneLocalState(Res_Network& resNet) {
     resNet.netIdMap.clear();
     resNet.nextNetID = 1u;
-    resNet.rtt = 0u;
 }
 
 /**

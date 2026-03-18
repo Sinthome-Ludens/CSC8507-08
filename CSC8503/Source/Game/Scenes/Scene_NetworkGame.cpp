@@ -67,7 +67,6 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     resNet.preserveSessionOnSceneExit = false;
     resNet.netIdMap.clear();
     resNet.nextNetID = 1u;
-    resNet.rtt = 0u;
 
     if (!registry.has_ctx<Res_UIFlags>()) {
         registry.ctx_emplace<Res_UIFlags>();
