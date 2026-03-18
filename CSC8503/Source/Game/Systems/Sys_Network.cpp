@@ -60,8 +60,9 @@ void Sys_Network::OnAwake(Registry& reg) {
     InitializeEvents(reg);
 
     auto& resNet = reg.ctx<Res_Network>();
-    if (resNet.host != nullptr) {
+    if (resNet.host != nullptr && CanReuseSession(resNet)) {
         resNet.preserveSessionOnSceneExit = false;
+        ResetSceneLocalState(resNet);
         m_TimeSinceLastSend = 0.0f;
         m_InputTimer = 0.0f;
         m_LastInputMask = 0u;
@@ -90,6 +91,13 @@ void Sys_Network::OnAwake(Registry& reg) {
         }
         LOG_INFO("[Sys_Network] Reusing existing ENet session for scene transition.");
         return;
+    }
+
+    if (resNet.host != nullptr) {
+        LOG_WARN("[Sys_Network] Discarding stale ENet session before reinitialization.");
+        enet_host_destroy(resNet.host);
+        enet_deinitialize();
+        ResetNetworkRuntimeState(resNet, true);
     }
 
     if (enet_initialize() != 0) {
@@ -838,6 +846,17 @@ void Sys_Network::UpdateMatchUIState(Registry& reg) {
     if (!gs.isMultiplayer || gs.matchPhase != MatchPhase::Finished) return;
 
     auto& ui = reg.ctx<Res_UIState>();
+    const bool isLeavingCurrentScene =
+        ui.pendingSceneRequest != SceneRequest::None
+        || ui.transitionSceneRequest != SceneRequest::None
+        || ui.transitionActive
+        || ui.sceneRequestDispatched
+        || ui.activeScreen == UIScreen::Loading
+        || ui.activeScreen == UIScreen::None;
+    if (isLeavingCurrentScene) {
+        return;
+    }
+
     if (ui.activeScreen != UIScreen::GameOver) {
         ui.previousScreen = ui.activeScreen;
         ui.activeScreen = UIScreen::GameOver;
@@ -1014,8 +1033,7 @@ void Sys_Network::OnDestroy(Registry& reg) {
     m_Registry = nullptr;
 
     if (!reg.has_ctx<Res_Network>()) {
-        enet_deinitialize();
-        LOG_INFO("[Sys_Network] Network context already removed; ENet deinitialized without host teardown.");
+        LOG_WARN("[Sys_Network] Res_Network missing during OnDestroy; skipping ENet teardown to avoid orphaning a live host.");
         return;
     }
 
@@ -1023,20 +1041,81 @@ void Sys_Network::OnDestroy(Registry& reg) {
 
     if (resNet.preserveSessionOnSceneExit && resNet.mode != PeerType::OFFLINE) {
         resNet.preserveSessionOnSceneExit = false;
+        ResetSceneLocalState(resNet);
         LOG_INFO("[Sys_Network] Preserving ENet session across scene transition.");
         return;
     }
 
     if (resNet.host) {
         enet_host_destroy(resNet.host);
-        resNet.host = nullptr;
     }
-    resNet.peer = nullptr;
-    resNet.connected = false;
-    resNet.localClientID = (resNet.mode == PeerType::SERVER) ? 0u : UINT32_MAX;
-    resNet.preserveSessionOnSceneExit = false;
     enet_deinitialize();
+    ResetNetworkRuntimeState(resNet, false);
     LOG_INFO("Network System shut down. Sent: " << resNet.packetsSent << ", Received: " << resNet.packetsReceived);
+}
+
+/**
+ * @brief 判断当前 ENet 会话是否仍然健康且可被新场景复用。
+ * @param resNet 网络资源对象
+ * @return `true` 表示会话仍可复用
+ */
+bool Sys_Network::CanReuseSession(const Res_Network& resNet) {
+    if (resNet.host == nullptr || resNet.mode == PeerType::OFFLINE) {
+        return false;
+    }
+
+    if (resNet.mode == PeerType::CLIENT) {
+        return resNet.connected
+            && resNet.peer != nullptr
+            && resNet.peer->state == ENET_PEER_STATE_CONNECTED;
+    }
+
+    return true;
+}
+
+/**
+ * @brief 清理与当前场景实体绑定相关的网络状态。
+ * @param resNet 网络资源对象
+ */
+void Sys_Network::ResetSceneLocalState(Res_Network& resNet) {
+    resNet.netIdMap.clear();
+    resNet.nextNetID = 1u;
+    resNet.rtt = 0u;
+}
+
+/**
+ * @brief 将 `Res_Network` 重置到不持有活动会话的干净运行态。
+ * @param resNet 网络资源对象
+ * @param keepConfiguration 是否保留 mode/IP/port 配置以便随后重新初始化
+ */
+void Sys_Network::ResetNetworkRuntimeState(Res_Network& resNet, bool keepConfiguration) {
+    const PeerType previousMode = resNet.mode;
+    char previousIP[sizeof(resNet.serverIP)] = {};
+    strncpy_s(previousIP, sizeof(previousIP), resNet.serverIP, _TRUNCATE);
+    const uint16_t previousPort = resNet.serverPort;
+
+    resNet.host = nullptr;
+    resNet.peer = nullptr;
+    resNet.localClientID = (keepConfiguration && previousMode == PeerType::SERVER) ? 0u : UINT32_MAX;
+    resNet.rtt = 0u;
+    resNet.connected = false;
+    resNet.preserveSessionOnSceneExit = false;
+    resNet.nextNetID = 1u;
+    resNet.netIdMap.clear();
+    resNet.packetsSent = 0u;
+    resNet.packetsReceived = 0u;
+    resNet.bytesSent = 0u;
+    resNet.bytesReceived = 0u;
+
+    if (keepConfiguration) {
+        resNet.mode = previousMode;
+        strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), previousIP, _TRUNCATE);
+        resNet.serverPort = previousPort;
+    } else {
+        resNet.mode = PeerType::OFFLINE;
+        resNet.serverIP[0] = '\0';
+        resNet.serverPort = 0u;
+    }
 }
 
 /**
