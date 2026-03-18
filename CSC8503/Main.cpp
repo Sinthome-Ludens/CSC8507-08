@@ -51,6 +51,7 @@
 #endif
 
 #include "Game/Components/Res_NCL_Pointers.h"
+#include "Game/Components/Res_Network.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_LobbyState.h"
@@ -72,6 +73,7 @@ using namespace CSC8503;
 
 #include <algorithm>
 #include <random>
+#include <cstring>
 #include <thread>
 #include <sstream>
 
@@ -114,6 +116,21 @@ static IScene* CreateMapScene(uint8_t mapId) {
 
 /// 地图名称（调试用）
 static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock" };
+
+static void ClearNetworkMode(ECS::Registry& reg) {
+    if (reg.has_ctx<ECS::Res_Network>()) {
+        reg.ctx_erase<ECS::Res_Network>();
+    }
+}
+
+static void ConfigureNetworkMode(ECS::Registry& reg, ECS::PeerType mode, const char* ip, uint16_t port) {
+    ClearNetworkMode(reg);
+
+    auto& resNet = reg.ctx_emplace<ECS::Res_Network>();
+    resNet.mode = mode;
+    strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), ip ? ip : "127.0.0.1", sizeof(resNet.serverIP) - 1);
+    resNet.serverPort = port;
+}
 
 /// 使用 std::random_device 获取种子（硬件熵源优先，回退到系统时钟）
 static uint32_t TimeBasedSeed() {
@@ -172,6 +189,9 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         new Scene_NetworkGame(ECS::PeerType::SERVER));        break;
                 default: break;
             }
+            if (flags.debugSceneIndex >= 0 && flags.debugSceneIndex <= 8) {
+                ClearNetworkMode(reg);
+            }
             flags.debugSceneIndex = -1;
 
             // 清除同帧的 UI 请求
@@ -189,12 +209,14 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
             switch (ui.pendingSceneRequest) {
                 case ECS::SceneRequest::StartGame:
                 case ECS::SceneRequest::RestartLevel:
+                    ClearNetworkMode(reg);
                     // 每次开始 / 重试都重新随机 5 抽 3 序列
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
                         CreateMapScene(ui.mapSequence[0]));
                     break;
                 case ECS::SceneRequest::NextLevel:
+                    ClearNetworkMode(reg);
                     // 序列内前进到下一张地图
                     ui.mapSequenceIndex++;
                     if (ui.mapSequenceIndex < ECS::Res_UIState::MAP_SEQUENCE_LENGTH) {
@@ -206,6 +228,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     }
                     break;
                 case ECS::SceneRequest::ReturnToMenu:
+                    ClearNetworkMode(reg);
                     sceneManager.RequestSceneChange(new Scene_MainMenu());
                     break;
                 case ECS::SceneRequest::HostGame:
@@ -214,8 +237,8 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     if (reg.has_ctx<ECS::Res_LobbyState>()) {
                         port = reg.ctx<ECS::Res_LobbyState>().port;
                     }
-                    sceneManager.RequestSceneChange(
-                        new Scene_NetworkGame(ECS::PeerType::SERVER, "127.0.0.1", port));
+                    ConfigureNetworkMode(reg, ECS::PeerType::SERVER, "127.0.0.1", port);
+                    sceneManager.RequestSceneChange(new Scene_HangerA());
                     break;
                 }
                 case ECS::SceneRequest::JoinGame: {
@@ -225,8 +248,8 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         ip = reg.ctx<ECS::Res_LobbyState>().joinIP;
                         port = reg.ctx<ECS::Res_LobbyState>().port;
                     }
-                    sceneManager.RequestSceneChange(
-                        new Scene_NetworkGame(ECS::PeerType::CLIENT, ip, port));
+                    ConfigureNetworkMode(reg, ECS::PeerType::CLIENT, ip.c_str(), port);
+                    sceneManager.RequestSceneChange(new Scene_HangerA());
                     break;
                 }
                 case ECS::SceneRequest::QuitApp:

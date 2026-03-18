@@ -11,6 +11,7 @@
 #include "Core/ECS/SystemManager.h"
 #include "Game/Components/MapLoadConfig.h"
 #include "Game/Components/Res_NavTestState.h"
+#include "Game/Components/Res_Network.h"
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_CQCConfig.h"
 #include "Game/Components/Res_DeathConfig.h"
@@ -71,6 +72,9 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
                             ECS::SystemManager&     systems,
                             const Res_NCL_Pointers& /*nclPtrs*/)
 {
+    const bool isMultiplayer = registry.has_ctx<ECS::Res_Network>()
+        && registry.ctx<ECS::Res_Network>().mode != ECS::PeerType::OFFLINE;
+
     // ── 1. Asset init ───────────────────────────────────────────────────
     ECS::AssetManager::Instance().Init();
 
@@ -156,6 +160,17 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
     if (!registry.has_ctx<ECS::Res_GameState>()) {
         registry.ctx_emplace<ECS::Res_GameState>();
     }
+    auto& gs = registry.ctx<ECS::Res_GameState>();
+    gs.isMultiplayer = isMultiplayer;
+    gs.matchPhase = isMultiplayer ? ECS::MatchPhase::WaitingForPeer : ECS::MatchPhase::Finished;
+    gs.matchResult = ECS::MatchResult::None;
+    gs.currentRoundIndex = 0;
+    gs.localStageProgress = 0;
+    gs.opponentStageProgress = 0;
+    gs.roundJustAdvanced = false;
+    gs.matchJustStarted = false;
+    gs.matchJustFinished = false;
+    gs.networkPing = 0;
 
     // ── 6. Awake all systems ────────────────────────────────────────────
     systems.AwakeAll(registry);
@@ -181,7 +196,7 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
 #endif
 
     // ── 8. Save/load + inventory + equipment sync ───────────────────────
-    if (ECS::HasSaveFile()) {
+    if (!isMultiplayer && ECS::HasSaveFile()) {
         ECS::LoadGame(registry, false);
         if (registry.has_ctx<ECS::Res_ItemInventory2>()) {
             registry.ctx<ECS::Res_ItemInventory2>().OnRoundStart();
@@ -263,7 +278,11 @@ void Scene_HangerA::OnExit(ECS::Registry&      registry,
                            ECS::SystemManager& systems)
 {
     systems.DestroyAll(registry);
-    ECS::SaveGame(registry);
+    const bool isMultiplayer = registry.has_ctx<ECS::Res_Network>()
+        && registry.ctx<ECS::Res_Network>().mode != ECS::PeerType::OFFLINE;
+    if (!isMultiplayer) {
+        ECS::SaveGame(registry);
+    }
     m_Pathfinder.reset();
 
     if (registry.has_ctx<IScene*>()) {
