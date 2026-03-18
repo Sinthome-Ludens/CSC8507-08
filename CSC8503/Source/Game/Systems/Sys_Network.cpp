@@ -61,6 +61,7 @@ void Sys_Network::OnAwake(Registry& reg) {
 
     auto& resNet = reg.ctx<Res_Network>();
     if (resNet.host != nullptr) {
+        resNet.preserveSessionOnSceneExit = false;
         m_TimeSinceLastSend = 0.0f;
         m_InputTimer = 0.0f;
         m_LastInputMask = 0u;
@@ -1020,10 +1021,20 @@ void Sys_Network::OnDestroy(Registry& reg) {
 
     auto& resNet = reg.ctx<Res_Network>();
 
+    if (resNet.preserveSessionOnSceneExit && resNet.mode != PeerType::OFFLINE) {
+        resNet.preserveSessionOnSceneExit = false;
+        LOG_INFO("[Sys_Network] Preserving ENet session across scene transition.");
+        return;
+    }
+
     if (resNet.host) {
         enet_host_destroy(resNet.host);
         resNet.host = nullptr;
     }
+    resNet.peer = nullptr;
+    resNet.connected = false;
+    resNet.localClientID = (resNet.mode == PeerType::SERVER) ? 0u : UINT32_MAX;
+    resNet.preserveSessionOnSceneExit = false;
     enet_deinitialize();
     LOG_INFO("Network System shut down. Sent: " << resNet.packetsSent << ", Received: " << resNet.packetsReceived);
 }

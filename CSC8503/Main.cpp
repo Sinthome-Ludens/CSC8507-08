@@ -129,6 +129,21 @@ static void ClearNetworkMode(ECS::Registry& reg) {
         resNet.mode = ECS::PeerType::OFFLINE;
         resNet.serverIP[0] = '\0';
         resNet.serverPort = 0;
+        resNet.preserveSessionOnSceneExit = false;
+    }
+}
+
+/**
+ * @brief 标记当前联机会话将在场景切换时被保留。
+ * @details 仅用于多人换关/重开，避免 `Sys_Network::OnDestroy` 将仍在使用的 ENet 会话当成真正断线销毁。
+ * @param reg 当前场景注册表
+ */
+static void PreserveNetworkSession(ECS::Registry& reg) {
+    if (reg.has_ctx<ECS::Res_Network>()) {
+        auto& resNet = reg.ctx<ECS::Res_Network>();
+        if (resNet.mode != ECS::PeerType::OFFLINE) {
+            resNet.preserveSessionOnSceneExit = true;
+        }
     }
 }
 
@@ -152,6 +167,7 @@ static void ConfigureNetworkMode(ECS::Registry& reg, ECS::PeerType mode, const c
     resNet.mode = mode;
     strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), ip ? ip : "127.0.0.1", sizeof(resNet.serverIP) - 1);
     resNet.serverPort = port;
+    resNet.preserveSessionOnSceneExit = false;
 }
 
 /// 使用 std::random_device 获取种子（硬件熵源优先，回退到系统时钟）
@@ -270,6 +286,8 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         // Debug 模式：重启当前 debug 场景，不使用地图池
                         if (ui.debugCurrentScene >= 0 && ui.debugCurrentScene <= 8) {
                             ClearNetworkMode(reg);
+                        } else if (ui.debugCurrentScene == 9) {
+                            PreserveNetworkSession(reg);
                         }
                         switch (ui.debugCurrentScene) {
                             case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());       break;
@@ -287,6 +305,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     } else {
                         // 正常流程：重新随机 5 抽 3 序列，从头开始
                         if (isMultiplayer) {
+                            PreserveNetworkSession(reg);
                             if (reg.has_ctx<ECS::Res_GameState>()) {
                                 reg.ctx_erase<ECS::Res_GameState>();
                             }
@@ -306,6 +325,8 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         && reg.ctx<ECS::Res_Network>().mode != ECS::PeerType::OFFLINE;
                     if (!isMultiplayer) {
                         ClearNetworkMode(reg);
+                    } else {
+                        PreserveNetworkSession(reg);
                     }
                     // 序列内前进到下一张地图
                     ui.mapSequenceIndex++;
