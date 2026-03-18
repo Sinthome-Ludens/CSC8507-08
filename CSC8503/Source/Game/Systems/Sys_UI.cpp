@@ -29,7 +29,6 @@
 #include "Game/UI/UI_HUD.h"
 #include "Game/UI/UI_GameOver.h"
 #include "Game/UI/UI_Team.h"
-#include "Game/UI/UI_Loadout.h"
 #include "Game/UI/UI_Inventory.h"
 #include "Game/UI/UI_Chat.h"
 #include "Game/UI/UI_ItemWheel.h"
@@ -37,6 +36,7 @@
 #include "Game/UI/UI_Loading.h"
 #include "Game/UI/UI_Lobby.h"
 #include "Game/UI/UI_MissionSelect.h"
+#include "Game/UI/UI_Victory.h"
 #include "Game/UI/UI_ActionNotify.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/SaveManager.h"
@@ -210,26 +210,33 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                     UI::PushToast(registry, "PAUSE UNAVAILABLE IN MULTIPLAYER", ToastType::Warning);
                     LOG_INFO("[Sys_UI] HUD ESC blocked — multiplayer mode");
                 } else {
-                    ui.prePauseScreen = ui.activeScreen;
-                    ui.activeScreen = UIScreen::PauseMenu;
-                    ui.pauseSelectedIndex = 0;
-                    LOG_INFO("[Sys_UI] HUD -> PauseMenu (ESC)");
+                    // 倒计时激活时禁止暂停
+                    if (registry.has_ctx<Res_GameState>()
+                        && registry.ctx<Res_GameState>().countdownActive) {
+                        UI::PushToast(registry, "CANNOT PAUSE DURING COUNTDOWN", ToastType::Warning);
+                        LOG_INFO("[Sys_UI] HUD ESC blocked — countdown active");
+                    } else {
+                        ui.prePauseScreen = ui.activeScreen;
+                        ui.activeScreen = UIScreen::PauseMenu;
+                        ui.pauseSelectedIndex = 0;
+                        if (registry.has_ctx<Res_GameState>()) {
+                            registry.ctx<Res_GameState>().isPaused = true;
+                        }
+                        LOG_INFO("[Sys_UI] HUD -> PauseMenu (ESC) — game paused");
+                    }
                 }
                 break;
             }
             case UIScreen::PauseMenu:
                 ui.activeScreen = ui.prePauseScreen;
-                LOG_INFO("[Sys_UI] PauseMenu -> Resume (ESC)");
+                if (registry.has_ctx<Res_GameState>()) {
+                    registry.ctx<Res_GameState>().isPaused = false;
+                }
+                LOG_INFO("[Sys_UI] PauseMenu -> Resume (ESC) — game unpaused");
                 break;
             case UIScreen::Inventory:
                 ui.activeScreen = UIScreen::HUD;
                 LOG_INFO("[Sys_UI] Inventory -> HUD (ESC)");
-                break;
-            case UIScreen::Loadout:
-                ui.previousScreen = ui.activeScreen;
-                ui.activeScreen = UIScreen::MainMenu;
-                ui.menuSelectedIndex = 0;
-                LOG_INFO("[Sys_UI] Loadout -> MainMenu (ESC)");
                 break;
             case UIScreen::MissionSelect:
                 ui.previousScreen = ui.activeScreen;
@@ -250,7 +257,8 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                 LOG_INFO("[Sys_UI] Lobby -> MainMenu (ESC)");
                 break;
             case UIScreen::GameOver:
-                // GameOver has its own menu; ESC does nothing
+            case UIScreen::Victory:
+                // GameOver/Victory have their own menus; ESC does nothing
                 break;
             default:
                 break;
@@ -330,11 +338,11 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         case UIScreen::HUD:         UI::RenderHUD(registry, dt);             break;
         case UIScreen::GameOver:    UI::RenderGameOverScreen(registry, dt);  break;
         case UIScreen::Inventory:   UI::RenderInventoryScreen(registry, dt); break;
-        case UIScreen::Loadout:        UI::RenderLoadoutScreen(registry, dt);   break;
         case UIScreen::MissionSelect: UI::RenderMissionSelect(registry, dt);  break;
         case UIScreen::Team:        UI::RenderTeamScreen(registry, dt);      break;
         case UIScreen::Loading:     UI::RenderLoadingScreen(registry, dt);   break;
         case UIScreen::Lobby:       UI::RenderLobbyScreen(registry, dt);     break;
+        case UIScreen::Victory:    UI::RenderVictoryScreen(registry, dt);  break;
         case UIScreen::None:
         default:
             break;

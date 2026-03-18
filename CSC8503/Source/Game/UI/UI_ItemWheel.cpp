@@ -1,6 +1,6 @@
 /**
  * @file UI_ItemWheel.cpp
- * @brief 道具轮盘渲染实现（TAB 长按弹出，4 扇区选择）。
+ * @brief 道具轮盘渲染实现（TAB 长按弹出，4 扇区选择，实时库存数据）。
  */
 #include "UI_ItemWheel.h"
 #ifdef USE_IMGUI
@@ -10,6 +10,7 @@
 #include <cstdio>
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_ItemInventory2.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/UI/UITheme.h"
 
@@ -17,33 +18,45 @@ namespace ECS::UI {
 
 static constexpr int kSectorCount = 4;
 
-/**
- * @brief 渲染 4 扇区径向道具轮盘（TAB 长按弹出，居中于游戏区域）。
- * @param registry ECS 注册表
- * @param dt       帧间隔（未使用）
- */
 void RenderItemWheel(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
 
     if (!ui.itemWheelOpen) return;
+    if (!registry.has_ctx<Res_GameState>()) return;
+    auto& gs = registry.ctx<Res_GameState>();
 
-    // Read slot names from Res_GameState
-    const char* sectorNames[4] = { "---", "---", "---", "---" };
-    if (registry.has_ctx<Res_GameState>()) {
-        auto& gs = registry.ctx<Res_GameState>();
-        // Sector 0,1 = items; Sector 2,3 = weapons
-        sectorNames[0] = (gs.itemSlots[0].name[0] != '\0') ? gs.itemSlots[0].name : "---";
-        sectorNames[1] = (gs.itemSlots[1].name[0] != '\0') ? gs.itemSlots[1].name : "---";
-        sectorNames[2] = (gs.weaponSlots[0].name[0] != '\0') ? gs.weaponSlots[0].name : "---";
-        sectorNames[3] = (gs.weaponSlots[1].name[0] != '\0') ? gs.weaponSlots[1].name : "---";
+    // Read slot data from GameState + live counts from inventory
+    struct SectorData {
+        const char* name;
+        uint8_t count;
+        bool isActive;
+    };
+    SectorData sectors[4] = {};
+
+    const bool hasInv = registry.has_ctx<Res_ItemInventory2>();
+    auto* inv = hasInv ? &registry.ctx<Res_ItemInventory2>() : nullptr;
+
+    // Sector 0,1 = item slots; Sector 2,3 = weapon slots
+    for (int s = 0; s < 2; ++s) {
+        auto& slot = gs.itemSlots[s];
+        sectors[s].name     = (slot.name[0] != '\0') ? slot.name : "---";
+        sectors[s].count    = (inv && slot.name[0] != '\0' && slot.itemId < Res_ItemInventory2::kItemCount)
+                              ? inv->slots[slot.itemId].carriedCount : slot.count;
+        sectors[s].isActive = (gs.activeItemSlot == s && slot.name[0] != '\0');
+    }
+    for (int s = 0; s < 2; ++s) {
+        auto& slot = gs.weaponSlots[s];
+        sectors[2 + s].name     = (slot.name[0] != '\0') ? slot.name : "---";
+        sectors[2 + s].count    = (inv && slot.name[0] != '\0' && slot.itemId < Res_ItemInventory2::kItemCount)
+                                  ? inv->slots[slot.itemId].carriedCount : slot.count;
+        sectors[2 + s].isActive = (gs.activeWeaponSlot == s && slot.name[0] != '\0');
     }
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
     ImFont* smallFont = UITheme::GetFont_Small();
 
-    // Center in game area (excluding chat panel)
     float gameW = displaySize.x - Res_ChatState::kPanelWidth;
     float cx = gameW * 0.5f;
     float cy = displaySize.y * 0.5f;
@@ -77,13 +90,11 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
         float startAngle = i * sectorAngle - UITheme::kPI * 0.5f;
         float endAngle   = startAngle + sectorAngle;
         bool isHovered = (i == hoveredSector);
+        bool isActive  = sectors[i].isActive;
 
         ImU32 sectorColor = isHovered
             ? IM_COL32(252, 111, 41, 60)
-            : IM_COL32(245, 238, 232, 180);
-        ImU32 borderColor = isHovered
-            ? IM_COL32(252, 111, 41, 200)
-            : IM_COL32(200, 200, 200, 120);
+            : isActive ? IM_COL32(252, 111, 41, 30) : IM_COL32(245, 238, 232, 180);
 
         constexpr int kArcSegments = 12;
         float da = (endAngle - startAngle) / kArcSegments;
@@ -97,22 +108,47 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
             draw->AddQuadFilled(p1, p2, p3, p4, sectorColor);
         }
 
+        // Active slot: thick orange arc border
+        if (isActive) {
+            for (int s = 0; s < kArcSegments; ++s) {
+                float a1 = startAngle + s * da;
+                float a2 = a1 + da;
+                ImVec2 p1(cx + cosf(a1) * outerR, cy + sinf(a1) * outerR);
+                ImVec2 p2(cx + cosf(a2) * outerR, cy + sinf(a2) * outerR);
+                draw->AddLine(p1, p2, IM_COL32(252, 111, 41, 220), 3.0f);
+            }
+        }
+
         // Sector border lines
         ImVec2 lineInner(cx + cosf(startAngle) * innerR, cy + sinf(startAngle) * innerR);
         ImVec2 lineOuter(cx + cosf(startAngle) * outerR, cy + sinf(startAngle) * outerR);
         draw->AddLine(lineInner, lineOuter, IM_COL32(200, 200, 200, 100), 1.0f);
 
-        // Label (read from game state)
+        // Label: name + count
         float midAngle = startAngle + sectorAngle * 0.5f;
         float labelR = (innerR + outerR) * 0.5f;
         float lx = cx + cosf(midAngle) * labelR;
         float ly = cy + sinf(midAngle) * labelR;
 
         if (smallFont) ImGui::PushFont(smallFont);
-        ImVec2 textSize = ImGui::CalcTextSize(sectorNames[i]);
-        draw->AddText(ImVec2(lx - textSize.x * 0.5f, ly - textSize.y * 0.5f),
-            isHovered ? IM_COL32(252, 111, 41, 255) : IM_COL32(16, 13, 10, 220),
-            sectorNames[i]);
+
+        // Name
+        ImVec2 nameSize = ImGui::CalcTextSize(sectors[i].name);
+        ImU32 nameCol = isHovered ? IM_COL32(252, 111, 41, 255)
+                      : isActive  ? IM_COL32(252, 111, 41, 200)
+                                  : IM_COL32(16, 13, 10, 220);
+        draw->AddText(ImVec2(lx - nameSize.x * 0.5f, ly - nameSize.y * 0.5f - 6.0f),
+            nameCol, sectors[i].name);
+
+        // Count (below name)
+        if (sectors[i].count > 0) {
+            char countBuf[8];
+            snprintf(countBuf, sizeof(countBuf), "x%u", sectors[i].count);
+            ImVec2 countSize = ImGui::CalcTextSize(countBuf);
+            draw->AddText(ImVec2(lx - countSize.x * 0.5f, ly - countSize.y * 0.5f + 6.0f),
+                IM_COL32(252, 111, 41, 180), countBuf);
+        }
+
         if (smallFont) ImGui::PopFont();
     }
 
@@ -139,7 +175,7 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     // Category labels
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(ImVec2(cx - 20.0f, cy - outerR - 18.0f),
-        IM_COL32(252, 111, 41, 160), "ITEMS");
+        IM_COL32(252, 111, 41, 160), "GADGETS");
     draw->AddText(ImVec2(cx - 28.0f, cy + outerR + 6.0f),
         IM_COL32(252, 111, 41, 160), "WEAPONS");
     if (smallFont) ImGui::PopFont();

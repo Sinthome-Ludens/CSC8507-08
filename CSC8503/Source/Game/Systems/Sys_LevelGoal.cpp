@@ -3,6 +3,7 @@
  * @brief 关卡目标系统实现：每帧检测玩家与终点区域的距离，到达即胜利。
  */
 #include "Sys_LevelGoal.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include <cmath>
 #include "Game/Components/C_D_Transform.h"
@@ -36,6 +37,7 @@ void Sys_LevelGoal::OnAwake(Registry& /*registry*/) {
  * @param dt       帧时间（未使用）
  */
 void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
+    PAUSE_GUARD(registry);
     if (m_FinishTriggered) return;
 
     // 获取玩家位置
@@ -77,9 +79,11 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                                    || ui.mapSequenceIndex >= Res_UIState::MAP_SEQUENCE_LENGTH - 1;
 
                     if (!isFinalMap) {
-                        // ── 非最终关：冻结游戏，触发 NextLevel 加载下一张 ──
+                        // ── 非最终关：冻结游戏，累加时间，触发 NextLevel ──
                         if (registry.has_ctx<Res_GameState>()) {
-                            registry.ctx<Res_GameState>().isGameOver = true;
+                            auto& gs = registry.ctx<Res_GameState>();
+                            gs.isGameOver = true;
+                            ui.totalPlayTime += gs.playTime;
                         }
                         ui.pendingSceneRequest = SceneRequest::NextLevel;
                         UI::PushToast(registry, "AREA CLEAR - MOVING OUT",
@@ -87,13 +91,18 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                         LOG_INFO("[Sys_LevelGoal] Mid-sequence -> NextLevel (index="
                                  << (int)ui.mapSequenceIndex << ")");
                     } else {
-                        // ── 最终关：任务成功 → GameOver 结算画面 ──
+                        // ── 最终关：累加时间，战役→Victory / 非战役→GameOver ──
                         if (registry.has_ctx<Res_GameState>()) {
                             auto& gs = registry.ctx<Res_GameState>();
                             gs.isGameOver     = true;
                             gs.gameOverReason = 3;
+                            ui.totalPlayTime += gs.playTime;
                         }
-                        ui.activeScreen = UIScreen::GameOver;
+                        if (ui.mapSequenceGenerated) {
+                            ui.activeScreen = UIScreen::Victory;
+                        } else {
+                            ui.activeScreen = UIScreen::GameOver;
+                        }
                         UI::PushToast(registry, "MISSION COMPLETE",
                                       ToastType::Success, 3.0f);
                     }

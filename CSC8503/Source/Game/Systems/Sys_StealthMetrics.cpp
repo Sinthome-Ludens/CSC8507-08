@@ -6,6 +6,7 @@
  * 根据输入、姿态与物理速度更新移动倍率、噪音与可见度指标，并按节流规则发布噪音事件。
  */
 #include "Sys_StealthMetrics.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_Transform.h"
@@ -30,6 +31,7 @@ namespace ECS {
  * @param dt 本帧时间步长（秒）
  */
 void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Sys_Physics*>()) return;
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;

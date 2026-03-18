@@ -13,6 +13,7 @@
  * - 休眠敌人（isDormant）直接标记 is_spotted = false
  */
 #include "Sys_EnemyVision.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_PlayerState.h"
@@ -38,6 +39,7 @@ namespace ECS {
 static constexpr float PI = 3.14159265358979323846f;
 
 void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Res_VisionConfig>()) return;
     const auto& config = registry.ctx<Res_VisionConfig>();
 

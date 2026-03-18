@@ -22,9 +22,13 @@
 #include "PrefabFactory.h"
 #include "ComponentRegistry.h"
 
+#include "Assets.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/C_D_DebugName.h"
+#include "Game/Components/C_D_MeshRenderer.h"
+#include "Game/Components/C_D_Material.h"
+#include "Game/Components/C_T_ItemPickup.h"
 #include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/PrefabLoader.h"
@@ -467,6 +471,67 @@ EntityID PrefabFactory::CreateNavMeshFloor(
     ovr.triVerts    = &vertices;
     ovr.triIndices  = &indices;
     return Create(reg, "Prefab_Env_NavMeshFloor.json", ovr);
+}
+
+// ============================================================
+// CreateItemPickup  →  PREFAB_ITEM_PICKUP
+// ============================================================
+EntityID PrefabFactory::CreateItemPickup(
+    Registry&       reg,
+    ECS::MeshHandle cubeMesh,
+    ECS::ItemID     itemId,
+    uint8_t         quantity,
+    int             spawnIndex,
+    Vector3         spawnPos)
+{
+    EntityID entity = reg.Create();
+
+    // Weapons use capsule mesh, gadgets use cube mesh
+    bool isWeapon = (itemId == ItemID::RoamAI || itemId == ItemID::TargetStrike);
+    ECS::MeshHandle actualMesh = cubeMesh;
+    Vector3 pickupScale(0.5f, 0.5f, 0.5f);
+    if (isWeapon) {
+        actualMesh = ECS::AssetManager::Instance().LoadMesh(
+            NCL::Assets::MESHDIR + "Capsule.obj");
+        pickupScale = Vector3(0.25f, 0.15f, 0.25f);
+    }
+
+    reg.Emplace<C_D_Transform>(entity,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        pickupScale
+    );
+
+    reg.Emplace<C_D_MeshRenderer>(entity,
+        actualMesh,
+        static_cast<uint32_t>(0)
+    );
+
+    // Per-item color
+    C_D_Material mat{};
+    switch (itemId) {
+        case ItemID::HoloBait:     mat.baseColour = Vector4(0.95f, 0.85f, 0.1f, 1.0f);  break; // yellow
+        case ItemID::PhotonRadar:  mat.baseColour = Vector4(0.1f, 0.85f, 0.95f, 1.0f);  break; // cyan
+        case ItemID::DDoS:         mat.baseColour = Vector4(0.7f, 0.2f, 0.9f, 1.0f);    break; // purple
+        case ItemID::RoamAI:       mat.baseColour = Vector4(0.2f, 0.85f, 0.2f, 1.0f);   break; // green
+        case ItemID::TargetStrike: mat.baseColour = Vector4(0.9f, 0.2f, 0.2f, 1.0f);    break; // red
+        default:                   mat.baseColour = Vector4(0.8f, 0.8f, 0.8f, 1.0f);    break; // gray
+    }
+    reg.Emplace<C_D_Material>(entity, mat);
+
+    auto& pickup = reg.Emplace<C_T_ItemPickup>(entity);
+    pickup.itemId   = itemId;
+    pickup.quantity = quantity;
+
+    auto& dn = reg.Emplace<C_D_DebugName>(entity);
+    std::snprintf(dn.name, sizeof(dn.name), "ENTITY_ItemPickup_%02d", spawnIndex);
+
+    LOG_INFO("[PrefabFactory] CreateItemPickup id=" << entity
+             << " itemId=" << static_cast<int>(itemId)
+             << " qty=" << (int)quantity
+             << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
+
+    return entity;
 }
 
 // ============================================================

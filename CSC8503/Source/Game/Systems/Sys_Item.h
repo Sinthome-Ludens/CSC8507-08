@@ -79,6 +79,12 @@ private:
      * @param registry ECS 注册表。
      */
     void DetectPickup(Registry& registry);
+
+    /// @brief 每帧同步 Res_ItemInventory2 → Res_GameState 显示槽（count/cooldown）。
+    void SyncDisplaySlots(Registry& registry, float dt);
+
+    /// @brief 每帧同步 Res_ItemInventory2 → Res_InventoryState（供 UI_Inventory 读取）。
+    void SyncInventoryState(Registry& registry);
 };
 
 } // namespace ECS

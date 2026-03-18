@@ -17,6 +17,7 @@
  *   - EventBus 订阅 Evt_Player_Noise 实现噪音感知
  */
 #include "Sys_EnemyAI.h"
+#include "Game/Utils/PauseGuard.h"
 #include <algorithm>
 #include <cmath>
 #include "Game/Components/C_D_AIPerception.h"
@@ -114,6 +115,7 @@ void Sys_EnemyAI::OnDestroy(Registry& registry) {
 }
 
 void Sys_EnemyAI::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     Res_AIConfig aiCfg;
     if (registry.has_ctx<Res_AIConfig>()) {
         aiCfg = registry.ctx<Res_AIConfig>();

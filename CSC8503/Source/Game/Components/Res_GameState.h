@@ -108,6 +108,10 @@ struct Res_GameState {
     SlotDisplay itemSlots[2]     = {};
     SlotDisplay weaponSlots[2]   = {};
 
+    // ─ 道具使用闪光 ───────────────────────────────────────
+    float   itemUseFlashTimer    = 0.0f;   ///< >0 时 HUD 面板闪光
+    uint8_t itemUseFlashSlotType = 0;      ///< 0=gadget, 1=weapon
+
     // ─ 噪音 ───────────────────────────────────────────────
     float noiseLevel = 0.0f;  ///< [0.0, 1.0]
 

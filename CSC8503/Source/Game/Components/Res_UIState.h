@@ -26,6 +26,12 @@ inline constexpr ResolutionPreset kResolutions[] = {
 };
 inline constexpr int kResolutionCount = 3;
 
+/// 地图数量与显示名（顺序匹配 CreateMapScene(): 0=HangerA, 1=HangerB, 2=Helipad, 3=Lab, 4=Dock）
+inline constexpr int kMapCount = 5;
+inline constexpr const char* kMapDisplayNames[] = {
+    "HANGER A", "HANGER B", "HELIPAD", "LAB", "DOCK"
+};
+
 enum class UIScreen : uint8_t {
     None = 0,
     TitleScreen,
@@ -36,11 +42,11 @@ enum class UIScreen : uint8_t {
     HUD,
     GameOver,
     Inventory,
-    Loadout,
     MissionSelect,
     Team,
     Loading,
     Lobby,
+    Victory,     ///< 战役通关画面
 };
 
 enum class SceneRequest : uint8_t {
@@ -52,6 +58,7 @@ enum class SceneRequest : uint8_t {
     HostGame,
     JoinGame,
     NextLevel,          ///< 关卡序列：前进到下一张地图
+    StartTutorial,      ///< 教程关卡入口
 };
 
 struct Res_UIState {
@@ -82,8 +89,7 @@ struct Res_UIState {
     float     sfxVolume          = 0.8f;
     float     mouseSensitivity   = 0.5f;
 
-    // Loadout / Inventory / Team
-    int8_t    loadoutSelectedIndex  = 0;
+    // Inventory / Team
     int8_t    inventorySelectedSlot = 0;
     float     teamStartTime        = 0.0f;
 
@@ -125,13 +131,9 @@ struct Res_UIState {
     // DevMode (Fix 3: toast cycle needs memory; others derive from current state)
     uint8_t   devToastCycle        = 0;
 
-    // Loadout temporary state (Fix 6: moved from file-scope statics)
-    int8_t    loadoutEquippedItems[2]   = { -1, -1 };
-    int8_t    loadoutEquippedWeapons[2] = { -1, -1 };
-    bool      loadoutInitialized        = false;
-
-    // Saved inventory storeCount cache (populated by SaveManager::LoadGame)
+    // Saved inventory cache (populated by SaveManager::LoadGame)
     uint8_t   savedStoreCount[5]       = {};
+    bool      savedUnlocked[5]         = {};  ///< 武器解锁缓存
     bool      hasSavedInventory        = false;
 
     // ── Map sequence (campaign: random 5-pick-3, sorted by map ID) ──
@@ -140,6 +142,7 @@ struct Res_UIState {
     uint8_t   mapSequence[MAP_SEQUENCE_LENGTH] = {0, 1, 2};  ///< 关卡地图 ID
     uint8_t   mapSequenceIndex         = 0;           ///< 当前关卡在序列中的位置
     bool      mapSequenceGenerated     = false;       ///< 是否已生成过序列
+    float     totalPlayTime            = 0.0f;        ///< 累计游玩时间（战役全关合计）
 };
 
 } // namespace ECS

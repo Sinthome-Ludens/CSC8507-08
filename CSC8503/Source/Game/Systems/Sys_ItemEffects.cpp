@@ -17,6 +17,7 @@
  *  - TargetStrike：对最近敌人 hp 归零（触发 Sys_DeathJudgment）
  */
 #include "Sys_ItemEffects.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Health.h"
@@ -89,6 +90,7 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
 // OnUpdate
 // ============================================================
 void Sys_ItemEffects::OnUpdate(Registry& registry, float dt) {
+    PAUSE_GUARD(registry);
     UpdateHoloBait  (registry, dt);
     UpdateDDoSFrozen(registry, dt);
     UpdateRoamAI    (registry, dt);
@@ -344,13 +346,16 @@ void Sys_ItemEffects::UpdateRoamAI(Registry& registry, float dt) {
                 }
             }
 
-            // 检测与敌人的碰撞
+            // 检测与敌人的碰撞（1:1 语义：一个 RoamAI 最多击杀一个敌人）
             float r2 = roam.detectRadius * roam.detectRadius;
+            bool killed = false;
             registry.view<C_T_Enemy, C_D_Transform>().each(
                 [&](EntityID eid, C_T_Enemy&, C_D_Transform& etf) {
+                    if (killed) return;
                     float dx = etf.position.x - tf.position.x;
                     float dz = etf.position.z - tf.position.z;
                     if ((dx*dx + dz*dz) <= r2) {
+                        killed = true;
                         roam.active = false;
                         toDestroy.push_back(roamId);
                         toDestroy.push_back(eid);

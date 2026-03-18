@@ -6,6 +6,7 @@
  * 根据输入与玩家状态驱动 EntityID 语义下的物理移动接口。
  */
 #include "Sys_Movement.h"
+#include "Game/Utils/PauseGuard.h"
 
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_RigidBody.h"
@@ -27,6 +28,7 @@ namespace ECS {
  * @param dt 本帧时间步长（当前实现未直接使用）
  */
 void Sys_Movement::OnUpdate(Registry& registry, float /*dt*/) {
+    PAUSE_GUARD(registry);
     if (!registry.has_ctx<Sys_Physics*>()) return;
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;

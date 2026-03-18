@@ -249,6 +249,10 @@ bool LoadMapConfig(const std::string& prefabName, MapLoadConfig& out) {
         std::string v = mc["enemySpawns"].get<std::string>();
         strncpy_s(out.enemySpawns, sizeof(out.enemySpawns), v.c_str(), sizeof(out.enemySpawns) - 1);
     }
+    if (mc.contains("itemSpawns")) {
+        std::string v = mc["itemSpawns"].get<std::string>();
+        strncpy_s(out.itemSpawns, sizeof(out.itemSpawns), v.c_str(), sizeof(out.itemSpawns) - 1);
+    }
     if (mc.contains("mapScale"))     out.mapScale     = mc["mapScale"].get<float>();
     if (mc.contains("yOffset"))      out.yOffset      = mc["yOffset"].get<float>();
     if (mc.contains("flipWinding"))  out.flipWinding  = mc["flipWinding"].get<bool>();
