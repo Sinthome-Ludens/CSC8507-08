@@ -153,10 +153,19 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
         draw->AddText(ImVec2(valX, scoreY + 100.0f), labelCol, "0");
     }
 
+    // COUNTDOWN
+    draw->AddText(ImVec2(statsX + 10.0f, scoreY + 124.0f), labelCol, "COUNTDOWN:");
+    if (ui.scoreLost_countdown > 0) {
+        snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_countdown);
+        draw->AddText(ImVec2(valX, scoreY + 124.0f), deductCol, buf);
+    } else {
+        draw->AddText(ImVec2(valX, scoreY + 124.0f), labelCol, "0");
+    }
+
     if (termFont) ImGui::PopFont();
 
     // ── Separator ─────────────────────────────────────────────
-    float sepY = scoreY + 130.0f;
+    float sepY = scoreY + 154.0f;
     draw->AddLine(ImVec2(cx - 80.0f, sepY), ImVec2(cx + 80.0f, sepY),
         IM_COL32(200, 200, 200, 100), 1.0f);
 
