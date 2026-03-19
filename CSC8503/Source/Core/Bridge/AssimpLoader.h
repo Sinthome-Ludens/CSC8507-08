@@ -4,16 +4,16 @@
  *
  * @details
  * `AssimpLoader` 是 Bridge 层的核心组件，负责使用 Assimp 库加载各种 3D 模型格式，
- * 并将数据转换为 NCL 的 `OGLMesh` 格式。
+ * 并将数据转换为 NCL 的 `Mesh` 格式（具体子类由注入的 MeshFactory 决定）。
  *
- * ## 支持的格式
+ * ## 支持的格式（Assimp 路径）
  *
  * - **OBJ** (.obj) - Wavefront Object
  * - **FBX** (.fbx) - Autodesk FBX
- * - **GLTF** (.gltf, .glb) - GL Transmission Format
  * - **Collada** (.dae) - COLLADA
  * - **Blender** (.blend) - Blender 3D
- * - **3DS** (.3ds) - 3D Studio
+ *
+ * GLTF (.gltf/.glb) 由 AssetManager 路由到 GLTFLoader，不经过 AssimpLoader。
  *
  * ## 数据流
  *
@@ -26,7 +26,7 @@
  *   ↓
  * AssimpLoader::ConvertMesh()
  *   ↓
- * OGLMesh (NCL 数据结构)
+ * Mesh* (由 MeshFactory 创建的具体子类)
  *   ↓
  * UploadToGPU()
  * ```
@@ -55,13 +55,13 @@
  *
  * @code
  * // 加载单个网格
- * OGLMesh* mesh = AssimpLoader::LoadMesh("Assets/Models/cube.obj");
+ * Mesh* mesh = AssimpLoader::LoadMesh("Assets/Models/cube.obj");
  * if (mesh) {
  *     // 网格已上传到 GPU，可以直接渲染
  * }
  *
  * // 加载场景中的所有网格
- * std::vector<OGLMesh*> meshes = AssimpLoader::LoadScene("Assets/Models/scene.fbx");
+ * std::vector<Mesh*> meshes = AssimpLoader::LoadScene("Assets/Models/scene.fbx");
  * @endcode
  *
  * ## 错误处理
@@ -73,7 +73,7 @@
  * @note 当前实现仅支持静态网格，骨骼动画支持将在后续版本添加。
  *
  * @see AssetManager (调用 LoadMesh)
- * @see OGLMesh (目标数据结构)
+ * @see Mesh (目标数据结构基类)
  */
 
 #pragma once

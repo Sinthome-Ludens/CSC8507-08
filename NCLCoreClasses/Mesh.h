@@ -190,6 +190,7 @@ namespace NCL::Rendering {
 		void SetDebugName(const std::string& debugName);
 
 		virtual void UploadToGPU(Rendering::RendererBase* renderer = nullptr) = 0;
+		/// @brief Upload skinning-related GPU buffers (joint indices/weights). Override in subclass.
 		virtual void UploadSkinBuffers() {}
 
 		uint32_t GetAssetID() const {

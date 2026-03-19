@@ -369,25 +369,34 @@ Mesh* AssetManager::LoadMeshViaGLTF(const std::string& fullPath) {
         for (const auto& v : pos) mergedPositions.push_back(v);
         for (const auto& i : idx) mergedIndices.push_back(i + baseVertex);
 
-        // Normals: append if present, pad with default (0,1,0) if missing but seen before
+        // Normals: pad front if first appearance, then append
         if (!nrm.empty()) {
-            hasNormals = true;
+            if (!hasNormals) {
+                hasNormals = true;
+                mergedNormals.resize(baseVertex, Vector3(0, 1, 0));
+            }
             for (const auto& n : nrm) mergedNormals.push_back(n);
         } else if (hasNormals) {
             mergedNormals.resize(mergedPositions.size(), Vector3(0, 1, 0));
         }
 
-        // Tangents: append if present, pad with default (1,0,0,1) if missing but seen before
+        // Tangents: pad front if first appearance, then append
         if (!tan.empty()) {
-            hasTangents = true;
+            if (!hasTangents) {
+                hasTangents = true;
+                mergedTangents.resize(baseVertex, Vector4(1, 0, 0, 1));
+            }
             for (const auto& t : tan) mergedTangents.push_back(t);
         } else if (hasTangents) {
             mergedTangents.resize(mergedPositions.size(), Vector4(1, 0, 0, 1));
         }
 
-        // UVs: append if present, pad with default (0,0) if missing but seen before
+        // UVs: pad front if first appearance, then append
         if (!uv.empty()) {
-            hasTexCoords = true;
+            if (!hasTexCoords) {
+                hasTexCoords = true;
+                mergedTexCoords.resize(baseVertex, Vector2(0, 0));
+            }
             for (const auto& u : uv) mergedTexCoords.push_back(u);
         } else if (hasTexCoords) {
             mergedTexCoords.resize(mergedPositions.size(), Vector2(0, 0));

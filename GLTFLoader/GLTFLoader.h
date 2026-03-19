@@ -95,7 +95,9 @@ namespace NCL::Rendering {
 		typedef std::function<NCL::Rendering::SharedMesh (void)>				MeshConstructionFunction;
 		typedef std::function<NCL::Rendering::SharedTexture (std::string&)>		TextureConstructionFunction;
 
+		/// @brief Load a GLTF/GLB file relative to the asset root directory.
 		static bool Load(const std::string& filename, GLTFScene& intoScene);
+		/// @brief Load a GLTF/GLB file using an absolute or full filesystem path.
 		static bool LoadFromPath(const std::string& fullPath, GLTFScene& intoScene);
 		static void SetMeshConstructionFunction(MeshConstructionFunction func);
 		static void SetTextureConstructionFunction(TextureConstructionFunction func);
@@ -114,6 +116,7 @@ namespace NCL::Rendering {
 		};
 
 		static void LoadImages(tinygltf::Model& m, GLTFScene& scene, BaseState state, const std::string& rootFile, TextureConstructionFunction texFunc);
+		/// @brief Load images using parent directory of fullPath for URI resolution (used by LoadFromPath).
 		static void LoadImagesFromPath(tinygltf::Model& m, GLTFScene& scene, BaseState state, const std::string& fullPath, TextureConstructionFunction texFunc);
 		static void LoadMaterials(tinygltf::Model& m, GLTFScene& scene, BaseState state);
 		static void LoadSceneNodeData(tinygltf::Model& m, GLTFScene& scene, BaseState state);

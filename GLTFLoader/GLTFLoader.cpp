@@ -212,6 +212,12 @@ bool GLTFLoader::Load(const std::string& filename, GLTFScene& intoScene) {
 	return true;
 }
 
+/**
+ * @brief Load a GLTF/GLB scene from an absolute filesystem path.
+ * @param fullPath Absolute path to the .gltf or .glb file.
+ * @param intoScene Output scene to populate with meshes, materials, and nodes.
+ * @return true on success, false if loading or parsing failed.
+ */
 bool GLTFLoader::LoadFromPath(const std::string& fullPath, GLTFScene& intoScene) {
 	TinyGLTF gltf;
 	Model	 model;
@@ -253,6 +259,14 @@ bool GLTFLoader::LoadFromPath(const std::string& fullPath, GLTFScene& intoScene)
 	return true;
 }
 
+/**
+ * @brief Load texture images using the parent directory of fullPath for URI resolution.
+ * @param m Parsed tinygltf model containing image URIs.
+ * @param scene Output GLTF scene to append loaded textures to.
+ * @param state Base index offsets for the current load session.
+ * @param fullPath Absolute path to the .gltf file (parent directory used for image lookup).
+ * @param texFunc Factory function to construct SharedTexture from a file path.
+ */
 void GLTFLoader::LoadImagesFromPath(tinygltf::Model& m, GLTFScene& scene, BaseState state, const std::string& fullPath, TextureConstructionFunction texFunc) {
 	std::map<std::string, NCL::Rendering::SharedTexture> loadedTexturesMap;
 

@@ -77,7 +77,7 @@
       "replies": [{ "text": "你好 卖的", "alertDelta": 0, "next": "nd_02" }] },
     { "id": "nd_02", "speaker": "TARGET", "message": "我看你写的600，能不能便宜点",
       "replies": [{ "text": "便宜不了了，到处都是这个价", "alertDelta": 0, "next": "nd_03" }] },
-    { "id": "nd_03", "speaker": "TARGET", "message": "我看你这个机子又是换过电源，又是改过冷却", "waitReply": false, "next": "nd_04" },z
+    { "id": "nd_03", "speaker": "TARGET", "message": "我看你这个机子又是换过电源，又是改过冷却", "waitReply": false, "next": "nd_04" },
     { "id": "nd_04", "speaker": "TARGET", "message": "保修肯定也不能用了",
       "replies": [{ "text": "所以呢?全新1500现在半价不到还贵？", "alertDelta": 0, "next": "nd_05" }] },
     { "id": "nd_05", "speaker": "TARGET", "message": "哎呀兄弟，不瞒你说", "waitReply": false, "next": "nd_06" },

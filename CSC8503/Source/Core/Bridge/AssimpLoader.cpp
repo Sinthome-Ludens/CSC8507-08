@@ -133,6 +133,7 @@ Mesh* AssimpLoader::LoadMesh(const std::string& path) {
 }
 
 std::vector<Mesh*> AssimpLoader::LoadScene(const std::string& path) {
+    GAME_ASSERT(s_MeshFactory, "[AssimpLoader] LoadScene: MeshFactory not set. Call SetMeshFactory() first.");
     LOG_INFO("[AssimpLoader] Loading scene: " << path);
 
     std::vector<Mesh*> meshes;
