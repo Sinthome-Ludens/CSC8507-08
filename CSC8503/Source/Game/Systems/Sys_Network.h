@@ -274,7 +274,17 @@ private:
      * @return 0 表示尚未进入本地终局，否则返回现有 gameOverReason 编码
      */
     static MultiplayerTerminalState GetLocalTerminalState(const Res_GameState& gs);
+    /**
+     * @brief 从当前比赛状态计算本地客户端的终局原因编码。
+     * @param gs 当前比赛状态资源
+     * @return 0 表示尚未进入本地终局，否则返回现有 gameOverReason 编码
+     */
     static uint8_t GetLocalTerminalReason(const Res_GameState& gs);
+    /**
+     * @brief 判断给定多人比赛终局状态是否为最终稳定终态。
+     * @param state 待判断的终局状态
+     * @return 若为最终不可再变更的终局状态则返回 true，否则返回 false
+     */
     static bool IsFinalTerminalState(MultiplayerTerminalState state);
     /**
      * @brief 判断当前 `Res_Network` 是否仍持有可安全跨场景复用的 ENet 会话。
