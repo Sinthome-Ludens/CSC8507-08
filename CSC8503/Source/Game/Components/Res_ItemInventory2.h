@@ -97,7 +97,7 @@ struct Res_ItemInventory2 {
         slots[0].itemType    = ItemType::Gadget;
         slots[0].maxCarry    = 2;
         slots[0].maxStore    = 99;
-        slots[0].mapPickupMax = 10;
+        slots[0].mapPickupMax = 99;
         slots[0].unlocked    = true;
         slots[0].storeCount  = 5;
         snprintf(slots[0].name, sizeof(slots[0].name), "HoloBait");
@@ -121,7 +121,7 @@ struct Res_ItemInventory2 {
         slots[2].itemType    = ItemType::Gadget;
         slots[2].maxCarry    = 2;
         slots[2].maxStore    = 99;
-        slots[2].mapPickupMax = 10;
+        slots[2].mapPickupMax = 99;
         slots[2].unlocked    = true;
         slots[2].storeCount  = 4;
         snprintf(slots[2].name, sizeof(slots[2].name), "DDOS");
@@ -134,7 +134,7 @@ struct Res_ItemInventory2 {
         slots[3].maxCarry    = 2;
         slots[3].maxStore    = 0;
         slots[3].storeCount  = 0;
-        slots[3].mapPickupMax = 10;
+        slots[3].mapPickupMax = 99;
         slots[3].unlocked    = false;
         snprintf(slots[3].name, sizeof(slots[3].name), "RoamAI");
         snprintf(slots[3].desc, sizeof(slots[3].desc), "Patrol AI, kills on contact (AUTO x2)");
@@ -146,7 +146,7 @@ struct Res_ItemInventory2 {
         slots[4].maxCarry    = 2;
         slots[4].maxStore    = 0;
         slots[4].storeCount  = 0;
-        slots[4].mapPickupMax = 10;
+        slots[4].mapPickupMax = 99;
         slots[4].unlocked    = false;
         snprintf(slots[4].name, sizeof(slots[4].name), "Strike");
         snprintf(slots[4].desc, sizeof(slots[4].desc), "Kill nearest enemy instantly (AUTO x2)");
@@ -157,7 +157,7 @@ struct Res_ItemInventory2 {
         slots[5].itemType    = ItemType::Gadget;
         slots[5].maxCarry    = 1;
         slots[5].maxStore    = 99;
-        slots[5].mapPickupMax = 2;   // 地图可拾取（稀有，每图最多 2 个）
+        slots[5].mapPickupMax = 99;
         slots[5].unlocked    = true;
         slots[5].storeCount  = 3;
         snprintf(slots[5].name, sizeof(slots[5].name), "Map");
