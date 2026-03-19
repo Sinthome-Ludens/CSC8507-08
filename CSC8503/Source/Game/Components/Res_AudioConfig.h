@@ -37,8 +37,9 @@ enum class SfxId : uint8_t {
     HuntEnter,        ///< 敌人进入 Hunt
     UIClick,          ///< UI 点击（菜单导航/确认/返回统一）
     FinishZone,       ///< 到达结算点
-    EnemyKillA,       ///< 敌人死亡变体 A（50% 权重）
-    EnemyKillB,       ///< 敌人死亡变体 B（50% 权重）
+    EnemyKillA,       ///< 敌人死亡变体 A（33% 权重）
+    EnemyKillB,       ///< 敌人死亡变体 B（33% 权重）
+    EnemyKillC,       ///< 敌人死亡变体 C（33% 权重）
     PlayerDeath,      ///< 玩家死亡
     ItemPickup,       ///< 道具拾取（碰撞触发，含钥匙卡）
     ItemUse,          ///< 道具使用（全道具共用）
@@ -56,8 +57,8 @@ struct Res_AudioConfig {
     const char* bgmPaths[(int)BgmId::COUNT] = {
         "",                                    // None
         "Audio/BGM/MainMenu-BGM.mp3",   // Menu
-        "Audio/BGM/Normal.mp3",          // GameplayNormal
-        "Audio/BGM/Alert.mp3",           // GameplayTense
+        "Audio/BGM/Patrik Andrén,Johan Soderqvist,Embark Studios - The Wanderer (Prologue).mp3", // GameplayNormal
+        "Audio/BGM/Normal.mp3",          // GameplayTense
         "Audio/BGM/Hunt.mp3",            // GameplayDanger
         "Audio/BGM/Succeed.mp3",         // Victory
         "Audio/BGM/Fail.mp3",            // Defeat
@@ -71,10 +72,11 @@ struct Res_AudioConfig {
         "Audio/SFX/sequence_success.mp3",                                        // FinishZone
         "Audio/SFX/windows-xp-error-sound.mp3",                                  // EnemyKillA
         "Audio/SFX/disappear-scream.mp3",                                        // EnemyKillB
+        "Audio/SFX/EnemyKilled.mp3",                                             // EnemyKillC
         "",                                                                             // PlayerDeath（预留）
-        "Audio/SFX/metal-gear-item-drop.mp3",                                    // ItemPickup
-        "Audio/SFX/u_u4pf5h7zip-click-345983.mp3",                               // ItemUse
-        "",                                                                             // WeaponUse（预留）
+        "Audio/SFX/itemGet.mp3",                                                 // ItemPickup
+        "Audio/SFX/WeaponUsage.mp3",                                              // ItemUse
+        "Audio/SFX/minecraft-sword-swing.mp3",                                       // WeaponUse
         "Audio/SFX/universfield-new-notification-018-363746.mp3",                 // DialoguePopup
         "Audio/SFX/lesiakower-error-mistake-sound-effect-incorrect-answer-437420.mp3", // DialogueTimeout
     };

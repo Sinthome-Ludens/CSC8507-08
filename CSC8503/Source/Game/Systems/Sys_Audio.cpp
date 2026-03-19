@@ -98,8 +98,8 @@ void Sys_Audio::OnAwake(Registry& registry) {
                 [this](const Evt_Death& e) {
                     if (!m_Initialized) return;
                     if (e.deathType == DeathType::EnemyHpZero) {
-                        SfxId id = (std::rand() % 2 == 0) ? SfxId::EnemyKillA : SfxId::EnemyKillB;
-                        PlaySfx(id);
+                        static const SfxId kEnemyKillVariants[] = { SfxId::EnemyKillA, SfxId::EnemyKillB, SfxId::EnemyKillC };
+                        PlaySfx(kEnemyKillVariants[std::rand() % 3]);
                     }
                     if (e.deathType == DeathType::PlayerCaptured
                         || e.deathType == DeathType::PlayerTriggerDie) {
