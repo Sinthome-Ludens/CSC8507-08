@@ -70,6 +70,20 @@ inline const ImVec4 kScrollbarBg      = {0.961f, 0.933f, 0.910f, 1.00f};
 inline const ImVec4 kScrollbarGrab    = {0.78f,  0.76f,  0.74f,  0.60f};
 
 // ============================================================
+// ImU32 draw-list colors (for ImDrawList direct usage)
+// ============================================================
+
+inline ImU32 Col32_Bg(uint8_t a = 255)         { return IM_COL32(245,238,232,a); }
+inline ImU32 Col32_BgDark(uint8_t a = 255)      { return IM_COL32(16,13,10,a); }
+inline ImU32 Col32_Accent(uint8_t a = 255)      { return IM_COL32(252,111,41,a); }
+inline ImU32 Col32_AccentHover(uint8_t a = 255) { return IM_COL32(255,135,71,a); }
+inline ImU32 Col32_Text(uint8_t a = 255)        { return IM_COL32(16,13,10,a); }
+inline ImU32 Col32_Gray(uint8_t a = 255)        { return IM_COL32(200,200,200,a); }
+inline ImU32 Col32_Green(uint8_t a = 220)       { return IM_COL32(80,200,120,a); }
+inline ImU32 Col32_Yellow(uint8_t a = 220)      { return IM_COL32(220,200,0,a); }
+inline ImU32 Col32_Red(uint8_t a = 220)         { return IM_COL32(220,60,40,a); }
+
+// ============================================================
 // Math constants
 // ============================================================
 
