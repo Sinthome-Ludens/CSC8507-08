@@ -47,6 +47,7 @@ public:
 private:
     SubscriptionID m_TriggerSubId   = 0;
     SubscriptionID m_CollisionSubId = 0;
+    bool m_DidLogStartupState = false;
 };
 
 } // namespace ECS

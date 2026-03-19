@@ -16,7 +16,13 @@
 #include "Game/Utils/EnemySpawnLoader.h"
 #include "Game/Utils/DoorKeyLoader.h"
 #include "Game/Utils/ItemSpawnLoader.h"
+#include "Game/Components/C_D_CQCState.h"
+#include "Game/Components/C_D_Health.h"
+#include "Game/Components/C_D_Input.h"
+#include "Game/Components/C_D_PlayerState.h"
 #include "Game/Components/C_D_PatrolRoute.h"
+#include "Game/Components/C_T_NavTarget.h"
+#include "Game/Components/C_T_Player.h"
 #include "Game/Utils/Log.h"
 
 #include <algorithm>
@@ -27,12 +33,50 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
+namespace {
+
 /// Check if a file exists on disk (quick open test).
 static bool FileExists(const std::string& path) {
     std::ifstream f(path);
     return f.good();
 }
 
+void EnsureGameplayPlayerComponents(Registry& reg, EntityID playerEntity) {
+    if (!Entity::IsValid(playerEntity) || !reg.Valid(playerEntity)) {
+        return;
+    }
+
+    // Keep the spawned player aligned with the single-player gameplay contract so
+    // multiplayer scene transitions cannot accidentally leave it as a non-player shell.
+    if (!reg.Has<C_T_Player>(playerEntity)) {
+        reg.Emplace<C_T_Player>(playerEntity);
+    }
+    if (!reg.Has<C_D_PlayerState>(playerEntity)) {
+        reg.Emplace<C_D_PlayerState>(playerEntity);
+    }
+    if (!reg.Has<C_D_Input>(playerEntity)) {
+        reg.Emplace<C_D_Input>(playerEntity);
+    }
+    if (!reg.Has<C_D_CQCState>(playerEntity)) {
+        reg.Emplace<C_D_CQCState>(playerEntity);
+    }
+    if (!reg.Has<C_D_Health>(playerEntity)) {
+        reg.Emplace<C_D_Health>(playerEntity);
+    }
+    if (!reg.Has<C_T_NavTarget>(playerEntity)) {
+        reg.Emplace<C_T_NavTarget>(playerEntity);
+    }
+
+    LOG_MPDBG("[MapLoader] Player gameplay contract: entity=" << (int)playerEntity
+              << " has<C_T_Player>=" << reg.Has<C_T_Player>(playerEntity)
+              << " has<C_D_PlayerState>=" << reg.Has<C_D_PlayerState>(playerEntity)
+              << " has<C_D_Input>=" << reg.Has<C_D_Input>(playerEntity)
+              << " has<C_D_CQCState>=" << reg.Has<C_D_CQCState>(playerEntity)
+              << " has<C_D_Health>=" << reg.Has<C_D_Health>(playerEntity)
+              << " has<C_T_NavTarget>=" << reg.Has<C_T_NavTarget>(playerEntity));
+}
+
+} // namespace
 MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cubeMesh)
 {
     MapLoadResult result;
@@ -228,6 +272,7 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
                 sp.y * scale + worldY + 1.5f,
                 sp.z * scale);
             result.playerEntity = PrefabFactory::CreatePlayer(reg, cubeMesh, spawnPos);
+            EnsureGameplayPlayerComponents(reg, result.playerEntity);
             LOG_INFO("[MapLoader] Player spawned at ("
                      << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
         }

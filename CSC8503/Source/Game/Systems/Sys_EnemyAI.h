@@ -22,6 +22,7 @@ public:
 private:
     SubscriptionID m_NoiseSubId = 0;
     SubscriptionID m_AlertSubId = 0;
+    bool m_DidLogStartupState = false;
 };
 
 } // namespace ECS
