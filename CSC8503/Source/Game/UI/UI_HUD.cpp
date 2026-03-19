@@ -19,7 +19,6 @@
 #include <algorithm>
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
-#include "Game/Components/Res_GhostDuelState.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_MinimapState.h"
 #include "Game/Components/Res_RadarState.h"
@@ -723,96 +722,6 @@ static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs
 }
 
 // ============================================================
-// 10a. RenderHUD_GhostDuelOpponent — Ghost Duel 对手积分面板 (center-top)
-// ============================================================
-/// @brief 渲染 Ghost Duel 对手积分面板（屏幕中上方），含对手名/积分/评级/完成标签。
-static void RenderHUD_GhostDuelOpponent(ImDrawList* draw, Registry& registry, float gameW, float displayH) {
-    if (!registry.has_ctx<Res_GhostDuelState>()) return;
-    const auto& gd = registry.ctx<Res_GhostDuelState>();
-
-    ImFont* termFont  = UITheme::GetFont_Terminal();
-    ImFont* smallFont = UITheme::GetFont_Small();
-
-    float panelW = 300.0f;
-    float panelH = 40.0f;
-    float panelX = gameW * 0.5f - panelW * 0.5f;
-    float panelY = 8.0f;
-
-    // Dark panel background
-    draw->AddRectFilled(
-        ImVec2(panelX, panelY),
-        ImVec2(panelX + panelW, panelY + panelH),
-        IM_COL32(16, 13, 10, 140), 3.0f);
-
-    // Left teal accent bar
-    draw->AddRectFilled(
-        ImVec2(panelX, panelY),
-        ImVec2(panelX + 3.0f, panelY + panelH),
-        IM_COL32(46, 196, 182, 200));
-
-    // "VS [opponentName]"
-    if (termFont) ImGui::PushFont(termFont);
-    char vsBuf[32];
-    snprintf(vsBuf, sizeof(vsBuf), "VS %s", gd.opponentName);
-    draw->AddText(ImVec2(panelX + 10.0f, panelY + 4.0f),
-        IM_COL32(46, 196, 182, 220), vsBuf);
-
-    // Opponent score + rating
-    const char* oppRating = GetScoreRating(gd.opponentScore);
-    int8_t oppTier = GetScoreRatingTier(gd.opponentScore);
-    ImU32 oppScoreCol = UITheme::GetScoreRatingColor(oppTier, 220);
-
-    char scoreBuf[32];
-    snprintf(scoreBuf, sizeof(scoreBuf), "SCORE: %d [%s]",
-        std::max(0, gd.opponentScore), oppRating);
-    draw->AddText(ImVec2(panelX + 10.0f, panelY + 22.0f), oppScoreCol, scoreBuf);
-    if (termFont) ImGui::PopFont();
-
-    // [FINISHED] label
-    if (gd.opponentFinished) {
-        if (smallFont) ImGui::PushFont(smallFont);
-        const char* finLabel = "[FINISHED]";
-        ImVec2 finSize = ImGui::CalcTextSize(finLabel);
-        draw->AddText(ImVec2(panelX + panelW - finSize.x - 10.0f, panelY + 14.0f),
-            IM_COL32(80, 200, 120, 220), finLabel);
-        if (smallFont) ImGui::PopFont();
-    }
-}
-
-// ============================================================
-// 10b. RenderHUD_GhostIndicator — Ghost Duel 虚影状态指示器
-// ============================================================
-/// @brief 渲染右下角虚影状态小面板（GHOST / GHOST: OFF）。
-static void RenderHUD_GhostIndicator(ImDrawList* draw, Registry& registry, float gameW) {
-    if (!registry.has_ctx<Res_GhostDuelState>()) return;
-    const auto& gd = registry.ctx<Res_GhostDuelState>();
-
-    ImFont* smallFont = UITheme::GetFont_Small();
-    if (smallFont) ImGui::PushFont(smallFont);
-
-    float indicX = gameW - 100.0f;
-    float indicY = ImGui::GetIO().DisplaySize.y - 98.0f;  // above PING
-    float indicW = 80.0f;
-    float indicH = 20.0f;
-
-    if (gd.ghostVisible) {
-        // Teal dot + "GHOST"
-        draw->AddRectFilled(ImVec2(indicX, indicY), ImVec2(indicX + 8.0f, indicY + 8.0f),
-            IM_COL32(46, 196, 182, 220));
-        draw->AddText(ImVec2(indicX + 12.0f, indicY - 2.0f),
-            IM_COL32(46, 196, 182, 200), "GHOST");
-    } else {
-        // Gray dot + "GHOST: OFF"
-        draw->AddRectFilled(ImVec2(indicX, indicY), ImVec2(indicX + 8.0f, indicY + 8.0f),
-            IM_COL32(120, 120, 120, 150));
-        draw->AddText(ImVec2(indicX + 12.0f, indicY - 2.0f),
-            IM_COL32(120, 120, 120, 150), "GHOST: OFF");
-    }
-
-    if (smallFont) ImGui::PopFont();
-}
-
-// ============================================================
 // 10. RenderHUD_NetworkStatus — 右下角网络状态
 // ============================================================
 /// @brief 渲染右下角网络状态（PING 值，颜色随延迟变化），仅多人模式调用。
@@ -864,7 +773,7 @@ void RenderHUD(Registry& registry, float dt) {
     // Render all sub-panels (7 base + 3 multiplayer)
     RenderHUD_MissionPanel(draw, gs, gameW);
     RenderHUD_AlertGauge(draw, gs, gameW);
-    if (!gs.isMultiplayer || gs.isGhostDuel) {
+    if (!gs.isMultiplayer) {
         RenderHUD_Score(draw, ui.campaignScore, gameW);
     }
     RenderHUD_Countdown(draw, gs, gameW, ui.globalTime);
@@ -876,15 +785,9 @@ void RenderHUD(Registry& registry, float dt) {
 
     // Multiplayer-only panels
     if (gs.isMultiplayer) {
-        if (gs.isGhostDuel && registry.has_ctx<Res_GhostDuelState>()) {
-            RenderHUD_GhostDuelOpponent(draw, registry, gameW, displayH);
-            RenderHUD_GhostIndicator(draw, registry, gameW);
-            RenderHUD_NetworkStatus(draw, gs, gameW, displayH);
-        } else {
-            RenderHUD_OpponentBar(draw, gs, gameW);
-            RenderHUD_DisruptionEffect(draw, gs, displaySize.x, displayH, ui.globalTime);
-            RenderHUD_NetworkStatus(draw, gs, gameW, displayH);
-        }
+        RenderHUD_OpponentBar(draw, gs, gameW);
+        RenderHUD_DisruptionEffect(draw, gs, displaySize.x, displayH, ui.globalTime);
+        RenderHUD_NetworkStatus(draw, gs, gameW, displayH);
     }
 
     // Control hints (bottom, inside game area)

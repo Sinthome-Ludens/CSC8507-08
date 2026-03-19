@@ -10,7 +10,6 @@
 #include "Core/ECS/SystemManager.h"
 #include "Core/ECS/EventBus.h"
 #include "Game/Components/Res_GameState.h"
-#include "Game/Components/Res_GhostDuelState.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_Network.h"
 #include "Game/Events/Evt_Net_GameAction.h"
@@ -177,18 +176,6 @@ private:
      */
     void HandleGameAction(Registry& reg, Res_Network& resNet, const ENetEvent& event);
 
-    // ── Ghost Duel packet handlers ──
-    /** @brief 处理对端的 Ghost Duel 积分明细同步包。 */
-    void HandleGhostScoreSync(Registry& reg, Res_Network& resNet, const ENetEvent& event);
-    /** @brief 处理对端的 Ghost Duel 虚影位置同步包。 */
-    void HandleGhostPosition(Registry& reg, Res_Network& resNet, const ENetEvent& event);
-    /** @brief 处理对端的 Ghost Duel 关卡进度通知。 */
-    void HandleGhostMapProgress(Registry& reg, Res_Network& resNet, const ENetEvent& event);
-    /** @brief 将本地积分明细广播给对端。 */
-    void BroadcastGhostScore(Registry& reg, Res_Network& resNet);
-    /** @brief 将本地玩家位置广播给对端。 */
-    void BroadcastGhostPosition(Registry& reg, Res_Network& resNet);
-
     /**
      * @brief 清空仅在单帧内有效的比赛状态边沿标记。
      * @param reg ECS 注册表
@@ -332,12 +319,6 @@ private:
     uint8_t m_LastBroadcastClientStage = 0xFF;
     uint8_t m_LastBroadcastRoundIndex = 0xFF;
     uint8_t m_LastBroadcastGameOverReason = 0xFF;
-
-    // Ghost Duel broadcast timers
-    float m_GhostScoreTimer    = 0.0f;
-    float m_GhostPositionTimer = 0.0f;
-    static constexpr float kGhostScoreRate    = 1.0f / 10.0f;  // 10Hz
-    static constexpr float kGhostPositionRate = 1.0f / 20.0f;  // 20Hz
 
     /**
      * @brief 本地游戏动作事件回调。

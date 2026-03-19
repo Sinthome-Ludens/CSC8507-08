@@ -40,7 +40,6 @@
 #include "Game/Systems/Sys_EnemyVision.h"
 #include "Game/Systems/Sys_Navigation.h"
 #include "Game/Systems/Sys_Network.h"
-#include "Game/Systems/Sys_GhostDuel.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
@@ -62,8 +61,6 @@
 #include "Game/Systems/Sys_UI.h"
 #include "Game/Systems/Sys_Chat.h"
 #include "Game/Components/Res_GameState.h"
-#include "Game/Components/Res_GhostDuelState.h"
-#include "Game/Components/C_T_GhostEntity.h"
 #include "Game/Components/Res_ToastState.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_InventoryState.h"
@@ -127,10 +124,6 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Animation>       ( 50);
     if (isMultiplayer) {
         systems.Register<ECS::Sys_Network>     ( 54);
-    }
-    if (isMultiplayer && registry.has_ctx<ECS::Res_UIState>()
-        && registry.ctx<ECS::Res_UIState>().pendingGhostDuel) {
-        systems.Register<ECS::Sys_GhostDuel>   ( 56);
     }
     systems.Register<ECS::Sys_InputDispatch>   ( 55);
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);
@@ -225,12 +218,6 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     const uint8_t preservedOpponentStage = gs.opponentStageProgress;
     gs = ECS::Res_GameState{};
     gs.isMultiplayer = isMultiplayer;
-    if (registry.has_ctx<ECS::Res_UIState>() && registry.ctx<ECS::Res_UIState>().pendingGhostDuel) {
-        gs.isGhostDuel = true;
-        if (!registry.has_ctx<ECS::Res_GhostDuelState>()) {
-            registry.ctx_emplace<ECS::Res_GhostDuelState>();
-        }
-    }
     if (isMultiplayer) {
         gs.matchPhase = preserveMultiplayerState
             ? preservedPhase
@@ -248,13 +235,6 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
 
     systems.AwakeAll(registry);
 
-    // ── Ghost Duel: create ghost visualization entity ────────────────────
-    if (registry.has_ctx<ECS::Res_UIState>() && registry.ctx<ECS::Res_UIState>().pendingGhostDuel) {
-        auto ghost = registry.Create();
-        registry.Emplace<ECS::C_D_Transform>(ghost);
-        registry.Emplace<ECS::C_T_GhostEntity>(ghost);
-        registry.Emplace<ECS::C_D_MeshRenderer>(ghost, cubeMesh, ECS::MaterialHandle{0});
-    }
 
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_UIState>()) {
@@ -321,8 +301,6 @@ void Scene_Dock::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_LobbyState>())      registry.ctx_erase<ECS::Res_LobbyState>();
     if (registry.has_ctx<ECS::Res_DialogueData>())    registry.ctx_erase<ECS::Res_DialogueData>();
 #endif
-
-    if (registry.has_ctx<ECS::Res_GhostDuelState>()) registry.ctx_erase<ECS::Res_GhostDuelState>();
 
     registry.Clear();
 
