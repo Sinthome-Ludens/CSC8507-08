@@ -157,7 +157,7 @@ struct Res_ItemInventory2 {
         slots[5].itemType    = ItemType::Gadget;
         slots[5].maxCarry    = 1;
         slots[5].maxStore    = 99;
-        slots[5].mapPickupMax = 0;   // 不可地图拾取，仅仓库携带
+        slots[5].mapPickupMax = 2;   // 地图可拾取（稀有，每图最多 2 个）
         slots[5].unlocked    = true;
         slots[5].storeCount  = 3;
         snprintf(slots[5].name, sizeof(slots[5].name), "Map");
