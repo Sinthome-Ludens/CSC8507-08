@@ -98,9 +98,8 @@ struct Res_UIState {
     float     teamStartTime        = 0.0f;
 
     // Mission Select
-    int8_t    missionSelectedMap        = 0;      ///< 选中的关卡索引
-    int8_t    missionSelectedTab        = 0;      ///< 0=关卡, 1=道具, 2=武器
-    int8_t    missionCursorPerTab[3]    = {};     ///< 每个 tab 内的光标位置
+    int8_t    missionSelectedTab        = 0;      ///< 0=道具, 1=武器
+    int8_t    missionCursorPerTab[2]    = {};     ///< 每个 tab 内的光标位置
     int8_t    missionEquippedItems[2]   = { -1, -1 };
     int8_t    missionEquippedWeapons[2] = { -1, -1 };
 
