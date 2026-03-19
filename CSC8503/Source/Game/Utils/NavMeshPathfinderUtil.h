@@ -124,6 +124,15 @@ public:
     int GetTriangleCount() const { return static_cast<int>(m_Triangles.size()); }
 
     /**
+     * @brief 将世界坐标吸附到最近的可行走 NavMesh 表面。
+     * @param worldPos 输入世界坐标
+     * @param outSnapped 输出吸附后的世界坐标（Y = NavMesh 表面高度）
+     * @return true 如果找到可行走三角形；false 表示 NavMesh 未加载或无匹配
+     */
+    bool SnapToNavMesh(const NCL::Maths::Vector3& worldPos,
+                       NCL::Maths::Vector3& outSnapped) const;
+
+    /**
      * @brief PathfinderUtil 接口：A* 寻路
      *
      * 若 navmesh 未加载，退化为直线追踪（输出单路点 {end}）。

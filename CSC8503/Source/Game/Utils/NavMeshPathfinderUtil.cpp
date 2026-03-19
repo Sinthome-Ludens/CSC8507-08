@@ -458,6 +458,61 @@ void NavMeshPathfinderUtil::BuildAdjacency()
 }
 
 // ============================================================
+// SnapToNavMesh — 将世界坐标吸附到最近可行走三角形表面
+// ============================================================
+/// @brief 将世界坐标吸附到最近 NavMesh 三角形表面（XZ 最近边投影 + Y 地面高度）。
+bool NavMeshPathfinderUtil::SnapToNavMesh(
+    const NCL::Maths::Vector3& worldPos,
+    NCL::Maths::Vector3& outSnapped) const
+{
+    if (!m_Loaded || m_Triangles.empty()) return false;
+    int triIdx = FindNearestTriangle(worldPos);
+    if (triIdx < 0) return false;
+
+    const auto& tri = m_Triangles[triIdx];
+    const auto& a = m_Vertices[tri.v[0]];
+    const auto& b = m_Vertices[tri.v[1]];
+    const auto& c = m_Vertices[tri.v[2]];
+
+    // XZ: keep original if inside triangle, otherwise use centroid
+    if (PointInTriangleXZ(worldPos, a, b, c)) {
+        outSnapped.x = worldPos.x;
+        outSnapped.z = worldPos.z;
+    } else {
+        // XZ 平面上 worldPos 到三角形三条边的最近点投影（比 centroid 更接近原始坐标且不深入墙体）
+        auto closestOnSegXZ = [](float px, float pz,
+                                 float ax, float az,
+                                 float bx, float bz,
+                                 float& ox, float& oz) {
+            float dx = bx - ax, dz = bz - az;
+            float lenSq = dx * dx + dz * dz;
+            if (lenSq < 1e-8f) { ox = ax; oz = az; return; }
+            float t = ((px - ax) * dx + (pz - az) * dz) / lenSq;
+            if (t < 0.0f) t = 0.0f;
+            if (t > 1.0f) t = 1.0f;
+            ox = ax + t * dx;
+            oz = az + t * dz;
+        };
+
+        float ex0, ez0, ex1, ez1, ex2, ez2;
+        closestOnSegXZ(worldPos.x, worldPos.z, a.x, a.z, b.x, b.z, ex0, ez0);
+        closestOnSegXZ(worldPos.x, worldPos.z, b.x, b.z, c.x, c.z, ex1, ez1);
+        closestOnSegXZ(worldPos.x, worldPos.z, c.x, c.z, a.x, a.z, ex2, ez2);
+
+        float d0 = (worldPos.x-ex0)*(worldPos.x-ex0) + (worldPos.z-ez0)*(worldPos.z-ez0);
+        float d1 = (worldPos.x-ex1)*(worldPos.x-ex1) + (worldPos.z-ez1)*(worldPos.z-ez1);
+        float d2 = (worldPos.x-ex2)*(worldPos.x-ex2) + (worldPos.z-ez2)*(worldPos.z-ez2);
+
+        if (d0 <= d1 && d0 <= d2)      { outSnapped.x = ex0; outSnapped.z = ez0; }
+        else if (d1 <= d2)             { outSnapped.x = ex1; outSnapped.z = ez1; }
+        else                           { outSnapped.x = ex2; outSnapped.z = ez2; }
+    }
+    // Y: use triangle centroid Y as ground surface height approximation
+    outSnapped.y = tri.centroid.y;
+    return true;
+}
+
+// ============================================================
 // PointInTriangleXZ — 判断点 p 的 XZ 投影是否在三角形 abc 内（重心坐标法）
 // 用于多层地图精确定位：先确定 XZ 包含关系，再比较 Y 距离。
 // ============================================================

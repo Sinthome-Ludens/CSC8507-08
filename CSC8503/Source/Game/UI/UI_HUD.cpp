@@ -20,6 +20,10 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_ChatState.h"
+#include "Game/Components/Res_MinimapState.h"
+#include "Game/Components/Res_RadarState.h"
+#include "Game/Components/C_T_Player.h"
+#include "Game/Components/C_D_Transform.h"
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_ItemIcons.h"
 
@@ -465,6 +469,109 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
 }
 
 // ============================================================
+// 7b. RenderHUD_Minimap — 左侧小地图叠层
+// ============================================================
+/// @brief 渲染左侧小地图（GlobalMap 道具激活后显示地图边界 + 玩家 + 敌人位置）。
+static void RenderHUD_Minimap(ImDrawList* draw, Registry& registry, float /*displayH*/) {
+    if (!registry.has_ctx<Res_MinimapState>()) return;
+    const auto& minimap = registry.ctx<Res_MinimapState>();
+    if (!minimap.isActive || minimap.edgeCount == 0) return;
+
+    // ── 布局参数 ──
+    constexpr float kMapX = 16.0f;   // 左上角 X
+    constexpr float kMapY = 76.0f;   // MissionPanel(y=12,h=52) 下方
+    constexpr float kMapSize = 160.0f;
+    constexpr float kPadding = 8.0f;
+
+    // 深色半透明背景
+    draw->AddRectFilled(
+        ImVec2(kMapX, kMapY),
+        ImVec2(kMapX + kMapSize, kMapY + kMapSize),
+        IM_COL32(16, 13, 10, 180), 3.0f);
+
+    // 边框
+    draw->AddRect(
+        ImVec2(kMapX, kMapY),
+        ImVec2(kMapX + kMapSize, kMapY + kMapSize),
+        IM_COL32(252, 111, 41, 120), 3.0f);
+
+    // ── 世界坐标 → 小地图坐标映射 ──
+    float worldW = minimap.worldMaxX - minimap.worldMinX;
+    float worldH = minimap.worldMaxZ - minimap.worldMinZ;
+    if (worldW < 0.1f || worldH < 0.1f) return;
+
+    float drawSize = kMapSize - kPadding * 2;
+    float scale = drawSize / std::max(worldW, worldH);
+    float offsetX = kMapX + kPadding + (drawSize - worldW * scale) * 0.5f;
+    float offsetZ = kMapY + kPadding + (drawSize - worldH * scale) * 0.5f;
+
+    // 世界 XZ → 屏幕坐标 lambda
+    auto toScreen = [&](float wx, float wz) -> ImVec2 {
+        return ImVec2(
+            offsetX + (wx - minimap.worldMinX) * scale,
+            offsetZ + (wz - minimap.worldMinZ) * scale);
+    };
+
+    // ── 绘制可行走区域填充（半透明） ──
+    for (int t = 0; t < minimap.triangleCount; ++t) {
+        const auto& tri = minimap.triangles[t];
+        ImVec2 a = toScreen(tri.x0, tri.z0);
+        ImVec2 b = toScreen(tri.x1, tri.z1);
+        ImVec2 c = toScreen(tri.x2, tri.z2);
+        draw->AddTriangleFilled(a, b, c, IM_COL32(60, 55, 50, 100));
+    }
+
+    // ── 绘制边界线段（灰色） ──
+    for (int i = 0; i < minimap.edgeCount; ++i) {
+        const auto& e = minimap.edges[i];
+        ImVec2 a = toScreen(e.x0, e.z0);
+        ImVec2 b = toScreen(e.x1, e.z1);
+        draw->AddLine(a, b, IM_COL32(200, 200, 200, 140), 1.0f);
+    }
+
+    // ── 绘制敌人位置（红色圆点，来自 Res_RadarState） ──
+    if (registry.has_ctx<Res_RadarState>()) {
+        const auto& radar = registry.ctx<Res_RadarState>();
+        if (radar.isActive) {
+            for (int i = 0; i < radar.contactCount && i < Res_RadarState::kMaxContacts; ++i) {
+                if (!radar.contacts[i].valid) continue;
+                ImVec2 ep = toScreen(radar.contacts[i].worldPos.x,
+                                      radar.contacts[i].worldPos.z);
+                draw->AddCircleFilled(ep, 3.0f, IM_COL32(220, 60, 40, 220));
+            }
+        }
+    }
+
+    // ── 绘制玩家位置（橙色三角形） ──
+    registry.view<C_T_Player, C_D_Transform>().each(
+        [&](EntityID, C_T_Player&, C_D_Transform& tf) {
+            ImVec2 pp = toScreen(tf.position.x, tf.position.z);
+            // 小三角形（上方指向）
+            draw->AddTriangleFilled(
+                ImVec2(pp.x, pp.y - 4.0f),
+                ImVec2(pp.x - 3.0f, pp.y + 3.0f),
+                ImVec2(pp.x + 3.0f, pp.y + 3.0f),
+                IM_COL32(252, 111, 41, 255));
+        });
+
+    // ── "MAP" 标题 + 倒计时 ──
+    ImFont* smallFont = UITheme::GetFont_Small();
+    if (smallFont) ImGui::PushFont(smallFont);
+    draw->AddText(ImVec2(kMapX + 4.0f, kMapY + 2.0f),
+                  IM_COL32(252, 111, 41, 200), "MAP");
+
+    // 剩余秒数（右上角）
+    if (minimap.activeTimer > 0.0f) {
+        char timerBuf[8];
+        snprintf(timerBuf, sizeof(timerBuf), "%.0fs", minimap.activeTimer);
+        ImVec2 timerSize = ImGui::CalcTextSize(timerBuf);
+        draw->AddText(ImVec2(kMapX + kMapSize - timerSize.x - 4.0f, kMapY + 2.0f),
+                      IM_COL32(245, 238, 232, 200), timerBuf);
+    }
+    if (smallFont) ImGui::PopFont();
+}
+
+// ============================================================
 // 8. RenderHUD_MatchBanner — 多人状态横幅
 // ============================================================
 /// @brief 渲染上方居中的多人状态横幅（等待对手 / 游戏开始）。
@@ -718,6 +825,7 @@ void RenderHUD(Registry& registry, float dt) {
     RenderHUD_NoiseIndicator(draw, gs, displayH, ui.globalTime);
     RenderHUD_ItemSlots(draw, gs, gameW, displayH);
     RenderHUD_Degradation(draw, gs, displaySize.x, displayH, ui.globalTime);
+    RenderHUD_Minimap(draw, registry, displayH);
 
     // Multiplayer-only panels
     if (gs.isMultiplayer) {

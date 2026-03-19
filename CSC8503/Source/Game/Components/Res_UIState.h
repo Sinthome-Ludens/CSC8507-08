@@ -46,7 +46,7 @@ enum class UIScreen : uint8_t {
     Team,
     Loading,
     Lobby,
-    Victory,     ///< 战役通关画面
+    Victory,          ///< 战役通关画面
 };
 
 enum class SceneRequest : uint8_t {
@@ -136,8 +136,8 @@ struct Res_UIState {
     uint8_t   devToastCycle        = 0;
 
     // Saved inventory cache (populated by SaveManager::LoadGame)
-    uint8_t   savedStoreCount[5]       = {};
-    bool      savedUnlocked[5]         = {};  ///< 武器解锁缓存
+    uint8_t   savedStoreCount[6]       = {};
+    bool      savedUnlocked[6]         = {};  ///< 武器解锁缓存
     bool      hasSavedInventory        = false;
 
     // ── Map sequence (campaign: random 5-pick-3, sorted by map ID) ──

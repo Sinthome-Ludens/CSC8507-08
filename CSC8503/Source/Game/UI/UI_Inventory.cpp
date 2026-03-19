@@ -8,11 +8,15 @@
 #include <imgui.h>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include "Window.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_InventoryState.h"
+#include "Game/Components/Res_GameState.h"
+#include "Game/Components/C_D_Item.h"
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_ItemIcons.h"
+#include "Game/UI/UI_Toast.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/Res_UIKeyConfig.h"
@@ -64,6 +68,10 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_InventoryState>()) return;
     auto& inv = registry.ctx<Res_InventoryState>();
 
+    // GameState for equip slots
+    bool hasGameState = registry.has_ctx<Res_GameState>();
+    Res_GameState* gsPtr = hasGameState ? &registry.ctx<Res_GameState>() : nullptr;
+
     // Grid layout: 4 columns x 3 rows
     constexpr float kCardW = 120.0f;
     constexpr float kCardH = 100.0f;
@@ -80,6 +88,18 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
 
     ImFont* termFont  = UITheme::GetFont_Terminal();
     ImFont* smallFont = UITheme::GetFont_Small();
+
+    // Equipment check lambda
+    auto isEquipped = [&](uint8_t itemId) -> bool {
+        if (!gsPtr) return false;
+        for (int s = 0; s < 2; ++s) {
+            if (gsPtr->itemSlots[s].name[0] != '\0' && gsPtr->itemSlots[s].itemId == itemId)
+                return true;
+            if (gsPtr->weaponSlots[s].name[0] != '\0' && gsPtr->weaponSlots[s].itemId == itemId)
+                return true;
+        }
+        return false;
+    };
 
     // Keyboard navigation
     const auto& input = registry.ctx<Res_Input>();
@@ -105,6 +125,9 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
         ui.inventorySelectedSlot = static_cast<int8_t>(row * Res_InventoryState::kCols + col);
     }
 
+    // Track which card the mouse is hovering (for LMB equip)
+    int hoveredCard = -1;
+
     // Draw grid cards
     for (int r = 0; r < Res_InventoryState::kRows; ++r) {
         for (int c = 0; c < Res_InventoryState::kCols; ++c) {
@@ -124,14 +147,22 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
                     mousePos.y >= cardMin.y && mousePos.y <= cardMax.y) {
                     ui.inventorySelectedSlot = static_cast<int8_t>(idx);
                     isSelected = true;
+                    hoveredCard = idx;
                 }
             }
+
+            const auto& item = inv.slots[idx];
+            bool equipped = (!item.isEmpty && isEquipped(item.itemId));
 
             // Card background
             draw->AddRectFilled(cardMin, cardMax,
                 IM_COL32(245, 238, 232, 255), 3.0f);
 
-            if (isSelected) {
+            // Border: equipped=orange thick, selected=orange, default=gray
+            if (equipped) {
+                draw->AddRect(cardMin, cardMax,
+                    IM_COL32(252, 111, 41, 255), 3.0f, 0, 2.5f);
+            } else if (isSelected) {
                 draw->AddRect(cardMin, cardMax,
                     IM_COL32(252, 111, 41, 180), 3.0f, 0, 2.0f);
             } else {
@@ -140,7 +171,6 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
             }
 
             // Slot content
-            const auto& item = inv.slots[idx];
             if (!item.isEmpty) {
                 // Geometric icon (center-top area)
                 DrawItemIcon(draw,
@@ -161,6 +191,14 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
                         IM_COL32(252, 111, 41, 200), qtyBuf);
                     if (smallFont) ImGui::PopFont();
                 }
+
+                // [EQUIPPED] label at bottom-right
+                if (equipped) {
+                    if (smallFont) ImGui::PushFont(smallFont);
+                    draw->AddText(ImVec2(cardX + kCardW - 68.0f, cardY + kCardH - 16.0f),
+                        IM_COL32(252, 111, 41, 255), "[EQUIPPED]");
+                    if (smallFont) ImGui::PopFont();
+                }
             } else {
                 // Empty slot
                 if (smallFont) ImGui::PushFont(smallFont);
@@ -176,6 +214,58 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
             draw->AddText(ImVec2(cardX + kCardW - 18.0f, cardY + 4.0f),
                 IM_COL32(16, 13, 10, 80), idxBuf);
             if (smallFont) ImGui::PopFont();
+        }
+    }
+
+    // ── Equip/Unequip logic ─────────────────────────────────────
+    if (gsPtr) {
+        bool confirmPressed = input.keyPressed[KeyCodes::RETURN]
+                           || input.keyPressed[KeyCodes::SPACE]
+                           || (input.mouseButtonPressed[NCL::MouseButtons::Left] && hoveredCard >= 0);
+
+        int selIdx = ui.inventorySelectedSlot;
+        if (confirmPressed && selIdx >= 0 && selIdx < Res_InventoryState::kSlotCount) {
+            const auto& selItem = inv.slots[selIdx];
+            if (!selItem.isEmpty && selItem.quantity > 0) {
+                uint8_t itemId = selItem.itemId;
+                ItemType type = GetItemType(static_cast<ItemID>(itemId));
+                SlotDisplay* slots = (type == ItemType::Gadget) ? gsPtr->itemSlots : gsPtr->weaponSlots;
+
+                // Check if already equipped → unequip
+                int equippedSlot = -1;
+                for (int s = 0; s < 2; ++s) {
+                    if (slots[s].name[0] != '\0' && slots[s].itemId == itemId) {
+                        equippedSlot = s;
+                        break;
+                    }
+                }
+
+                if (equippedSlot >= 0) {
+                    // Unequip
+                    slots[equippedSlot] = {};
+                } else {
+                    // Find empty slot
+                    int freeSlot = -1;
+                    for (int s = 0; s < 2; ++s) {
+                        if (slots[s].name[0] == '\0') { freeSlot = s; break; }
+                    }
+
+                    if (freeSlot >= 0) {
+                        auto& dst = slots[freeSlot];
+                        size_t len = strlen(selItem.name);
+                        if (len > sizeof(dst.name) - 1) len = sizeof(dst.name) - 1;
+                        memcpy(dst.name, selItem.name, len);
+                        dst.name[len] = '\0';
+                        dst.itemId   = itemId;
+                        dst.count    = selItem.quantity;
+                        dst.cooldown = 0.0f;
+                    } else {
+                        const char* msg = (type == ItemType::Gadget)
+                            ? "GADGET SLOTS FULL" : "WEAPON SLOTS FULL";
+                        PushToast(registry, msg, ToastType::Warning);
+                    }
+                }
+            }
         }
     }
 
@@ -219,6 +309,16 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
                 snprintf(qtyLine, sizeof(qtyLine), "QUANTITY: %u", selItem.quantity);
                 draw->AddText(ImVec2(detailX + 12.0f, detailLineY + 60.0f),
                     IM_COL32(16, 13, 10, 160), qtyLine);
+
+                // Equip status
+                bool equipped = isEquipped(selItem.itemId);
+                if (equipped) {
+                    draw->AddText(ImVec2(detailX + 12.0f, detailLineY + 84.0f),
+                        IM_COL32(252, 111, 41, 255), "STATUS: EQUIPPED");
+                } else if (selItem.quantity > 0) {
+                    draw->AddText(ImVec2(detailX + 12.0f, detailLineY + 84.0f),
+                        IM_COL32(16, 13, 10, 120), "PRESS [ENTER] TO EQUIP");
+                }
                 if (smallFont) ImGui::PopFont();
             } else {
                 if (smallFont) ImGui::PushFont(smallFont);
@@ -234,7 +334,7 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
     draw->AddText(
         ImVec2(vpPos.x + 40.0f, vpPos.y + vpSize.y - 30.0f),
         IM_COL32(16, 13, 10, 180),
-        "[W/A/S/D] NAVIGATE  [I] CLOSE  [ESC] BACK");
+        "[W/A/S/D] NAVIGATE  [ENTER] EQUIP  [I] CLOSE  [ESC] BACK");
     if (smallFont) ImGui::PopFont();
 
     ImGui::End();

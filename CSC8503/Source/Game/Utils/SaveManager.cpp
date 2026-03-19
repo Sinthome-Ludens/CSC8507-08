@@ -97,14 +97,6 @@ bool SaveGame(Registry& registry) {
             root["inventory"] = arr;
         }
 
-        // Mission
-        if (registry.has_ctx<Res_UIState>()) {
-            auto& ui = registry.ctx<Res_UIState>();
-            root["mission"] = {
-                {"selectedMap", static_cast<int>(ui.missionSelectedMap)}
-            };
-        }
-
         // Ensure directory exists
         std::string path = GetSavePath();
         std::filesystem::create_directories(
@@ -133,7 +125,7 @@ bool SaveGame(Registry& registry) {
  * @details 按 itemId 匹配恢复 storeCount（而非数组下标），防止 ItemID 顺序变化导致错位。
  *          始终更新 Res_UIState.savedStoreCount 缓存（供菜单阶段 MissionSelect 使用）。
  * @param registry ECS 注册表（写入存在的 ctx 资源）
- * @param restoreMission true 时恢复 missionSelectedMap（菜单阶段），false 跳过（游戏阶段保留用户选择）
+ * @param restoreMission true 时恢复存档任务状态（菜单阶段），false 跳过（游戏阶段保留用户选择）
  * @return true 加载成功，false 文件不存在/版本不匹配/解析失败
  */
 bool LoadGame(Registry& registry, bool restoreMission) {
@@ -194,13 +186,6 @@ bool LoadGame(Registry& registry, bool restoreMission) {
                 }
                 ui.hasSavedInventory = true;
             }
-        }
-
-        // Restore mission selection (only in menu stage; game stage preserves user's pick)
-        if (restoreMission && root.contains("mission") && registry.has_ctx<Res_UIState>()) {
-            auto& ui = registry.ctx<Res_UIState>();
-            ui.missionSelectedMap = static_cast<int8_t>(
-                root["mission"].value("selectedMap", 0));
         }
 
         LOG_INFO("[SaveManager] Game loaded from " << path);
