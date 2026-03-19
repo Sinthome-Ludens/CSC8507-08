@@ -1,6 +1,6 @@
 # Unity Enemy Spawn Points Export (Right-Handed)
 # Root Space: TutorialLevel
-spawnCount 4
+spawnCount 5
 
 spawn 0
 name SpawnPoint
@@ -11,6 +11,11 @@ patrol
 14.170000 1.755000 -11.980000
 
 spawn 1
+name Cube
+position 14.170000 1.755000 -11.980000
+patrolCount 0
+
+spawn 2
 name SpawnPoint (1)
 position 10.900000 1.990000 -6.820000
 patrolCount 2
@@ -18,7 +23,7 @@ patrol
 10.900000 1.990000 -6.820000
 10.850000 1.755000 18.180000
 
-spawn 2
+spawn 3
 name SpawnPoint (2)
 position 13.890000 1.990000 18.380000
 patrolCount 2
@@ -26,7 +31,7 @@ patrol
 13.890000 1.990000 18.380000
 13.940020 1.755000 -6.620001
 
-spawn 3
+spawn 4
 name SpawnPoint (3)
 position -12.290000 1.990000 10.090000
 patrolCount 4

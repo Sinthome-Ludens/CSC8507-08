@@ -81,12 +81,13 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <functional>
 
 // 包含 NCL 类型（用于返回值和参数）
 #include "Vector.h"
 
 namespace NCL::Rendering {
-    class OGLMesh;
+    class Mesh;
     class MeshAnimation;
 }
 
@@ -100,27 +101,28 @@ namespace ECS {
  */
 class AssimpLoader {
 public:
+    /// @brief Mesh 工厂函数类型（由 AssetManager 注入）
+    using MeshFactory = std::function<NCL::Rendering::Mesh*()>;
+
+    /**
+     * @brief 注入 Mesh 工厂函数，决定运行时创建哪种 Mesh 子类。
+     * @details 由 AssetManager::SetMeshFactory() 自动调用。
+     */
+    static void SetMeshFactory(MeshFactory factory);
+
     /**
      * @brief 加载模型文件的第一个网格
      * @param path 模型文件路径（相对于 Assets/ 或绝对路径）
-     * @return OGLMesh* 成功返回网格指针（已上传到 GPU），失败返回 nullptr
-     *
-     * @details
-     * 使用 Assimp 加载模型文件，提取第一个网格并转换为 NCL 格式。
-     * 适用于只包含单个网格的模型（如简单的 OBJ 文件）。
+     * @return Mesh* 成功返回网格指针（已上传到 GPU），失败返回 nullptr
      */
-    static NCL::Rendering::OGLMesh* LoadMesh(const std::string& path);
+    static NCL::Rendering::Mesh* LoadMesh(const std::string& path);
 
     /**
      * @brief 加载模型文件中的所有网格
      * @param path 模型文件路径
-     * @return std::vector<OGLMesh*> 网格指针数组（可能为空）
-     *
-     * @details
-     * 适用于包含多个子网格的复杂模型（如 FBX 场景）。
-     * 每个网格都已上传到 GPU，可以独立渲染。
+     * @return std::vector<Mesh*> 网格指针数组（可能为空）
      */
-    static std::vector<NCL::Rendering::OGLMesh*> LoadScene(const std::string& path);
+    static std::vector<NCL::Rendering::Mesh*> LoadScene(const std::string& path);
 
     /**
      * @brief 从模型文件提取碰撞用三角网格数据（不上传 GPU）
@@ -151,7 +153,9 @@ public:
      * 若 meshToFill 不为 nullptr，同时填充骨骼绑定信息（bindPose、inverseBindPose 等）。
      */
     static NCL::Rendering::MeshAnimation* LoadAnimation(const std::string& path,
-                                                         NCL::Rendering::OGLMesh* meshToFill = nullptr);
+                                                         NCL::Rendering::Mesh* meshToFill = nullptr);
+
+    static MeshFactory s_MeshFactory; ///< 由 SetMeshFactory 注入
 
 private:
     AssimpLoader() = delete; // 禁止实例化

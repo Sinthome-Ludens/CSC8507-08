@@ -57,6 +57,8 @@
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/Scenes/SceneManager.h"
+#include "Core/Bridge/AssetManager.h"
+#include "OGLMesh.h"
 #include "Game/Scenes/Scene_PhysicsTest.h"
 #include "Game/Scenes/Scene_MainMenu.h"
 #include "Game/Scenes/Scene_NavTest.h"
@@ -518,6 +520,13 @@ int main(int argc, char** argv) {
         if (e == NCL::WindowEvent::Resize) {
             renderer->OnWindowResize(width, height);
         }
+    });
+
+    // =========================================================
+    // 渲染后端工厂注入（ECS 解耦：只有 Main.cpp 知道具体后端类型）
+    // =========================================================
+    ECS::AssetManager::Instance().SetMeshFactory([]() -> NCL::Rendering::Mesh* {
+        return new NCL::Rendering::OGLMesh();
     });
 
     // =========================================================

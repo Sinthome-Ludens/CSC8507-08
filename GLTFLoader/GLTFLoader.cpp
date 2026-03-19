@@ -212,6 +212,64 @@ bool GLTFLoader::Load(const std::string& filename, GLTFScene& intoScene) {
 	return true;
 }
 
+bool GLTFLoader::LoadFromPath(const std::string& fullPath, GLTFScene& intoScene) {
+	TinyGLTF gltf;
+	Model	 model;
+
+	assert(meshFunc);
+	assert(texFunc);
+
+	bool loadOk = false;
+	if (fullPath.ends_with(".glb")) {
+		loadOk = gltf.LoadBinaryFromFile(&model, nullptr, nullptr, fullPath);
+	} else {
+		loadOk = gltf.LoadASCIIFromFile(&model, nullptr, nullptr, fullPath);
+	}
+	if (!loadOk) {
+		return false;
+	}
+
+	BaseState state;
+	state.firstAnim = intoScene.animations.size();
+	state.firstMat = intoScene.meshMaterials.size();
+	state.firstMatLayer = intoScene.materials.size();
+	state.firstMesh = intoScene.meshes.size();
+	state.firstNode = intoScene.sceneNodes.size();
+	state.firstTex = intoScene.textures.size();
+
+	LoadImagesFromPath(model, intoScene, state, fullPath, texFunc);
+	LoadMaterials(model, intoScene, state);
+	LoadSceneNodeData(model, intoScene, state);
+
+	LoadVertexData(model, intoScene, state, meshFunc);
+	AssignNodeMeshes(model, intoScene, state);
+
+	for (int i = 0; i < intoScene.sceneNodes.size(); ++i) {
+		if (intoScene.sceneNodes[i].parent < 0){
+			intoScene.topLevelNodes.push_back(i);
+		}
+	}
+
+	return true;
+}
+
+void GLTFLoader::LoadImagesFromPath(tinygltf::Model& m, GLTFScene& scene, BaseState state, const std::string& fullPath, TextureConstructionFunction texFunc) {
+	std::map<std::string, NCL::Rendering::SharedTexture> loadedTexturesMap;
+
+	std::filesystem::path baseDir = std::filesystem::path(fullPath).parent_path();
+
+	for (const auto& i : m.images) {
+		std::filesystem::path imagePath = baseDir;
+		imagePath.append(i.uri);
+		std::string pathString = imagePath.string();
+
+		SharedTexture tex = SharedTexture(texFunc(pathString));
+
+		scene.textures.push_back(tex);
+		loadedTexturesMap.insert({ i.uri, tex });
+	}
+}
+
 void GLTFLoader::LoadImages(tinygltf::Model& m, GLTFScene& scene, BaseState state, const std::string& rootFile, TextureConstructionFunction texFunc) {
 	std::map<std::string, NCL::Rendering::SharedTexture> loadedTexturesMap;
 

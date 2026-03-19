@@ -32,7 +32,9 @@
 #include "Game/UI/UI_ActionNotify.h"
 #endif
 #include "Game/Events/Evt_Phys_Trigger.h"
+#include "Game/Events/Evt_Phys_Collision.h"
 #include "Game/Events/Evt_Death.h"
+#include "Game/Components/C_D_CQCState.h"
 #include "Game/Utils/Log.h"
 
 #include <algorithm>
@@ -77,6 +79,59 @@ void Sys_DeathJudgment::OnAwake(Registry& registry) {
                                      << " entered death zone " << (int)deathZone);
                         }
                     }
+                }
+            );
+
+            // 订阅刚体碰撞事件（敌人-玩家碰撞即死）
+            m_CollisionSubId = bus->subscribe<Evt_Phys_Collision>(
+                [&registry](const Evt_Phys_Collision& e) {
+                    // 判断碰撞双方哪个是玩家、哪个是敌人
+                    EntityID playerId = 0;
+                    EntityID enemyId  = 0;
+
+                    bool aIsPlayer = registry.Has<C_T_Player>(e.entity_a);
+                    bool bIsPlayer = registry.Has<C_T_Player>(e.entity_b);
+                    bool aIsEnemy  = registry.Has<C_T_Enemy>(e.entity_a);
+                    bool bIsEnemy  = registry.Has<C_T_Enemy>(e.entity_b);
+
+                    if (aIsPlayer && bIsEnemy) {
+                        playerId = e.entity_a;
+                        enemyId  = e.entity_b;
+                    } else if (bIsPlayer && aIsEnemy) {
+                        playerId = e.entity_b;
+                        enemyId  = e.entity_a;
+                    } else {
+                        return; // 不是玩家-敌人碰撞
+                    }
+
+                    // 休眠敌人跳过
+                    if (registry.Has<C_D_EnemyDormant>(enemyId)) {
+                        const auto& dormant = registry.Get<C_D_EnemyDormant>(enemyId);
+                        if (dormant.isDormant) return;
+                    }
+
+                    // 游戏已结束跳过
+                    if (registry.has_ctx<Res_GameState>() &&
+                        registry.ctx<Res_GameState>().isGameOver) return;
+
+                    if (!registry.Has<C_D_Health>(playerId)) return;
+                    auto& health = registry.Get<C_D_Health>(playerId);
+
+                    // 玩家已死或无敌跳过
+                    if (health.hp <= 0.0f) return;
+                    if (health.invTimer > 0.0f) return;
+
+                    // CQC 期间：仅免疫正在处决的目标敌人，其他敌人碰撞仍致死
+                    if (registry.Has<C_D_CQCState>(playerId)) {
+                        const auto& cqc = registry.Get<C_D_CQCState>(playerId);
+                        if (cqc.phase != CQCPhase::None && enemyId == cqc.targetEnemy) return;
+                    }
+
+                    // 碰撞即死
+                    health.hp = 0.0f;
+                    health.deathCause = DeathType::PlayerCaptured;
+                    LOG_INFO("[DeathJudgment] Player " << (int)playerId
+                             << " killed by collision with enemy " << (int)enemyId);
                 }
             );
         }
@@ -271,13 +326,17 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
  * @param registry ECS 注册表
  */
 void Sys_DeathJudgment::OnDestroy(Registry& registry) {
-    if (m_TriggerSubId != 0 && registry.has_ctx<EventBus*>()) {
+    if (registry.has_ctx<EventBus*>()) {
         auto* bus = registry.ctx<EventBus*>();
         if (bus) {
-            bus->unsubscribe<Evt_Phys_TriggerEnter>(m_TriggerSubId);
+            if (m_TriggerSubId != 0)
+                bus->unsubscribe<Evt_Phys_TriggerEnter>(m_TriggerSubId);
+            if (m_CollisionSubId != 0)
+                bus->unsubscribe<Evt_Phys_Collision>(m_CollisionSubId);
         }
     }
-    m_TriggerSubId = 0;
+    m_TriggerSubId   = 0;
+    m_CollisionSubId = 0;
 
     LOG_INFO("[Sys_DeathJudgment] OnDestroy");
 }

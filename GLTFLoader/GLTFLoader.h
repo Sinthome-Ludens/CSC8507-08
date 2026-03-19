@@ -96,6 +96,7 @@ namespace NCL::Rendering {
 		typedef std::function<NCL::Rendering::SharedTexture (std::string&)>		TextureConstructionFunction;
 
 		static bool Load(const std::string& filename, GLTFScene& intoScene);
+		static bool LoadFromPath(const std::string& fullPath, GLTFScene& intoScene);
 		static void SetMeshConstructionFunction(MeshConstructionFunction func);
 		static void SetTextureConstructionFunction(TextureConstructionFunction func);
 
@@ -113,6 +114,7 @@ namespace NCL::Rendering {
 		};
 
 		static void LoadImages(tinygltf::Model& m, GLTFScene& scene, BaseState state, const std::string& rootFile, TextureConstructionFunction texFunc);
+		static void LoadImagesFromPath(tinygltf::Model& m, GLTFScene& scene, BaseState state, const std::string& fullPath, TextureConstructionFunction texFunc);
 		static void LoadMaterials(tinygltf::Model& m, GLTFScene& scene, BaseState state);
 		static void LoadSceneNodeData(tinygltf::Model& m, GLTFScene& scene, BaseState state);
 		static void LoadVertexData(tinygltf::Model& m, GLTFScene& scene, BaseState state, GLTFLoader::MeshConstructionFunction meshConstructor);

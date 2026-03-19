@@ -271,6 +271,20 @@ bool LoadMapConfig(const std::string& prefabName, MapLoadConfig& out) {
     if (mc.contains("yOffset"))      out.yOffset      = mc["yOffset"].get<float>();
     if (mc.contains("flipWinding"))  out.flipWinding  = mc["flipWinding"].get<bool>();
 
+    // GLTF overrides (preferred over OBJ when available)
+    if (mc.contains("renderMeshGltf")) {
+        std::string v = mc["renderMeshGltf"].get<std::string>();
+        strncpy_s(out.renderMeshGltf, sizeof(out.renderMeshGltf), v.c_str(), sizeof(out.renderMeshGltf) - 1);
+    }
+    if (mc.contains("collisionMeshGltf")) {
+        std::string v = mc["collisionMeshGltf"].get<std::string>();
+        strncpy_s(out.collisionMeshGltf, sizeof(out.collisionMeshGltf), v.c_str(), sizeof(out.collisionMeshGltf) - 1);
+    }
+    if (mc.contains("finishMeshGltf")) {
+        std::string v = mc["finishMeshGltf"].get<std::string>();
+        strncpy_s(out.finishMeshGltf, sizeof(out.finishMeshGltf), v.c_str(), sizeof(out.finishMeshGltf) - 1);
+    }
+
     LOG_INFO("[PrefabLoader] LoadMapConfig from " << prefabName);
     return true;
 }
