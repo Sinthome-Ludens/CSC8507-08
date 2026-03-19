@@ -27,6 +27,8 @@
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_ItemIcons.h"
 
+using namespace ECS::UITheme;
+
 namespace ECS::UI {
 
 /// @brief 返回去掉右侧聊天面板后的游戏区域宽度（像素）。
@@ -39,8 +41,8 @@ static float GetGameAreaWidth(float displayW) {
 // ============================================================
 /// @brief 渲染左上角任务面板（任务名 + 目标文字）。
 static void RenderHUD_MissionPanel(ImDrawList* draw, const Res_GameState& gs, float /*gameW*/) {
-    ImFont* smallFont = UITheme::GetFont_Small();
-    ImFont* termFont  = UITheme::GetFont_Terminal();
+    ImFont* smallFont = GetFont_Small();
+    ImFont* termFont  = GetFont_Terminal();
 
     float panelX = 16.0f;
     float panelY = 12.0f;
@@ -51,18 +53,18 @@ static void RenderHUD_MissionPanel(ImDrawList* draw, const Res_GameState& gs, fl
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        IM_COL32(16, 13, 10, 180), 3.0f);
+        Col32_BgDark(180), Layout::kPanelRounding);
 
     // Mission name
     if (termFont) ImGui::PushFont(termFont);
     draw->AddText(ImVec2(panelX + 10.0f, panelY + 6.0f),
-        IM_COL32(252, 111, 41, 240), gs.missionName);
+        Col32_Accent(240), gs.missionName);
     if (termFont) ImGui::PopFont();
 
     // Objective text
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(ImVec2(panelX + 10.0f, panelY + 28.0f),
-        IM_COL32(245, 238, 232, 200), gs.objectiveText);
+        Col32_Bg(200), gs.objectiveText);
     if (smallFont) ImGui::PopFont();
 }
 
@@ -74,7 +76,7 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     // 倒计时激活时隐藏警戒条
     if (gs.countdownActive) return;
 
-    ImFont* termFont  = UITheme::GetFont_Terminal();
+    ImFont* termFont  = GetFont_Terminal();
 
     float gaugeW = 220.0f;
     float gaugeH = 14.0f;
@@ -84,14 +86,14 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
 
     AlertStatus status = GetAlertStatus(gs.alertLevel);
 
-    // 彩色数字 "XX/100"，颜色随 AlertStatus 变化
+    // 彩色数字 "XX/100"，颜色随 AlertStatus 变化 (game mechanic colors)
     ImU32 numCol;
     switch (status) {
         case AlertStatus::Safe:   numCol = IM_COL32(80, 200, 120, 220);  break; // green
         case AlertStatus::Search: numCol = IM_COL32(220, 200, 0, 220);   break; // yellow
         case AlertStatus::Alert:  numCol = IM_COL32(252, 111, 41, 220);  break; // orange
         case AlertStatus::Hunt:   numCol = IM_COL32(220, 60, 40, 220);   break; // red
-        default:                  numCol = IM_COL32(16, 13, 10, 220);    break;
+        default:                  numCol = Col32_BgDark(220);             break;
     }
 
     if (termFont) ImGui::PushFont(termFont);
@@ -107,9 +109,9 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     draw->AddRectFilled(
         ImVec2(gaugeX, barY),
         ImVec2(gaugeX + gaugeW, barY + gaugeH),
-        IM_COL32(16, 13, 10, 60), 2.0f);
+        Col32_BgDark(60), 2.0f);
 
-    // 4-segment thresholds and colors (no Raid)
+    // 4-segment thresholds and colors (game mechanic — kept as IM_COL32)
     struct Segment { float threshold; ImU32 color; };
     Segment segments[] = {
         { 25.0f,  IM_COL32(80, 200, 120, 220) },   // Safe: green
@@ -136,7 +138,7 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     draw->AddRect(
         ImVec2(gaugeX, barY),
         ImVec2(gaugeX + gaugeW, barY + gaugeH),
-        IM_COL32(200, 200, 200, 100), 2.0f);
+        Col32_Gray(100), 2.0f);
 
 }
 
@@ -145,12 +147,12 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
 // ============================================================
 /// @brief 渲染警戒条下方积分 + 实时评级（如 "SCORE: 850  [A]"）。
 static void RenderHUD_Score(ImDrawList* draw, int32_t score, float gameW) {
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    ImFont* termFont = GetFont_Terminal();
 
     const char* rating = GetScoreRating(score);
     int8_t tier = GetScoreRatingTier(score);
 
-    const ImU32 scoreCol = UITheme::GetScoreRatingColor(tier, 220);
+    const ImU32 scoreCol = GetScoreRatingColor(tier, 220);
 
     if (termFont) ImGui::PushFont(termFont);
 
@@ -182,7 +184,7 @@ static void RenderHUD_Score(ImDrawList* draw, int32_t score, float gameW) {
 static void RenderHUD_Countdown(ImDrawList* draw, const Res_GameState& gs, float gameW, float globalTime) {
     if (!gs.countdownActive) return;
 
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
 
     int totalSec = (int)std::max(0.0f, gs.countdownTimer);
 
@@ -194,7 +196,7 @@ static void RenderHUD_Countdown(ImDrawList* draw, const Res_GameState& gs, float
     float cx = gameW * 0.5f - textSize.x * 0.5f;
     float cy = 14.0f + textSize.y * 2.0f;  // 下移两个文字高度
 
-    // 红色脉冲（加亮：基础 230, 绿/蓝 60）
+    // 红色脉冲（加亮：基础 230, 绿/蓝 60）— game mechanic, kept as literal
     float pulse = (sinf(globalTime * 6.0f) + 1.0f) * 0.5f;
     uint8_t r = (uint8_t)(230 + pulse * 25);
     ImU32 textCol  = IM_COL32(r, 60, 60, 255);
@@ -217,7 +219,7 @@ static void RenderHUD_Countdown(ImDrawList* draw, const Res_GameState& gs, float
 // ============================================================
 /// @brief 渲染左下角玩家状态标签（STAND/CROUCH/RUN + DISGUISED）。
 static void RenderHUD_PlayerState(ImDrawList* draw, const Res_GameState& gs, float displayH) {
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
 
     float baseX = 20.0f;
@@ -231,12 +233,12 @@ static void RenderHUD_PlayerState(ImDrawList* draw, const Res_GameState& gs, flo
     }
 
     draw->AddText(ImVec2(baseX, baseY),
-        IM_COL32(245, 238, 232, 200), moveLabel);
+        Col32_Bg(200), moveLabel);
 
     if (gs.playerDisguised) {
         ImVec2 moveSize = ImGui::CalcTextSize(moveLabel);
         draw->AddText(ImVec2(baseX + moveSize.x + 10.0f, baseY),
-            IM_COL32(80, 200, 120, 220), "[DISGUISED]");
+            IM_COL32(80, 200, 120, 220), "[DISGUISED]");  // game state color
     }
 
     if (termFont) ImGui::PopFont();
@@ -251,7 +253,7 @@ static void RenderHUD_NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, 
     float cy = displayH - 36.0f;
     float maxR = 20.0f;
 
-    // Color based on noise level
+    // Color based on noise level (game mechanic — dynamic RGB)
     uint8_t r, g, b;
     if (gs.noiseLevel < 0.3f) {
         r = 80; g = 200; b = 120;   // green
@@ -278,7 +280,7 @@ static void RenderHUD_NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, 
         IM_COL32(r, g, b, (uint8_t)(180 * std::max(gs.noiseLevel, 0.15f))), 8);
 
     // Label
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
     char noiseBuf[16];
     snprintf(noiseBuf, sizeof(noiseBuf), "%.0f%%", gs.noiseLevel * 100.0f);
@@ -292,8 +294,8 @@ static void RenderHUD_NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, 
 // ============================================================
 /// @brief 渲染底部居中装备栏（左=激活道具 Q，右=激活武器 E），含图标/冷却/闪光。
 static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
-    ImFont* smallFont = UITheme::GetFont_Small();
-    ImFont* termFont  = UITheme::GetFont_Terminal();
+    ImFont* smallFont = GetFont_Small();
+    ImFont* termFont  = GetFont_Terminal();
 
     constexpr float kPanelW = 140.0f;
     constexpr float kPanelH = 60.0f;
@@ -331,17 +333,17 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
         bool onCooldown = (slot->cooldown > 0.01f);
 
         // Background
-        draw->AddRectFilled(panelMin, panelMax, IM_COL32(16, 13, 10, 140), 3.0f);
+        draw->AddRectFilled(panelMin, panelMax, Col32_BgDark(140), Layout::kPanelRounding);
 
         // Border (flash = bright orange, normal = orange, empty = gray)
         if (panels[i].isFlashing) {
             uint8_t flashAlpha = (uint8_t)(200 + 55 * gs.itemUseFlashTimer / 0.3f);
-            draw->AddRect(panelMin, panelMax, IM_COL32(252, 111, 41, flashAlpha), 3.0f, 0, 3.0f);
+            draw->AddRect(panelMin, panelMax, Col32_Accent(flashAlpha), Layout::kPanelRounding, 0, 3.0f);
         } else if (hasItem) {
-            draw->AddRect(panelMin, panelMax, IM_COL32(252, 111, 41, 200), 3.0f, 0, 1.5f);
+            draw->AddRect(panelMin, panelMax, Col32_Accent(200), Layout::kPanelRounding, 0, 1.5f);
         } else {
             // Empty: dashed appearance (draw 4 corner segments)
-            draw->AddRect(panelMin, panelMax, IM_COL32(200, 200, 200, 60), 3.0f, 0, 1.0f);
+            draw->AddRect(panelMin, panelMax, Col32_Gray(60), Layout::kPanelRounding, 0, 1.0f);
         }
 
         if (hasItem) {
@@ -349,13 +351,13 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
             ImVec2 iconCenter(px + 20.0f, panelY + 20.0f);
             if (slot->itemId < static_cast<uint8_t>(ItemID::Count)) {
                 DrawItemIcon(draw, iconCenter, kIconSize, static_cast<ItemID>(slot->itemId),
-                    IM_COL32(245, 238, 232, 220));
+                    Col32_Bg(220));
             }
 
             // Name (right of icon)
             if (termFont) ImGui::PushFont(termFont);
             draw->AddText(ImVec2(px + 38.0f, panelY + 4.0f),
-                IM_COL32(245, 238, 232, 220), slot->name);
+                Col32_Bg(220), slot->name);
             if (termFont) ImGui::PopFont();
 
             // Count + status
@@ -363,9 +365,9 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
             char countBuf[16];
             snprintf(countBuf, sizeof(countBuf), "x%u", slot->count);
             draw->AddText(ImVec2(px + 38.0f, panelY + 20.0f),
-                IM_COL32(252, 111, 41, 200), countBuf);
+                Col32_Accent(200), countBuf);
 
-            // READY / COOLDOWN label
+            // READY / COOLDOWN label (game mechanic colors)
             ImVec2 countSize = ImGui::CalcTextSize(countBuf);
             if (onCooldown) {
                 draw->AddText(ImVec2(px + 38.0f + countSize.x + 8.0f, panelY + 20.0f),
@@ -376,7 +378,7 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
             }
             if (smallFont) ImGui::PopFont();
 
-            // Cooldown progress bar (bottom edge)
+            // Cooldown progress bar (bottom edge) — game mechanic colors
             if (onCooldown) {
                 float cdFill = std::clamp(slot->cooldown, 0.0f, 1.0f);
                 float barW = kPanelW * cdFill;
@@ -395,7 +397,7 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
             // Empty slot
             if (smallFont) ImGui::PushFont(smallFont);
             draw->AddText(ImVec2(px + kPanelW * 0.5f - 10.0f, panelY + kPanelH * 0.5f - 6.0f),
-                IM_COL32(200, 200, 200, 100), "---");
+                Col32_Gray(100), "---");
             if (smallFont) ImGui::PopFont();
         }
 
@@ -405,7 +407,7 @@ static void RenderHUD_ItemSlots(ImDrawList* draw, const Res_GameState& gs, float
         snprintf(labelBuf, sizeof(labelBuf), "%s %s", panels[i].keyLabel, panels[i].typeLabel);
         ImVec2 labelSize = ImGui::CalcTextSize(labelBuf);
         draw->AddText(ImVec2(px + kPanelW * 0.5f - labelSize.x * 0.5f, panelY + kPanelH - 16.0f),
-            IM_COL32(245, 238, 232, 120), labelBuf);
+            Col32_Bg(120), labelBuf);
         if (smallFont) ImGui::PopFont();
     }
 }
@@ -434,7 +436,7 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
             seed = seed * 1103515245u + 12345u;
             uint8_t a = (uint8_t)(20 + (seed % 30));
             draw->AddRectFilled(ImVec2(nx, ny), ImVec2(nx + 2.0f, ny + 2.0f),
-                IM_COL32(16, 13, 10, a));
+                Col32_BgDark(a));
         }
     }
 
@@ -454,7 +456,7 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
             float lw = 50.0f + (float)(seed % 200);
             uint8_t a = (uint8_t)(15 + intensity * 25);
             draw->AddRectFilled(ImVec2(lx, ly), ImVec2(lx + lw, ly + 2.0f),
-                IM_COL32(252, 111, 41, a));
+                Col32_Accent(a));
         }
 
         // 扫描线
@@ -463,7 +465,7 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
         if (spacing < 2.0f) spacing = 2.0f;
         for (float y = 0.0f; y < displayH; y += spacing) {
             draw->AddLine(ImVec2(0.0f, y), ImVec2(displayW, y),
-                IM_COL32(16, 13, 10, alpha), 1.0f);
+                Col32_BgDark(alpha), 1.0f);
         }
     }
 }
@@ -487,13 +489,13 @@ static void RenderHUD_Minimap(ImDrawList* draw, Registry& registry, float /*disp
     draw->AddRectFilled(
         ImVec2(kMapX, kMapY),
         ImVec2(kMapX + kMapSize, kMapY + kMapSize),
-        IM_COL32(16, 13, 10, 180), 3.0f);
+        Col32_BgDark(180), Layout::kPanelRounding);
 
     // 边框
     draw->AddRect(
         ImVec2(kMapX, kMapY),
         ImVec2(kMapX + kMapSize, kMapY + kMapSize),
-        IM_COL32(252, 111, 41, 120), 3.0f);
+        Col32_Accent(120), Layout::kPanelRounding);
 
     // ── 世界坐标 → 小地图坐标映射 ──
     float worldW = minimap.worldMaxX - minimap.worldMinX;
@@ -512,7 +514,7 @@ static void RenderHUD_Minimap(ImDrawList* draw, Registry& registry, float /*disp
             offsetZ + (wz - minimap.worldMinZ) * scale);
     };
 
-    // ── 绘制可行走区域填充（半透明） ──
+    // ── 绘制可行走区域填充（半透明）——terrain color, not themed ──
     for (int t = 0; t < minimap.triangleCount; ++t) {
         const auto& tri = minimap.triangles[t];
         ImVec2 a = toScreen(tri.x0, tri.z0);
@@ -521,15 +523,15 @@ static void RenderHUD_Minimap(ImDrawList* draw, Registry& registry, float /*disp
         draw->AddTriangleFilled(a, b, c, IM_COL32(60, 55, 50, 100));
     }
 
-    // ── 绘制边界线段（灰色） ──
+    // ── 绘制边界线段 ──
     for (int i = 0; i < minimap.edgeCount; ++i) {
         const auto& e = minimap.edges[i];
         ImVec2 a = toScreen(e.x0, e.z0);
         ImVec2 b = toScreen(e.x1, e.z1);
-        draw->AddLine(a, b, IM_COL32(200, 200, 200, 140), 1.0f);
+        draw->AddLine(a, b, Col32_Gray(140), 1.0f);
     }
 
-    // ── 绘制敌人位置（红色圆点，来自 Res_RadarState） ──
+    // ── 绘制敌人位置（红色圆点，game mechanic）──
     if (registry.has_ctx<Res_RadarState>()) {
         const auto& radar = registry.ctx<Res_RadarState>();
         if (radar.isActive) {
@@ -551,14 +553,14 @@ static void RenderHUD_Minimap(ImDrawList* draw, Registry& registry, float /*disp
                 ImVec2(pp.x, pp.y - 4.0f),
                 ImVec2(pp.x - 3.0f, pp.y + 3.0f),
                 ImVec2(pp.x + 3.0f, pp.y + 3.0f),
-                IM_COL32(252, 111, 41, 255));
+                Col32_Accent(255));
         });
 
     // ── "MAP" 标题 + 倒计时 ──
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(ImVec2(kMapX + 4.0f, kMapY + 2.0f),
-                  IM_COL32(252, 111, 41, 200), "MAP");
+                  Col32_Accent(200), "MAP");
 
     // 剩余秒数（右上角）
     if (minimap.activeTimer > 0.0f) {
@@ -566,7 +568,7 @@ static void RenderHUD_Minimap(ImDrawList* draw, Registry& registry, float /*disp
         snprintf(timerBuf, sizeof(timerBuf), "%.0fs", minimap.activeTimer);
         ImVec2 timerSize = ImGui::CalcTextSize(timerBuf);
         draw->AddText(ImVec2(kMapX + kMapSize - timerSize.x - 4.0f, kMapY + 2.0f),
-                      IM_COL32(245, 238, 232, 200), timerBuf);
+                      Col32_Bg(200), timerBuf);
     }
     if (smallFont) ImGui::PopFont();
 }
@@ -590,8 +592,8 @@ static void RenderHUD_MatchBanner(ImDrawList* draw, const Res_GameState& gs, flo
     const char* title = showWaiting ? "WAITING FOR OPPONENT" : "MATCH START";
     const char* subtitle = showWaiting ? "STANDING BY FOR CONNECTION" : "MOVE OUT";
 
-    ImFont* titleFont = UITheme::GetFont_Terminal();
-    ImFont* smallFont = UITheme::GetFont_Terminal();
+    ImFont* titleFont = GetFont_Terminal();
+    ImFont* smallFont = GetFont_Terminal();
 
     if (titleFont) ImGui::PushFont(titleFont);
     ImVec2 titleSize = ImGui::CalcTextSize(title);
@@ -616,17 +618,17 @@ static void RenderHUD_MatchBanner(ImDrawList* draw, const Res_GameState& gs, flo
     }
 
     const float pulse = showWaiting ? (sinf(globalTime * 2.8f) + 1.0f) * 0.5f : 1.0f;
-    const ImU32 bgCol = IM_COL32(16, 13, 10, static_cast<int>(160.0f * fade));
+    const ImU32 bgCol = Col32_BgDark(static_cast<uint8_t>(160.0f * fade));
     const ImU32 borderCol = showWaiting
-        ? IM_COL32(200, 200, 200, static_cast<int>((120.0f + pulse * 60.0f) * fade))
-        : IM_COL32(252, 111, 41, static_cast<int>(190.0f * fade));
-    const ImU32 accentCol = IM_COL32(252, 111, 41, static_cast<int>((showWaiting ? (205.0f + pulse * 30.0f) : 235.0f) * fade));
-    const ImU32 subtitleCol = IM_COL32(245, 238, 232, static_cast<int>(190.0f * fade));
+        ? Col32_Gray(static_cast<uint8_t>((120.0f + pulse * 60.0f) * fade))
+        : Col32_Accent(static_cast<uint8_t>(190.0f * fade));
+    const ImU32 accentCol = Col32_Accent(static_cast<uint8_t>((showWaiting ? (205.0f + pulse * 30.0f) : 235.0f) * fade));
+    const ImU32 subtitleCol = Col32_Bg(static_cast<uint8_t>(190.0f * fade));
 
     draw->AddRectFilled(ImVec2(boxX, boxY), ImVec2(boxX + boxW, boxY + boxH), bgCol, 5.0f);
     draw->AddRect(ImVec2(boxX, boxY), ImVec2(boxX + boxW, boxY + boxH), borderCol, 5.0f, 0, 1.4f);
     draw->AddLine(ImVec2(boxX + 18.0f, boxY + 38.0f), ImVec2(boxX + boxW - 18.0f, boxY + 38.0f),
-        IM_COL32(200, 200, 200, static_cast<int>(82.0f * fade)), 1.0f);
+        Col32_Gray(static_cast<uint8_t>(82.0f * fade)), 1.0f);
 
     if (titleFont) ImGui::PushFont(titleFont);
     draw->AddText(ImVec2(gameW * 0.5f - titleSize.x * 0.5f, boxY + padTop), accentCol, title);
@@ -647,7 +649,7 @@ static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, flo
         return;
     }
 
-    ImFont* titleFont = UITheme::GetFont_Terminal();
+    ImFont* titleFont = GetFont_Terminal();
 
     constexpr float barW = 340.0f;
     constexpr float barH = 14.0f;
@@ -658,6 +660,7 @@ static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, flo
     const uint8_t opponentStage = std::min<uint8_t>(gs.opponentStageProgress, kMultiplayerStageCount);
     const float segmentW = (barW - segmentGap * (kMultiplayerStageCount - 1)) / static_cast<float>(kMultiplayerStageCount);
 
+    // Game mechanic colors — kept as literals
     const ImU32 inactiveCol = IM_COL32(125, 125, 125, 105);
     const ImU32 stageCols[kMultiplayerStageCount] = {
         IM_COL32(118, 154, 109, 225),
@@ -681,7 +684,7 @@ static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, flo
         const ImU32 oppCol = (i < opponentStage) ? stageCols[i] : inactiveCol;
 
         draw->AddRectFilled(oppMin, oppMax, oppCol, 2.0f);
-        draw->AddRect(oppMin, oppMax, IM_COL32(200, 200, 200, 95), 2.0f, 0, 1.0f);
+        draw->AddRect(oppMin, oppMax, Col32_Gray(95), 2.0f, 0, 1.0f);
     }
 }
 
@@ -697,6 +700,7 @@ static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs
         ? std::clamp(gs.disruptionTimer / gs.disruptionDuration, 0.0f, 1.0f)
         : 0.0f;
 
+    // Disruption effect colors — game mechanic, kept as literals
     switch (gs.disruptionType) {
         case 1: {
             // 视觉干扰 — 边缘红色脉冲 + 闪烁
@@ -744,15 +748,15 @@ static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs
                 float bh = 2.0f + (float)(seed % 8);
                 uint8_t a = (uint8_t)(30 + (seed % 40));
                 draw->AddRectFilled(ImVec2(bx, by), ImVec2(bx + bw, by + bh),
-                    IM_COL32(252, 111, 41, a));
+                    Col32_Accent(a));
             }
             break;
         }
         default: break;
     }
 
-    // "DISRUPTED" indicator
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    // "DISRUPTED" indicator — game mechanic color
+    ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
 
     const char* labels[] = { "", "VISION IMPAIRED", "SPEED REDUCED", "SIGNAL SCRAMBLED" };
@@ -772,13 +776,13 @@ static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs
 // ============================================================
 /// @brief 渲染右下角网络状态（PING 值，颜色随延迟变化），仅多人模式调用。
 static void RenderHUD_NetworkStatus(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
 
     char pingBuf[24];
     snprintf(pingBuf, sizeof(pingBuf), "PING: %ums", gs.networkPing);
 
-    // Color based on ping quality
+    // Color based on ping quality (game mechanic)
     ImU32 pingCol;
     if (gs.networkPing < 50)       pingCol = IM_COL32(80, 200, 120, 180);   // green
     else if (gs.networkPing < 100) pingCol = IM_COL32(220, 200, 0, 180);    // yellow
@@ -836,13 +840,13 @@ void RenderHUD(Registry& registry, float dt) {
     }
 
     // Control hints (bottom, inside game area)
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
     const char* hints = "[ESC] PAUSE  [Q] GADGET  [E] WEAPON  [TAB] SWITCH  [I] INVENTORY";
     ImVec2 hintsSize = ImGui::CalcTextSize(hints);
     draw->AddText(
         ImVec2(gameW * 0.5f - hintsSize.x * 0.5f, displayH - 18.0f),
-        IM_COL32(245, 238, 232, 100), hints);
+        Col32_Bg(100), hints);
     if (smallFont) ImGui::PopFont();
 }
 
