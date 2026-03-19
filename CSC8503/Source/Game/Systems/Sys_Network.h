@@ -246,9 +246,8 @@ private:
      */
     void ResetMatchStateForRestart(Registry& reg);
     /**
-     * @brief 根据本地/远端阶段与终局原因收口权威比赛结果。
-     * @param gs 当前比赛状态资源
-     * @param remoteGameOverReason 对手最新上报的终局原因；0 表示未终局
+     * @brief 根据本地/远端阶段与终局终态收口权威比赛结果。
+     * @param gs 当前比赛状态资源（包含 localTerminalState / remoteTerminalState）
      */
     void ApplyMatchResult(Res_GameState& gs);
     /**
