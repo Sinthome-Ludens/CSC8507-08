@@ -408,12 +408,23 @@ void RenderGameOverScreen(Registry& registry, float dt) {
         uint8_t textAlpha = (uint8_t)(220 + hoverT * 35);
         float textX = itemStartX + 10.0f + hoverT * 8.0f;
         draw->AddText(ImVec2(textX, itemY), Col32_Text(textAlpha), label);
+
+        // Click flash
+        if (ui.menuClickFlashIndex == i && ui.menuClickFlashTimer > 0.0f) {
+            float flashT = ui.menuClickFlashTimer / 0.15f;
+            uint8_t flashAlpha = (uint8_t)(180.0f * flashT);
+            draw->AddRectFilled(itemMin, itemMax,
+                IM_COL32(255, 255, 255, flashAlpha), 2.0f);
+        }
     }
 
     if (termFont) ImGui::PopFont();
 
     // Confirm action
     if (confirmedIndex >= 0) {
+        ui.menuClickFlashTimer = 0.15f;
+        ui.menuClickFlashIndex = confirmedIndex;
+
         switch (confirmedIndex) {
             case 0: // RETRY
                 if (isMultiplayer && matchResult != MatchResult::Disconnected) {

@@ -414,6 +414,12 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         ui.screenEntryElapsed = std::min(ui.screenEntryElapsed + dt, ui.screenEntryDuration);
     }
 
+    // Click flash decay
+    if (ui.menuClickFlashTimer > 0.0f) {
+        ui.menuClickFlashTimer = std::max(0.0f, ui.menuClickFlashTimer - dt);
+        if (ui.menuClickFlashTimer <= 0.0f) ui.menuClickFlashIndex = -1;
+    }
+
     // Dispatch to render functions
     switch (ui.activeScreen) {
         case UIScreen::TitleScreen: UI::RenderTitleScreen(registry, dt);     break;

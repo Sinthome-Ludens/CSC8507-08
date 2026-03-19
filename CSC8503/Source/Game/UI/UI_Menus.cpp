@@ -532,12 +532,31 @@ void RenderMainMenu(Registry& registry, float dt) {
 
         uint8_t textAlpha = (uint8_t)(220 + hoverT * 35);
         draw->AddText(ImVec2(baseX, itemY), Col32_Text(textAlpha), buf);
+
+        // Click flash overlay
+        if (ui.menuClickFlashIndex == i && ui.menuClickFlashTimer > 0.0f) {
+            float flashT = ui.menuClickFlashTimer / 0.15f;  // 0→1 (1=just clicked)
+            float flashScale = 1.0f + 0.03f * Anim::EaseOutBack(1.0f - flashT);
+            uint8_t flashAlpha = (uint8_t)(180.0f * flashT);
+            float halfW = (itemMax.x - itemMin.x) * 0.5f * flashScale;
+            float halfH = (itemMax.y - itemMin.y) * 0.5f * flashScale;
+            float midX = (itemMin.x + itemMax.x) * 0.5f;
+            float midY = (itemMin.y + itemMax.y) * 0.5f;
+            draw->AddRectFilled(
+                ImVec2(midX - halfW, midY - halfH),
+                ImVec2(midX + halfW, midY + halfH),
+                IM_COL32(255, 255, 255, flashAlpha), 2.0f);
+        }
     }
 
     if (termFont) ImGui::PopFont();
 
     // Confirm action
     if (confirmedIndex >= 0) {
+        // Trigger click flash
+        ui.menuClickFlashTimer = 0.15f;
+        ui.menuClickFlashIndex = confirmedIndex;
+
         switch (confirmedIndex) {
             case 0: // START OPERATION
                 ui.previousScreen = ui.activeScreen;
@@ -1011,12 +1030,23 @@ void RenderPauseMenu(Registry& registry, float dt) {
         snprintf(buf, sizeof(buf), showCaret ? "> %s" : "  %s", kPauseItems[i]);
         uint8_t textAlpha = (uint8_t)(220 + hoverT * 35);
         draw->AddText(ImVec2(baseX, itemY), Col32_Text(textAlpha), buf);
+
+        // Click flash overlay
+        if (ui.menuClickFlashIndex == i && ui.menuClickFlashTimer > 0.0f) {
+            float flashT = ui.menuClickFlashTimer / 0.15f;
+            uint8_t flashAlpha = (uint8_t)(180.0f * flashT);
+            draw->AddRectFilled(itemMin, itemMax,
+                IM_COL32(255, 255, 255, flashAlpha), 2.0f);
+        }
     }
 
     if (termFont) ImGui::PopFont();
 
     // Confirm action
     if (confirmedIndex >= 0) {
+        ui.menuClickFlashTimer = 0.15f;
+        ui.menuClickFlashIndex = confirmedIndex;
+
         switch (confirmedIndex) {
             case 0: // RESUME
                 ui.activeScreen = ui.prePauseScreen;
