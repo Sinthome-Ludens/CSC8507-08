@@ -322,6 +322,14 @@ EntityID PrefabFactory::CreatePlayer(
     return entity;
 }
 
+/**
+ * @brief 通过玩家预制体创建“幽灵玩家”可视实体。
+ * @details 先调用 CreatePlayer 复用完整的玩家预制体搭建（模型、层级、调试名等），
+ *          确保幽灵与真实玩家在外观与变换上完全一致。随后在同一函数调用内立即剥离
+ *          输入、玩家状态、近战、生命、导航目标以及刚体 / 碰撞体等物理与玩法组件，
+ *          避免在任意系统 Tick 间隙被当作真实玩家或物理实体参与处理。最后按需补充
+ *          插值缓冲与半透明轮廓材质，使其仅作为网络 / 回放等用途的纯可视“ghost”。
+ */
 EntityID PrefabFactory::CreateGhostPlayer(
     Registry&   reg,
     MeshHandle  cubeMesh,
