@@ -599,6 +599,11 @@ void Sys_Network::HandleClientGhostTransform(Registry& reg, Res_Network& resNet,
         NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]),
         NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]),
         localReceiveTimeMs);
+    if (buffer.count == 1 && reg.Has<C_D_Transform>(ghost)) {
+        auto& tf = reg.Get<C_D_Transform>(ghost);
+        tf.position = NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]);
+        tf.rotation = NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]);
+    }
 }
 
 /**
@@ -981,6 +986,11 @@ void Sys_Network::HandleSyncGhostTransform(Registry& reg, Res_Network& resNet, c
         NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]),
         NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]),
         localReceiveTimeMs);
+    if (buffer.count == 1 && reg.Has<C_D_Transform>(ghost)) {
+        auto& tf = reg.Get<C_D_Transform>(ghost);
+        tf.position = NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]);
+        tf.rotation = NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]);
+    }
 }
 
 /**

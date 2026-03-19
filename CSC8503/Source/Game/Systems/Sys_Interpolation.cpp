@@ -33,7 +33,7 @@ void Sys_Interpolation::OnUpdate(Registry& reg, float dt) {
             return;
         }
 
-        if (buffer.count < 2) return;
+        if (buffer.count <= 0) return;
         // NOTE: InterpBuffer_AddSnapshot 已保证缓冲区按时间戳严格递增排列，
         // 乱序/重复网络包在写入时即被丢弃，因此此处线性索引(curr + 1)是安全的。
         // 在缓冲区中寻找合适的两个快照进行插值
