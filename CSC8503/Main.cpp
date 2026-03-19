@@ -417,8 +417,8 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     ConfigureNetworkMode(reg, ECS::PeerType::SERVER, multiplayerMode, "127.0.0.1", port);
                     if (multiplayerMode == ECS::MultiplayerMode::SameMapGhostRace) {
                         InitializeMultiplayerUIState(ui, true);
-                        reg.ctx<ECS::Res_Network>().bootstrapSceneActive = true;
-                        sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::SERVER));
+                        reg.ctx<ECS::Res_Network>().bootstrapSceneActive = false;
+                        sceneManager.RequestSceneChange(CreateMapScene(ui.mapSequence[0]));
                     } else {
                         InitializeMultiplayerMapSequence(ui);
                         sceneManager.RequestSceneChange(CreateMapScene(ui.mapSequence[0]));

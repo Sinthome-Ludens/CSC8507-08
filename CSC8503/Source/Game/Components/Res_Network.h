@@ -55,6 +55,7 @@ struct Res_Network {
     uint32_t localClientID = 0;        ///< 本机的分配 ID（Server 默认为 0，Client 由 Server 分配）
     uint32_t rtt           = 0;        ///< 当前延迟估算（Ping 值，单位 ms）
     bool     connected     = false;    ///< 是否已成功建立连接（Client 用于握手判定）
+    bool     remotePeerConnected = false; ///< 当前是否已有远端对手接入会话
     bool     matchSetupReceived = false; ///< 是否已经收到服务端权威的同图比赛配置
     bool     bootstrapSceneActive = false; ///< 当前是否处于同图模式的联机引导场景
     bool     preserveSessionOnSceneExit = false; ///< 是否在当前场景退出时保留 ENet 会话以跨场景复用

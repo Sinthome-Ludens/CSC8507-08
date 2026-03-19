@@ -18,12 +18,20 @@ void Sys_Interpolation::OnUpdate(Registry& reg, float dt) {
 
     float targetTime = (resTime.totalTime - m_RenderDelay) * 1000.0f; // 转为毫秒
 
-    // 遍历所有具有 变换、网络身份、插值缓冲区 的实体
-    reg.view<C_D_Transform, C_D_NetworkIdentity, C_D_InterpBuffer>().each([&](
-        EntityID entity, C_D_Transform& tf, C_D_NetworkIdentity& net, C_D_InterpBuffer& buffer) 
+    // 遍历所有可插值的实体。普通网络实体依旧走旧链路；同图模式幽灵实体没有 NetworkIdentity，
+    // 需要通过 remoteGhostEntity 单独放行。
+    reg.view<C_D_Transform, C_D_InterpBuffer>().each([&](
+        EntityID entity, C_D_Transform& tf, C_D_InterpBuffer& buffer) 
     {
-        // 在权威架构下，客户端的全部网络实体都需要插值表现，包括自己。
-        if (resNet.mode == PeerType::SERVER) return; 
+        const bool isRemoteGhost = Entity::IsValid(resNet.remoteGhostEntity)
+            && entity == resNet.remoteGhostEntity;
+        const bool hasNetworkIdentity = reg.Has<C_D_NetworkIdentity>(entity);
+
+        if (resNet.mode == PeerType::SERVER) {
+            if (!isRemoteGhost) return;
+        } else if (!hasNetworkIdentity && !isRemoteGhost) {
+            return;
+        }
 
         if (buffer.count < 2) return;
         // NOTE: InterpBuffer_AddSnapshot 已保证缓冲区按时间戳严格递增排列，

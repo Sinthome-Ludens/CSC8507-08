@@ -80,7 +80,7 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
         && registry.ctx<ECS::Res_Network>().mode != ECS::PeerType::OFFLINE;
     const bool hasActiveNetworkSession = isMultiplayer
         && registry.ctx<ECS::Res_Network>().host != nullptr
-        && registry.ctx<ECS::Res_Network>().connected;
+        && registry.ctx<ECS::Res_Network>().remotePeerConnected;
 
     // ── 1. Asset init ───────────────────────────────────────────────────
     ECS::AssetManager::Instance().Init();

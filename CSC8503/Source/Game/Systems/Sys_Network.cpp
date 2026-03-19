@@ -59,6 +59,25 @@ void GenerateAuthoritativeMapSequence(uint8_t* outSequence, size_t count) {
     }
 }
 
+bool HasAnyConnectedRemotePeer(const Res_Network& resNet) {
+    if (resNet.mode == PeerType::CLIENT) {
+        return resNet.connected
+            && resNet.peer != nullptr
+            && resNet.peer->state == ENET_PEER_STATE_CONNECTED;
+    }
+
+    if (resNet.mode != PeerType::SERVER || resNet.host == nullptr || resNet.host->peers == nullptr) {
+        return false;
+    }
+
+    for (size_t i = 0; i < resNet.host->peerCount; ++i) {
+        if (resNet.host->peers[i].state == ENET_PEER_STATE_CONNECTED) {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 /**
@@ -90,6 +109,7 @@ void Sys_Network::OnAwake(Registry& reg) {
     if (resNet.host != nullptr && CanReuseSession(resNet)) {
         resNet.preserveSessionOnSceneExit = false;
         ResetSceneLocalState(resNet);
+        resNet.remotePeerConnected = HasAnyConnectedRemotePeer(resNet);
         m_TimeSinceLastSend = 0.0f;
         m_InputTimer = 0.0f;
         m_GhostTransformTimer = 0.0f;
@@ -175,6 +195,7 @@ void Sys_Network::InitializeServer(Res_Network& resNet) {
     }
     resNet.localClientID = 0;
     resNet.connected = true;
+    resNet.remotePeerConnected = false;
     m_NextClientID = 1; 
     LOG_INFO("Network Server started on port " << resNet.serverPort << ".");
 }
@@ -189,6 +210,7 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
         LOG_ERROR("An error occurred while trying to create an ENet client host.");
         resNet.peer        = nullptr;
         resNet.connected   = false;
+        resNet.remotePeerConnected = false;
         resNet.localClientID = UINT32_MAX;
         return;
     }
@@ -203,6 +225,7 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
         resNet.host        = nullptr;
         resNet.peer        = nullptr;
         resNet.connected   = false;
+        resNet.remotePeerConnected = false;
         resNet.localClientID = UINT32_MAX;
         return;
     }
@@ -215,6 +238,7 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
         resNet.host        = nullptr;
         resNet.peer        = nullptr;
         resNet.connected   = false;
+        resNet.remotePeerConnected = false;
         resNet.localClientID = UINT32_MAX;
         return;
     }
@@ -281,6 +305,7 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
             case ENET_EVENT_TYPE_CONNECT: {
                 std::cout << "[INFO] A new peer connected.\n";
                 if (resNet.mode == PeerType::SERVER) {
+                    resNet.remotePeerConnected = true;
                     uint32_t newClientID = m_NextClientID++;
                     event.peer->data = (void*)(uintptr_t)newClientID;
                     if (reg.has_ctx<EventBus*>()) {
@@ -313,6 +338,7 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                     BroadcastMatchStateIfDirty(reg, resNet, true);
                 } else {
                     resNet.connected = true;
+                    resNet.remotePeerConnected = true;
                     // Client 侧不在此处抛出事件，在收到 SYS_WELCOME 知道自己 ID 时再抛出
                 }
                 break;
@@ -342,7 +368,9 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                 UpdateMatchUIState(reg);
                 if (resNet.mode == PeerType::CLIENT) {
                     resNet.connected = false;
+                    resNet.remotePeerConnected = false;
                 } else {
+                    resNet.remotePeerConnected = HasAnyConnectedRemotePeer(resNet);
                     BroadcastMatchStateIfDirty(reg, resNet, true);
                 }
                 break;
@@ -386,6 +414,7 @@ void Sys_Network::HandleWelcomePacket(Registry& reg, Res_Network& resNet, const 
     if (!pkt) return;
 
     resNet.localClientID = pkt->clientID;
+    resNet.remotePeerConnected = true;
     LOG_INFO("Received SYS_WELCOME. Assigned Client ID: " << resNet.localClientID);
     
     // 此时已经收到真实的 ClientID，可以在这里抛出事件通知其他系统进行玩家实体的创建等逻辑
@@ -1376,6 +1405,7 @@ void Sys_Network::ResetNetworkRuntimeState(Res_Network& resNet, bool keepConfigu
     resNet.localClientID = (keepConfiguration && previousMode == PeerType::SERVER) ? 0u : UINT32_MAX;
     resNet.rtt = 0u;
     resNet.connected = false;
+    resNet.remotePeerConnected = false;
     resNet.matchSetupReceived = false;
     resNet.bootstrapSceneActive = false;
     resNet.preserveSessionOnSceneExit = false;
