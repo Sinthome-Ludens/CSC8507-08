@@ -13,6 +13,8 @@
 #include "Game/Components/C_T_KeyCard.h"
 #include "Game/Components/C_D_DoorLocked.h"
 #include "Game/Utils/Log.h"
+#include "Game/Events/Evt_Audio.h"
+#include "Core/ECS/EventBus.h"
 
 #ifdef USE_IMGUI
 #include "Game/UI/UI_Toast.h"
@@ -72,6 +74,10 @@ void Sys_Door::OnUpdate(Registry& registry, float /*dt*/) {
                 if ((dx * dx + dz * dz) > kKeyPickupRadius * kKeyPickupRadius) continue;
 
                 pickedKeys.push_back({ keyEnt, keyCard.keyId });
+                if (registry.has_ctx<EventBus*>()) {
+                    auto* bus = registry.ctx<EventBus*>();
+                    if (bus) bus->publish_deferred<Evt_Audio_PlaySFX>(Evt_Audio_PlaySFX{SfxId::ItemPickup});
+                }
 
                 LOG_INFO("[Sys_Door] Player " << p.id
                          << " picked up KeyCard id=" << (int)keyCard.keyId);

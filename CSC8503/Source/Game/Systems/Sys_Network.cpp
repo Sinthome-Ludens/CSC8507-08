@@ -1493,9 +1493,14 @@ void Sys_Network::ResetSceneLocalState(Res_Network& resNet) {
     resNet.localPlayerEntity = Entity::NULL_ENTITY;
     resNet.remoteGhostEntity = Entity::NULL_ENTITY;
     resNet.remoteGhostSnapshotValid = false;
-    resNet.remoteGhostSnapshot.roundIndex = 0u;
-    resNet.remoteGhostSnapshot.pos = {};
-    resNet.remoteGhostSnapshot.rot = {};
+    resNet.remoteGhostSnapshotRoundIndex = 0u;
+    resNet.remoteGhostSnapshotPos[0] = 0.0f;
+    resNet.remoteGhostSnapshotPos[1] = 0.0f;
+    resNet.remoteGhostSnapshotPos[2] = 0.0f;
+    resNet.remoteGhostSnapshotRot[0] = 0.0f;
+    resNet.remoteGhostSnapshotRot[1] = 0.0f;
+    resNet.remoteGhostSnapshotRot[2] = 0.0f;
+    resNet.remoteGhostSnapshotRot[3] = 1.0f;
 }
 
 /**

@@ -135,3 +135,4 @@ Docs/
 # OpenGLRendering/
 *.bak
 imgui.ini
+External/fmod/

@@ -14,6 +14,9 @@
 #include "Game/Utils/Log.h"
 
 #include "Game/Components/Res_ScoreConfig.h"
+#include "Game/Components/Res_AudioConfig.h"
+#include "Game/Events/Evt_Audio.h"
+#include "Core/ECS/EventBus.h"
 #ifdef USE_IMGUI
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_ToastState.h"
@@ -86,6 +89,10 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                 LOG_INFO("[Sys_LevelGoal] Player reached finish zone "
                          << (int)finishId << " distXZ=" << std::sqrt(distXZSq)
                          << " dY=" << dy);
+                if (registry.has_ctx<EventBus*>()) {
+                    auto* audioBus = registry.ctx<EventBus*>();
+                    if (audioBus) audioBus->publish_deferred<Evt_Audio_PlaySFX>(Evt_Audio_PlaySFX{SfxId::FinishZone});
+                }
 
                 if (isMultiplayer) {
                     auto& gs = registry.ctx<Res_GameState>();
@@ -114,6 +121,10 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                         gs.localTerminalReason = scorePassed
                             ? ToU8(GameOverReason::Success)
                             : ToU8(GameOverReason::Detected);
+                        if (registry.has_ctx<Res_AudioState>()) {
+                            registry.ctx<Res_AudioState>().requestedBgm = scorePassed ? BgmId::Victory : BgmId::Defeat;
+                            registry.ctx<Res_AudioState>().bgmOverride  = false;
+                        }
                     }
 
 #ifdef USE_IMGUI
@@ -177,9 +188,17 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                         const bool finalPassed = ui.campaignScore > scFinal.passThreshold;
                         if (ui.mapSequenceGenerated && finalPassed) {
                             ui.activeScreen = UIScreen::Victory;
+                            if (registry.has_ctx<Res_AudioState>()) {
+                                registry.ctx<Res_AudioState>().requestedBgm = BgmId::Victory;
+                                registry.ctx<Res_AudioState>().bgmOverride  = false;
+                            }
                         } else {
                             ui.activeScreen = UIScreen::GameOver;
                             ui.gameOverSelectedIndex = 0;
+                            if (registry.has_ctx<Res_AudioState>()) {
+                                registry.ctx<Res_AudioState>().requestedBgm = BgmId::Defeat;
+                                registry.ctx<Res_AudioState>().bgmOverride  = false;
+                            }
                         }
                         UI::PushToast(registry,
                                       finalPassed ? "MISSION COMPLETE" : "MISSION FAILED",
