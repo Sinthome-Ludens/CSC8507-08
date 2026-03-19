@@ -216,23 +216,16 @@ static void GenerateMapSequence(ECS::Res_UIState& ui) {
 }
 
 /**
- * @brief 初始化多人模式固定三关流程。
- * @details v1 固定使用 `HangerA -> HangerB -> Helipad`，并重置战局累计 UI 状态。
+ * @brief 初始化多人模式的随机三关流程。
+ * @details Host/Client 各自独立抽取三张地图；比赛只比较三阶段推进速度，不要求同一轮进入相同地图。
  * @param ui 全局 UI 状态资源
  */
 static void InitializeMultiplayerMapSequence(ECS::Res_UIState& ui) {
-    ui.mapSequence[0] = 0;
-    ui.mapSequence[1] = 1;
-    ui.mapSequence[2] = 2;
-    ui.mapSequenceIndex = 0;
-    ui.mapSequenceGenerated = true;
     ui.totalPlayTime = 0.0f;
     ui.debugCurrentScene = -1;
-
-    LOG_INFO("[Main] Multiplayer map sequence initialized: "
-             << (int)ui.mapSequence[0] << " -> "
-             << (int)ui.mapSequence[1] << " -> "
-             << (int)ui.mapSequence[2]);
+    ResetCampaignScore(ui);
+    GenerateMapSequence(ui);
+    LOG_INFO("[Main] Multiplayer map sequence initialized independently for this peer.");
 }
 
 /// 处理所有 UI 请求（场景切换、分辨率、全屏、光标、退出）

@@ -46,8 +46,8 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
         gs.countdownActive = true;
         gs.countdownTimer  = gs.countdownMax;
         LOG_INFO("[Sys_Countdown] Alert maxed — countdown started: " << gs.countdownMax << "s");
-        // 倒计时积分惩罚 -200（仅单人）
-        if (!gs.isMultiplayer && !ui.countdownScorePenaltyApplied) {
+        // 倒计时积分惩罚 -200（挑战模式全局规则）
+        if (!ui.countdownScorePenaltyApplied) {
             ui.countdownScorePenaltyApplied = true;
             ui.scoreLost_countdown += 200;
             ui.campaignScore = std::max(0, ui.campaignScore - 200);
@@ -73,8 +73,8 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
             ui.activeScreen         = UIScreen::GameOver;
             ui.gameOverSelectedIndex = 0;
 
-            // 失败惩罚 -500（仅单人）
-            if (!gs.isMultiplayer && !ui.failureScorePenaltyApplied) {
+            // 失败惩罚 -500（挑战模式全局规则）
+            if (!ui.failureScorePenaltyApplied) {
                 ui.failureScorePenaltyApplied = true;
                 ui.scoreLost_failure += 500;
                 ui.campaignScore = std::max(0, ui.campaignScore - 500);

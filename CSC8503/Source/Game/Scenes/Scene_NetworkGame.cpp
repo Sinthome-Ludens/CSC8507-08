@@ -64,6 +64,9 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     const char* targetIP = m_IP.empty() ? "127.0.0.1" : m_IP.c_str();
     strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), targetIP, sizeof(resNet.serverIP) - 1);
     resNet.serverPort = (m_Port == 0) ? 32499 : m_Port;
+    resNet.preserveSessionOnSceneExit = false;
+    resNet.netIdMap.clear();
+    resNet.nextNetID = 1u;
 
     if (!registry.has_ctx<Res_UIFlags>()) {
         registry.ctx_emplace<Res_UIFlags>();

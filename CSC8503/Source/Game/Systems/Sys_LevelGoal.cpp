@@ -32,8 +32,12 @@ void Sys_LevelGoal::OnAwake(Registry& /*registry*/) {
 
 /**
  * @brief 每帧检测玩家与所有 C_T_FinishZone 实体的 XZ 距离。
- * @details 当距离 < 4m 时设置 Res_GameState::gameOverReason = 3（任务成功），
- *          并切换 UI 到 GameOver 画面、推送 Toast 通知。仅触发一次。
+ * @details 单人模式下，当距离 < 4m 且高度差在阈值内时，设置
+ *          Res_GameState::gameOverReason = 3（任务成功），切换 UI 到
+ *          GameOver 画面并推送 Toast 通知，仅触发一次。
+ *          多人模式下，每次到达终点会推进关卡进度；到达最终关卡终点时：
+ *          - 若分数达标，则设置 gameOverReason = 3（战役成功结束）；
+ *          - 若分数过低，则设置 gameOverReason = 2（分数不足导致的失败）。
  * @param registry ECS 注册表
  * @param dt       帧时间（未使用）
  */
@@ -77,6 +81,15 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 
                 if (isMultiplayer) {
                     auto& gs = registry.ctx<Res_GameState>();
+                    int32_t campaignScore = 1000;
+#ifdef USE_IMGUI
+                    Res_UIState* uiState = registry.has_ctx<Res_UIState>()
+                        ? &registry.ctx<Res_UIState>()
+                        : nullptr;
+                    if (uiState != nullptr) {
+                        campaignScore = uiState->campaignScore;
+                    }
+#endif
                     if (gs.localStageProgress < kMultiplayerStageCount) {
                         ++gs.localStageProgress;
                     }
@@ -85,19 +98,24 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                     gs.roundJustAdvanced = true;
                     if (gs.localStageProgress >= kMultiplayerStageCount) {
                         gs.isGameOver = true;
-                        gs.gameOverReason = 3;
+                        const bool scorePassed = campaignScore > 500;
+                        gs.gameOverReason = scorePassed ? 3 : 2;
                         gs.gameOverTime = gs.playTime;
                     }
 
 #ifdef USE_IMGUI
-                    if (registry.has_ctx<Res_UIState>()) {
-                        auto& ui = registry.ctx<Res_UIState>();
+                    if (uiState != nullptr) {
+                        auto& ui = *uiState;
                         if (gs.localStageProgress < kMultiplayerStageCount) {
                             ui.totalPlayTime += gs.playTime;
                             ui.pendingSceneRequest = SceneRequest::NextLevel;
                             UI::PushToast(registry, "AREA CLEAR - MOVING OUT", ToastType::Success, 2.0f);
                         } else {
-                            UI::PushToast(registry, "FINAL STAGE CLEAR", ToastType::Success, 2.0f);
+                            const bool scorePassed = ui.campaignScore > 500;
+                            UI::PushToast(registry,
+                                          scorePassed ? "FINAL STAGE CLEAR" : "SCORE TOO LOW",
+                                          scorePassed ? ToastType::Success : ToastType::Warning,
+                                          2.0f);
                         }
                     }
 #else

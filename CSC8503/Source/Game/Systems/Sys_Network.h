@@ -242,6 +242,25 @@ private:
      */
     static uint8_t GetLocalTerminalReason(Registry& reg, const Res_GameState& gs);
     /**
+     * @brief 判断当前 `Res_Network` 是否仍持有可安全跨场景复用的 ENet 会话。
+     * @param resNet 网络资源对象
+     * @return `true` 表示 host/peer 仍然有效，可跳过重新建连
+     */
+    static bool CanReuseSession(const Res_Network& resNet);
+    /**
+     * @brief 清理仅与当前场景实体绑定相关的网络状态。
+     * @details 用于跨场景保留连接时移除旧实体映射，避免把上一张图的 EntityID 带到新场景。
+     * @param resNet 网络资源对象
+     */
+    static void ResetSceneLocalState(Res_Network& resNet);
+    /**
+     * @brief 将 `Res_Network` 重置为不持有活动会话的干净运行态。
+     * @details 可选择保留模式/IP/端口配置，供随后重新初始化联机。
+     * @param resNet 网络资源对象
+     * @param keepConfiguration 是否保留 mode/serverIP/serverPort
+     */
+    static void ResetNetworkRuntimeState(Res_Network& resNet, bool keepConfiguration);
+    /**
      * @brief 将阶段进度限制在合法的 `0..kMultiplayerStageCount` 范围内。
      * @param progress 原始阶段值
      * @return 裁剪后的阶段值
