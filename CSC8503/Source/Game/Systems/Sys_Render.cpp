@@ -15,6 +15,7 @@
 #include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/C_D_CQCHighlight.h"
 #include "Game/Components/C_D_Animation.h"
+#include "Game/Components/C_D_DataOceanPillar.h"
 #include "Game/Utils/Log.h"
 #include "Matrix.h"
 #include "OGLMesh.h"
@@ -180,6 +181,10 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
 
     proxy->SetRenderObject(ro);
 
+    if (reg.Has<C_D_DataOceanPillar>(id)) {
+        ro->lightweightSync = true;
+    }
+
     m_GameWorld->AddGameObject(proxy);
     m_ProxyObjects[id] = proxy;
 
@@ -206,6 +211,10 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
         .SetPosition(tf.position)
         .SetScale(tf.scale)
         .SetOrientation(tf.rotation);
+
+    if (proxy->GetRenderObject() && proxy->GetRenderObject()->lightweightSync) {
+        return;
+    }
 
     // 每帧同步材质参数（支持 ImGui 实时调参）+ 每帧从 alphaMode 重算 MaterialType
     if (reg.Has<C_D_Material>(id)) {
@@ -272,6 +281,7 @@ void Sys_Render::CleanupOrphans(Registry& reg) {
     std::vector<EntityID> toRemove;
 
     for (auto& [id, proxy] : m_ProxyObjects) {
+        if (proxy->GetRenderObject() && proxy->GetRenderObject()->lightweightSync) continue;
         if (!reg.Valid(id)) {
             toRemove.push_back(id);
         }

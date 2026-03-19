@@ -113,6 +113,10 @@ namespace NCL {
 			bool                 useSkinning     = false;
 			std::vector<Matrix4> skinBoneMatrices; ///< 仅在 useSkinning 时填充
 
+			// ── 性能优化标志 ────────────────────────────────────
+			bool lightweightSync = false;    ///< 轻量同步：仅同步 Transform，跳过材质/视觉/骨骼
+			mutable bool instanced = false;  ///< 当前帧是否已被 instanced batch 绘制
+
 		protected:
 			Transform&	transform;
 			GameTechMaterial material;

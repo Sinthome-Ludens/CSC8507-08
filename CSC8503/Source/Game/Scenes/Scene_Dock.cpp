@@ -18,9 +18,11 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Components/Res_AIConfig.h"
+#include "Game/Components/Res_DataOcean.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Countdown.h"
+#include "Game/Systems/Sys_DataOcean.h"
 #include "Game/Systems/Sys_DeathJudgment.h"
 #include "Game/Systems/Sys_DeathEffect.h"
 #include "Game/Systems/Sys_Input.h"
@@ -108,6 +110,8 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_NavTestState>(std::move(navState));
     }
 
+    registry.ctx_emplace<ECS::Res_DataOcean>();
+
     MapLoadConfig mapConfig{};
     if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_Dock.json", mapConfig)) {
         LOG_ERROR("[Scene_Dock] Failed to load map config from Prefab_Map_Dock.json");
@@ -143,6 +147,7 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
 
     systems.Register<ECS::Sys_PlayerCamera>    (150);
     systems.Register<ECS::Sys_Camera>          (155);
+    systems.Register<ECS::Sys_DataOcean>       (195);
     systems.Register<ECS::Sys_Render>          (200);
     systems.Register<ECS::Sys_Item>            (250);
     systems.Register<ECS::Sys_ItemEffects>     (260);
@@ -242,6 +247,7 @@ void Scene_Dock::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_DeathConfig>())     registry.ctx_erase<ECS::Res_DeathConfig>();
     if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
     if (registry.has_ctx<ECS::Res_AIConfig>())        registry.ctx_erase<ECS::Res_AIConfig>();
+    if (registry.has_ctx<ECS::Res_DataOcean>())       registry.ctx_erase<ECS::Res_DataOcean>();
     if (registry.has_ctx<ECS::Res_ItemInventory2>())  registry.ctx_erase<ECS::Res_ItemInventory2>();
     if (registry.has_ctx<ECS::Res_RadarState>())      registry.ctx_erase<ECS::Res_RadarState>();
     if (!isMultiplayer && registry.has_ctx<ECS::Res_GameState>()) registry.ctx_erase<ECS::Res_GameState>();

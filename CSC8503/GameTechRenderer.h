@@ -171,7 +171,7 @@ namespace NCL {
             // ── Shadow Buffer & Normal Offset ─────────────────
             float m_shadowNearBuffer = 50.0f;
             float m_shadowFarBuffer  = 20.0f;
-            float m_shadowNormalOffsetScale = 0.5f;
+            float m_shadowNormalOffsetScale = 0.01f;
 
             // ── Debug flags ──────────────────────────────────
             bool  m_debugCascades   = false;
@@ -236,6 +236,35 @@ namespace NCL {
 
             // ── 辅助绘制方法 ─────────────────────────────────
             void DrawObject(OGLShader* shader, const RenderObject* o);
+
+            // ── Instanced Rendering ──────────────────────────
+            /// @brief 同 mesh+shader 批次的 instanced draw 最小阈值
+            static constexpr int INSTANCE_THRESHOLD = 16;
+
+            /**
+             * @brief Instanced batch 数据：同 mesh 的 RenderObject 列表。
+             *
+             * BuildObjectLists 阶段按 (mesh, shader) 分组，
+             * RenderOpaquePass 对 instanceCount >= INSTANCE_THRESHOLD 的批次
+             * 使用 SSBO + glDrawElementsInstanced 一次绘制。
+             *
+             * PS5 移植注意：SSBO 对应 PS5 的 RW_Buffer / Structured Buffer，
+             * 需替换为 AGC 的 Buffer::allocate + setBuffers。
+             */
+            struct InstancedBatch {
+                OGLMesh*  mesh   = nullptr;
+                OGLShader* shader = nullptr;
+                std::vector<const RenderObject*> objects;
+            };
+
+            std::vector<InstancedBatch> m_instancedBatches;
+
+            GLuint m_instanceSSBO       = 0; ///< SSBO: mat4 modelMatrix[] + vec4 objectColour[]
+            size_t m_instanceSSBOSize   = 0; ///< 当前 SSBO 已分配字节数
+
+            /// @brief 上传 instanced batch 数据到 SSBO 并执行 instanced draw。
+            void DrawInstancedBatch(OGLShader* shader, const InstancedBatch& batch,
+                                    const Matrix4& viewMatrix, const Matrix4& projMatrix);
         };
     }
 }

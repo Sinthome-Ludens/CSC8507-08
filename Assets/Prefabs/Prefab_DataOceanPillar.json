@@ -1,0 +1,25 @@
+{
+  "PrefabID": "PREFAB_DATA_OCEAN_PILLAR",
+  "Name": "DataOceanPillar",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.0, 1.0, 1.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle": "cube.obj",
+      "materialHandle": 0
+    },
+    "C_D_Material": {
+      "baseColour": [1.0, 1.0, 1.0, 1.0]
+    },
+    "C_D_DataOceanPillar": {
+      "baseY": 0.0,
+      "amplitude": 2.0,
+      "phaseShift": 0.0,
+      "sizeXZ": 4.0
+    },
+    "C_D_DebugName": { "name": "ENTITY_DataOcean_Pillar_XX" }
+  }
+}

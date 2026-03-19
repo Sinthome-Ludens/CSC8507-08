@@ -1,4 +1,4 @@
-#version 400 core
+#version 430 core
 
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec4 colour;
@@ -19,6 +19,18 @@ uniform bool hasVertexColours = false;
 uniform bool useSkinning = false;
 uniform mat4 boneMatrices[96];
 
+// Instanced rendering SSBO
+uniform bool useInstancing = false;
+
+struct InstanceData {
+    mat4 modelMatrix;
+    vec4 objectColour;
+};
+
+layout(std430, binding = 0) buffer InstanceBuffer {
+    InstanceData instances[];
+};
+
 out Vertex {
     vec4 colour;
     vec2 texCoord;
@@ -29,6 +41,10 @@ out Vertex {
 } OUT;
 
 void main() {
+    // 选择 per-instance 或 uniform 数据
+    mat4 instModel  = useInstancing ? instances[gl_InstanceID].modelMatrix  : modelMatrix;
+    vec4 instColour = useInstancing ? instances[gl_InstanceID].objectColour : objectColour;
+
     vec4 localPos  = vec4(position, 1.0);
     vec3 localNorm = normal;
     vec3 localTan  = tangent.xyz;
@@ -45,9 +61,9 @@ void main() {
         localTan  = mat3(skinMat) * localTan;
     }
 
-    mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));
+    mat3 normalMatrix = transpose(inverse(mat3(instModel)));
 
-    OUT.worldPos = (modelMatrix * localPos).xyz;
+    OUT.worldPos = (instModel * localPos).xyz;
 
     vec3 N = normalize(normalMatrix * normalize(localNorm));
     vec3 T = normalize(normalMatrix * localTan);
@@ -56,12 +72,12 @@ void main() {
 
     OUT.normal     = N;
     OUT.TBN        = mat3(T, B, N);
-    OUT.viewNormal = normalize(mat3(viewMatrix * modelMatrix) * normalize(localNorm));
+    OUT.viewNormal = normalize(mat3(viewMatrix * instModel) * normalize(localNorm));
 
     OUT.texCoord = texCoord;
-    OUT.colour   = objectColour;
+    OUT.colour   = instColour;
     if (hasVertexColours) {
-        OUT.colour = objectColour * colour;
+        OUT.colour = instColour * colour;
     }
 
     gl_Position = projMatrix * viewMatrix * vec4(OUT.worldPos, 1.0);
