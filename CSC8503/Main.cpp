@@ -223,6 +223,7 @@ static void GenerateMapSequence(ECS::Res_UIState& ui) {
 static void InitializeMultiplayerMapSequence(ECS::Res_UIState& ui) {
     ui.totalPlayTime = 0.0f;
     ui.debugCurrentScene = -1;
+    ResetCampaignScore(ui);
     GenerateMapSequence(ui);
     LOG_INFO("[Main] Multiplayer map sequence initialized independently for this peer.");
 }

@@ -870,12 +870,14 @@ void Sys_Network::UpdateMatchUIState(Registry& reg) {
  * @param gs 当前比赛状态资源
  */
 void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReason) {
-    const bool hostFinishedBySuccess = gs.localStageProgress >= kMultiplayerStageCount
-        || (gs.isGameOver && gs.gameOverReason == 3u);
     const bool hostFinishedByFailure = gs.isGameOver && gs.gameOverReason != 0u && gs.gameOverReason != 3u;
-    const bool clientFinishedBySuccess = gs.opponentStageProgress >= kMultiplayerStageCount
-        || remoteGameOverReason == 3u;
     const bool clientFinishedByFailure = remoteGameOverReason != 0u && remoteGameOverReason != 3u;
+    const bool hostFinishedBySuccess =
+        (gs.isGameOver && gs.gameOverReason == 3u)
+        || (gs.localStageProgress >= kMultiplayerStageCount && !hostFinishedByFailure);
+    const bool clientFinishedBySuccess =
+        (remoteGameOverReason == 3u)
+        || (gs.opponentStageProgress >= kMultiplayerStageCount && !clientFinishedByFailure);
 
     const bool hostFinished = hostFinishedBySuccess || hostFinishedByFailure;
     const bool clientFinished = clientFinishedBySuccess || clientFinishedByFailure;

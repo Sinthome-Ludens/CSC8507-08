@@ -87,8 +87,7 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
                                                   -5, ActionNotifyType::Alert);
 #endif
                         if (registry.has_ctx<Res_UIState>()
-                            && registry.has_ctx<Res_GameState>()
-                            && !registry.ctx<Res_GameState>().isMultiplayer) {
+                            && registry.has_ctx<Res_GameState>()) {
                             auto& uiS = registry.ctx<Res_UIState>();
                             uiS.campaignScore = std::max(0, uiS.campaignScore - 5);
                             uiS.scoreLost_items += 5;

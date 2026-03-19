@@ -712,9 +712,7 @@ void RenderHUD(Registry& registry, float dt) {
     // Render all sub-panels (7 base + 3 multiplayer)
     RenderHUD_MissionPanel(draw, gs, gameW);
     RenderHUD_AlertGauge(draw, gs, gameW);
-    if (!gs.isMultiplayer) {
-        RenderHUD_Score(draw, ui.campaignScore, gameW);
-    }
+    RenderHUD_Score(draw, ui.campaignScore, gameW);
     RenderHUD_Countdown(draw, gs, gameW, ui.globalTime);
     RenderHUD_PlayerState(draw, gs, displayH);
     RenderHUD_NoiseIndicator(draw, gs, displayH, ui.globalTime);

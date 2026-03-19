@@ -77,6 +77,9 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 
                 if (isMultiplayer) {
                     auto& gs = registry.ctx<Res_GameState>();
+                    Res_UIState* uiState = registry.has_ctx<Res_UIState>()
+                        ? &registry.ctx<Res_UIState>()
+                        : nullptr;
                     if (gs.localStageProgress < kMultiplayerStageCount) {
                         ++gs.localStageProgress;
                     }
@@ -85,19 +88,24 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                     gs.roundJustAdvanced = true;
                     if (gs.localStageProgress >= kMultiplayerStageCount) {
                         gs.isGameOver = true;
-                        gs.gameOverReason = 3;
+                        const bool scorePassed = (uiState == nullptr) || (uiState->campaignScore > 500);
+                        gs.gameOverReason = scorePassed ? 3 : 2;
                         gs.gameOverTime = gs.playTime;
                     }
 
 #ifdef USE_IMGUI
-                    if (registry.has_ctx<Res_UIState>()) {
-                        auto& ui = registry.ctx<Res_UIState>();
+                    if (uiState != nullptr) {
+                        auto& ui = *uiState;
                         if (gs.localStageProgress < kMultiplayerStageCount) {
                             ui.totalPlayTime += gs.playTime;
                             ui.pendingSceneRequest = SceneRequest::NextLevel;
                             UI::PushToast(registry, "AREA CLEAR - MOVING OUT", ToastType::Success, 2.0f);
                         } else {
-                            UI::PushToast(registry, "FINAL STAGE CLEAR", ToastType::Success, 2.0f);
+                            const bool scorePassed = ui.campaignScore > 500;
+                            UI::PushToast(registry,
+                                          scorePassed ? "FINAL STAGE CLEAR" : "SCORE TOO LOW",
+                                          scorePassed ? ToastType::Success : ToastType::Warning,
+                                          2.0f);
                         }
                     }
 #else
