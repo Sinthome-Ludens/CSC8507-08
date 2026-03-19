@@ -890,7 +890,7 @@ void RenderHUD(Registry& registry, float dt) {
     // Control hints (bottom, inside game area)
     ImFont* smallFont = UITheme::GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
-    const char* hints = "[ESC] PAUSE  [Q] GADGET  [E] WEAPON  [TAB] SWITCH  [I] INVENTORY  [6] MAP";
+    const char* hints = "[ESC] PAUSE  [Q] GADGET  [E] WEAPON  [TAB] SWITCH  [I] INVENTORY";
     ImVec2 hintsSize = ImGui::CalcTextSize(hints);
     draw->AddText(
         ImVec2(gameW * 0.5f - hintsSize.x * 0.5f, displayH - 18.0f),

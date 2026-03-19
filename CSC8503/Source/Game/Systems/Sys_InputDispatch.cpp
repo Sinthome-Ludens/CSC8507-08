@@ -61,27 +61,6 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
     bool gPressed = gDown && !m_GWasPressed;
     m_GWasPressed = gDown;
 
-    // ── 道具使用键 1-5 上升沿检测 ──
-    bool key1Down = res.keyStates[NCL::KeyCodes::NUM1];
-    bool key1Pressed = key1Down && !m_Key1WasPressed;
-    m_Key1WasPressed = key1Down;
-
-    bool key2Down = res.keyStates[NCL::KeyCodes::NUM2];
-    bool key2Pressed = key2Down && !m_Key2WasPressed;
-    m_Key2WasPressed = key2Down;
-
-    bool key3Down = res.keyStates[NCL::KeyCodes::NUM3];
-    bool key3Pressed = key3Down && !m_Key3WasPressed;
-    m_Key3WasPressed = key3Down;
-
-    bool key4Down = res.keyStates[NCL::KeyCodes::NUM4];
-    bool key4Pressed = key4Down && !m_Key4WasPressed;
-    m_Key4WasPressed = key4Down;
-
-    bool key5Down = res.keyStates[NCL::KeyCodes::NUM5];
-    bool key5Pressed = key5Down && !m_Key5WasPressed;
-    m_Key5WasPressed = key5Down;
-
     // ── Debug 模式下阻断移动输入（Sync 关闭时玩家不动）──
     bool blockMovement = false;
     if (registry.has_ctx<Sys_Camera*>()) {
@@ -112,12 +91,6 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
             input.cqcJustPressed      = fPressed;
             input.gadgetUseJustPressed = qPressed;  // Q = use active gadget
             input.weaponUseJustPressed = ePressed;  // E = use active weapon
-            // ── 道具使用按键（数字键 1-5） ──
-            input.item1JustPressed   = key1Pressed;
-            input.item2JustPressed   = key2Pressed;
-            input.item3JustPressed   = key3Pressed;
-            input.item4JustPressed   = key4Pressed;
-            input.item5JustPressed   = key5Pressed;
             input.scrollDelta        = scrollWheel;
         }
     );
