@@ -26,6 +26,7 @@
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_ScoreConfig.h"
+#include "Game/Components/Res_AudioConfig.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #ifdef USE_IMGUI
 #include "Game/UI/UI_ActionNotify.h"
@@ -208,6 +209,11 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                             gs.gameOverTime     = gs.playTime;
                             ui.activeScreen = UIScreen::GameOver;
                             ui.gameOverSelectedIndex = 0;
+                        }
+                        if (registry.has_ctx<Res_AudioState>()) {
+                            auto& audio = registry.ctx<Res_AudioState>();
+                            audio.requestedBgm = BgmId::Defeat;
+                            audio.bgmOverride  = false;
                         }
                         // 失败惩罚 -500（挑战模式全局规则）
                         Res_ScoreConfig defaultScoreCfg;

@@ -17,6 +17,8 @@
 #include "Game/Systems/Sys_Network.h"
 #include "Game/Systems/Sys_Interpolation.h"
 #include "Game/Systems/Sys_Render.h"
+#include "Game/Systems/Sys_Audio.h"
+#include "Game/Components/Res_AudioConfig.h"
 #include "Game/Utils/Log.h"
 
 #ifdef USE_IMGUI
@@ -123,6 +125,7 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
         systems.Register<ECS::Sys_Camera>       (180);
         systems.Register<ECS::Sys_Render>       (200);
     }
+    systems.Register<ECS::Sys_Audio>        (275);
 #ifdef USE_IMGUI
     if (!isSameMapBootstrap) {
         systems.Register<ECS::Sys_ImGui>           (300);
@@ -146,6 +149,14 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     // 6. 启动
     systems.AwakeAll(registry);
 
+    // ── Audio state (must be AFTER AwakeAll — Res_AudioState created in Sys_Audio::OnAwake) ──
+    if (registry.has_ctx<ECS::Res_AudioState>()) {
+        auto& audio = registry.ctx<ECS::Res_AudioState>();
+        audio.isGameplay   = true;
+        audio.requestedBgm = ECS::BgmId::GameplayNormal;
+        audio.bgmOverride  = false;
+    }
+
     // 7. 设置 UI 为 HUD 模式 + FadeIn
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_UIState>()) {
@@ -155,6 +166,7 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
         ui.pendingSceneRequest  = ECS::SceneRequest::None;
         ui.transitionSceneRequest = ECS::SceneRequest::None;
         ui.sceneRequestDispatched = false;
+        ui.loadingWaitForSpawn    = false;
         ui.loadingTimer         = 0.0f;
         ui.loadingMsgTimer      = 0.0f;
         ui.loadingMsgIndex      = 0;

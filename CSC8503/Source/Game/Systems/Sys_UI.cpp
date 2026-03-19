@@ -42,6 +42,9 @@
 #include "Game/UI/UI_ActionNotify.h"
 #include "Game/Components/Res_InputConfig.h"
 #include "Game/Components/Res_UIKeyConfig.h"
+#include "Game/Components/Res_AudioConfig.h"
+#include "Game/Events/Evt_Audio.h"
+#include "Core/ECS/EventBus.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/SaveManager.h"
 
@@ -201,6 +204,24 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                 inter.isEnabled = newVal;
             });
             LOG_INFO("[DevMode] F9 Interactables enabled=" << newVal);
+        }
+    }
+
+    // ── UI 点击音效（仅在菜单画面触发，游玩 HUD 状态不触发）──
+    auto* audioBus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;
+    bool isMenuScreen = (ui.activeScreen != UIScreen::HUD
+                      && ui.activeScreen != UIScreen::None);
+    if (isMenuScreen && audioBus) {
+        bool anyUiInput = input.keyPressed[uiCfg.keyMenuBack]
+                       || input.keyPressed[uiCfg.keyConfirm]
+                       || input.keyPressed[uiCfg.keyConfirmAlt]
+                       || input.keyPressed[uiCfg.keyMenuUp]
+                       || input.keyPressed[uiCfg.keyMenuDown]
+                       || input.keyPressed[uiCfg.keyMenuUpAlt]
+                       || input.keyPressed[uiCfg.keyMenuDownAlt]
+                       || input.mouseButtonPressed[uiCfg.mouseConfirm];
+        if (anyUiInput) {
+            audioBus->publish_deferred<Evt_Audio_PlaySFX>(Evt_Audio_PlaySFX{SfxId::UIClick});
         }
     }
 

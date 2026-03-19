@@ -12,6 +12,7 @@
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_ScoreConfig.h"
+#include "Game/Components/Res_AudioConfig.h"
 #include "Game/Utils/Log.h"
 
 #include <algorithm>
@@ -50,6 +51,12 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
     if (gs.alertLevel >= gs.alertMax && !gs.countdownActive) {
         gs.countdownActive = true;
         gs.countdownTimer  = gs.countdownMax;
+        if (registry.has_ctx<Res_AudioState>()) {
+            auto& audio = registry.ctx<Res_AudioState>();
+            audio.preBgm       = audio.currentBgm;
+            audio.requestedBgm = BgmId::Countdown;
+            audio.bgmOverride  = true;
+        }
         LOG_INFO("[Sys_Countdown] Alert maxed — countdown started: " << gs.countdownMax << "s");
         // 倒计时积分惩罚 -200（挑战模式全局规则）
         if (!ui.countdownScorePenaltyApplied) {
@@ -78,6 +85,11 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
                 gs.isGameOver      = true;
                 gs.gameOverReason  = GameOverReason::Countdown;
                 gs.gameOverTime    = gs.playTime;
+            }
+            if (registry.has_ctx<Res_AudioState>()) {
+                auto& audio = registry.ctx<Res_AudioState>();
+                audio.requestedBgm = BgmId::Defeat;
+                audio.bgmOverride  = false;
             }
 
             if (!gs.isMultiplayer) {

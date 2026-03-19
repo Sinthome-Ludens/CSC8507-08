@@ -223,6 +223,16 @@ target_link_libraries(${PROJECT_NAME} LINK_PUBLIC GLTFLoader)
 target_link_libraries(${PROJECT_NAME} LINK_PUBLIC assimp)
 include_directories(${CMAKE_SOURCE_DIR}/External/assimp/include)
 
+# Link FMOD Core API
+set(FMOD_DIR ${CMAKE_SOURCE_DIR}/External/fmod)
+include_directories(${FMOD_DIR}/inc)
+target_link_libraries(${PROJECT_NAME} LINK_PUBLIC
+    $<IF:$<CONFIG:Debug>,${FMOD_DIR}/lib/x64/fmodL_vc.lib,${FMOD_DIR}/lib/x64/fmod_vc.lib>)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FMOD_DIR}/lib/x64/$<IF:$<CONFIG:Debug>,fmodL.dll,fmod.dll>"
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
+
 # Link ImGui
 if(USE_IMGUI)
     target_link_libraries(${PROJECT_NAME} LINK_PUBLIC ImGui)
