@@ -19,6 +19,7 @@
 #include "Mouse.h"
 
 using namespace NCL;
+using namespace ECS::UITheme;
 
 namespace ECS::UI {
 
@@ -63,7 +64,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     // Background
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(245, 238, 232, 255));
+        Col32_Bg());
 
     float cx = vpPos.x + vpSize.x * 0.5f;
 
@@ -99,7 +100,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
             case MatchResult::LocalWin:
                 resultTitle    = "MATCH VICTORY";
                 resultSubtitle = "YOU CLEARED ALL THREE STAGES";
-                titleColor     = IM_COL32(252, 111, 41, 255);
+                titleColor     = Col32_Accent();
                 isSuccess      = true;
                 break;
             case MatchResult::OpponentWin:
@@ -121,7 +122,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
             default:
                 resultTitle    = "MATCH COMPLETE";
                 resultSubtitle = "";
-                titleColor     = IM_COL32(200, 200, 200, 255);
+                titleColor     = Col32_Gray();
                 break;
         }
     } else {
@@ -139,13 +140,13 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
             case GameOverReason::Success:
                 resultTitle    = "MISSION COMPLETE";
                 resultSubtitle = "ALL OBJECTIVES ACHIEVED";
-                titleColor     = IM_COL32(252, 111, 41, 255);
+                titleColor     = Col32_Accent();
                 isSuccess      = true;
                 break;
             default:
                 resultTitle    = "MISSION TERMINATED";
                 resultSubtitle = "";
-                titleColor     = IM_COL32(200, 200, 200, 255);
+                titleColor     = Col32_Gray();
                 break;
         }
     }
@@ -176,7 +177,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     }
 
     // Title（仅绘制一次）
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
     ImVec2 titleSize = ImGui::CalcTextSize(resultTitle);
     float titleX = cx - titleSize.x * 0.5f;
@@ -185,21 +186,21 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     if (titleFont) ImGui::PopFont();
 
     // Subtitle
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
     ImVec2 subSize = ImGui::CalcTextSize(resultSubtitle);
     draw->AddText(ImVec2(cx - subSize.x * 0.5f, titleY + titleSize.y + 6.0f),
-        IM_COL32(16, 13, 10, 180), resultSubtitle);
+        Col32_Text(180), resultSubtitle);
     if (termFont) ImGui::PopFont();
 
     // Decorative line
     float lineY = titleY + titleSize.y + 32.0f;
     draw->AddLine(ImVec2(cx - 120.0f, lineY), ImVec2(cx + 120.0f, lineY),
-        IM_COL32(200, 200, 200, 120), 1.0f);
+        Col32_Gray(120), 1.0f);
 
-    const ImU32 ratingCol = UITheme::GetScoreRatingColor(ratingTier);
+    const ImU32 ratingCol = GetScoreRatingColor(ratingTier);
 
-    ImFont* bodyFont = UITheme::GetFont_Body();
+    ImFont* bodyFont = GetFont_Body();
     if (bodyFont) ImGui::PushFont(bodyFont);
     char ratingStr[32];
     snprintf(ratingStr, sizeof(ratingStr), "RATING: [%s]", rating);
@@ -215,7 +216,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float statsX = cx - 140.0f;
     float valX   = cx + 40.0f;  // 右对齐值列
     char buf[64];
-    ImU32 labelCol  = IM_COL32(16, 13, 10, 220);
+    ImU32 labelCol  = Col32_Text(220);
     ImU32 deductCol = IM_COL32(220, 60, 40, 220);
 
     // Play time MM:SS
@@ -230,12 +231,12 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         snprintf(buf, sizeof(buf), "LOCAL:     %d / %d",
             (int)localStageProgress, (int)kMultiplayerStageCount);
         draw->AddText(ImVec2(statsX, statsY + 28.0f),
-            IM_COL32(16, 13, 10, 220), buf);
+            Col32_Text(220), buf);
 
         snprintf(buf, sizeof(buf), "OPPONENT:  %d / %d",
             (int)opponentStageProgress, (int)kMultiplayerStageCount);
         draw->AddText(ImVec2(statsX, statsY + 56.0f),
-            IM_COL32(16, 13, 10, 220), buf);
+            Col32_Text(220), buf);
     } else {
         // INITIAL
         draw->AddText(ImVec2(statsX, statsY + 28.0f), labelCol, "INITIAL:");
@@ -291,7 +292,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
 
         // Separator line
         draw->AddLine(ImVec2(statsX, statsY + 172.0f), ImVec2(valX + 60.0f, statsY + 172.0f),
-            IM_COL32(200, 200, 200, 120), 1.0f);
+            Col32_Gray(120), 1.0f);
 
         // FINAL SCORE
         snprintf(buf, sizeof(buf), "FINAL SCORE:");
@@ -305,7 +306,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     // ── Separator before menu ─────────────────────────────
     float sepY = statsY + 210.0f;
     draw->AddLine(ImVec2(cx - 80.0f, sepY), ImVec2(cx + 80.0f, sepY),
-        IM_COL32(200, 200, 200, 100), 1.0f);
+        Col32_Gray(100), 1.0f);
 
     // ── Menu items ────────────────────────────────────────
     if (termFont) ImGui::PushFont(termFont);
@@ -363,16 +364,16 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
 
         if (isSelected) {
             draw->AddRectFilled(itemMin, itemMax,
-                IM_COL32(252, 111, 41, 25), 2.0f);
+                Col32_Accent(25), 2.0f);
             draw->AddRect(itemMin, itemMax,
-                IM_COL32(252, 111, 41, 120), 2.0f, 0, 1.0f);
+                Col32_Accent(120), 2.0f, 0, 1.0f);
         }
 
         char label[64];
         snprintf(label, sizeof(label), isSelected ? "> %s" : "  %s",
             kGameOverItems[i]);
-        ImU32 textColor = isSelected ? IM_COL32(16, 13, 10, 255)
-                                     : IM_COL32(16, 13, 10, 220);
+        ImU32 textColor = isSelected ? Col32_Text()
+                                     : Col32_Text(220);
         float textX = itemStartX + 10.0f + (isSelected ? 4.0f : 0.0f);
         draw->AddText(ImVec2(textX, itemY), textColor, label);
     }
@@ -400,10 +401,10 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     }
 
     // Bottom hint
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
     ImVec2 hintPos(cx - 120.0f, vpPos.y + vpSize.y - 35.0f);
-    draw->AddText(hintPos, IM_COL32(16, 13, 10, 180),
+    draw->AddText(hintPos, Col32_Text(180),
         "[W/S] NAVIGATE  [ENTER] SELECT");
     if (smallFont) ImGui::PopFont();
 
