@@ -19,7 +19,12 @@
 #include <algorithm>
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_GhostDuelState.h"
 #include "Game/Components/Res_ChatState.h"
+#include "Game/Components/Res_MinimapState.h"
+#include "Game/Components/Res_RadarState.h"
+#include "Game/Components/C_T_Player.h"
+#include "Game/Components/C_D_Transform.h"
 #include "Game/UI/UITheme.h"
 #include "Game/UI/UI_ItemIcons.h"
 
@@ -465,6 +470,100 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
 }
 
 // ============================================================
+// 7b. RenderHUD_Minimap — 左侧小地图叠层
+// ============================================================
+/// @brief 渲染左侧小地图（GlobalMap 道具激活后显示地图边界 + 玩家 + 敌人位置）。
+static void RenderHUD_Minimap(ImDrawList* draw, Registry& registry, float /*displayH*/) {
+    if (!registry.has_ctx<Res_MinimapState>()) return;
+    const auto& minimap = registry.ctx<Res_MinimapState>();
+    if (!minimap.isActive || minimap.edgeCount == 0) return;
+
+    // ── 布局参数 ──
+    constexpr float kMapX = 16.0f;   // 左上角 X
+    constexpr float kMapY = 76.0f;   // MissionPanel(y=12,h=52) 下方
+    constexpr float kMapSize = 160.0f;
+    constexpr float kPadding = 8.0f;
+
+    // 深色半透明背景
+    draw->AddRectFilled(
+        ImVec2(kMapX, kMapY),
+        ImVec2(kMapX + kMapSize, kMapY + kMapSize),
+        IM_COL32(16, 13, 10, 180), 3.0f);
+
+    // 边框
+    draw->AddRect(
+        ImVec2(kMapX, kMapY),
+        ImVec2(kMapX + kMapSize, kMapY + kMapSize),
+        IM_COL32(252, 111, 41, 120), 3.0f);
+
+    // ── 世界坐标 → 小地图坐标映射 ──
+    float worldW = minimap.worldMaxX - minimap.worldMinX;
+    float worldH = minimap.worldMaxZ - minimap.worldMinZ;
+    if (worldW < 0.1f || worldH < 0.1f) return;
+
+    float drawSize = kMapSize - kPadding * 2;
+    float scale = drawSize / std::max(worldW, worldH);
+    float offsetX = kMapX + kPadding + (drawSize - worldW * scale) * 0.5f;
+    float offsetZ = kMapY + kPadding + (drawSize - worldH * scale) * 0.5f;
+
+    // 世界 XZ → 屏幕坐标 lambda
+    auto toScreen = [&](float wx, float wz) -> ImVec2 {
+        return ImVec2(
+            offsetX + (wx - minimap.worldMinX) * scale,
+            offsetZ + (wz - minimap.worldMinZ) * scale);
+    };
+
+    // ── 绘制边界线段（灰色） ──
+    for (int i = 0; i < minimap.edgeCount; ++i) {
+        const auto& e = minimap.edges[i];
+        ImVec2 a = toScreen(e.x0, e.z0);
+        ImVec2 b = toScreen(e.x1, e.z1);
+        draw->AddLine(a, b, IM_COL32(200, 200, 200, 140), 1.0f);
+    }
+
+    // ── 绘制敌人位置（红色圆点，来自 Res_RadarState） ──
+    if (registry.has_ctx<Res_RadarState>()) {
+        const auto& radar = registry.ctx<Res_RadarState>();
+        if (radar.isActive) {
+            for (int i = 0; i < radar.contactCount && i < Res_RadarState::kMaxContacts; ++i) {
+                if (!radar.contacts[i].valid) continue;
+                ImVec2 ep = toScreen(radar.contacts[i].worldPos.x,
+                                      radar.contacts[i].worldPos.z);
+                draw->AddCircleFilled(ep, 3.0f, IM_COL32(220, 60, 40, 220));
+            }
+        }
+    }
+
+    // ── 绘制玩家位置（橙色三角形） ──
+    registry.view<C_T_Player, C_D_Transform>().each(
+        [&](EntityID, C_T_Player&, C_D_Transform& tf) {
+            ImVec2 pp = toScreen(tf.position.x, tf.position.z);
+            // 小三角形（上方指向）
+            draw->AddTriangleFilled(
+                ImVec2(pp.x, pp.y - 4.0f),
+                ImVec2(pp.x - 3.0f, pp.y + 3.0f),
+                ImVec2(pp.x + 3.0f, pp.y + 3.0f),
+                IM_COL32(252, 111, 41, 255));
+        });
+
+    // ── "MAP" 标题 + 倒计时 ──
+    ImFont* smallFont = UITheme::GetFont_Small();
+    if (smallFont) ImGui::PushFont(smallFont);
+    draw->AddText(ImVec2(kMapX + 4.0f, kMapY + 2.0f),
+                  IM_COL32(252, 111, 41, 200), "MAP");
+
+    // 剩余秒数（右上角）
+    if (minimap.activeTimer > 0.0f) {
+        char timerBuf[8];
+        snprintf(timerBuf, sizeof(timerBuf), "%.0fs", minimap.activeTimer);
+        ImVec2 timerSize = ImGui::CalcTextSize(timerBuf);
+        draw->AddText(ImVec2(kMapX + kMapSize - timerSize.x - 4.0f, kMapY + 2.0f),
+                      IM_COL32(245, 238, 232, 200), timerBuf);
+    }
+    if (smallFont) ImGui::PopFont();
+}
+
+// ============================================================
 // 8. RenderHUD_OpponentBar — 多人对战对手进度条
 // ============================================================
 /// @brief 渲染多人对战屏幕中央双方进度条（本地 vs 对手），仅在 isMultiplayer 时调用。
@@ -615,6 +714,96 @@ static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs
 }
 
 // ============================================================
+// 10a. RenderHUD_GhostDuelOpponent — Ghost Duel 对手积分面板 (center-top)
+// ============================================================
+/// @brief 渲染 Ghost Duel 对手积分面板（屏幕中上方），含对手名/积分/评级/完成标签。
+static void RenderHUD_GhostDuelOpponent(ImDrawList* draw, Registry& registry, float gameW, float displayH) {
+    if (!registry.has_ctx<Res_GhostDuelState>()) return;
+    const auto& gd = registry.ctx<Res_GhostDuelState>();
+
+    ImFont* termFont  = UITheme::GetFont_Terminal();
+    ImFont* smallFont = UITheme::GetFont_Small();
+
+    float panelW = 300.0f;
+    float panelH = 40.0f;
+    float panelX = gameW * 0.5f - panelW * 0.5f;
+    float panelY = 8.0f;
+
+    // Dark panel background
+    draw->AddRectFilled(
+        ImVec2(panelX, panelY),
+        ImVec2(panelX + panelW, panelY + panelH),
+        IM_COL32(16, 13, 10, 140), 3.0f);
+
+    // Left teal accent bar
+    draw->AddRectFilled(
+        ImVec2(panelX, panelY),
+        ImVec2(panelX + 3.0f, panelY + panelH),
+        IM_COL32(46, 196, 182, 200));
+
+    // "VS [opponentName]"
+    if (termFont) ImGui::PushFont(termFont);
+    char vsBuf[32];
+    snprintf(vsBuf, sizeof(vsBuf), "VS %s", gd.opponentName);
+    draw->AddText(ImVec2(panelX + 10.0f, panelY + 4.0f),
+        IM_COL32(46, 196, 182, 220), vsBuf);
+
+    // Opponent score + rating
+    const char* oppRating = GetScoreRating(gd.opponentScore);
+    int8_t oppTier = GetScoreRatingTier(gd.opponentScore);
+    ImU32 oppScoreCol = UITheme::GetScoreRatingColor(oppTier, 220);
+
+    char scoreBuf[32];
+    snprintf(scoreBuf, sizeof(scoreBuf), "SCORE: %d [%s]",
+        std::max(0, gd.opponentScore), oppRating);
+    draw->AddText(ImVec2(panelX + 10.0f, panelY + 22.0f), oppScoreCol, scoreBuf);
+    if (termFont) ImGui::PopFont();
+
+    // [FINISHED] label
+    if (gd.opponentFinished) {
+        if (smallFont) ImGui::PushFont(smallFont);
+        const char* finLabel = "[FINISHED]";
+        ImVec2 finSize = ImGui::CalcTextSize(finLabel);
+        draw->AddText(ImVec2(panelX + panelW - finSize.x - 10.0f, panelY + 14.0f),
+            IM_COL32(80, 200, 120, 220), finLabel);
+        if (smallFont) ImGui::PopFont();
+    }
+}
+
+// ============================================================
+// 10b. RenderHUD_GhostIndicator — Ghost Duel 虚影状态指示器
+// ============================================================
+/// @brief 渲染右下角虚影状态小面板（GHOST / GHOST: OFF）。
+static void RenderHUD_GhostIndicator(ImDrawList* draw, Registry& registry, float gameW) {
+    if (!registry.has_ctx<Res_GhostDuelState>()) return;
+    const auto& gd = registry.ctx<Res_GhostDuelState>();
+
+    ImFont* smallFont = UITheme::GetFont_Small();
+    if (smallFont) ImGui::PushFont(smallFont);
+
+    float indicX = gameW - 100.0f;
+    float indicY = ImGui::GetIO().DisplaySize.y - 98.0f;  // above PING
+    float indicW = 80.0f;
+    float indicH = 20.0f;
+
+    if (gd.ghostVisible) {
+        // Teal dot + "GHOST"
+        draw->AddRectFilled(ImVec2(indicX, indicY), ImVec2(indicX + 8.0f, indicY + 8.0f),
+            IM_COL32(46, 196, 182, 220));
+        draw->AddText(ImVec2(indicX + 12.0f, indicY - 2.0f),
+            IM_COL32(46, 196, 182, 200), "GHOST");
+    } else {
+        // Gray dot + "GHOST: OFF"
+        draw->AddRectFilled(ImVec2(indicX, indicY), ImVec2(indicX + 8.0f, indicY + 8.0f),
+            IM_COL32(120, 120, 120, 150));
+        draw->AddText(ImVec2(indicX + 12.0f, indicY - 2.0f),
+            IM_COL32(120, 120, 120, 150), "GHOST: OFF");
+    }
+
+    if (smallFont) ImGui::PopFont();
+}
+
+// ============================================================
 // 10. RenderHUD_NetworkStatus — 右下角网络状态
 // ============================================================
 /// @brief 渲染右下角网络状态（PING 值，颜色随延迟变化），仅多人模式调用。
@@ -666,7 +855,7 @@ void RenderHUD(Registry& registry, float dt) {
     // Render all sub-panels (7 base + 3 multiplayer)
     RenderHUD_MissionPanel(draw, gs, gameW);
     RenderHUD_AlertGauge(draw, gs, gameW);
-    if (!gs.isMultiplayer) {
+    if (!gs.isMultiplayer || gs.isGhostDuel) {
         RenderHUD_Score(draw, ui.campaignScore, gameW);
     }
     RenderHUD_Countdown(draw, gs, gameW, ui.globalTime);
@@ -674,18 +863,25 @@ void RenderHUD(Registry& registry, float dt) {
     RenderHUD_NoiseIndicator(draw, gs, displayH, ui.globalTime);
     RenderHUD_ItemSlots(draw, gs, gameW, displayH);
     RenderHUD_Degradation(draw, gs, displaySize.x, displayH, ui.globalTime);
+    RenderHUD_Minimap(draw, registry, displayH);
 
     // Multiplayer-only panels
     if (gs.isMultiplayer) {
-        RenderHUD_OpponentBar(draw, gs, gameW);
-        RenderHUD_DisruptionEffect(draw, gs, displaySize.x, displayH, ui.globalTime);
-        RenderHUD_NetworkStatus(draw, gs, gameW, displayH);
+        if (gs.isGhostDuel && registry.has_ctx<Res_GhostDuelState>()) {
+            RenderHUD_GhostDuelOpponent(draw, registry, gameW, displayH);
+            RenderHUD_GhostIndicator(draw, registry, gameW);
+            RenderHUD_NetworkStatus(draw, gs, gameW, displayH);
+        } else {
+            RenderHUD_OpponentBar(draw, gs, gameW);
+            RenderHUD_DisruptionEffect(draw, gs, displaySize.x, displayH, ui.globalTime);
+            RenderHUD_NetworkStatus(draw, gs, gameW, displayH);
+        }
     }
 
     // Control hints (bottom, inside game area)
     ImFont* smallFont = UITheme::GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
-    const char* hints = "[ESC] PAUSE  [Q] GADGET  [E] WEAPON  [TAB] SWITCH  [I] INVENTORY";
+    const char* hints = "[ESC] PAUSE  [Q] GADGET  [E] WEAPON  [TAB] SWITCH  [I] INVENTORY  [6] MAP";
     ImVec2 hintsSize = ImGui::CalcTextSize(hints);
     draw->AddText(
         ImVec2(gameW * 0.5f - hintsSize.x * 0.5f, displayH - 18.0f),

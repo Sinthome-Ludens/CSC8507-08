@@ -45,6 +45,7 @@
 #include <vector>
 
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_MinimapState.h"
 #include "Game/Components/Res_GameState.h"
 #ifdef USE_IMGUI
 #include "Game/UI/UI_ActionNotify.h"
@@ -78,9 +79,9 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
                     // 统一道具使用扣分 -5
                     {
                         static const char* kItemNames[] = {
-                            "HOLOBAIT", "RADAR", "DDOS", "ROAM AI", "TARGET STRIKE"
+                            "HOLOBAIT", "RADAR", "DDOS", "ROAM AI", "TARGET STRIKE", "MAP"
                         };
-                        const char* usedName = (static_cast<uint8_t>(evt.itemId) < 5)
+                        const char* usedName = (static_cast<uint8_t>(evt.itemId) < static_cast<uint8_t>(ItemID::Count))
                             ? kItemNames[static_cast<uint8_t>(evt.itemId)] : "ITEM";
 #ifdef USE_IMGUI
                         ECS::UI::PushActionNotify(registry, "USED", usedName,
@@ -101,6 +102,7 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
                         case ItemID::DDoS:         EffectDDoS        (registry, evt); break;
                         case ItemID::RoamAI:       EffectRoamAI      (registry, evt); break;
                         case ItemID::TargetStrike: EffectTargetStrike(registry, evt); break;
+                        case ItemID::GlobalMap:    EffectGlobalMap   (registry, evt); break;
                         default: break;
                     }
                 }
@@ -120,6 +122,7 @@ void Sys_ItemEffects::OnUpdate(Registry& registry, float dt) {
     UpdateDDoSFrozen(registry, dt);
     UpdateRoamAI    (registry, dt);
     UpdateRadar     (registry, dt);
+    UpdateMinimap   (registry, dt);
 }
 
 // ============================================================
@@ -467,6 +470,47 @@ void Sys_ItemEffects::UpdateRadar(Registry& registry, float dt) {
     }
 
     LOG_INFO("[Sys_ItemEffects] Radar refreshed: " << radar.contactCount << " contacts.");
+}
+
+// ============================================================
+// EffectGlobalMap — 激活小地图 + 联动雷达
+// ============================================================
+void Sys_ItemEffects::EffectGlobalMap(Registry& registry, const Evt_Item_Use& /*evt*/) {
+    if (!registry.has_ctx<Res_MinimapState>()) return;
+    auto& minimap = registry.ctx<Res_MinimapState>();
+    minimap.isActive    = true;
+    minimap.activeTimer = Res_MinimapState::kActiveDuration;
+
+    // 同时激活雷达（复用敌人位置扫描）
+    if (registry.has_ctx<Res_RadarState>()) {
+        auto& radar = registry.ctx<Res_RadarState>();
+        if (!radar.isActive) {
+            radar.isActive = true;
+            radar.refreshTimer = 0.0f;  // 立即刷新
+        }
+    }
+
+    LOG_INFO("[Sys_ItemEffects] GlobalMap activated.");
+
+#ifdef USE_IMGUI
+    ECS::UI::PushActionNotify(registry, "MAP", "ACTIVATED",
+                              0, ActionNotifyType::Bonus);
+#endif
+}
+
+// ============================================================
+// UpdateMinimap — 每帧递减小地图激活计时器，到期自动关闭
+// ============================================================
+void Sys_ItemEffects::UpdateMinimap(Registry& registry, float dt) {
+    if (!registry.has_ctx<Res_MinimapState>()) return;
+    auto& minimap = registry.ctx<Res_MinimapState>();
+    if (!minimap.isActive) return;
+
+    minimap.activeTimer -= dt;
+    if (minimap.activeTimer <= 0.0f) {
+        minimap.isActive    = false;
+        minimap.activeTimer = 0.0f;
+    }
 }
 
 } // namespace ECS
