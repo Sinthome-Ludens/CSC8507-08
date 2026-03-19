@@ -123,7 +123,6 @@ void Sys_Network::OnAwake(Registry& reg) {
     auto& resNet = reg.ctx<Res_Network>();
     if (resNet.host != nullptr && CanReuseSession(resNet)) {
         resNet.preserveSessionOnSceneExit = false;
-        ResetSceneLocalState(resNet);
         resNet.remotePeerConnected = HasAnyConnectedRemotePeer(resNet);
         m_TimeSinceLastSend = 0.0f;
         m_InputTimer = 0.0f;
