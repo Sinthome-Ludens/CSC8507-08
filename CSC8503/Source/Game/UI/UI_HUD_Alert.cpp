@@ -78,11 +78,34 @@ void AlertGauge(ImDrawList* draw, const Res_GameState& gs, float gameW) {
         prevThresh = seg.threshold;
     }
 
-    // Border
+    // Tick marks at segment boundaries
+    for (float thresh : { 25.0f, 50.0f, 75.0f }) {
+        float tickX = gaugeX + (thresh / alertMax) * gaugeW;
+        draw->AddLine(ImVec2(tickX, barY), ImVec2(tickX, barY + gaugeH),
+            Col32_BgDark(120), 1.0f);
+    }
+
+    // Border (glow when Hunt status)
+    ImU32 borderCol = Col32_Gray(100);
+    if (status == AlertStatus::Hunt) {
+        float glow = (sinf(gs.alertLevel * 0.1f) + 1.0f) * 0.5f;
+        borderCol = IM_COL32(220, 60, 40, (uint8_t)(120 + glow * 100));
+    }
     draw->AddRect(
         ImVec2(gaugeX, barY),
         ImVec2(gaugeX + gaugeW, barY + gaugeH),
-        Col32_Gray(100), 2.0f);
+        borderCol, 2.0f);
+
+    // Triangle indicator at current level
+    {
+        float indX = gaugeX + std::clamp(gs.alertLevel / alertMax, 0.0f, 1.0f) * gaugeW;
+        float indY = barY + gaugeH + 2.0f;
+        draw->AddTriangleFilled(
+            ImVec2(indX, indY),
+            ImVec2(indX - 4.0f, indY + 6.0f),
+            ImVec2(indX + 4.0f, indY + 6.0f),
+            numCol);
+    }
 }
 
 void Score(ImDrawList* draw, int32_t score, float gameW) {
@@ -107,6 +130,13 @@ void Score(ImDrawList* draw, int32_t score, float gameW) {
 
     float totalW = scoreSize.x + 8.0f + ratingSize.x;
     float startX = rightEdge - totalW;
+
+    // Background capsule
+    float capPad = 6.0f;
+    draw->AddRectFilled(
+        ImVec2(startX - capPad, scoreY - 2.0f),
+        ImVec2(startX + totalW + capPad, scoreY + scoreSize.y + 2.0f),
+        Col32_BgDark(100), 10.0f);
 
     draw->AddText(ImVec2(startX, scoreY), scoreCol, scoreBuf);
     draw->AddText(ImVec2(startX + scoreSize.x + 8.0f, scoreY), scoreCol, ratingBuf);

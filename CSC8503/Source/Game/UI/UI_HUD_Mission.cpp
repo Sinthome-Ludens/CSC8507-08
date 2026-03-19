@@ -21,11 +21,23 @@ void MissionPanel(ImDrawList* draw, const Res_GameState& gs, float /*gameW*/) {
     float panelW = 300.0f;
     float panelH = 52.0f;
 
+    // Drop shadow (2-layer offset)
+    draw->AddRectFilled(
+        ImVec2(panelX + 3.0f, panelY + 3.0f),
+        ImVec2(panelX + panelW + 3.0f, panelY + panelH + 3.0f),
+        IM_COL32(0, 0, 0, 40), Layout::kPanelRounding);
+
     // Dark panel background
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
         Col32_BgDark(180), Layout::kPanelRounding);
+
+    // Subtle accent border
+    draw->AddRect(
+        ImVec2(panelX, panelY),
+        ImVec2(panelX + panelW, panelY + panelH),
+        Col32_Accent(40), Layout::kPanelRounding, 0, 1.0f);
 
     // Mission name
     if (termFont) ImGui::PushFont(termFont);

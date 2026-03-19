@@ -55,6 +55,10 @@ void NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, float displayH, f
         r = 220; g = 60; b = 40;
     }
 
+    // Background circle
+    draw->AddCircleFilled(ImVec2(cx, cy), maxR + 6.0f,
+        Col32_BgDark(80), 24);
+
     // Concentric rings with pulsing
     int ringCount = 3;
     for (int i = 0; i < ringCount; ++i) {
@@ -71,9 +75,12 @@ void NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, float displayH, f
     draw->AddCircleFilled(ImVec2(cx, cy), 3.0f,
         IM_COL32(r, g, b, (uint8_t)(180 * std::max(gs.noiseLevel, 0.15f))), 8);
 
-    // Label
+    // "NOISE" label above
     ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
+    draw->AddText(ImVec2(cx - 14.0f, cy - maxR - 16.0f),
+        Col32_Bg(140), "NOISE");
+    // Percentage label to the right
     char noiseBuf[16];
     snprintf(noiseBuf, sizeof(noiseBuf), "%.0f%%", gs.noiseLevel * 100.0f);
     draw->AddText(ImVec2(cx + maxR + 6.0f, cy - 6.0f),

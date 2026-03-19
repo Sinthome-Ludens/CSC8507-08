@@ -57,6 +57,18 @@ void Minimap(ImDrawList* draw, Registry& registry, float /*displayH*/) {
             offsetZ + (wz - minimap.worldMinZ) * scale);
     };
 
+    // Grid lines (4x4)
+    constexpr int kGridDiv = 4;
+    for (int g = 1; g < kGridDiv; ++g) {
+        float t = (float)g / kGridDiv;
+        float gx = kMapX + kPadding + drawSize * t;
+        float gy = kMapY + kPadding + drawSize * t;
+        draw->AddLine(ImVec2(gx, kMapY + kPadding), ImVec2(gx, kMapY + kPadding + drawSize),
+            Col32_Gray(25), 1.0f);
+        draw->AddLine(ImVec2(kMapX + kPadding, gy), ImVec2(kMapX + kPadding + drawSize, gy),
+            Col32_Gray(25), 1.0f);
+    }
+
     // Walkable area fill (terrain color, not themed)
     for (int t = 0; t < minimap.triangleCount; ++t) {
         const auto& tri = minimap.triangles[t];
@@ -98,8 +110,19 @@ void Minimap(ImDrawList* draw, Registry& registry, float /*displayH*/) {
                 Col32_Accent(255));
         });
 
-    // "MAP" title + countdown
+    // Compass labels (N/S/E/W)
     ImFont* smallFont = GetFont_Small();
+    if (smallFont) ImGui::PushFont(smallFont);
+    float mapCx = kMapX + kMapSize * 0.5f;
+    float mapCy = kMapY + kMapSize * 0.5f;
+    ImU32 compassCol = Col32_Bg(100);
+    draw->AddText(ImVec2(mapCx - 3.0f, kMapY + 2.0f), Col32_Accent(140), "N");
+    draw->AddText(ImVec2(mapCx - 3.0f, kMapY + kMapSize - 14.0f), compassCol, "S");
+    draw->AddText(ImVec2(kMapX + 2.0f, mapCy - 6.0f), compassCol, "W");
+    draw->AddText(ImVec2(kMapX + kMapSize - 10.0f, mapCy - 6.0f), compassCol, "E");
+    if (smallFont) ImGui::PopFont();
+
+    // "MAP" title + countdown
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(ImVec2(kMapX + 4.0f, kMapY + 2.0f),
                   Col32_Accent(200), "MAP");
