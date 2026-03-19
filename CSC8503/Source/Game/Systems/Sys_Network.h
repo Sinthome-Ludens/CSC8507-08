@@ -250,7 +250,7 @@ private:
      * @param gs 当前比赛状态资源
      * @param remoteGameOverReason 对手最新上报的终局原因；0 表示未终局
      */
-    void ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReason = 0u);
+    void ApplyMatchResult(Res_GameState& gs);
     /**
      * @brief 将 Finished 比赛状态映射到 GameOver UI。
      * @param reg ECS 注册表
@@ -274,7 +274,9 @@ private:
      * @param gs 当前比赛状态资源
      * @return 0 表示尚未进入本地终局，否则返回现有 gameOverReason 编码
      */
-    static uint8_t GetLocalTerminalReason(Registry& reg, const Res_GameState& gs);
+    static MultiplayerTerminalState GetLocalTerminalState(const Res_GameState& gs);
+    static uint8_t GetLocalTerminalReason(const Res_GameState& gs);
+    static bool IsFinalTerminalState(MultiplayerTerminalState state);
     /**
      * @brief 判断当前 `Res_Network` 是否仍持有可安全跨场景复用的 ENet 会话。
      * @param resNet 网络资源对象

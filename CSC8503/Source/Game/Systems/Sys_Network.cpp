@@ -471,14 +471,12 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
     const uint8_t previousLocalProgress = gs.localStageProgress;
     const uint8_t previousOpponentProgress = gs.opponentStageProgress;
     const uint8_t pendingLocalStageProgress = gs.localStageProgress;
-    const uint8_t pendingLocalGameOverReason = GetLocalTerminalReason(reg, gs);
-    const bool hasPendingLocalTerminalState =
-        pendingLocalGameOverReason != 0u || pendingLocalStageProgress >= kMultiplayerStageCount;
     const MatchPhase incomingPhase = static_cast<MatchPhase>(pkt->matchPhase);
     const MatchResult incomingResult = ToClientPerspective(static_cast<MatchResult>(pkt->matchResult));
 
     gs.matchPhase = incomingPhase;
     gs.matchResult = incomingResult;
+    gs.authoritativeMatchFinished = (incomingPhase == MatchPhase::Finished);
     gs.localStageProgress = std::max(ClampStageProgress(pkt->clientStageProgress), pendingLocalStageProgress);
     gs.opponentStageProgress = ClampStageProgress(pkt->hostStageProgress);
     gs.currentRoundIndex = std::min<uint8_t>(pkt->currentRoundIndex, kMultiplayerStageCount - 1);
@@ -492,15 +490,8 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
     if (incomingPhase == MatchPhase::Finished) {
         gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
         gs.isGameOver = true;
-    } else if (hasPendingLocalTerminalState) {
-        const uint8_t inferredPendingReason =
-            pendingLocalGameOverReason != 0u
-            ? pendingLocalGameOverReason
-            : (pendingLocalStageProgress >= kMultiplayerStageCount ? 3u : 0u);
-        gs.gameOverReason = inferredPendingReason;
-        gs.isGameOver = (inferredPendingReason != 0u);
     } else {
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.gameOverReason = 0u;
         gs.isGameOver = false;
     }
 
@@ -642,25 +633,22 @@ void Sys_Network::HandleClientMatchProgress(Registry& reg, Res_Network& resNet, 
     gs.currentRoundIndex = ComputeCurrentRoundIndex(gs.localStageProgress, gs.opponentStageProgress);
     gs.opponentProgress = gs.opponentStageProgress;
     gs.roundJustAdvanced = (previousOpponentProgress != gs.opponentStageProgress);
-    const uint8_t remoteGameOverReason = pkt->gameOverReason;
+    gs.remoteTerminalState = static_cast<MultiplayerTerminalState>(pkt->terminalState);
+    gs.remoteTerminalReason = pkt->terminalReason;
 
     if (gs.matchPhase == MatchPhase::WaitingForPeer || gs.matchPhase == MatchPhase::Starting) {
         gs.matchPhase = MatchPhase::Running;
         gs.matchJustStarted = true;
     }
 
-    if (pkt->reportedFinished != 0u || remoteGameOverReason != 0u) {
+    if (pkt->reportedFinished != 0u || IsFinalTerminalState(gs.remoteTerminalState)) {
         LOG_INFO("[Sys_Network] Server received client terminal state: stage="
                  << (int)pkt->stageProgress << " finished=" << (int)pkt->reportedFinished
-                 << " reason=" << (int)remoteGameOverReason);
-        const MatchPhase previousPhase = gs.matchPhase;
-        gs.matchPhase = MatchPhase::Finished;
-        if (previousPhase != MatchPhase::Finished) {
-            gs.matchJustFinished = true;
-        }
+                 << " terminalState=" << (int)pkt->terminalState
+                 << " reason=" << (int)pkt->terminalReason);
     }
 
-    ApplyMatchResult(gs, remoteGameOverReason);
+    ApplyMatchResult(gs);
     BroadcastMatchStateIfDirty(reg, resNet, true);
 }
 
@@ -857,13 +845,14 @@ void Sys_Network::UpdateClientMatchProgress(Registry& reg, Res_Network& resNet) 
     if (!gs.isMultiplayer) return;
 
     const uint8_t localStageProgress = ClampStageProgress(gs.localStageProgress);
-    const uint8_t localGameOverReason = GetLocalTerminalReason(reg, gs);
+    const MultiplayerTerminalState localTerminalState = GetLocalTerminalState(gs);
+    const uint8_t localTerminalReason = GetLocalTerminalReason(gs);
     const bool hasPendingTerminalState =
-        (localStageProgress >= kMultiplayerStageCount || localGameOverReason != 0u)
+        IsFinalTerminalState(localTerminalState)
         && gs.matchPhase != MatchPhase::Finished;
     if (!hasPendingTerminalState
         && m_LastReportedLocalStageProgress == localStageProgress
-        && m_LastReportedLocalGameOverReason == localGameOverReason) {
+        && m_LastReportedLocalGameOverReason == localTerminalReason) {
         return;
     }
 
@@ -872,19 +861,21 @@ void Sys_Network::UpdateClientMatchProgress(Registry& reg, Res_Network& resNet) 
     pkt.timestamp = static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f);
     pkt.stageProgress = localStageProgress;
     pkt.currentRoundIndex = std::min<uint8_t>(gs.currentRoundIndex, kMultiplayerStageCount - 1);
-    pkt.reportedFinished = (localStageProgress >= kMultiplayerStageCount || localGameOverReason != 0u) ? 1u : 0u;
-    pkt.gameOverReason = localGameOverReason;
+    pkt.reportedFinished = hasPendingTerminalState ? 1u : 0u;
+    pkt.terminalState = static_cast<uint8_t>(localTerminalState);
+    pkt.terminalReason = localTerminalReason;
 
-    if (pkt.reportedFinished != 0u || pkt.gameOverReason != 0u) {
+    if (pkt.reportedFinished != 0u || pkt.terminalReason != 0u) {
         LOG_INFO("[Sys_Network] Client reporting terminal state: stage="
                  << (int)pkt.stageProgress << " finished=" << (int)pkt.reportedFinished
-                 << " reason=" << (int)pkt.gameOverReason
+                 << " terminalState=" << (int)pkt.terminalState
+                 << " reason=" << (int)pkt.terminalReason
                  << " phase=" << (int)gs.matchPhase);
     }
 
     SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Reliable);
     m_LastReportedLocalStageProgress = localStageProgress;
-    m_LastReportedLocalGameOverReason = localGameOverReason;
+    m_LastReportedLocalGameOverReason = localTerminalReason;
 }
 
 /**
@@ -1114,6 +1105,7 @@ void Sys_Network::ResetMatchStateForRestart(Registry& reg) {
         if (gs.isMultiplayer) {
             gs.matchPhase = MatchPhase::Running;
             gs.matchResult = MatchResult::None;
+            gs.authoritativeMatchFinished = false;
             gs.currentRoundIndex = 0;
             gs.localStageProgress = 0;
             gs.opponentStageProgress = 0;
@@ -1122,6 +1114,10 @@ void Sys_Network::ResetMatchStateForRestart(Registry& reg) {
             gs.roundJustAdvanced = false;
             gs.matchJustStarted = true;
             gs.matchJustFinished = false;
+            gs.localTerminalState = MultiplayerTerminalState::None;
+            gs.remoteTerminalState = MultiplayerTerminalState::None;
+            gs.localTerminalReason = 0u;
+            gs.remoteTerminalReason = 0u;
             gs.isGameOver = false;
             gs.gameOverReason = 0;
             gs.gameOverTime = 0.0f;
@@ -1288,15 +1284,13 @@ void Sys_Network::UpdateMatchUIState(Registry& reg) {
  * @details 该函数只运行在权威状态收口路径，确保 `matchPhase/matchResult/isGameOver` 保持一致。
  * @param gs 当前比赛状态资源
  */
-void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReason) {
-    const bool hostFinishedByFailure = gs.isGameOver && gs.gameOverReason != 0u && gs.gameOverReason != 3u;
-    const bool clientFinishedByFailure = remoteGameOverReason != 0u && remoteGameOverReason != 3u;
-    const bool hostFinishedBySuccess =
-        (gs.isGameOver && gs.gameOverReason == 3u)
-        || (gs.localStageProgress >= kMultiplayerStageCount && !hostFinishedByFailure);
-    const bool clientFinishedBySuccess =
-        (remoteGameOverReason == 3u)
-        || (gs.opponentStageProgress >= kMultiplayerStageCount && !clientFinishedByFailure);
+void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
+    const bool hostFinishedBySuccess = gs.localTerminalState == MultiplayerTerminalState::FinishedVictory;
+    const bool clientFinishedBySuccess = gs.remoteTerminalState == MultiplayerTerminalState::FinishedVictory;
+    const bool hostFinishedByFailure =
+        IsFinalTerminalState(gs.localTerminalState) && !hostFinishedBySuccess;
+    const bool clientFinishedByFailure =
+        IsFinalTerminalState(gs.remoteTerminalState) && !clientFinishedBySuccess;
 
     const bool hostFinished = hostFinishedBySuccess || hostFinishedByFailure;
     const bool clientFinished = clientFinishedBySuccess || clientFinishedByFailure;
@@ -1306,6 +1300,7 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReas
             gs.matchPhase = MatchPhase::Running;
         }
         gs.matchResult = MatchResult::None;
+        gs.authoritativeMatchFinished = false;
         gs.isGameOver = false;
         gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
         return;
@@ -1321,6 +1316,7 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReas
     } else {
         gs.matchResult = MatchResult::OpponentWin;
     }
+    gs.authoritativeMatchFinished = true;
     gs.isGameOver = true;
     gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
     if (previousPhase != MatchPhase::Finished) {
@@ -1367,23 +1363,19 @@ uint8_t Sys_Network::ComputeGameOverReasonForResult(MatchResult result) {
  * @param gs 当前比赛状态资源
  * @return 0 表示本地仍未终局，否则返回标准 gameOverReason
  */
-uint8_t Sys_Network::GetLocalTerminalReason(Registry& reg, const Res_GameState& gs) {
-    if (gs.gameOverReason != 0u) {
-        return gs.gameOverReason;
-    }
-    if (gs.localStageProgress >= kMultiplayerStageCount) {
-        return 3u;
-    }
-    if (gs.isGameOver) {
-        return 2u;
-    }
-    if (reg.has_ctx<Res_UIState>()) {
-        const auto& ui = reg.ctx<Res_UIState>();
-        if (ui.activeScreen == UIScreen::GameOver) {
-            return (gs.matchResult == MatchResult::LocalWin) ? 3u : 2u;
-        }
-    }
-    return 0u;
+MultiplayerTerminalState Sys_Network::GetLocalTerminalState(const Res_GameState& gs) {
+    return gs.localTerminalState;
+}
+
+uint8_t Sys_Network::GetLocalTerminalReason(const Res_GameState& gs) {
+    return gs.localTerminalReason;
+}
+
+bool Sys_Network::IsFinalTerminalState(MultiplayerTerminalState state) {
+    return state == MultiplayerTerminalState::Death
+        || state == MultiplayerTerminalState::Timeout
+        || state == MultiplayerTerminalState::FinishedVictory
+        || state == MultiplayerTerminalState::FinishedScoreFail;
 }
 
 /**

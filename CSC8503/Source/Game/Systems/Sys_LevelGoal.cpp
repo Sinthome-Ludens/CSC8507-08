@@ -55,6 +55,13 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
     constexpr float kFinishHeightMax = 3.0f;   // Y 最大高度差（防止上下层误触发）
     const bool isMultiplayer = registry.has_ctx<Res_GameState>()
         && registry.ctx<Res_GameState>().isMultiplayer;
+    if (isMultiplayer) {
+        const auto& gs = registry.ctx<Res_GameState>();
+        if (gs.matchPhase != MatchPhase::Running
+            || gs.localTerminalState != MultiplayerTerminalState::None) {
+            return;
+        }
+    }
     if (!isMultiplayer && m_FinishTriggered) return;
 
     registry.view<C_T_FinishZone, C_D_Transform>().each(
@@ -93,16 +100,19 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                     gs.localProgress = gs.localStageProgress;
                     gs.roundJustAdvanced = true;
                     if (gs.localStageProgress >= kMultiplayerStageCount) {
-                        gs.isGameOver = true;
                         const bool scorePassed = campaignScore > 500;
-                        gs.gameOverReason = scorePassed ? 3 : 2;
-                        gs.gameOverTime = gs.playTime;
+                        gs.localTerminalState = scorePassed
+                            ? MultiplayerTerminalState::FinishedVictory
+                            : MultiplayerTerminalState::FinishedScoreFail;
+                        gs.localTerminalReason = scorePassed ? 3u : 2u;
                     }
 
 #ifdef USE_IMGUI
                     if (uiState != nullptr) {
                         auto& ui = *uiState;
                         if (gs.localStageProgress < kMultiplayerStageCount) {
+                            gs.localTerminalState = MultiplayerTerminalState::StageCleared;
+                            gs.localTerminalReason = 0u;
                             ui.totalPlayTime += gs.playTime;
                             ui.pendingSceneRequest = SceneRequest::NextLevel;
                             UI::PushToast(registry, "AREA CLEAR - MOVING OUT", ToastType::Success, 2.0f);

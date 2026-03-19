@@ -34,12 +34,14 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
 
     auto& gs = registry.ctx<Res_GameState>();
     auto& ui = registry.ctx<Res_UIState>();
+    if (gs.isMultiplayer && gs.matchPhase != MatchPhase::Running) return;
 
     // Only run during HUD or None screen (gameplay)
     if (ui.activeScreen != UIScreen::HUD && ui.activeScreen != UIScreen::None) return;
 
     // Already game over — do nothing
-    if (gs.isGameOver) return;
+    if (gs.isGameOver
+        || (gs.isMultiplayer && gs.localTerminalState != MultiplayerTerminalState::None)) return;
 
     // Trigger: alertLevel reaches max and countdown not yet active
     if (gs.alertLevel >= gs.alertMax && !gs.countdownActive) {
@@ -66,9 +68,14 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
         if (gs.countdownTimer <= 0.0f) {
             gs.countdownTimer  = 0.0f;
             gs.countdownActive = false;
-            gs.isGameOver      = true;
-            gs.gameOverReason  = 1;  // countdown expired
-            gs.gameOverTime    = gs.playTime;
+            if (gs.isMultiplayer) {
+                gs.localTerminalState = MultiplayerTerminalState::Timeout;
+                gs.localTerminalReason = 1u;
+            } else {
+                gs.isGameOver      = true;
+                gs.gameOverReason  = 1;  // countdown expired
+                gs.gameOverTime    = gs.playTime;
+            }
 
             if (!gs.isMultiplayer) {
                 ui.activeScreen = UIScreen::GameOver;

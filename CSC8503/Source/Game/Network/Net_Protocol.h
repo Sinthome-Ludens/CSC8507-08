@@ -167,7 +167,8 @@ struct Net_Packet_ClientMatchProgress : public Net_PacketHeader {
     uint8_t stageProgress;
     uint8_t currentRoundIndex;
     uint8_t reportedFinished;
-    uint8_t gameOverReason;
+    uint8_t terminalState;
+    uint8_t terminalReason;
 };
 
 struct Net_Packet_GhostTransform : public Net_PacketHeader {
@@ -193,7 +194,7 @@ static_assert(sizeof(Net_Packet_MatchRestart) == 10, "Net_Packet_MatchRestart si
 static_assert(sizeof(Net_Packet_MultiplayerSetup) == 10, "Net_Packet_MultiplayerSetup size mismatch");
 static_assert(sizeof(Net_Packet_GameAction) == 18, "Net_Packet_GameAction size mismatch");
 static_assert(sizeof(Net_Packet_ClientInput) == 9, "Net_Packet_ClientInput size mismatch");
-static_assert(sizeof(Net_Packet_ClientMatchProgress) == 9, "Net_Packet_ClientMatchProgress size mismatch");
+static_assert(sizeof(Net_Packet_ClientMatchProgress) == 10, "Net_Packet_ClientMatchProgress size mismatch");
 static_assert(sizeof(Net_Packet_GhostTransform) == 34, "Net_Packet_GhostTransform size mismatch");
 
 }
