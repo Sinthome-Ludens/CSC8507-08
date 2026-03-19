@@ -1492,6 +1492,10 @@ void Sys_Network::ResetSceneLocalState(Res_Network& resNet) {
     resNet.nextNetID = 1u;
     resNet.localPlayerEntity = Entity::NULL_ENTITY;
     resNet.remoteGhostEntity = Entity::NULL_ENTITY;
+    resNet.remoteGhostSnapshotValid = false;
+    resNet.remoteGhostSnapshot.roundIndex = 0u;
+    resNet.remoteGhostSnapshot.pos = {};
+    resNet.remoteGhostSnapshot.rot = {};
 }
 
 /**
