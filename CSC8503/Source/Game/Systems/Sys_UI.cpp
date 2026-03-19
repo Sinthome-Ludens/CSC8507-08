@@ -63,7 +63,15 @@ static constexpr float kGlobalTimeWrap = 6283.1853f;  // 2000 * PI
  * @param registry ECS 注册表
  */
 void Sys_UI::OnAwake(Registry& registry) {
-    UITheme::LoadFonts();
+    // DPI scale: baseline is 1080p; scale linearly with display height
+    float dpiScale = 1.0f;
+    const float displayH = ImGui::GetIO().DisplaySize.y;
+    if (displayH > 0.0f) {
+        dpiScale = displayH / 1080.0f;
+        if (dpiScale < 0.75f) dpiScale = 0.75f;
+        if (dpiScale > 2.0f)  dpiScale = 2.0f;
+    }
+    UITheme::LoadFonts(dpiScale);
     UITheme::ApplyTheme();
 
     if (!registry.has_ctx<Res_UIState>()) {

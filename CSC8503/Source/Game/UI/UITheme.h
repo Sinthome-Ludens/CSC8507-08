@@ -142,12 +142,12 @@ inline ImU32 GetScoreRatingColor(int8_t tier, uint8_t alpha = 255) {
 // ============================================================
 
 void ApplyTheme();
-void LoadFonts();
+void LoadFonts(float dpiScale = 1.0f);
 
-ImFont* GetFont_Terminal();       // ZLabsRoundPix 16px
-ImFont* GetFont_TerminalLarge();  // ZLabsRoundPix 32px
-ImFont* GetFont_Body();           // ZLabsRoundPix 16px
-ImFont* GetFont_Small();          // ZLabsRoundPix 13px
+ImFont* GetFont_Terminal();       // ZLabsRoundPix 16px * dpiScale
+ImFont* GetFont_TerminalLarge();  // ZLabsRoundPix 32px * dpiScale
+ImFont* GetFont_Body();           // ZLabsRoundPix 16px * dpiScale
+ImFont* GetFont_Small();          // ZLabsRoundPix 13px * dpiScale
 
 } // namespace ECS::UITheme
 
