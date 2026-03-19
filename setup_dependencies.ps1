@@ -30,4 +30,24 @@ Clone-If-Missing $JOLT_VERSION   "https://github.com/jrouwe/JoltPhysics.git" "Ex
 Clone-If-Missing $JSON_VERSION   "https://github.com/nlohmann/json.git" "External/nlohmann_json"
 Clone-If-Missing $IMGUI_VERSION  "https://github.com/ocornut/imgui.git" "External/imgui"
 
+# FMOD Core API (cannot be cloned — requires manual install from fmod.com)
+$FMOD_PATH = "External/fmod"
+$FMOD_INSTALL = "C:\Program Files (x86)\FMOD SoundSystem\FMOD Studio API Windows\api\core"
+
+if (Test-Path "$FMOD_PATH/inc/fmod.h") {
+    Write-Host "[skip] $FMOD_PATH already exists"
+}
+elseif (Test-Path "$FMOD_INSTALL/inc/fmod.h") {
+    Write-Host "[copy] FMOD Core API from system install -> $FMOD_PATH"
+    New-Item -ItemType Directory -Force -Path "$FMOD_PATH/inc"     | Out-Null
+    New-Item -ItemType Directory -Force -Path "$FMOD_PATH/lib/x64" | Out-Null
+    Copy-Item "$FMOD_INSTALL/inc/*.h"       "$FMOD_PATH/inc/"
+    Copy-Item "$FMOD_INSTALL/lib/x64/*.lib" "$FMOD_PATH/lib/x64/"
+    Copy-Item "$FMOD_INSTALL/lib/x64/*.dll" "$FMOD_PATH/lib/x64/"
+}
+else {
+    Write-Host "[WARN] FMOD not found. Install FMOD Engine from https://www.fmod.com/download#fmodengine then re-run this script."
+    Write-Host "       Expected install path: $FMOD_INSTALL"
+}
+
 Write-Host "[done] all dependencies are ready"
