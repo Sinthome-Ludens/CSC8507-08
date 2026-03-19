@@ -1,0 +1,35 @@
+{
+  "delay": 3.0,
+  "nodes": [
+    {
+      "id": "x_01",
+      "isRoot": true,
+      "treeId": "exposed_spotted",
+      "speaker": "HANDLER",
+      "message": "You've been spotted! Respond NOW!",
+      "alertDelta": 5,
+      "nextSpeaker": "PLAYER",
+      "comment": "High alert — urgent, short timer",
+      "timeLimit": 6.0,
+      "replies": [
+        { "text": "Engaging.",     "alertDelta": 10,  "next": "x_02", "comment": "combat escalation" },
+        { "text": "Evading!",      "alertDelta": -5,  "next": "x_02", "comment": "smart retreat" },
+        { "text": "Need backup!",  "alertDelta":  0,  "next": "x_02", "comment": "neutral call" }
+      ]
+    },
+    {
+      "id": "x_02",
+      "speaker": "HANDLER",
+      "message": "Multiple contacts converging! What's your status?!",
+      "alertDelta": 5,
+      "nextSpeaker": "PLAYER",
+      "comment": "Peak pressure — end or loop under fire",
+      "timeLimit": 5.0,
+      "replies": [
+        { "text": "Still mobile!",  "alertDelta": -5,  "next": "",     "comment": "end: surviving" },
+        { "text": "Pinned down!",   "alertDelta":  5,  "next": "x_01", "comment": "bad situation, loops" },
+        { "text": "Going dark.",    "alertDelta": -5,  "next": "",     "comment": "end: stealth escape" }
+      ]
+    }
+  ]
+}

@@ -5,6 +5,7 @@
 #include "Sys_LevelGoal.h"
 #include "Game/Utils/PauseGuard.h"
 
+#include <algorithm>
 #include <cmath>
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_T_FinishZone.h"
@@ -31,14 +32,17 @@ void Sys_LevelGoal::OnAwake(Registry& /*registry*/) {
 
 /**
  * @brief 每帧检测玩家与所有 C_T_FinishZone 实体的 XZ 距离。
- * @details 当距离 < 4m 时设置 Res_GameState::gameOverReason = 3（任务成功），
- *          并切换 UI 到 GameOver 画面、推送 Toast 通知。仅触发一次。
+ * @details 单人模式下，当距离 < 4m 且高度差在阈值内时，设置
+ *          Res_GameState::gameOverReason = 3（任务成功），切换 UI 到
+ *          GameOver 画面并推送 Toast 通知，仅触发一次。
+ *          多人模式下，每次到达终点会推进关卡进度；到达最终关卡终点时：
+ *          - 若分数达标，则设置 gameOverReason = 3（战役成功结束）；
+ *          - 若分数过低，则设置 gameOverReason = 2（分数不足导致的失败）。
  * @param registry ECS 注册表
  * @param dt       帧时间（未使用）
  */
 void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
     PAUSE_GUARD(registry);
-    if (m_FinishTriggered) return;
 
     // 获取玩家位置
     NCL::Maths::Vector3 playerPos{};
@@ -53,11 +57,12 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
     // 检测玩家与所有终点区域的 3D 距离（支持多层垂直地图）
     constexpr float kFinishRadiusXZ = 4.0f;   // XZ 平面触发半径
     constexpr float kFinishHeightMax = 3.0f;   // Y 最大高度差（防止上下层误触发）
+    const bool isMultiplayer = registry.has_ctx<Res_GameState>()
+        && registry.ctx<Res_GameState>().isMultiplayer;
+    if (!isMultiplayer && m_FinishTriggered) return;
 
     registry.view<C_T_FinishZone, C_D_Transform>().each(
         [&](EntityID finishId, C_T_FinishZone&, C_D_Transform& ftf) {
-            if (m_FinishTriggered) return;
-
             float dx = playerPos.x - ftf.position.x;
             float dy = playerPos.y - ftf.position.y;
             float dz = playerPos.z - ftf.position.z;
@@ -65,10 +70,61 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 
             if (distXZSq < kFinishRadiusXZ * kFinishRadiusXZ
                 && std::fabs(dy) < kFinishHeightMax) {
+                if (isMultiplayer && m_FinishTriggered) {
+                    return;
+                }
+
                 m_FinishTriggered = true;
                 LOG_INFO("[Sys_LevelGoal] Player reached finish zone "
                          << (int)finishId << " distXZ=" << std::sqrt(distXZSq)
                          << " dY=" << dy);
+
+                if (isMultiplayer) {
+                    auto& gs = registry.ctx<Res_GameState>();
+                    int32_t campaignScore = 1000;
+#ifdef USE_IMGUI
+                    Res_UIState* uiState = registry.has_ctx<Res_UIState>()
+                        ? &registry.ctx<Res_UIState>()
+                        : nullptr;
+                    if (uiState != nullptr) {
+                        campaignScore = uiState->campaignScore;
+                    }
+#endif
+                    if (gs.localStageProgress < kMultiplayerStageCount) {
+                        ++gs.localStageProgress;
+                    }
+                    gs.currentRoundIndex = std::min<uint8_t>(gs.localStageProgress, kMultiplayerStageCount - 1);
+                    gs.localProgress = gs.localStageProgress;
+                    gs.roundJustAdvanced = true;
+                    if (gs.localStageProgress >= kMultiplayerStageCount) {
+                        gs.isGameOver = true;
+                        const bool scorePassed = campaignScore > 500;
+                        gs.gameOverReason = scorePassed ? 3 : 2;
+                        gs.gameOverTime = gs.playTime;
+                    }
+
+#ifdef USE_IMGUI
+                    if (uiState != nullptr) {
+                        auto& ui = *uiState;
+                        if (gs.localStageProgress < kMultiplayerStageCount) {
+                            ui.totalPlayTime += gs.playTime;
+                            ui.pendingSceneRequest = SceneRequest::NextLevel;
+                            UI::PushToast(registry, "AREA CLEAR - MOVING OUT", ToastType::Success, 2.0f);
+                        } else {
+                            const bool scorePassed = ui.campaignScore > 500;
+                            UI::PushToast(registry,
+                                          scorePassed ? "FINAL STAGE CLEAR" : "SCORE TOO LOW",
+                                          scorePassed ? ToastType::Success : ToastType::Warning,
+                                          2.0f);
+                        }
+                    }
+#else
+                    if (gs.localStageProgress >= kMultiplayerStageCount) {
+                        gs.isGameOver = true;
+                    }
+#endif
+                    return;
+                }
 
 #ifdef USE_IMGUI
                 if (registry.has_ctx<Res_UIState>()) {
@@ -105,13 +161,17 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                             gs.gameOverReason = 3;
                             ui.totalPlayTime += gs.playTime;
                         }
-                        if (ui.mapSequenceGenerated) {
+                        // 积分≤500 → 即使通关也判失败
+                        if (ui.mapSequenceGenerated && ui.campaignScore > 500) {
                             ui.activeScreen = UIScreen::Victory;
                         } else {
                             ui.activeScreen = UIScreen::GameOver;
+                            ui.gameOverSelectedIndex = 0;
                         }
-                        UI::PushToast(registry, "MISSION COMPLETE",
-                                      ToastType::Success, 3.0f);
+                        UI::PushToast(registry,
+                                      ui.campaignScore > 500 ? "MISSION COMPLETE" : "MISSION FAILED",
+                                      ui.campaignScore > 500 ? ToastType::Success : ToastType::Warning,
+                                      3.0f);
                     }
                 }
 #else
@@ -123,6 +183,7 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 #endif
             }
         });
+
 }
 
 /**

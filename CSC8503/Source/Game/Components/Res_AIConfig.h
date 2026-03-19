@@ -17,7 +17,7 @@ namespace ECS {
 struct Res_AIConfig {
     float contact_distance       = 1.5f;
     float hunt_lock_duration     = 1.5f;
-    float global_alert_increment = 15.0f;
+    float global_alert_increment = 25.0f;
     float hysteresis_band        = 5.0f;
     float noise_hearing_range    = 15.0f;
     float noise_boost_factor     = 1.0f;

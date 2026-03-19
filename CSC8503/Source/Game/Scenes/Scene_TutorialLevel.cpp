@@ -78,6 +78,16 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     if (!registry.has_ctx<Res_UIFlags>()) {
         registry.ctx_emplace<Res_UIFlags>();
     }
+
+    // Force tutorial dialogue tree (treeId "0") for this scene
+    if (!registry.has_ctx<ECS::Res_ChatState>()) {
+        registry.ctx_emplace<ECS::Res_ChatState>();
+    }
+    {
+        auto& cs = registry.ctx<ECS::Res_ChatState>();
+        cs.forcedTreeId[0] = '0';
+        cs.forcedTreeId[1] = '\0';
+    }
     if (!registry.has_ctx<ECS::Res_CQCConfig>()) {
         registry.ctx_emplace<ECS::Res_CQCConfig>(ECS::Res_CQCConfig{});
     }
@@ -211,7 +221,7 @@ void Scene_TutorialLevel::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_GameState>())       registry.ctx_erase<ECS::Res_GameState>();
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_ToastState>())      registry.ctx_erase<ECS::Res_ToastState>();
-    if (registry.has_ctx<ECS::Res_ChatState>())       registry.ctx_erase<ECS::Res_ChatState>();
+    // Res_ChatState preserved across maps (only erased in MainMenu)
     if (registry.has_ctx<ECS::Res_InventoryState>())  registry.ctx_erase<ECS::Res_InventoryState>();
     if (registry.has_ctx<ECS::Res_LobbyState>())      registry.ctx_erase<ECS::Res_LobbyState>();
     if (registry.has_ctx<ECS::Res_DialogueData>())    registry.ctx_erase<ECS::Res_DialogueData>();

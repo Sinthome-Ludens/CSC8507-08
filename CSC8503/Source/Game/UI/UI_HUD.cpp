@@ -108,9 +108,9 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
     // 4-segment thresholds and colors (no Raid)
     struct Segment { float threshold; ImU32 color; };
     Segment segments[] = {
-        { 15.0f,  IM_COL32(80, 200, 120, 220) },   // Safe: green
-        { 30.0f,  IM_COL32(220, 200, 0, 220) },     // Search: yellow
-        { 50.0f,  IM_COL32(252, 111, 41, 220) },    // Alert: orange
+        { 25.0f,  IM_COL32(80, 200, 120, 220) },   // Safe: green
+        { 50.0f,  IM_COL32(220, 200, 0, 220) },     // Search: yellow
+        { 75.0f,  IM_COL32(252, 111, 41, 220) },    // Alert: orange
         { 100.0f, IM_COL32(220, 60, 40, 220) },     // Hunt: red
     };
 
@@ -134,6 +134,41 @@ static void RenderHUD_AlertGauge(ImDrawList* draw, const Res_GameState& gs, floa
         ImVec2(gaugeX + gaugeW, barY + gaugeH),
         IM_COL32(200, 200, 200, 100), 2.0f);
 
+}
+
+// ============================================================
+// 2b. RenderHUD_Score — 警戒条下方积分 + 评级
+// ============================================================
+/// @brief 渲染警戒条下方积分 + 实时评级（如 "SCORE: 850  [A]"）。
+static void RenderHUD_Score(ImDrawList* draw, int32_t score, float gameW) {
+    ImFont* termFont = UITheme::GetFont_Terminal();
+
+    const char* rating = GetScoreRating(score);
+    int8_t tier = GetScoreRatingTier(score);
+
+    const ImU32 scoreCol = UITheme::GetScoreRatingColor(tier, 220);
+
+    if (termFont) ImGui::PushFont(termFont);
+
+    char scoreBuf[24];
+    snprintf(scoreBuf, sizeof(scoreBuf), "SCORE: %d", std::max(0, score));
+    ImVec2 scoreSize = ImGui::CalcTextSize(scoreBuf);
+
+    char ratingBuf[8];
+    snprintf(ratingBuf, sizeof(ratingBuf), "[%s]", rating);
+    ImVec2 ratingSize = ImGui::CalcTextSize(ratingBuf);
+
+    float rightEdge = gameW - 20.0f;
+    float scoreY = 60.0f;  // 警戒条 bar 底部下方
+
+    float totalW = scoreSize.x + 8.0f + ratingSize.x;
+    float startX = rightEdge - totalW;
+
+    draw->AddText(ImVec2(startX, scoreY), scoreCol, scoreBuf);
+    draw->AddText(ImVec2(startX + scoreSize.x + 8.0f, scoreY),
+                  scoreCol, ratingBuf);
+
+    if (termFont) ImGui::PopFont();
 }
 
 // ============================================================
@@ -430,75 +465,121 @@ static void RenderHUD_Degradation(ImDrawList* draw, const Res_GameState& gs, flo
 }
 
 // ============================================================
-// 8. RenderHUD_OpponentBar — 多人对战对手进度条
+// 8. RenderHUD_MatchBanner — 多人状态横幅
 // ============================================================
-/// @brief 渲染多人对战屏幕中央双方进度条（本地 vs 对手），仅在 isMultiplayer 时调用。
-static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, float gameW) {
-    ImFont* termFont  = UITheme::GetFont_Terminal();
-    ImFont* smallFont = UITheme::GetFont_Small();
+/// @brief 渲染上方居中的多人状态横幅（等待对手 / 游戏开始）。
+static void RenderHUD_MatchBanner(ImDrawList* draw, const Res_GameState& gs, float gameW, float globalTime, float dt) {
+    static float sMatchStartBannerTimer = 0.0f;
+    if (gs.matchJustStarted) {
+        sMatchStartBannerTimer = 2.2f;
+    } else if (sMatchStartBannerTimer > 0.0f) {
+        sMatchStartBannerTimer = std::max(0.0f, sMatchStartBannerTimer - dt);
+    }
 
-    float barW = 200.0f;
-    float barH = 10.0f;
-    float barX = gameW * 0.5f - barW * 0.5f;
-    // 若倒计时激活，下移避免与 Countdown 文字（32px @ y=14）重叠
-    float barY = gs.countdownActive ? 72.0f : 52.0f;
+    const bool showWaiting = gs.matchPhase == MatchPhase::WaitingForPeer;
+    const bool showStart = gs.matchPhase == MatchPhase::Running && sMatchStartBannerTimer > 0.0f;
+    if (!showWaiting && !showStart) return;
 
-    // "VS [opponent]" label
-    if (termFont) ImGui::PushFont(termFont);
-    char vsBuf[32];
-    snprintf(vsBuf, sizeof(vsBuf), "VS %s", gs.opponentName);
-    ImVec2 vsSize = ImGui::CalcTextSize(vsBuf);
-    draw->AddText(ImVec2(gameW * 0.5f - vsSize.x * 0.5f, barY - 20.0f),
-        IM_COL32(220, 60, 40, 220), vsBuf);
-    if (termFont) ImGui::PopFont();
+    const char* title = showWaiting ? "WAITING FOR OPPONENT" : "MATCH START";
+    const char* subtitle = showWaiting ? "STANDING BY FOR CONNECTION" : "MOVE OUT";
+
+    ImFont* titleFont = UITheme::GetFont_Terminal();
+    ImFont* smallFont = UITheme::GetFont_Terminal();
+
+    if (titleFont) ImGui::PushFont(titleFont);
+    ImVec2 titleSize = ImGui::CalcTextSize(title);
+    if (titleFont) ImGui::PopFont();
 
     if (smallFont) ImGui::PushFont(smallFont);
+    ImVec2 subtitleSize = ImGui::CalcTextSize(subtitle);
+    if (smallFont) ImGui::PopFont();
 
-    // Dual progress bars: local (left, orange) vs opponent (right, red)
-    // Local progress label
-    char localBuf[16];
-    snprintf(localBuf, sizeof(localBuf), "YOU %d%%", gs.localProgress);
-    draw->AddText(ImVec2(barX - 70.0f, barY - 2.0f),
-        IM_COL32(252, 111, 41, 220), localBuf);
+    const float padX = 30.0f;
+    const float padTop = 16.0f;
+    const float padBottom = 14.0f;
+    const float boxW = std::max(titleSize.x, subtitleSize.x) + padX * 2.0f;
+    const float boxH = titleSize.y + subtitleSize.y + padTop + padBottom + 12.0f;
+    const float boxX = gameW * 0.5f - boxW * 0.5f;
+    const float boxY = gs.countdownActive ? 136.0f : 96.0f;
 
-    // Opponent progress label
-    char oppBuf[16];
-    snprintf(oppBuf, sizeof(oppBuf), "%d%%", gs.opponentProgress);
-    draw->AddText(ImVec2(barX + barW + 8.0f, barY - 2.0f),
-        IM_COL32(220, 60, 40, 220), oppBuf);
+    float fade = 1.0f;
+    if (showStart) {
+        fade = std::min(1.0f, sMatchStartBannerTimer / 0.35f);
+        fade = std::min(fade, sMatchStartBannerTimer / 2.2f + 0.25f);
+    }
 
-    // Bar background
-    draw->AddRectFilled(
-        ImVec2(barX, barY), ImVec2(barX + barW, barY + barH),
-        IM_COL32(16, 13, 10, 80), 2.0f);
+    const float pulse = showWaiting ? (sinf(globalTime * 2.8f) + 1.0f) * 0.5f : 1.0f;
+    const ImU32 bgCol = IM_COL32(16, 13, 10, static_cast<int>(160.0f * fade));
+    const ImU32 borderCol = showWaiting
+        ? IM_COL32(200, 200, 200, static_cast<int>((120.0f + pulse * 60.0f) * fade))
+        : IM_COL32(252, 111, 41, static_cast<int>(190.0f * fade));
+    const ImU32 accentCol = IM_COL32(252, 111, 41, static_cast<int>((showWaiting ? (205.0f + pulse * 30.0f) : 235.0f) * fade));
+    const ImU32 subtitleCol = IM_COL32(245, 238, 232, static_cast<int>(190.0f * fade));
 
-    // Local progress (from left, orange)
-    float localFill = barW * std::clamp((float)gs.localProgress / 100.0f, 0.0f, 1.0f);
-    draw->AddRectFilled(
-        ImVec2(barX, barY), ImVec2(barX + localFill, barY + barH * 0.45f),
-        IM_COL32(252, 111, 41, 200), 1.0f);
+    draw->AddRectFilled(ImVec2(boxX, boxY), ImVec2(boxX + boxW, boxY + boxH), bgCol, 5.0f);
+    draw->AddRect(ImVec2(boxX, boxY), ImVec2(boxX + boxW, boxY + boxH), borderCol, 5.0f, 0, 1.4f);
+    draw->AddLine(ImVec2(boxX + 18.0f, boxY + 38.0f), ImVec2(boxX + boxW - 18.0f, boxY + 38.0f),
+        IM_COL32(200, 200, 200, static_cast<int>(82.0f * fade)), 1.0f);
 
-    // Opponent progress (from left, red, bottom half)
-    float oppFill = barW * std::clamp((float)gs.opponentProgress / 100.0f, 0.0f, 1.0f);
-    draw->AddRectFilled(
-        ImVec2(barX, barY + barH * 0.55f), ImVec2(barX + oppFill, barY + barH),
-        IM_COL32(220, 60, 40, 200), 1.0f);
+    if (titleFont) ImGui::PushFont(titleFont);
+    draw->AddText(ImVec2(gameW * 0.5f - titleSize.x * 0.5f, boxY + padTop), accentCol, title);
+    if (titleFont) ImGui::PopFont();
 
-    // Center divider
-    draw->AddLine(
-        ImVec2(barX, barY + barH * 0.5f), ImVec2(barX + barW, barY + barH * 0.5f),
-        IM_COL32(200, 200, 200, 60), 1.0f);
-
-    // Border
-    draw->AddRect(
-        ImVec2(barX, barY), ImVec2(barX + barW, barY + barH),
-        IM_COL32(200, 200, 200, 100), 2.0f);
-
+    if (smallFont) ImGui::PushFont(smallFont);
+    draw->AddText(ImVec2(gameW * 0.5f - subtitleSize.x * 0.5f, boxY + padTop + titleSize.y + 10.0f),
+        subtitleCol, subtitle);
     if (smallFont) ImGui::PopFont();
 }
 
 // ============================================================
-// 9. RenderHUD_DisruptionEffect — 干扰效果全屏叠加
+// 9. RenderHUD_OpponentBar — 多人对战对手进度条
+// ============================================================
+/// @brief 渲染上方中央的对手三段式进度条，仅在多人比赛开始后显示。
+static void RenderHUD_OpponentBar(ImDrawList* draw, const Res_GameState& gs, float gameW) {
+    if (gs.matchPhase == MatchPhase::WaitingForPeer || gs.matchPhase == MatchPhase::Starting) {
+        return;
+    }
+
+    ImFont* titleFont = UITheme::GetFont_Terminal();
+
+    constexpr float barW = 340.0f;
+    constexpr float barH = 14.0f;
+    constexpr float segmentGap = 4.0f;
+    float barX = gameW * 0.5f - barW * 0.5f;
+    float barY = gs.countdownActive ? 78.0f : 56.0f;
+
+    const uint8_t opponentStage = std::min<uint8_t>(gs.opponentStageProgress, kMultiplayerStageCount);
+    const float segmentW = (barW - segmentGap * (kMultiplayerStageCount - 1)) / static_cast<float>(kMultiplayerStageCount);
+
+    const ImU32 inactiveCol = IM_COL32(125, 125, 125, 105);
+    const ImU32 stageCols[kMultiplayerStageCount] = {
+        IM_COL32(118, 154, 109, 225),
+        IM_COL32(252, 111, 41, 225),
+        IM_COL32(220, 60, 40, 225),
+    };
+
+    // Title above the bar
+    if (titleFont) ImGui::PushFont(titleFont);
+    const char* title = "OPPONENT PROGRESS";
+    ImVec2 titleSize = ImGui::CalcTextSize(title);
+    draw->AddText(ImVec2(gameW * 0.5f - titleSize.x * 0.5f, barY - 24.0f),
+        IM_COL32(220, 60, 40, 220), title);
+    if (titleFont) ImGui::PopFont();
+
+    // Single segmented opponent bar
+    for (uint8_t i = 0; i < kMultiplayerStageCount; ++i) {
+        const float segX = barX + i * (segmentW + segmentGap);
+        const ImVec2 oppMin(segX, barY);
+        const ImVec2 oppMax(segX + segmentW, barY + barH);
+        const ImU32 oppCol = (i < opponentStage) ? stageCols[i] : inactiveCol;
+
+        draw->AddRectFilled(oppMin, oppMax, oppCol, 2.0f);
+        draw->AddRect(oppMin, oppMax, IM_COL32(200, 200, 200, 95), 2.0f, 0, 1.0f);
+    }
+}
+
+// ============================================================
+// 10. RenderHUD_DisruptionEffect — 干扰效果全屏叠加
 // ============================================================
 /// @brief 渲染对手干扰效果（视觉干扰/减速/信号扰乱），仅在 disruptionType != 0 时生效。
 static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs,
@@ -580,7 +661,7 @@ static void RenderHUD_DisruptionEffect(ImDrawList* draw, const Res_GameState& gs
 }
 
 // ============================================================
-// 10. RenderHUD_NetworkStatus — 右下角网络状态
+// 11. RenderHUD_NetworkStatus — 右下角网络状态
 // ============================================================
 /// @brief 渲染右下角网络状态（PING 值，颜色随延迟变化），仅多人模式调用。
 static void RenderHUD_NetworkStatus(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
@@ -631,6 +712,7 @@ void RenderHUD(Registry& registry, float dt) {
     // Render all sub-panels (7 base + 3 multiplayer)
     RenderHUD_MissionPanel(draw, gs, gameW);
     RenderHUD_AlertGauge(draw, gs, gameW);
+    RenderHUD_Score(draw, ui.campaignScore, gameW);
     RenderHUD_Countdown(draw, gs, gameW, ui.globalTime);
     RenderHUD_PlayerState(draw, gs, displayH);
     RenderHUD_NoiseIndicator(draw, gs, displayH, ui.globalTime);
@@ -639,6 +721,7 @@ void RenderHUD(Registry& registry, float dt) {
 
     // Multiplayer-only panels
     if (gs.isMultiplayer) {
+        RenderHUD_MatchBanner(draw, gs, gameW, ui.globalTime, dt);
         RenderHUD_OpponentBar(draw, gs, gameW);
         RenderHUD_DisruptionEffect(draw, gs, displaySize.x, displayH, ui.globalTime);
         RenderHUD_NetworkStatus(draw, gs, gameW, displayH);

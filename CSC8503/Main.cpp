@@ -51,6 +51,8 @@
 #endif
 
 #include "Game/Components/Res_NCL_Pointers.h"
+#include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_Network.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_UIFlags.h"
 #include "Game/Components/Res_LobbyState.h"
@@ -72,6 +74,7 @@ using namespace CSC8503;
 
 #include <algorithm>
 #include <random>
+#include <cstring>
 #include <thread>
 #include <sstream>
 
@@ -134,6 +137,74 @@ static IScene* CreateDebugScene(int index) {
 /// 地图名称（调试用）
 static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock" };
 
+/// 重置战役积分到初始状态（1000 分，所有分项归零）。
+static void ResetCampaignScore(ECS::Res_UIState& ui) {
+    ui.campaignScore                = 1000;
+    ui.scoreDecayAccum              = 0.0f;
+    ui.countdownScorePenaltyApplied = false;
+    ui.failureScorePenaltyApplied   = false;
+    ui.lastScoreRatingTier          = 7;  // SSS
+    ui.scoreLost_time      = 0;
+    ui.scoreLost_kills     = 0;
+    ui.scoreLost_items     = 0;
+    ui.scoreLost_countdown = 0;
+    ui.scoreLost_failure   = 0;
+    ui.scoreKillCount      = 0;
+    ui.scoreItemUseCount   = 0;
+}
+
+/**
+ * @brief 清除当前场景图中的联机模式配置。
+ * @details 将 `Res_Network` 标记为离线状态，但不从上下文中移除，交由网络系统统一回收 ENet 资源。
+ * @param reg 当前场景注册表
+ */
+static void ClearNetworkMode(ECS::Registry& reg) {
+    if (reg.has_ctx<ECS::Res_Network>()) {
+        auto& resNet = reg.ctx<ECS::Res_Network>();
+        resNet.mode = ECS::PeerType::OFFLINE;
+        resNet.serverIP[0] = '\0';
+        resNet.serverPort = 0;
+        resNet.preserveSessionOnSceneExit = false;
+    }
+}
+
+/**
+ * @brief 标记当前联机会话将在场景切换时被保留。
+ * @details 仅用于多人换关/重开，避免 `Sys_Network::OnDestroy` 将仍在使用的 ENet 会话当成真正断线销毁。
+ * @param reg 当前场景注册表
+ */
+static void PreserveNetworkSession(ECS::Registry& reg) {
+    if (reg.has_ctx<ECS::Res_Network>()) {
+        auto& resNet = reg.ctx<ECS::Res_Network>();
+        if (resNet.mode != ECS::PeerType::OFFLINE) {
+            resNet.preserveSessionOnSceneExit = true;
+        }
+    }
+}
+
+/**
+ * @brief 以指定角色与地址重建联机配置资源。
+ * @details 若 `Res_Network` 已存在则复用并覆盖配置，否则创建新的网络上下文。
+ * @param reg 当前场景注册表
+ * @param mode 节点网络角色
+ * @param ip 目标 IP；服务端模式下仅用于填充默认值
+ * @param port 使用的监听或连接端口
+ */
+static void ConfigureNetworkMode(ECS::Registry& reg, ECS::PeerType mode, const char* ip, uint16_t port) {
+    ECS::Res_Network* resNetPtr = nullptr;
+    if (reg.has_ctx<ECS::Res_Network>()) {
+        resNetPtr = &reg.ctx<ECS::Res_Network>();
+    } else {
+        resNetPtr = &reg.ctx_emplace<ECS::Res_Network>();
+    }
+
+    ECS::Res_Network& resNet = *resNetPtr;
+    resNet.mode = mode;
+    strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), ip ? ip : "127.0.0.1", sizeof(resNet.serverIP) - 1);
+    resNet.serverPort = port;
+    resNet.preserveSessionOnSceneExit = false;
+}
+
 /// 使用 std::random_device 获取种子（硬件熵源优先，回退到系统时钟）
 static uint32_t TimeBasedSeed() {
     std::random_device rd;
@@ -163,6 +234,19 @@ static void GenerateMapSequence(ECS::Res_UIState& ui) {
              << (int)ui.mapSequence[2]);
 }
 
+/**
+ * @brief 初始化多人模式的随机三关流程。
+ * @details Host/Client 各自独立抽取三张地图；比赛只比较三阶段推进速度，不要求同一轮进入相同地图。
+ * @param ui 全局 UI 状态资源
+ */
+static void InitializeMultiplayerMapSequence(ECS::Res_UIState& ui) {
+    ui.totalPlayTime = 0.0f;
+    ui.debugCurrentScene = -1;
+    ResetCampaignScore(ui);
+    GenerateMapSequence(ui);
+    LOG_INFO("[Main] Multiplayer map sequence initialized independently for this peer.");
+}
+
 /// 处理所有 UI 请求（场景切换、分辨率、全屏、光标、退出）
 static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& running) {
     auto& reg = sceneManager.GetRegistry();
@@ -177,12 +261,13 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
     if (reg.has_ctx<Res_UIFlags>()) {
         auto& flags = reg.ctx<Res_UIFlags>();
         if (flags.debugSceneIndex >= 0) {
-            sceneManager.RequestSceneChange(CreateDebugScene(flags.debugSceneIndex));
-            // 进入 debug 模式：禁用地图池序列，记录当前 debug 场景
+            const int debugSceneIndex = flags.debugSceneIndex;
+            sceneManager.RequestSceneChange(CreateDebugScene(debugSceneIndex));
+            ClearNetworkMode(reg);
             if (reg.has_ctx<ECS::Res_UIState>()) {
                 auto& uiDbg = reg.ctx<ECS::Res_UIState>();
                 uiDbg.mapSequenceGenerated = false;
-                uiDbg.debugCurrentScene    = flags.debugSceneIndex;
+                uiDbg.debugCurrentScene    = static_cast<int8_t>(debugSceneIndex);
                 uiDbg.pendingSceneRequest  = ECS::SceneRequest::None;
             }
             flags.debugSceneIndex = -1;
@@ -196,26 +281,59 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
         if (ui.pendingSceneRequest != ECS::SceneRequest::None) {
             switch (ui.pendingSceneRequest) {
                 case ECS::SceneRequest::StartGame:
+                    ClearNetworkMode(reg);
+
                     // 正常开始游戏：生成新的 5 抽 3 序列，退出 debug 模式
                     ui.debugCurrentScene = -1;
                     ui.totalPlayTime = 0.0f;
+                    ResetCampaignScore(ui);
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
                         CreateMapScene(ui.mapSequence[0]));
                     break;
                 case ECS::SceneRequest::RestartLevel:
+                {
+                    const bool isMultiplayer = reg.has_ctx<ECS::Res_Network>()
+                        && reg.ctx<ECS::Res_Network>().mode != ECS::PeerType::OFFLINE;
                     if (ui.debugCurrentScene >= 0) {
                         // Debug 模式：重启当前 debug 场景，不使用地图池
+                        if (ui.debugCurrentScene >= 0 && ui.debugCurrentScene <= 8) {
+                            ClearNetworkMode(reg);
+                        } else if (ui.debugCurrentScene == 9) {
+                            PreserveNetworkSession(reg);
+                        }
                         sceneManager.RequestSceneChange(CreateDebugScene(ui.debugCurrentScene));
                     } else {
                         // 正常流程：重新随机 5 抽 3 序列，从头开始
-                        GenerateMapSequence(ui);
+                        if (isMultiplayer) {
+                            PreserveNetworkSession(reg);
+                            if (reg.has_ctx<ECS::Res_GameState>()) {
+                                reg.ctx_erase<ECS::Res_GameState>();
+                            }
+                            InitializeMultiplayerMapSequence(ui);
+                        } else {
+                            ClearNetworkMode(reg);
+                            ui.totalPlayTime = 0.0f;
+                            ResetCampaignScore(ui);
+                            GenerateMapSequence(ui);
+                        }
                         sceneManager.RequestSceneChange(
                             CreateMapScene(ui.mapSequence[0]));
                     }
                     break;
+                }
                 case ECS::SceneRequest::NextLevel:
-                    // 序列内前进到下一张地图
+                {
+                    const bool isMultiplayer = reg.has_ctx<ECS::Res_Network>()
+                        && reg.ctx<ECS::Res_Network>().mode != ECS::PeerType::OFFLINE;
+                    if (!isMultiplayer) {
+                        ClearNetworkMode(reg);
+                    } else {
+                        PreserveNetworkSession(reg);
+                    }
+                    // 序列内前进到下一张地图（积分不重置，仅清除单次惩罚标记）
+                    ui.countdownScorePenaltyApplied = false;
+                    ui.failureScorePenaltyApplied   = false;
                     ui.mapSequenceIndex++;
                     if (ui.mapSequenceIndex < ECS::Res_UIState::MAP_SEQUENCE_LENGTH) {
                         sceneManager.RequestSceneChange(
@@ -225,23 +343,36 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         sceneManager.RequestSceneChange(new Scene_MainMenu());
                     }
                     break;
+                }
                 case ECS::SceneRequest::ReturnToMenu:
+                    ClearNetworkMode(reg);
                     sceneManager.RequestSceneChange(new Scene_MainMenu());
                     break;
                 case ECS::SceneRequest::HostGame:
-                    sceneManager.RequestSceneChange(
-                        new Scene_NetworkGame(ECS::PeerType::SERVER));
+                {
+                    uint16_t port = 32499;
+                    if (reg.has_ctx<ECS::Res_LobbyState>()) {
+                        port = reg.ctx<ECS::Res_LobbyState>().port;
+                    }
+                    ConfigureNetworkMode(reg, ECS::PeerType::SERVER, "127.0.0.1", port);
+                    InitializeMultiplayerMapSequence(ui);
+                    sceneManager.RequestSceneChange(CreateMapScene(ui.mapSequence[0]));
                     break;
+                }
                 case ECS::SceneRequest::JoinGame: {
                     std::string ip = "127.0.0.1";
+                    uint16_t port = 32499;
                     if (reg.has_ctx<ECS::Res_LobbyState>()) {
                         ip = reg.ctx<ECS::Res_LobbyState>().joinIP;
+                        port = reg.ctx<ECS::Res_LobbyState>().port;
                     }
-                    sceneManager.RequestSceneChange(
-                        new Scene_NetworkGame(ECS::PeerType::CLIENT, ip));
+                    ConfigureNetworkMode(reg, ECS::PeerType::CLIENT, ip.c_str(), port);
+                    InitializeMultiplayerMapSequence(ui);
+                    sceneManager.RequestSceneChange(CreateMapScene(ui.mapSequence[0]));
                     break;
                 }
                 case ECS::SceneRequest::StartTutorial:
+                    ClearNetworkMode(reg);
                     sceneManager.RequestSceneChange(new Scene_TutorialLevel());
                     break;
                 case ECS::SceneRequest::QuitApp:

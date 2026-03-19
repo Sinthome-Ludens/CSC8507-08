@@ -37,12 +37,16 @@ enum class PeerType {
 struct Res_Network {
     PeerType mode = PeerType::OFFLINE; ///< 当前网络模式（服务器/客户端/单机）
 
+    char     serverIP[16]   = "127.0.0.1"; ///< 目标服务器 IP（Server 模式下仅用于日志）
+    uint16_t serverPort     = 32499;       ///< 监听 / 连接端口
+
     _ENetHost* host = nullptr;         ///< ENet host 指针（本地端点）
     _ENetPeer* peer = nullptr;         ///< 客户端连接到服务器时的唯一 peer 指针
 
     uint32_t localClientID = 0;        ///< 本机的分配 ID（Server 默认为 0，Client 由 Server 分配）
     uint32_t rtt           = 0;        ///< 当前延迟估算（Ping 值，单位 ms）
     bool     connected     = false;    ///< 是否已成功建立连接（Client 用于握手判定）
+    bool     preserveSessionOnSceneExit = false; ///< 是否在当前场景退出时保留 ENet 会话以跨场景复用
 
     uint32_t nextNetID     = 1;        ///< 下一个可分配的网络实体 ID（仅 Server 维护）
 

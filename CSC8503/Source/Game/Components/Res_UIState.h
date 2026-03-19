@@ -77,6 +77,7 @@ struct Res_UIState {
     int8_t    settingsSelectedIndex  = 0;
     int8_t    pauseSelectedIndex     = 0;
     int8_t    gameOverSelectedIndex  = 0;
+    bool      multiplayerRetryRequested = false;
     int8_t    resolutionIndex        = 2;   // default 1920x1080 (0=720p, 1=900p, 2=1080p)
     bool      resolutionChanged      = false;
 
@@ -146,6 +147,53 @@ struct Res_UIState {
 
     // ── Debug mode (bypass map sequence) ──
     int8_t    debugCurrentScene        = -1;  ///< >=0 表示当前为 debug 模式进入的场景 index，-1 表示正常流程
+
+    // ── Campaign score (跨场景持久化) ──────────────────────────
+    int32_t campaignScore                 = 1000;  ///< 战役积分（初始1000, 纯扣减制）
+    float   scoreDecayAccum               = 0.0f;  ///< 时间衰减子秒累加器
+    bool    countdownScorePenaltyApplied  = false;  ///< 倒计时-200已施加
+    bool    failureScorePenaltyApplied    = false;  ///< 失败-500已施加
+    int8_t  lastScoreRatingTier           = 7;     ///< 上一帧评级档位(0=F..7=SSS), 用于降级检测
+
+    // ── Score breakdown (分项追踪, 供 GameOver 明细) ──────────
+    int32_t scoreLost_time      = 0;   ///< 累计时间扣分
+    int32_t scoreLost_kills     = 0;   ///< 累计击杀扣分
+    int32_t scoreLost_items     = 0;   ///< 累计道具使用扣分
+    int32_t scoreLost_countdown = 0;   ///< 倒计时扣分 (0 或 200)
+    int32_t scoreLost_failure   = 0;   ///< 失败扣分 (0 或 500)
+    int16_t scoreKillCount      = 0;   ///< 击杀次数
+    int16_t scoreItemUseCount   = 0;   ///< 道具使用次数
 };
+
+// ── Campaign score utility functions ────────────────────────
+
+/// @brief 评级名称数组（按 tier 索引：0=F, 1=D, ..., 7=SSS）。
+inline constexpr const char* const kScoreRatingNames[] = {"F","D","C","B","A","S","SS","SSS"};
+
+/// @brief 根据积分返回评级字符串（F/D/C/B/A/S/SS/SSS）。
+/// @pre score >= 0
+inline const char* GetScoreRating(int32_t score) {
+    if (score <= 500) return "F";
+    if (score <= 599) return "D";
+    if (score <= 699) return "C";
+    if (score <= 799) return "B";
+    if (score <= 899) return "A";
+    if (score <= 949) return "S";
+    if (score <= 969) return "SS";
+    return "SSS";
+}
+
+/// @brief 返回评级数值档位（0=F, 1=D, ..., 7=SSS），用于降级检测。
+/// @pre score >= 0
+inline int8_t GetScoreRatingTier(int32_t score) {
+    if (score <= 500) return 0;
+    if (score <= 599) return 1;
+    if (score <= 699) return 2;
+    if (score <= 799) return 3;
+    if (score <= 899) return 4;
+    if (score <= 949) return 5;
+    if (score <= 969) return 6;
+    return 7;
+}
 
 } // namespace ECS
