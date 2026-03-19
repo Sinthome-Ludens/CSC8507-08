@@ -317,11 +317,33 @@ private:
     static void ApplyAuthoritativeMapSequence(Registry& reg,
                                               const uint8_t* mapSequence,
                                               uint8_t roundIndex);
+    /**
+     * @brief 确保远程玩家幽灵实体存在并已在网络资源中注册。
+     * @param reg ECS 注册表，用于创建或查询远程幽灵实体。
+     * @param resNet 当前会话的网络资源，用于缓存远程幽灵实体的 EntityID 等状态。
+     * @return 远程幽灵实体的 EntityID（如不存在则创建后返回）。
+     */
     static EntityID EnsureRemoteGhostEntity(Registry& reg, Res_Network& resNet);
+    /**
+     * @brief 缓存最新接收到的远程幽灵实体变换快照。
+     * @param resNet 网络资源，用于保存远程幽灵的最近一次位姿快照。
+     * @param pkt 从网络接收到的幽灵变换数据包。
+     */
     static void CacheRemoteGhostSnapshot(Res_Network& resNet, const Net_Packet_GhostTransform& pkt);
+    /**
+     * @brief 将已缓存的远程幽灵变换快照应用到场景中的对应实体。
+     * @param reg ECS 注册表，用于访问并更新远程幽灵实体的组件。
+     * @param resNet 网络资源，提供已缓存的远程幽灵变换快照及实体引用。
+     * @param resetInterpolationBuffer 是否重置插值缓冲（通常在首次同步或传送时启用）。
+     */
     static void ApplyCachedRemoteGhostSnapshot(Registry& reg,
                                                Res_Network& resNet,
                                                bool resetInterpolationBuffer);
+    /**
+     * @brief 刷新远程幽灵实体的引用与组件状态以适配当前会话/场景。
+     * @param reg ECS 注册表，用于重新绑定或重建远程幽灵实体。
+     * @param resNet 网络资源，用于更新远程幽灵实体的缓存信息。
+     */
     static void RefreshRemoteGhostEntity(Registry& reg, Res_Network& resNet);
 
     // ── 数据包解包与物理驱动辅助方法 ──
