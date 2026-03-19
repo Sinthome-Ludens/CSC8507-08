@@ -16,6 +16,8 @@
 
 namespace ECS::UI {
 
+using namespace ECS::UITheme;
+
 static constexpr int kSectorCount = 4;
 
 void RenderItemWheel(Registry& registry, float /*dt*/) {
@@ -55,7 +57,7 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
 
     float gameW = displaySize.x - Res_ChatState::kPanelWidth;
     float cx = gameW * 0.5f;
@@ -67,7 +69,7 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     draw->AddRectFilled(
         ImVec2(0.0f, 0.0f),
         ImVec2(displaySize.x, displaySize.y),
-        IM_COL32(16, 13, 10, 100));
+        Col32_BgDark(100));
 
     // Determine selected sector from mouse position
     ImVec2 mousePos = ImGui::GetMousePos();
@@ -78,23 +80,23 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     int hoveredSector = -1;
     if (dist > innerR * 0.5f) {
         float angle = atan2f(dy, dx);
-        angle += UITheme::kPI * 0.5f;
-        if (angle < 0.0f) angle += UITheme::kPI * 2.0f;
-        hoveredSector = (int)(angle / (UITheme::kPI * 2.0f) * kSectorCount) % kSectorCount;
+        angle += kPI * 0.5f;
+        if (angle < 0.0f) angle += kPI * 2.0f;
+        hoveredSector = (int)(angle / (kPI * 2.0f) * kSectorCount) % kSectorCount;
         ui.itemWheelSelected = static_cast<int8_t>(hoveredSector);
     }
 
     // Draw sectors
-    float sectorAngle = UITheme::kPI * 2.0f / kSectorCount;
+    float sectorAngle = kPI * 2.0f / kSectorCount;
     for (int i = 0; i < kSectorCount; ++i) {
-        float startAngle = i * sectorAngle - UITheme::kPI * 0.5f;
+        float startAngle = i * sectorAngle - kPI * 0.5f;
         float endAngle   = startAngle + sectorAngle;
         bool isHovered = (i == hoveredSector);
         bool isActive  = sectors[i].isActive;
 
         ImU32 sectorColor = isHovered
-            ? IM_COL32(252, 111, 41, 60)
-            : isActive ? IM_COL32(252, 111, 41, 30) : IM_COL32(245, 238, 232, 180);
+            ? Col32_Accent(60)
+            : isActive ? Col32_Accent(30) : Col32_Bg(180);
 
         constexpr int kArcSegments = 12;
         float da = (endAngle - startAngle) / kArcSegments;
@@ -115,14 +117,14 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
                 float a2 = a1 + da;
                 ImVec2 p1(cx + cosf(a1) * outerR, cy + sinf(a1) * outerR);
                 ImVec2 p2(cx + cosf(a2) * outerR, cy + sinf(a2) * outerR);
-                draw->AddLine(p1, p2, IM_COL32(252, 111, 41, 220), 3.0f);
+                draw->AddLine(p1, p2, Col32_Accent(220), 3.0f);
             }
         }
 
         // Sector border lines
         ImVec2 lineInner(cx + cosf(startAngle) * innerR, cy + sinf(startAngle) * innerR);
         ImVec2 lineOuter(cx + cosf(startAngle) * outerR, cy + sinf(startAngle) * outerR);
-        draw->AddLine(lineInner, lineOuter, IM_COL32(200, 200, 200, 100), 1.0f);
+        draw->AddLine(lineInner, lineOuter, Col32_Gray(100), 1.0f);
 
         // Label: name + count
         float midAngle = startAngle + sectorAngle * 0.5f;
@@ -134,9 +136,9 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
 
         // Name
         ImVec2 nameSize = ImGui::CalcTextSize(sectors[i].name);
-        ImU32 nameCol = isHovered ? IM_COL32(252, 111, 41, 255)
-                      : isActive  ? IM_COL32(252, 111, 41, 200)
-                                  : IM_COL32(16, 13, 10, 220);
+        ImU32 nameCol = isHovered ? Col32_Accent(255)
+                      : isActive  ? Col32_Accent(200)
+                                  : Col32_Text(220);
         draw->AddText(ImVec2(lx - nameSize.x * 0.5f, ly - nameSize.y * 0.5f - 6.0f),
             nameCol, sectors[i].name);
 
@@ -146,7 +148,7 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
             snprintf(countBuf, sizeof(countBuf), "x%u", sectors[i].count);
             ImVec2 countSize = ImGui::CalcTextSize(countBuf);
             draw->AddText(ImVec2(lx - countSize.x * 0.5f, ly - countSize.y * 0.5f + 6.0f),
-                IM_COL32(252, 111, 41, 180), countBuf);
+                Col32_Accent(180), countBuf);
         }
 
         if (smallFont) ImGui::PopFont();
@@ -154,30 +156,30 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
 
     // Center circle
     draw->AddCircleFilled(ImVec2(cx, cy), innerR * 0.8f,
-        IM_COL32(245, 238, 232, 220), 32);
+        Col32_Bg(220), 32);
     draw->AddCircle(ImVec2(cx, cy), innerR * 0.8f,
-        IM_COL32(200, 200, 200, 150), 32, 1.5f);
+        Col32_Gray(150), 32, 1.5f);
 
     // Center text
     if (smallFont) ImGui::PushFont(smallFont);
     const char* centerText = "SELECT";
     ImVec2 ctSize = ImGui::CalcTextSize(centerText);
     draw->AddText(ImVec2(cx - ctSize.x * 0.5f, cy - ctSize.y * 0.5f),
-        IM_COL32(16, 13, 10, 180), centerText);
+        Col32_Text(180), centerText);
     if (smallFont) ImGui::PopFont();
 
     // Outer ring
     draw->AddCircle(ImVec2(cx, cy), outerR,
-        IM_COL32(200, 200, 200, 100), 64, 1.0f);
+        Col32_Gray(100), 64, 1.0f);
     draw->AddCircle(ImVec2(cx, cy), innerR,
-        IM_COL32(200, 200, 200, 100), 32, 1.0f);
+        Col32_Gray(100), 32, 1.0f);
 
     // Category labels
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(ImVec2(cx - 20.0f, cy - outerR - 18.0f),
-        IM_COL32(252, 111, 41, 160), "GADGETS");
+        Col32_Accent(160), "GADGETS");
     draw->AddText(ImVec2(cx - 28.0f, cy + outerR + 6.0f),
-        IM_COL32(252, 111, 41, 160), "WEAPONS");
+        Col32_Accent(160), "WEAPONS");
     if (smallFont) ImGui::PopFont();
 }
 
