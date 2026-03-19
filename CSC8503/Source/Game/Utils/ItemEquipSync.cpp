@@ -79,4 +79,60 @@ void SyncEquipmentToGameState(Registry& registry) {
              << (int)ui.missionEquippedWeapons[1] << "]");
 }
 
+void AutoFillHUDSlots(Registry& registry) {
+    if (!registry.has_ctx<Res_GameState>()
+     || !registry.has_ctx<Res_ItemInventory2>()) return;
+
+    auto& gs  = registry.ctx<Res_GameState>();
+    auto& inv = registry.ctx<Res_ItemInventory2>();
+
+    // Only fill if ALL HUD slots are empty (fallback for scenes without MissionSelect)
+    bool anyOccupied = false;
+    for (int s = 0; s < 2; ++s) {
+        if (gs.itemSlots[s].name[0] != '\0') anyOccupied = true;
+        if (gs.weaponSlots[s].name[0] != '\0') anyOccupied = true;
+    }
+    if (anyOccupied) return;
+
+    int gadgetSlot = 0;
+    int weaponSlot = 0;
+
+    for (int i = 0; i < inv.kItemCount; ++i) {
+        auto& slot = inv.slots[i];
+        if (slot.carriedCount == 0) continue;
+
+        if (slot.itemType == ItemType::Gadget) {
+            if (gadgetSlot < 2) {
+                auto& dst = gs.itemSlots[gadgetSlot];
+                size_t len = strlen(slot.name);
+                if (len > sizeof(dst.name) - 1) len = sizeof(dst.name) - 1;
+                memcpy(dst.name, slot.name, len);
+                dst.name[len] = '\0';
+                dst.itemId   = static_cast<uint8_t>(slot.itemId);
+                dst.count    = slot.carriedCount;
+                dst.cooldown = 0.0f;
+                ++gadgetSlot;
+            }
+        } else {
+            if (weaponSlot < 2) {
+                auto& dst = gs.weaponSlots[weaponSlot];
+                size_t len = strlen(slot.name);
+                if (len > sizeof(dst.name) - 1) len = sizeof(dst.name) - 1;
+                memcpy(dst.name, slot.name, len);
+                dst.name[len] = '\0';
+                dst.itemId   = static_cast<uint8_t>(slot.itemId);
+                dst.count    = slot.carriedCount;
+                dst.cooldown = 0.0f;
+                ++weaponSlot;
+            }
+        }
+    }
+
+    // Clear remaining empty slots
+    for (int s = gadgetSlot; s < 2; ++s) gs.itemSlots[s] = {};
+    for (int s = weaponSlot; s < 2; ++s) gs.weaponSlots[s] = {};
+
+    LOG_INFO("[ItemEquipSync] AutoFill: gadgets=" << gadgetSlot << " weapons=" << weaponSlot);
+}
+
 } // namespace ECS

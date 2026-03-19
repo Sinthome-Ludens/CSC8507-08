@@ -548,6 +548,8 @@ EntityID PrefabFactory::CreateItemPickup(
         case ItemID::GlobalMap:    mat.baseColour = Vector4(0.2f, 0.6f, 0.95f, 1.0f);   break; // blue
         default:                   mat.baseColour = Vector4(0.8f, 0.8f, 0.8f, 1.0f);    break; // gray
     }
+    mat.emissiveColor    = { mat.baseColour.x, mat.baseColour.y, mat.baseColour.z };
+    mat.emissiveStrength = 2.0f;
     reg.Emplace<C_D_Material>(entity, mat);
 
     auto& pickup = reg.Emplace<C_T_ItemPickup>(entity);

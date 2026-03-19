@@ -240,6 +240,7 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     }
 
     ECS::SyncEquipmentToGameState(registry);
+    ECS::AutoFillHUDSlots(registry);
 
     LOG_INFO("[Scene_TutorialLevel] OnEnter complete. "
              << systems.Count() << " systems awake.");

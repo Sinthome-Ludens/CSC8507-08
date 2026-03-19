@@ -10,4 +10,7 @@ class Registry;
 /// @brief 从 Res_UIState.missionEquippedItems/Weapons 同步到 Res_GameState.itemSlots/weaponSlots。
 void SyncEquipmentToGameState(Registry& registry);
 
+/// @brief 从 Res_ItemInventory2 中自动填充空的 HUD 槽位（carriedCount>0 的道具按序填入）。
+void AutoFillHUDSlots(Registry& registry);
+
 } // namespace ECS
