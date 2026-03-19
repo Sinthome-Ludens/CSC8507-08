@@ -396,6 +396,18 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         ui.lastScoreRatingTier = curTier;
     }
 
+    // ── Screen entry animation: detect changes & tick ──────
+    if (ui.activeScreen != ui._lastTickScreen) {
+        ui.screenEntryElapsed  = 0.0f;
+        ui.screenEntryDuration = 0.35f;
+        // Reset hover progress for the new menu
+        for (auto& p : ui.menuHoverProgress) p = 0.0f;
+        ui._lastTickScreen = ui.activeScreen;
+    }
+    if (ui.screenEntryDuration > 0.0f && ui.screenEntryElapsed < ui.screenEntryDuration) {
+        ui.screenEntryElapsed = std::min(ui.screenEntryElapsed + dt, ui.screenEntryDuration);
+    }
+
     // Dispatch to render functions
     switch (ui.activeScreen) {
         case UIScreen::TitleScreen: UI::RenderTitleScreen(registry, dt);     break;

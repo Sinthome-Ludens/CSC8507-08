@@ -154,6 +154,11 @@ struct Res_UIState {
     // ── Menu hover animation (shared across all menus) ─────────
     float menuHoverProgress[8] = {};   ///< Per-item hover progress 0.0~1.0, driven by SmoothLerp
 
+    // ── Screen entry animation ───────────────────────────────
+    float screenEntryElapsed  = 0.0f;  ///< Time since screen change (seconds)
+    float screenEntryDuration = 0.0f;  ///< Entry animation duration (0 = no anim)
+    UIScreen _lastTickScreen  = UIScreen::None;  ///< Internal: previous frame's activeScreen
+
     // ── Campaign score (跨场景持久化) ──────────────────────────
     int32_t campaignScore                 = 1000;  ///< 战役积分（初始1000, 纯扣减制）
     float   scoreDecayAccum               = 0.0f;  ///< 时间衰减子秒累加器

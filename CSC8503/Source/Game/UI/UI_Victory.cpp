@@ -12,6 +12,7 @@
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/Res_UIKeyConfig.h"
 #include "Game/UI/UITheme.h"
+#include "Game/UI/UI_Anim.h"
 #include "Game/Utils/Log.h"
 #include "Keyboard.h"
 #include "Mouse.h"
@@ -55,17 +56,23 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
         Col32_Bg(255));
 
+    // Entry animation
+    float entryRaw = (ui.screenEntryDuration > 0.0f)
+        ? std::clamp(ui.screenEntryElapsed / ui.screenEntryDuration, 0.0f, 1.0f) : 1.0f;
+    float entryT = Anim::EaseOutCubic(entryRaw);
+    float titleDropOffset = -30.0f * (1.0f - entryT);
+
     float cx = vpPos.x + vpSize.x * 0.5f;
 
-    // ── Title ─────────────────────────────────────────────────
+    // ── Title (drop-in) ───────────────────────────────────────
     ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
     const char* title = "CAMPAIGN COMPLETE";
     ImVec2 titleSize = ImGui::CalcTextSize(title);
     float titleX = cx - titleSize.x * 0.5f;
-    float titleY = vpPos.y + vpSize.y * 0.13f;
+    float titleY = vpPos.y + vpSize.y * 0.13f + titleDropOffset;
     draw->AddText(ImVec2(titleX, titleY),
-        Col32_Accent(255), title);
+        Col32_Accent((uint8_t)(entryT * 255)), title);
     if (titleFont) ImGui::PopFont();
 
     // ── Subtitle ──────────────────────────────────────────────

@@ -293,22 +293,42 @@ void RenderMainMenu(Registry& registry, float dt) {
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
         Col32_Bg());
 
+    // Entry animation progress
+    float entryRaw = (ui.screenEntryDuration > 0.0f)
+        ? std::clamp(ui.screenEntryElapsed / ui.screenEntryDuration, 0.0f, 1.0f) : 1.0f;
+    float entryT = Anim::EaseOutCubic(entryRaw);
+
     // Layout
     float leftPanelW = vpSize.x * 0.35f;
     float rightPanelX = vpPos.x + leftPanelW;
     float rightPanelW = vpSize.x * 0.65f;
 
-    // Right panel: tactical background animation
+    // Left panel slide offset (-40→0)
+    float leftSlideX = -40.0f * (1.0f - entryT);
+
+    // Right panel: tactical background animation (fade in via alpha)
+    // Right panel alpha increases 0→1 during entry
+    {
+        uint8_t rpAlpha = (uint8_t)(entryT * 255);
+        // We draw the right panel background as a semi-transparent layer during entry
+        if (entryT < 0.99f) {
+            // Draw a bg rect over the right panel to fade it
+            draw->AddRectFilled(
+                ImVec2(rightPanelX, vpPos.y),
+                ImVec2(rightPanelX + rightPanelW, vpPos.y + vpSize.y),
+                Col32_Bg());
+        }
+    }
     RenderMenuBackground(ui.globalTime, rightPanelX, vpPos.y, rightPanelW, vpSize.y);
 
     // Divider line
     draw->AddLine(
-        ImVec2(vpPos.x + leftPanelW, vpPos.y + 40.0f),
-        ImVec2(vpPos.x + leftPanelW, vpPos.y + vpSize.y - 40.0f),
+        ImVec2(vpPos.x + leftPanelW + leftSlideX, vpPos.y + 40.0f),
+        ImVec2(vpPos.x + leftPanelW + leftSlideX, vpPos.y + vpSize.y - 40.0f),
         Col32_Gray(100), 1.0f);
 
     // Left panel
-    float panelPadX = Layout::kPagePadX;
+    float panelPadX = Layout::kPagePadX + leftSlideX;
     float startY = vpPos.y + 60.0f;
 
     // Game title
@@ -701,14 +721,23 @@ void RenderPauseMenu(Registry& registry, float dt) {
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
 
-    // Semi-transparent overlay
+    // Entry animation
+    float entryRaw = (ui.screenEntryDuration > 0.0f)
+        ? std::clamp(ui.screenEntryElapsed / ui.screenEntryDuration, 0.0f, 1.0f) : 1.0f;
+    float entryT = Anim::EaseOutCubic(entryRaw);
+
+    // Semi-transparent overlay (fade in)
+    uint8_t overlayAlpha = (uint8_t)(200.0f * entryT);
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        Col32_Bg(200));
+        Col32_Bg(overlayAlpha));
 
-    // Panel centered
-    float panelW = 400.0f;
-    float panelH = 280.0f;
+    // Panel centered with scale animation (0.95→1.0)
+    float scale = 0.95f + 0.05f * entryT;
+    float baseW = 400.0f;
+    float baseH = 280.0f;
+    float panelW = baseW * scale;
+    float panelH = baseH * scale;
     float panelX = vpPos.x + (vpSize.x - panelW) * 0.5f;
     float panelY = vpPos.y + (vpSize.y - panelH) * 0.5f;
 
