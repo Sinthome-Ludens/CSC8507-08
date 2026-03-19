@@ -76,6 +76,8 @@ void Sys_Network::OnAwake(Registry& reg) {
         m_LastBroadcastClientStage = 0xFF;
         m_LastBroadcastRoundIndex = 0xFF;
         m_LastBroadcastGameOverReason = 0xFF;
+        m_GhostScoreTimer    = 0.0f;
+        m_GhostPositionTimer = 0.0f;
 
         if (resNet.mode == PeerType::SERVER && resNet.host->peers != nullptr) {
             uint32_t maxAssignedClientID = 0u;
