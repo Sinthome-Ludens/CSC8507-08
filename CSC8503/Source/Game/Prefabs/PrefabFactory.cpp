@@ -517,7 +517,7 @@ EntityID PrefabFactory::CreateItemPickup(
     EntityID entity = reg.Create();
 
     // Weapons use capsule mesh, gadgets use cube mesh
-    bool isWeapon = (itemId == ItemID::RoamAI || itemId == ItemID::TargetStrike);
+    bool isWeapon = (GetItemType(itemId) == ItemType::Weapon);
     ECS::MeshHandle actualMesh = cubeMesh;
     Vector3 pickupScale(0.7f, 0.7f, 0.7f);
     if (isWeapon) {
@@ -545,6 +545,7 @@ EntityID PrefabFactory::CreateItemPickup(
         case ItemID::DDoS:         mat.baseColour = Vector4(0.7f, 0.2f, 0.9f, 1.0f);    break; // purple
         case ItemID::RoamAI:       mat.baseColour = Vector4(0.2f, 0.85f, 0.2f, 1.0f);   break; // green
         case ItemID::TargetStrike: mat.baseColour = Vector4(0.9f, 0.2f, 0.2f, 1.0f);    break; // red
+        case ItemID::GlobalMap:    mat.baseColour = Vector4(0.2f, 0.6f, 0.95f, 1.0f);   break; // blue
         default:                   mat.baseColour = Vector4(0.8f, 0.8f, 0.8f, 1.0f);    break; // gray
     }
     reg.Emplace<C_D_Material>(entity, mat);

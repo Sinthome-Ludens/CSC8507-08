@@ -14,6 +14,7 @@
  * | DDoS             | DDoS         | Gadget |
  * | RoamAI           | 流窜 AI      | Weapon |
  * | TargetStrike     | 靶向打击     | Weapon |
+ * | GlobalMap        | 全局地图     | Gadget |
  *
  * @see Res_ItemInventory2.h
  * @see Sys_Item.h
@@ -37,7 +38,8 @@ enum class ItemID : uint8_t {
     DDoS         = 2, ///< 003 DDoS         — 冻结目标 5 秒
     RoamAI       = 3, ///< 004 流窜 AI      — 释放巡逻 AI，触碰敌人即消灭
     TargetStrike = 4, ///< 005 靶向打击     — 击毙目标（直接死亡）
-    Count        = 5, ///< 道具种类总数（用于数组索引）
+    GlobalMap    = 5, ///< 006 全局地图     — 使用后显示持续小地图
+    Count        = 6, ///< 道具种类总数（用于数组索引）
 };
 
 /**
@@ -64,5 +66,14 @@ struct C_D_Item {
     uint8_t  storeCount   = 0;               ///< 玩家仓库存量（跨局持久化）
     uint8_t  maxStore     = 99;              ///< 仓库最大存量（光子雷达无上限视为 99）
 };
+
+/// @brief 根据 ItemID 查询对应的 ItemType（集中维护，避免多处硬编码）。
+inline ItemType GetItemType(ItemID id) {
+    switch (id) {
+        case ItemID::RoamAI:       return ItemType::Weapon;
+        case ItemID::TargetStrike: return ItemType::Weapon;
+        default:                   return ItemType::Gadget;
+    }
+}
 
 } // namespace ECS
