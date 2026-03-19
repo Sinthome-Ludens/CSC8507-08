@@ -66,7 +66,9 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     resNet.netIdMap.clear();
     resNet.nextNetID = 1u;
 
-    const bool isSameMapBootstrap = (resNet.multiplayerMode == ECS::MultiplayerMode::SameMapGhostRace);
+    const bool isSameMapBootstrap = (resNet.multiplayerMode == ECS::MultiplayerMode::SameMapGhostRace)
+                                  && resNet.bootstrapSceneActive
+                                  && (resNet.mode != ECS::PeerType::OFFLINE);
 
     if (!registry.has_ctx<Res_UIFlags>()) {
         registry.ctx_emplace<Res_UIFlags>();

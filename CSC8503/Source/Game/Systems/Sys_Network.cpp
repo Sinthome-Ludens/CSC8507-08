@@ -1494,9 +1494,7 @@ void Sys_Network::ResetSceneLocalState(Res_Network& resNet) {
     resNet.remoteGhostEntity = Entity::NULL_ENTITY;
     resNet.remoteGhostSnapshotValid = false;
     resNet.remoteGhostSnapshotRoundIndex = 0u;
-    resNet.remoteGhostSnapshotPos[0] = 0.0f;
-    resNet.remoteGhostSnapshotPos[1] = 0.0f;
-    resNet.remoteGhostSnapshotPos[2] = 0.0f;
+    std::fill(std::begin(resNet.remoteGhostSnapshotPos), std::end(resNet.remoteGhostSnapshotPos), 0.0f);
     resNet.remoteGhostSnapshotRot[0] = 0.0f;
     resNet.remoteGhostSnapshotRot[1] = 0.0f;
     resNet.remoteGhostSnapshotRot[2] = 0.0f;

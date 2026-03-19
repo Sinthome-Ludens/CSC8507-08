@@ -21,7 +21,7 @@
 #include "Game/Utils/Log.h"
 #include "GameTechRendererInterface.h"
 #include "Matrix.h"
-#include "OGLMesh.h"
+#include "Mesh.h"
 
 #include <algorithm>
 
@@ -178,7 +178,7 @@ static void SyncMaterial(GameTechMaterial& nclMat, const C_D_Material& ecsMat) {
 // ============================================================
 /**
  * @brief 为 ECS 实体在 GameWorld 中创建 NCL GameObject 代理对象。
- * @details 从 AssetManager 解析 MeshHandle 取得 OGLMesh 指针，分配 GameObject 并调用
+ * @details 从 AssetManager 解析 MeshHandle 取得 Mesh 指针，分配 GameObject 并调用
  *          SyncMaterial() 初始化材质；透明模式下将 MaterialType 设为 Transparent。
  *          代理指针写入 m_ProxyObjects 映射，随后发布 Evt_Render_ProxyCreated 事件。
  */

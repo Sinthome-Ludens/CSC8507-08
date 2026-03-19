@@ -16,7 +16,7 @@
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Utils/PauseGuard.h"
 #include "Game/Utils/Log.h"
-#include "OGLMesh.h"
+#include "Mesh.h"
 #include <iostream>
 #include <cfloat>
 #include <cmath>

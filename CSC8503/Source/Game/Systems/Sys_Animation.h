@@ -18,7 +18,7 @@
 
 namespace NCL::Rendering {
     class MeshAnimation;
-    class OGLMesh;
+    class Mesh;
 }
 
 namespace ECS {
@@ -43,7 +43,7 @@ public:
 private:
     /// @brief 根据动画句柄和时间采样骨骼矩阵，写入 anim.boneMatrices
     void SampleAnimation(C_D_Animation& anim, NCL::Rendering::MeshAnimation* clip,
-                         NCL::Rendering::OGLMesh* mesh);
+                         NCL::Rendering::Mesh* mesh);
 };
 
 } // namespace ECS

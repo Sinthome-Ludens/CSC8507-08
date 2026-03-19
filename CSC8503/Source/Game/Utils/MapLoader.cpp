@@ -3,7 +3,7 @@
  * @brief Unified map loader implementation.
  *
  * Orchestrates the 8-step map loading sequence, delegating entity creation
- * to PrefabFactory and geometry loading to AssimpLoader / MapPointsLoader /
+ * to PrefabFactory and geometry loading to AssetManager / MapPointsLoader /
  * EnemySpawnLoader / DoorKeyLoader. All coordinate transforms (scale,
  * Y-offset, winding fix) are applied here before passing to PrefabFactory.
  */
@@ -11,7 +11,6 @@
 
 #include "Assets.h"
 #include "Core/Bridge/AssetManager.h"
-#include "Core/Bridge/AssimpLoader.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/MapPointsLoader.h"
 #include "Game/Utils/EnemySpawnLoader.h"
@@ -22,10 +21,17 @@
 
 #include <algorithm>
 #include <cstring>
+#include <fstream>
 
 using namespace NCL::Maths;
 
 namespace ECS {
+
+/// Check if a file exists on disk (quick open test).
+static bool FileExists(const std::string& path) {
+    std::ifstream f(path);
+    return f.good();
+}
 
 MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cubeMesh)
 {
@@ -34,21 +40,76 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
     const float worldY = config.yOffset * scale;
     const Vector3 worldOffset(0.0f, worldY, 0.0f);
 
-    // ── Step 1: Load render mesh (*.obj — correct face normals) ─────────
-    MeshHandle renderMesh = AssetManager::Instance().LoadMesh(
-        NCL::Assets::MESHDIR + config.renderMesh);
-    LOG_INFO("[MapLoader] render mesh '" << config.renderMesh << "' handle=" << renderMesh);
+    // ── Step 1: Load render mesh (GLTF preferred, OBJ fallback) ─────────
+    MeshHandle renderMesh = 0;
+    bool renderFromGltf = false;
 
-    // ── Step 2: Load collision geometry (*_collision.obj) ───────────────
-    std::string collPath = NCL::Assets::MESHDIR + config.collisionMesh;
+    if (config.renderMeshGltf[0] != '\0') {
+        std::string gltfPath = NCL::Assets::MESHDIR + config.renderMeshGltf;
+        if (FileExists(gltfPath)) {
+            LOG_INFO("[MapLoader] render → AssetManager::LoadMesh('" << gltfPath << "')");
+            renderMesh = AssetManager::Instance().LoadMesh(gltfPath);
+            renderFromGltf = true;
+            LOG_INFO("[MapLoader] render mesh '" << config.renderMeshGltf
+                     << "' loaded OK, handle=" << renderMesh);
+        } else {
+            LOG_WARN("[MapLoader] render mesh '" << config.renderMeshGltf
+                     << "' not found at '" << gltfPath << "', falling back to OBJ");
+        }
+    }
+    if (!renderFromGltf) {
+        std::string objPath = NCL::Assets::MESHDIR + config.renderMesh;
+        LOG_INFO("[MapLoader] render → AssetManager::LoadMesh('" << objPath << "')");
+        renderMesh = AssetManager::Instance().LoadMesh(objPath);
+        LOG_INFO("[MapLoader] render mesh '" << config.renderMesh
+                 << "' loaded OK, handle=" << renderMesh);
+    }
+
+    // ── Step 2: Load collision geometry (GLTF preferred, OBJ fallback) ──
+    std::string collPath;
     std::vector<Vector3> collVerts;
     std::vector<int>     collIndices;
-    bool collLoaded = AssimpLoader::LoadCollisionGeometry(collPath, collVerts, collIndices);
+    bool collLoaded = false;
 
-    if (!collLoaded || collVerts.empty()) {
-        collPath = NCL::Assets::MESHDIR + config.renderMesh;
-        collLoaded = AssimpLoader::LoadCollisionGeometry(collPath, collVerts, collIndices);
-        LOG_WARN("[MapLoader] _collision.obj not found, falling back to " << config.renderMesh);
+    // Try GLTF collision mesh first
+    if (config.collisionMeshGltf[0] != '\0') {
+        collPath = NCL::Assets::MESHDIR + config.collisionMeshGltf;
+        if (FileExists(collPath)) {
+            LOG_INFO("[MapLoader] collision → AssetManager::LoadCollisionGeometry('" << collPath << "')");
+            collLoaded = AssetManager::Instance().LoadCollisionGeometry(collPath, collVerts, collIndices);
+            if (collLoaded && !collVerts.empty()) {
+                LOG_INFO("[MapLoader] collision mesh '" << config.collisionMeshGltf
+                         << "' loaded OK (" << collVerts.size() << " verts, "
+                         << collIndices.size() / 3 << " tris)");
+            } else {
+                LOG_WARN("[MapLoader] collision mesh '" << config.collisionMeshGltf
+                         << "' returned no geometry, falling back to OBJ");
+                collLoaded = false;
+                collVerts.clear();
+                collIndices.clear();
+            }
+        } else {
+            LOG_WARN("[MapLoader] collision mesh '" << config.collisionMeshGltf
+                     << "' not found at '" << collPath << "', falling back to OBJ");
+        }
+    }
+
+    // Fallback: OBJ collision mesh
+    if (!collLoaded) {
+        collPath = NCL::Assets::MESHDIR + config.collisionMesh;
+        LOG_INFO("[MapLoader] collision → AssetManager::LoadCollisionGeometry('" << collPath << "')");
+        collLoaded = AssetManager::Instance().LoadCollisionGeometry(collPath, collVerts, collIndices);
+        if (collLoaded && !collVerts.empty()) {
+            LOG_INFO("[MapLoader] collision mesh '" << config.collisionMesh
+                     << "' loaded OK (" << collVerts.size() << " verts, "
+                     << collIndices.size() / 3 << " tris)");
+        } else {
+            // Last resort: use render mesh for collision
+            collPath = NCL::Assets::MESHDIR + config.renderMesh;
+            LOG_WARN("[MapLoader] collision mesh '" << config.collisionMesh
+                     << "' failed, last resort → render mesh '" << config.renderMesh << "'");
+            collLoaded = AssetManager::Instance().LoadCollisionGeometry(collPath, collVerts, collIndices);
+        }
     }
 
     // ── Step 3: Scale vertices + flip winding ──────────────────────────
@@ -73,15 +134,52 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
     result.mapEntity = PrefabFactory::CreateStaticMapEntity(
         reg, renderMesh, collVerts, collIndices, worldOffset, scale);
 
-    // ── Step 5: Finish zone (render + detect) ──────────────────────────
-    if (config.finishMesh[0] != '\0') {
-        MeshHandle finishMesh = AssetManager::Instance().LoadMesh(
-            NCL::Assets::MESHDIR + config.finishMesh);
+    // ── Step 5: Finish zone (GLTF preferred, OBJ fallback) ─────────────
+    if (config.finishMesh[0] != '\0' || config.finishMeshGltf[0] != '\0') {
+        MeshHandle finishMesh = 0;
+        std::string finishGeomPath;
+        bool finishFromGltf = false;
 
+        // Try GLTF first for finish mesh
+        if (config.finishMeshGltf[0] != '\0') {
+            std::string gltfPath = NCL::Assets::MESHDIR + config.finishMeshGltf;
+            if (FileExists(gltfPath)) {
+                LOG_INFO("[MapLoader] finish render → AssetManager::LoadMesh('" << gltfPath << "')");
+                finishMesh = AssetManager::Instance().LoadMesh(gltfPath);
+                finishGeomPath = gltfPath;
+                finishFromGltf = true;
+                LOG_INFO("[MapLoader] finish mesh '" << config.finishMeshGltf
+                         << "' loaded OK, handle=" << finishMesh);
+            } else {
+                LOG_WARN("[MapLoader] finish mesh '" << config.finishMeshGltf
+                         << "' not found at '" << gltfPath << "', falling back to OBJ");
+            }
+        }
+
+        // Fallback to OBJ
+        if (!finishFromGltf && config.finishMesh[0] != '\0') {
+            std::string objPath = NCL::Assets::MESHDIR + config.finishMesh;
+            LOG_INFO("[MapLoader] finish render → AssetManager::LoadMesh('" << objPath << "')");
+            finishMesh = AssetManager::Instance().LoadMesh(objPath);
+            finishGeomPath = objPath;
+            LOG_INFO("[MapLoader] finish mesh '" << config.finishMesh
+                     << "' loaded OK, handle=" << finishMesh);
+        }
+
+        // Load collision geometry for detect position (unified through AssetManager)
         std::vector<Vector3> finVerts;
         std::vector<int> finIdx;
-        AssimpLoader::LoadCollisionGeometry(
-            NCL::Assets::MESHDIR + config.finishMesh, finVerts, finIdx);
+        if (!finishGeomPath.empty()) {
+            LOG_INFO("[MapLoader] finish collision → AssetManager::LoadCollisionGeometry('" << finishGeomPath << "')");
+            bool ok = AssetManager::Instance().LoadCollisionGeometry(finishGeomPath, finVerts, finIdx);
+            if (ok) {
+                LOG_INFO("[MapLoader] finish collision loaded OK ("
+                         << finVerts.size() << " verts, " << finIdx.size() / 3 << " tris)");
+            } else {
+                LOG_WARN("[MapLoader] finish collision '" << finishGeomPath
+                         << "' failed, no collision geometry for finish zone");
+            }
+        }
 
         Vector3 objCenter(0, 0, 0);
         if (!finVerts.empty()) {

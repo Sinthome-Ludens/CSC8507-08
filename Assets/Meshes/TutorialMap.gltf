@@ -1,0 +1,11 @@
+{
+  "asset":{"version":"2.0","generator":"Unity MultiObjectMapAndNavMeshExporter"},
+  "scene":0,
+  "scenes":[{"name":"Scene","nodes":[0]}],
+  "nodes":[{"name":"TutorialLevel","children":[1]},{"name":"map","mesh":0}],
+  "meshes":[{"name":"map","primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3,"material":0}]}],
+  "accessors":[{"bufferView":0,"componentType":5126,"count":648,"type":"VEC3","min":[-20,-0.5,-20.5],"max":[20.5,3,20.5]},{"bufferView":1,"componentType":5126,"count":648,"type":"VEC3"},{"bufferView":2,"componentType":5126,"count":648,"type":"VEC2"},{"bufferView":3,"componentType":5125,"count":972,"type":"SCALAR"}],
+  "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":7776,"target":34962},{"buffer":0,"byteOffset":7776,"byteLength":7776,"target":34962},{"buffer":0,"byteOffset":15552,"byteLength":5184,"target":34962},{"buffer":0,"byteOffset":20736,"byteLength":3888,"target":34963}],
+  "buffers":[{"uri":"TutorialMap.bin","byteLength":24624}],
+  "materials":[{"name":"map_mat","pbrMetallicRoughness":{"baseColorFactor":[1.0000,1.0000,1.0000,1.0000],"metallicFactor":0,"roughnessFactor":1}}]
+}

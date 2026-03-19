@@ -9,7 +9,7 @@
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Utils/Log.h"
 
-#include "OGLMesh.h"
+#include "Mesh.h"
 #include "MeshAnimation.h"
 
 #include <cmath>
@@ -44,7 +44,7 @@ void Sys_Animation::OnUpdate(Registry& registry, float dt) {
             MeshAnimation* clip = am.GetAnimation(anim.animHandle);
             if (!clip) return;
 
-            OGLMesh* mesh = static_cast<OGLMesh*>(am.GetMesh(mr.meshHandle));
+            Mesh* mesh = am.GetMesh(mr.meshHandle);
             if (!mesh) return;
 
             // 推进时间
@@ -65,7 +65,7 @@ void Sys_Animation::OnUpdate(Registry& registry, float dt) {
 
 void Sys_Animation::SampleAnimation(C_D_Animation& anim,
                                      MeshAnimation* clip,
-                                     OGLMesh* mesh) {
+                                     Mesh* mesh) {
     const int   frameCount  = (int)clip->GetFrameCount();
     const float frameRate   = clip->GetFrameRate();
     const int   jointCount  = (int)clip->GetJointCount();
