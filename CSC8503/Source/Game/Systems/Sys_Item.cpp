@@ -94,7 +94,7 @@ void Sys_Item::OnDestroy(Registry& registry) {
     if (registry.has_ctx<Res_ItemInventory2>()) {
         bool isVictory = false;
         if (registry.has_ctx<Res_GameState>()) {
-            isVictory = (registry.ctx<Res_GameState>().gameOverReason == 3);
+            isVictory = (registry.ctx<Res_GameState>().gameOverReason == GameOverReason::Success);
         }
         registry.ctx<Res_ItemInventory2>().OnRoundEnd(isVictory);
         LOG_INFO("[Sys_Item] OnDestroy: round end (victory=" << isVictory << ").");

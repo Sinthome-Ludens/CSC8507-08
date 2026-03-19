@@ -33,6 +33,8 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
+static constexpr float kDegToRad = 3.14159265f / 180.0f;
+
 namespace {
 
 /**
@@ -492,7 +494,7 @@ void Sys_ImGui::SpawnCube(Registry& registry) {
             auto& cam = registry.Get<C_D_Camera>   (camCtx.active_camera);
 
             // 计算水平前方向量（忽略 pitch，避免生成在地下或天上）
-            const float yawRad = cam.yaw * (3.14159265f / 180.0f);
+            const float yawRad = cam.yaw * kDegToRad;
             const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
 
             // 在相机前方 5 单位处、相机高度上方 2 单位生成
@@ -565,8 +567,8 @@ void Sys_ImGui::SpawnCapsule(Registry& registry) {
         {
             auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
             auto& cam = registry.Get<C_D_Camera>(camCtx.active_camera);
-            const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
-            const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
+            const float yawRad   = cam.yaw   * kDegToRad;
+            const float pitchRad = cam.pitch * kDegToRad;
             const Vector3 forward(
                 -sinf(yawRad) * cosf(pitchRad),
                  sinf(pitchRad),

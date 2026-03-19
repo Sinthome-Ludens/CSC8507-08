@@ -31,6 +31,7 @@
 #include "Game/Components/C_D_NavAgent.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/C_T_Pathfinder.h"
+#include "Game/Components/Res_DeathEffectConfig.h"
 #include "Game/Utils/Log.h"
 
 namespace ECS {
@@ -52,6 +53,8 @@ static uint32_t QuickHash(uint32_t seed, uint32_t salt) {
  */
 void Sys_DeathEffect::OnUpdate(Registry& registry, float dt) {
     PAUSE_GUARD(registry);
+    Res_DeathEffectConfig defaultFxCfg;
+    const auto& fx = registry.has_ctx<Res_DeathEffectConfig>() ? registry.ctx<Res_DeathEffectConfig>() : defaultFxCfg;
     std::vector<EntityID> toDestroy;
 
     registry.view<C_D_Dying, C_D_Transform, C_D_DeathVisual>().each(
@@ -89,99 +92,90 @@ void Sys_DeathEffect::OnUpdate(Registry& registry, float dt) {
             auto& mat = registry.Get<C_D_Material>(id);
 
             // ════════════════════════════════════════════════════
-            // Phase 1: 数字冲击 (0.00 - 0.15s)
+            // Phase 1: 数字冲击
             // ════════════════════════════════════════════════════
-            if (t < 0.15f) {
+            if (t < fx.phase1End) {
                 dv.colourOverride    = {1.0f, 1.0f, 1.0f, 1.0f};
-                mat.emissiveColor    = {0.0f, 1.0f, 1.0f};   // 青色
-                mat.emissiveStrength = 4.0f;
-                mat.rimPower         = 2.0f;
-                mat.rimStrength      = 1.5f;
+                mat.emissiveColor    = {0.0f, 1.0f, 1.0f};
+                mat.emissiveStrength = fx.p1_emissiveStrength;
+                mat.rimPower         = fx.p1_rimPower;
+                mat.rimStrength      = fx.p1_rimStrength;
             }
             // ════════════════════════════════════════════════════
-            // Phase 2: 霓虹故障 (0.15 - 0.55s)
+            // Phase 2: 霓虹故障
             // ════════════════════════════════════════════════════
-            else if (t < 0.55f) {
-                float phase2T = t - 0.15f;   // 0.0 ~ 0.4
+            else if (t < fx.phase2End) {
+                float phase2T = t - fx.phase1End;
 
-                // 三色高频循环 (12.5Hz → 周期 0.08s)
-                int colorIdx = (int)(phase2T * 12.5f) % 3;
+                int colorIdx = (int)(phase2T * fx.p2_colorCycleHz) % 3;
                 switch (colorIdx) {
-                    case 0: mat.emissiveColor = {0.0f, 1.0f, 1.0f}; break; // 青色
-                    case 1: mat.emissiveColor = {1.0f, 0.0f, 0.8f}; break; // 品红
-                    case 2: mat.emissiveColor = {1.0f, 0.8f, 0.0f}; break; // 黄色
+                    case 0: mat.emissiveColor = {0.0f, 1.0f, 1.0f}; break;
+                    case 1: mat.emissiveColor = {1.0f, 0.0f, 0.8f}; break;
+                    case 2: mat.emissiveColor = {1.0f, 0.8f, 0.0f}; break;
                 }
 
-                // emissive 脉冲 1.5~3.0 (25Hz sin 波)
-                float sinPulse = sinf(phase2T * 25.0f * kPI * 2.0f);
-                mat.emissiveStrength = 2.25f + 0.75f * sinPulse;
+                float sinPulse = sinf(phase2T * fx.p2_pulseHz * kPI * 2.0f);
+                mat.emissiveStrength = fx.p2_pulseMid + fx.p2_pulseAmp * sinPulse;
 
-                // alpha 闪烁：hash 驱动 1.0 / 0.3
-                uint32_t flickerHash = QuickHash(dying.seed, (uint32_t)(t * 80.0f));
-                float alpha = (flickerHash % 3 == 0) ? 0.3f : 1.0f;
+                uint32_t flickerHash = QuickHash(dying.seed, (uint32_t)(t * fx.p2_flickerHz));
+                float alpha = (flickerHash % 3 == 0) ? fx.p2_flickerOff : fx.p2_flickerOn;
                 dv.colourOverride = {1.0f, 1.0f, 1.0f, alpha};
 
-                // 轴抖动：各轴 +-5% 随机缩放
                 auto jitter = [&](uint32_t axis) -> float {
-                    uint32_t h = QuickHash(dying.seed + axis, (uint32_t)(t * 60.0f));
-                    return 1.0f + ((float)(h % 100) / 100.0f - 0.5f) * 0.10f;
+                    uint32_t h = QuickHash(dying.seed + axis, (uint32_t)(t * fx.p2_jitterHz));
+                    return 1.0f + ((float)(h % 100) / 100.0f - 0.5f) * fx.p2_jitterAmp;
                 };
                 tf.scale.x = dv.originalScale.x * jitter(0);
                 tf.scale.y = dv.originalScale.y * jitter(1);
                 tf.scale.z = dv.originalScale.z * jitter(2);
 
-                mat.rimPower   = 3.0f;
-                mat.rimStrength = 0.8f;
+                mat.rimPower   = fx.p2_rimPower;
+                mat.rimStrength = fx.p2_rimStrength;
             }
             // ════════════════════════════════════════════════════
-            // Phase 3: 数据溶解 (0.55 - 1.00s)
+            // Phase 3: 数据溶解
             // ════════════════════════════════════════════════════
-            else if (t < 1.00f) {
-                float phase3T = (t - 0.55f) / 0.45f;  // 0.0 ~ 1.0
+            else if (t < fx.phase3End) {
+                float p3Dur = fx.phase3End - fx.phase2End;
+                float phase3T = (p3Dur > 0.001f) ? (t - fx.phase2End) / p3Dur : 1.0f;
 
-                // 青色 emissive 渐弱 2.0 → 0.3
                 mat.emissiveColor    = {0.0f, 1.0f, 1.0f};
-                mat.emissiveStrength = 2.0f - 1.7f * phase3T;
+                mat.emissiveStrength = fx.p3_emissiveStart - fx.p3_emissiveDecay * phase3T;
 
-                // alpha 平滑淡出 1.0 → 0.15，偶发 stutter 跳回 0.6
-                float baseAlpha = 1.0f - 0.85f * phase3T;
-                uint32_t stutterHash = QuickHash(dying.seed, (uint32_t)(t * 20.0f));
-                if (stutterHash % 8 == 0) baseAlpha = 0.6f;
+                float baseAlpha = fx.p3_alphaStart - fx.p3_alphaDecay * phase3T;
+                uint32_t stutterHash = QuickHash(dying.seed, (uint32_t)(t * fx.p3_stutterHz));
+                if (stutterHash % fx.p3_stutterModulo == 0) baseAlpha = fx.p3_stutterAlpha;
                 dv.colourOverride = {1.0f, 1.0f, 1.0f, baseAlpha};
 
-                // Y 轴拉伸 100%→120%，XZ 收缩 100%→60%
-                float yScale  = 1.0f + 0.2f * phase3T;
-                float xzScale = 1.0f - 0.4f * phase3T;
+                float yScale  = 1.0f + fx.p3_yStretch * phase3T;
+                float xzScale = 1.0f - fx.p3_xzShrink * phase3T;
                 tf.scale.x = dv.originalScale.x * xzScale;
                 tf.scale.y = dv.originalScale.y * yScale;
                 tf.scale.z = dv.originalScale.z * xzScale;
 
-                mat.rimPower   = 3.0f + 2.0f * phase3T;
-                mat.rimStrength = 0.8f - 0.6f * phase3T;
+                mat.rimPower   = fx.p3_rimPowerStart + fx.p3_rimPowerGrow * phase3T;
+                mat.rimStrength = fx.p3_rimStrengthStart - fx.p3_rimStrengthDecay * phase3T;
             }
             // ════════════════════════════════════════════════════
-            // Phase 4: 最终崩塌 (1.00 - 1.20s)
+            // Phase 4: 最终崩塌
             // ════════════════════════════════════════════════════
             else {
-                float phase4T = std::min((t - 1.00f) / 0.20f, 1.0f);  // 0.0 ~ 1.0
+                float p4Dur = fx.phase4End - fx.phase3End;
+                float phase4T = (p4Dur > 0.001f) ? std::min((t - fx.phase3End) / p4Dur, 1.0f) : 1.0f;
 
-                // 品红色闪光 emissive 1.0 → 0
                 mat.emissiveColor    = {1.0f, 0.0f, 0.8f};
-                mat.emissiveStrength = 1.0f - phase4T;
+                mat.emissiveStrength = fx.p4_emissiveStart * (1.0f - phase4T);
 
-                // alpha 0.15 → 0
-                float alpha = 0.15f * (1.0f - phase4T);
+                float alpha = fx.p4_alphaStart * (1.0f - phase4T);
                 dv.colourOverride = {1.0f, 1.0f, 1.0f, alpha};
 
-                // 全轴收缩至 10%
-                float scaleFactor = 1.0f - 0.9f * phase4T;
-                // 从 Phase 3 终态出发：Y=120%, XZ=60%
-                tf.scale.x = dv.originalScale.x * 0.6f * scaleFactor;
-                tf.scale.y = dv.originalScale.y * 1.2f * scaleFactor;
-                tf.scale.z = dv.originalScale.z * 0.6f * scaleFactor;
+                float scaleFactor = 1.0f - fx.p4_scaleCollapse * phase4T;
+                tf.scale.x = dv.originalScale.x * fx.p3EndXZScale * scaleFactor;
+                tf.scale.y = dv.originalScale.y * fx.p3EndYScale  * scaleFactor;
+                tf.scale.z = dv.originalScale.z * fx.p3EndXZScale * scaleFactor;
 
-                mat.rimPower   = 5.0f;
-                mat.rimStrength = 0.0f;
+                mat.rimPower   = fx.p4_rimPower;
+                mat.rimStrength = fx.p4_rimStrength;
             }
 
             // ── 动画结束 ──

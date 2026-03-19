@@ -62,6 +62,7 @@
 #include "Game/Scenes/Scene_NavTest.h"
 #include "Game/Scenes/Scene_NetworkGame.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_ScoreConfig.h"
 #include "Game/Utils/WindowHelper.h"
 #include "Game/Utils/Log.h"
 
@@ -87,15 +88,8 @@ void DisplayPathfinding() {}
 // 辅助函数
 // ============================================================
 
-/// 处理键盘快捷键
-static void HandleKeyboardShortcuts(Window* w) {
-    if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
-        w->ShowConsole(true);
-    }
-    if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
-        w->ShowConsole(false);
-    }
-}
+/// 键盘快捷键已迁移到 ECS（Sys_UI 通过 Res_Input 处理）。
+/// 原 HandleKeyboardShortcuts() 及 ShowConsole 功能已删除，无实际使用场景。
 
 /// 更新窗口标题
 static void UpdateWindowTitle(Window* w, float dt) {
@@ -115,16 +109,35 @@ static IScene* CreateMapScene(uint8_t mapId) {
     }
 }
 
+/// 根据 debug 场景索引创建对应场景实例
+/// Debug scene IDs: 0=MainMenu, 1=PhysicsTest, 2=NavTest, 3=Tutorial,
+/// 4=HangerA, 5=HangerB, 6=Helipad, 7=Lab, 8=Dock, 9=NetworkServer
+static IScene* CreateDebugScene(int index) {
+    switch (index) {
+        case 0: return new Scene_MainMenu();
+        case 1: return new Scene_PhysicsTest();
+        case 2: return new Scene_NavTest();
+        case 3: return new Scene_TutorialLevel();
+        case 4: return new Scene_HangerA();
+        case 5: return new Scene_HangerB();
+        case 6: return new Scene_Helipad();
+        case 7: return new Scene_Lab();
+        case 8: return new Scene_Dock();
+        case 9: return new Scene_NetworkGame(ECS::PeerType::SERVER);
+        default: return new Scene_MainMenu();
+    }
+}
+
 /// 地图名称（调试用）
 static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock" };
 
-/// 重置战役积分到初始状态（1000 分，所有分项归零）。
-static void ResetCampaignScore(ECS::Res_UIState& ui) {
-    ui.campaignScore                = 1000;
+/// 重置战役积分到初始状态（由 Res_ScoreConfig 驱动，所有分项归零）。
+static void ResetCampaignScore(ECS::Res_UIState& ui, const ECS::Res_ScoreConfig& scoreCfg = {}) {
+    ui.campaignScore                = scoreCfg.initialScore;
     ui.scoreDecayAccum              = 0.0f;
     ui.countdownScorePenaltyApplied = false;
     ui.failureScorePenaltyApplied   = false;
-    ui.lastScoreRatingTier          = 7;  // SSS
+    ui.lastScoreRatingTier          = static_cast<int8_t>(ECS::Res_ScoreConfig::RATING_COUNT - 1);
     ui.scoreLost_time      = 0;
     ui.scoreLost_kills     = 0;
     ui.scoreLost_items     = 0;
@@ -267,24 +280,8 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
         auto& flags = reg.ctx<Res_UIFlags>();
         if (flags.debugSceneIndex >= 0) {
             const int debugSceneIndex = flags.debugSceneIndex;
-            switch (flags.debugSceneIndex) {
-                case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());    break;
-                case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest()); break;
-                case 2: sceneManager.RequestSceneChange(new Scene_NavTest());     break;
-                case 3: sceneManager.RequestSceneChange(new Scene_TutorialLevel()); break;
-                case 4: sceneManager.RequestSceneChange(new Scene_HangerA());     break;
-                case 5: sceneManager.RequestSceneChange(new Scene_HangerB());     break;
-                case 6: sceneManager.RequestSceneChange(new Scene_Helipad());     break;
-                case 7: sceneManager.RequestSceneChange(new Scene_Lab());         break;
-                case 8: sceneManager.RequestSceneChange(new Scene_Dock());        break;
-                case 9: sceneManager.RequestSceneChange(
-                        new Scene_NetworkGame(ECS::PeerType::SERVER));        break;
-                default: break;
-            }
-
-            if (debugSceneIndex >= 0 && debugSceneIndex <= 9) {
-                ClearNetworkMode(reg);
-            }
+            sceneManager.RequestSceneChange(CreateDebugScene(debugSceneIndex));
+            ClearNetworkMode(reg);
             if (reg.has_ctx<ECS::Res_UIState>()) {
                 auto& uiDbg = reg.ctx<ECS::Res_UIState>();
                 uiDbg.mapSequenceGenerated = false;
@@ -326,19 +323,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         } else if (ui.debugCurrentScene == 9) {
                             PreserveNetworkSession(reg);
                         }
-                        switch (ui.debugCurrentScene) {
-                            case 0: sceneManager.RequestSceneChange(new Scene_MainMenu());       break;
-                            case 1: sceneManager.RequestSceneChange(new Scene_PhysicsTest());    break;
-                            case 2: sceneManager.RequestSceneChange(new Scene_NavTest());        break;
-                            case 3: sceneManager.RequestSceneChange(new Scene_TutorialLevel());  break;
-                            case 4: sceneManager.RequestSceneChange(new Scene_HangerA());        break;
-                            case 5: sceneManager.RequestSceneChange(new Scene_HangerB());        break;
-                            case 6: sceneManager.RequestSceneChange(new Scene_Helipad());        break;
-                            case 7: sceneManager.RequestSceneChange(new Scene_Lab());            break;
-                            case 8: sceneManager.RequestSceneChange(new Scene_Dock());           break;
-                            case 9: sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::SERVER)); break;
-                            default: sceneManager.RequestSceneChange(new Scene_MainMenu());      break;
-                        }
+                        sceneManager.RequestSceneChange(CreateDebugScene(ui.debugCurrentScene));
                     } else {
                         // 正常流程：重新随机 5 抽 3 序列，从头开始
                         if (isMultiplayer) {
@@ -558,9 +543,6 @@ int main(int argc, char** argv) {
                 std::cout << "Skipping large time delta" << std::endl;
                 continue;
             }
-
-            // 键盘快捷键
-            HandleKeyboardShortcuts(w);
 
             // 窗口标题更新
             UpdateWindowTitle(w, dt);

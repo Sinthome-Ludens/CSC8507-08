@@ -13,6 +13,7 @@
 #include "Game/Components/Res_GameState.h"
 #include "Game/Utils/Log.h"
 
+#include "Game/Components/Res_ScoreConfig.h"
 #ifdef USE_IMGUI
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_ToastState.h"
@@ -32,8 +33,12 @@ void Sys_LevelGoal::OnAwake(Registry& /*registry*/) {
 
 /**
  * @brief 每帧检测玩家与所有 C_T_FinishZone 实体的 XZ 距离。
- * @details 当距离 < 4m 时设置 Res_GameState::gameOverReason = 3（任务成功），
- *          并切换 UI 到 GameOver 画面、推送 Toast 通知。仅触发一次。
+ * @details 单人模式下，当距离 < 4m 且高度差在阈值内时，设置
+ *          Res_GameState::gameOverReason = 3（任务成功），切换 UI 到
+ *          GameOver 画面并推送 Toast 通知，仅触发一次。
+ *          多人模式下，每次到达终点会推进关卡进度；到达最终关卡终点时：
+ *          - 若分数达标，则设置 gameOverReason = 3（战役成功结束）；
+ *          - 若分数过低，则设置 gameOverReason = 2（分数不足导致的失败）。
  * @param registry ECS 注册表
  * @param dt       帧时间（未使用）
  */
@@ -84,7 +89,9 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 
                 if (isMultiplayer) {
                     auto& gs = registry.ctx<Res_GameState>();
-                    int32_t campaignScore = 1000;
+                    Res_ScoreConfig defaultScoreCfg;
+                    const auto& scoreCfg = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
+                    int32_t campaignScore = scoreCfg.initialScore;
 #ifdef USE_IMGUI
                     Res_UIState* uiState = registry.has_ctx<Res_UIState>()
                         ? &registry.ctx<Res_UIState>()
@@ -100,11 +107,13 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                     gs.localProgress = gs.localStageProgress;
                     gs.roundJustAdvanced = true;
                     if (gs.localStageProgress >= kMultiplayerStageCount) {
-                        const bool scorePassed = campaignScore > 500;
+                        const bool scorePassed = campaignScore > scoreCfg.passThreshold;
                         gs.localTerminalState = scorePassed
                             ? MultiplayerTerminalState::FinishedVictory
                             : MultiplayerTerminalState::FinishedScoreFail;
-                        gs.localTerminalReason = scorePassed ? 3u : 2u;
+                        gs.localTerminalReason = scorePassed
+                            ? ToU8(GameOverReason::Success)
+                            : ToU8(GameOverReason::Detected);
                     }
 
 #ifdef USE_IMGUI
@@ -117,16 +126,12 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                             ui.pendingSceneRequest = SceneRequest::NextLevel;
                             UI::PushToast(registry, "AREA CLEAR - MOVING OUT", ToastType::Success, 2.0f);
                         } else {
-                            const bool scorePassed = ui.campaignScore > 500;
+                            const bool scorePassed = ui.campaignScore > scoreCfg.passThreshold;
                             UI::PushToast(registry,
                                           scorePassed ? "FINAL STAGE CLEAR" : "SCORE TOO LOW",
                                           scorePassed ? ToastType::Success : ToastType::Warning,
                                           2.0f);
                         }
-                    }
-#else
-                    if (gs.localStageProgress >= kMultiplayerStageCount) {
-                        gs.isGameOver = true;
                     }
 #endif
                     return;
@@ -161,22 +166,24 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                                  << (int)ui.mapSequenceIndex << ")");
                     } else {
                         // ── 最终关：累加时间，战役→Victory / 非战役→GameOver ──
+                        Res_ScoreConfig defaultScoreCfg;
+                        const auto& scFinal = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
                         if (registry.has_ctx<Res_GameState>()) {
                             auto& gs = registry.ctx<Res_GameState>();
                             gs.isGameOver     = true;
-                            gs.gameOverReason = 3;
+                            gs.gameOverReason = GameOverReason::Success;
                             ui.totalPlayTime += gs.playTime;
                         }
-                        // 积分≤500 → 即使通关也判失败
-                        if (ui.mapSequenceGenerated && ui.campaignScore > 500) {
+                        const bool finalPassed = ui.campaignScore > scFinal.passThreshold;
+                        if (ui.mapSequenceGenerated && finalPassed) {
                             ui.activeScreen = UIScreen::Victory;
                         } else {
                             ui.activeScreen = UIScreen::GameOver;
                             ui.gameOverSelectedIndex = 0;
                         }
                         UI::PushToast(registry,
-                                      ui.campaignScore > 500 ? "MISSION COMPLETE" : "MISSION FAILED",
-                                      ui.campaignScore > 500 ? ToastType::Success : ToastType::Warning,
+                                      finalPassed ? "MISSION COMPLETE" : "MISSION FAILED",
+                                      finalPassed ? ToastType::Success : ToastType::Warning,
                                       3.0f);
                     }
                 }
@@ -184,7 +191,7 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                 if (registry.has_ctx<Res_GameState>()) {
                     auto& gs = registry.ctx<Res_GameState>();
                     gs.isGameOver     = true;
-                    gs.gameOverReason = 3;
+                    gs.gameOverReason = GameOverReason::Success;
                 }
 #endif
             }

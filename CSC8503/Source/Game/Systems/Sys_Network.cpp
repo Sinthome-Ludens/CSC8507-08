@@ -29,6 +29,7 @@
 #include "Game/Events/Evt_Net_GameAction.h"
 #include "Core/ECS/EventBus.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_InputConfig.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_PlayerInput.h"
 #include "Core/Bridge/AssetManager.h"
@@ -392,7 +393,7 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                         gs.matchResult = MatchResult::Disconnected;
                         gs.matchJustFinished = true;
                         gs.isGameOver = true;
-                        gs.gameOverReason = 0;
+                        gs.gameOverReason = GameOverReason::None;
                     }
                 }
                 UpdateMatchUIState(reg);
@@ -488,10 +489,10 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
         || (previousOpponentProgress != gs.opponentStageProgress);
 
     if (incomingPhase == MatchPhase::Finished) {
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.gameOverReason = ToGameOverReason(ComputeGameOverReasonForResult(gs.matchResult));
         gs.isGameOver = true;
     } else {
-        gs.gameOverReason = 0u;
+        gs.gameOverReason = GameOverReason::None;
         gs.isGameOver = false;
     }
 
@@ -719,11 +720,14 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
     if (!reg.has_ctx<Res_Input>()) return;
     auto& input = reg.ctx<Res_Input>();
 
+    Res_InputConfig defaultCfg;
+    const auto& cfg = reg.has_ctx<Res_InputConfig>() ? reg.ctx<Res_InputConfig>() : defaultCfg;
+
     uint32_t currentMask = 0;
-    if (input.keyStates[NCL::KeyCodes::UP])    currentMask |= PlayerInputFlags::Up;
-    if (input.keyStates[NCL::KeyCodes::DOWN])  currentMask |= PlayerInputFlags::Down;
-    if (input.keyStates[NCL::KeyCodes::LEFT])  currentMask |= PlayerInputFlags::Left;
-    if (input.keyStates[NCL::KeyCodes::RIGHT]) currentMask |= PlayerInputFlags::Right;
+    if (input.keyStates[cfg.keyChatUp])    currentMask |= PlayerInputFlags::Up;
+    if (input.keyStates[cfg.keyChatDown])  currentMask |= PlayerInputFlags::Down;
+    if (input.keyStates[cfg.keyChatLeft])  currentMask |= PlayerInputFlags::Left;
+    if (input.keyStates[cfg.keyChatRight]) currentMask |= PlayerInputFlags::Right;
     
     // --- 1. Client：收集输入并发送给 Server ---
     if (resNet.mode == PeerType::CLIENT && resNet.peer != nullptr) {
@@ -963,7 +967,7 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
     const uint8_t clientStage = gs.opponentStageProgress;
     const uint8_t roundIndex = gs.currentRoundIndex;
     const uint8_t gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
-    gs.gameOverReason = gameOverReason;
+    gs.gameOverReason = ToGameOverReason(gameOverReason);
 
     const bool dirty = force
         || m_LastBroadcastPhase != phase
@@ -1119,7 +1123,7 @@ void Sys_Network::ResetMatchStateForRestart(Registry& reg) {
             gs.localTerminalReason = 0u;
             gs.remoteTerminalReason = 0u;
             gs.isGameOver = false;
-            gs.gameOverReason = 0;
+            gs.gameOverReason = GameOverReason::None;
             gs.gameOverTime = 0.0f;
             gs.countdownActive = false;
             gs.countdownTimer = gs.countdownMax;
@@ -1302,7 +1306,7 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
         gs.matchResult = MatchResult::None;
         gs.authoritativeMatchFinished = false;
         gs.isGameOver = false;
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.gameOverReason = ToGameOverReason(ComputeGameOverReasonForResult(gs.matchResult));
         return;
     }
 
@@ -1318,7 +1322,7 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
     }
     gs.authoritativeMatchFinished = true;
     gs.isGameOver = true;
-    gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+    gs.gameOverReason = ToGameOverReason(ComputeGameOverReasonForResult(gs.matchResult));
     if (previousPhase != MatchPhase::Finished) {
         gs.matchJustFinished = true;
     }

@@ -17,7 +17,8 @@
 #include <cstdio>
 #include <cstring>
 #include <iterator>
-#include "Window.h"
+#include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_ItemInventory2.h"
 #include "Game/Components/Res_ToastState.h"
@@ -54,6 +55,8 @@ static const char* kMapDescs[] = {
 void RenderMissionSelect(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
+    const auto& input = registry.ctx<Res_Input>();
+    const auto& uiCfg = registry.ctx<Res_UIKeyConfig>();
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
@@ -138,16 +141,15 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     }
 
     // ── Keyboard navigation ────────────────────────────────
-    const Keyboard* kb = Window::GetKeyboard();
     constexpr int kTabCount = 3;
     int tabItemCounts[kTabCount] = { kMapCount, gadgetCount, weaponCount };
 
-    if (kb) {
+    {
         // A/D: switch tab
-        if (kb->KeyPressed(KeyCodes::A) || kb->KeyPressed(KeyCodes::LEFT)) {
+        if (input.keyPressed[uiCfg.keyMenuLeft] || input.keyPressed[uiCfg.keyMenuLeftAlt]) {
             ui.missionSelectedTab = (ui.missionSelectedTab - 1 + kTabCount) % kTabCount;
         }
-        if (kb->KeyPressed(KeyCodes::D) || kb->KeyPressed(KeyCodes::RIGHT)) {
+        if (input.keyPressed[uiCfg.keyMenuRight] || input.keyPressed[uiCfg.keyMenuRightAlt]) {
             ui.missionSelectedTab = (ui.missionSelectedTab + 1) % kTabCount;
         }
 
@@ -155,11 +157,11 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
         int maxIdx = tabItemCounts[curTab];
         if (maxIdx > 0) {
             // W/S: navigate within tab
-            if (kb->KeyPressed(KeyCodes::W) || kb->KeyPressed(KeyCodes::UP)) {
+            if (input.keyPressed[uiCfg.keyMenuUp] || input.keyPressed[uiCfg.keyMenuUpAlt]) {
                 ui.missionCursorPerTab[curTab] =
                     (ui.missionCursorPerTab[curTab] - 1 + maxIdx) % maxIdx;
             }
-            if (kb->KeyPressed(KeyCodes::S) || kb->KeyPressed(KeyCodes::DOWN)) {
+            if (input.keyPressed[uiCfg.keyMenuDown] || input.keyPressed[uiCfg.keyMenuDownAlt]) {
                 ui.missionCursorPerTab[curTab] =
                     (ui.missionCursorPerTab[curTab] + 1) % maxIdx;
             }
@@ -179,8 +181,6 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
 
     ImFont* termFont  = UITheme::GetFont_Terminal();
     ImFont* smallFont = UITheme::GetFont_Small();
-    const Mouse* mouse = Window::GetMouse();
-
     // ── Tab headers ────────────────────────────────────────
     const char* tabLabels[] = { "MAP", "ITEMS (MAX 2)", "WEAPONS (MAX 2)" };
     float tabXs[] = { col0X, col1X, col2X };
@@ -253,7 +253,7 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             ImVec2 itemMax(colX + colW, itemY + entryH - 8.0f);
 
             // Mouse hover
-            if (mouse) {
+            {
                 ImVec2 mp = ImGui::GetMousePos();
                 if (mp.x >= itemMin.x && mp.x <= itemMax.x &&
                     mp.y >= itemMin.y && mp.y <= itemMax.y) {
@@ -336,8 +336,8 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     }
 
     // ── Enter key: equip/unequip or select map ─────────────
-    bool enterPressed = kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE));
-    bool mouseClicked = mouse && mouse->ButtonPressed(NCL::MouseButtons::Left);
+    bool enterPressed = input.keyPressed[uiCfg.keyConfirm] || input.keyPressed[uiCfg.keyConfirmAlt];
+    bool mouseClicked = input.mouseButtonPressed[uiCfg.mouseConfirm];
 
     // Determine clicked tab/index from mouse
     int clickedTab = -1;
@@ -412,7 +412,7 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     ImVec2 btnMax(btnX + btnW, btnY + btnH);
 
     bool btnHovered = false;
-    if (mouse) {
+    {
         ImVec2 mp = ImGui::GetMousePos();
         btnHovered = (mp.x >= btnMin.x && mp.x <= btnMax.x &&
                       mp.y >= btnMin.y && mp.y <= btnMax.y);
@@ -432,10 +432,10 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     if (termFont) ImGui::PopFont();
 
     bool btnClicked = false;
-    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left) && btnHovered) {
+    if (input.mouseButtonPressed[uiCfg.mouseConfirm] && btnHovered) {
         btnClicked = true;
     }
-    if (kb && kb->KeyPressed(KeyCodes::C)) {
+    if (input.keyPressed[uiCfg.keyDeploy]) {
         btnClicked = true;
     }
 

@@ -19,11 +19,6 @@ class Sys_Movement : public ISystem {
 public:
     void OnUpdate(Registry& registry, float dt) override;
 
-private:
-    // ── 速度常量 ──
-    static constexpr float BASE_SPEED    = 5.0f;    ///< 基准速度（站立行走）
-    static constexpr float BASE_FORCE    = 80.0f;   ///< 基准驱动力
-    static constexpr float RUN_SPEED_MUL = 1.5f;    ///< 奔跑倍率 → 7.5
 };
 
 } // namespace ECS
