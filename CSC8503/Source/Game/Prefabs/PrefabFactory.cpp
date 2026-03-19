@@ -325,10 +325,14 @@ EntityID PrefabFactory::CreatePlayer(
 /**
  * @brief 通过玩家预制体创建“幽灵玩家”可视实体。
  * @details 先调用 CreatePlayer 复用完整的玩家预制体搭建（模型、层级、调试名等），
- *          确保幽灵与真实玩家在外观与变换上完全一致。随后在同一函数调用内立即剥离
- *          输入、玩家状态、近战、生命、导航目标以及刚体 / 碰撞体等物理与玩法组件，
- *          避免在任意系统 Tick 间隙被当作真实玩家或物理实体参与处理。最后按需补充
- *          插值缓冲与半透明轮廓材质，使其仅作为网络 / 回放等用途的纯可视“ghost”。
+ *          保留 Transform / MeshRenderer 等渲染与层级信息，使幽灵与真实玩家在外观与
+ *          变换上完全一致。随后在同一函数调用内立即移除一组会参与输入、物理或玩法
+ *          逻辑的组件：C_T_Player、C_D_Input、C_D_PlayerState、C_D_CQCState、
+ *          C_D_Health、C_T_NavTarget、C_D_RigidBody、C_D_Collider，确保在任意系统
+ *          Tick 间隙都不会被当作可驾驶玩家或物理实体参与处理。之后保证存在
+ *          C_D_InterpBuffer，用于网络或回放数据驱动的平滑插值。最后覆盖（或补充）
+         C_D_Material，将材质配置为半透明混合模式、冷色调高亮轮廓与适度自发光，以
+         视觉上明显区分幽灵与本地实体，同时保持其严格为“只读”的纯可视 ghost 表示。
  */
 EntityID PrefabFactory::CreateGhostPlayer(
     Registry&   reg,
