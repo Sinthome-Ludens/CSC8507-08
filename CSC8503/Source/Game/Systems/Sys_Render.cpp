@@ -23,6 +23,8 @@
 #include "Matrix.h"
 #include "OGLMesh.h"
 
+#include <algorithm>
+
 using namespace NCL;
 using namespace NCL::Maths;
 using namespace NCL::CSC8503;
@@ -70,14 +72,18 @@ void Sys_Render::OnUpdate(Registry& registry, float dt) {
     CleanupOrphans(registry);
 
     if (m_Renderer && !m_PillarProxies.empty()) {
-        m_Renderer->SetOceanPillarProxies(&m_PillarProxies);
+        if (m_PillarProxies.size() != m_LastPillarProxyCount) {
+            m_Renderer->SetOceanPillarProxies(&m_PillarProxies);
+            m_LastPillarProxyCount = m_PillarProxies.size();
+        }
         if (registry.has_ctx<Res_DataOcean>()) {
             auto& cfg = registry.ctx<Res_DataOcean>();
             m_Renderer->SetOceanTime(cfg.gpuTime);
             m_Renderer->SetOceanNoiseParams(cfg.noiseScale, cfg.noiseSpeed, cfg.baseAmplitude);
             // spawning 完成且 proxy 数量匹配 → 标记 allProxiesCreated
             if (!cfg.spawning && !cfg.allProxiesCreated
-                && (int)m_PillarProxies.size() >= (int)cfg.pendingSpawns.size()) {
+                && cfg.totalSpawnCount > 0
+                && (int)m_PillarProxies.size() >= cfg.totalSpawnCount) {
                 cfg.allProxiesCreated = true;
                 LOG_INFO("[Sys_Render] All " << m_PillarProxies.size() << " pillar proxies created");
             }
@@ -230,6 +236,18 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
     if (idx >= m_ProxyObjects.size()) {
         m_ProxyObjects.resize(idx + 1, nullptr);
         m_ProxyEntityIDs.resize(idx + 1, Entity::NULL_ENTITY);
+    } else if (m_ProxyObjects[idx] != nullptr) {
+        auto* oldProxy = m_ProxyObjects[idx];
+        auto* oldRo = oldProxy->GetRenderObject();
+        if (oldRo && oldRo->lightweightSync) {
+            auto it = std::find(m_PillarProxies.begin(), m_PillarProxies.end(), oldProxy);
+            if (it != m_PillarProxies.end()) m_PillarProxies.erase(it);
+            delete oldProxy;
+        } else {
+            m_GameWorld->RemoveGameObject(oldProxy, true);
+        }
+        m_ProxyObjects[idx] = nullptr;
+        m_ProxyEntityIDs[idx] = Entity::NULL_ENTITY;
     }
     m_ProxyObjects[idx] = proxy;
     m_ProxyEntityIDs[idx] = id;

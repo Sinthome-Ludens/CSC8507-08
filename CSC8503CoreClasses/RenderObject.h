@@ -114,7 +114,7 @@ namespace NCL {
 			std::vector<Matrix4> skinBoneMatrices; ///< 仅在 useSkinning 时填充
 
 			// ── 性能优化标志 ────────────────────────────────────
-			bool lightweightSync = false;    ///< 轻量同步：仅同步 Transform，跳过材质/视觉/骨骼
+			bool lightweightSync = false;    ///< GPU 驱动模式：跳过所有 CPU 同步（Transform/材质/视觉/骨骼）
 			mutable bool instanced = false;  ///< 当前帧是否已被 instanced batch 绘制
 			uint8_t shadowCascadeMask = 0x07; ///< CSM 级联参与掩码（bit0=c0, bit1=c1, bit2=c2），默认全部参与
 

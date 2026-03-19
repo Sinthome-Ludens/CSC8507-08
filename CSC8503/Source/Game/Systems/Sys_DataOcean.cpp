@@ -151,6 +151,7 @@ void Sys_DataOcean::OnAwake(Registry& registry) {
 
     cfg.spawnCursor = 0;
     cfg.spawning    = true;
+    cfg.totalSpawnCount = static_cast<int>(cfg.pendingSpawns.size());
 
     LOG_INFO("[Sys_DataOcean] OnAwake - 收集 " << cfg.pendingSpawns.size()
              << " 个柱子参数，开始分帧创建（batchSize=" << cfg.spawnBatchSize << "）。");

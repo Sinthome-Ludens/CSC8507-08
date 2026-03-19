@@ -49,6 +49,9 @@ private:
     /// @brief 渲染器接口指针（用于传递 ocean 数据）
     NCL::CSC8503::GameTechRendererInterface* m_Renderer = nullptr;
 
+    /// @brief 上次传递给渲染器的柱子 proxy 数量（避免每帧重复 invalidate SSBO）
+    size_t m_LastPillarProxyCount = 0;
+
     void CreateProxy(Registry& reg, EntityID id,
                      const C_D_Transform& tf, const C_D_MeshRenderer& mr);
 

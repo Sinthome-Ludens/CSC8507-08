@@ -62,6 +62,7 @@ struct Res_DataOcean {
 
     // ── 加载状态（由 Sys_Render 写入，Sys_UI 读取判断 loading screen 是否可关闭）──
     bool  allProxiesCreated = false; ///< 所有柱子 proxy 已创建完毕
+    int   totalSpawnCount   = 0;    ///< spawning 开始时记录的总柱子数（pendingSpawns 会被清空，此值不变）
 
     // ── 分帧创建参数 ─────────────────────────────────────
     int   spawnBatchSize  = 500;    ///< 每帧创建实体数

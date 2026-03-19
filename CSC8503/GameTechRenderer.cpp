@@ -695,10 +695,9 @@ void GameTechRenderer::UploadOceanSSBO() {
             );
         }
         glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+        m_oceanPillarCount = count;
+        m_oceanSSBOReady = true;
     }
-
-    m_oceanPillarCount = count;
-    m_oceanSSBOReady = true;
 }
 
 /**
@@ -978,31 +977,6 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
         Vector4 objectColour;
     };
 
-    // ── 预上传 instanced batch SSBO（cascade 间矩阵不变，只需上传一次）──
-    for (const auto& batch : m_instancedBatches) {
-        if ((int)batch.objects.size() < INSTANCE_THRESHOLD) continue;
-        if (batch.shadowCascadeMask == 0) continue;
-
-        int count = (int)batch.objects.size();
-        size_t requiredSize = sizeof(ShadowInstanceData) * count;
-        glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_instanceSSBO);
-        if (requiredSize > m_instanceSSBOSize) {
-            glBufferData(GL_SHADER_STORAGE_BUFFER, requiredSize, nullptr, GL_DYNAMIC_DRAW);
-            m_instanceSSBOSize = requiredSize;
-        }
-
-        ShadowInstanceData* ptr = (ShadowInstanceData*)glMapBufferRange(
-            GL_SHADER_STORAGE_BUFFER, 0, requiredSize,
-            GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
-        if (ptr) {
-            for (int i = 0; i < count; ++i) {
-                ptr[i].modelMatrix  = batch.objects[i]->GetTransform().GetMatrix();
-                ptr[i].objectColour = Vector4(1, 1, 1, 1);
-            }
-            glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
-        }
-    }
-
     for (int c = 0; c < NUM_CASCADES; c++) {
         glBindFramebuffer(GL_FRAMEBUFFER, m_shadowFBO[c]);
         glViewport(0, 0, m_shadowRes[c], m_shadowRes[c]);
@@ -1010,10 +984,29 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
 
         Matrix4 lvp = m_lightProjMat[c] * m_lightViewMat[c];
 
-        // ── Instanced shadow draw（SSBO 已在循环外上传）──
+        // ── Instanced shadow draw（每个 batch 在 draw 前上传自己的 SSBO 数据）──
         for (const auto& batch : m_instancedBatches) {
             if ((int)batch.objects.size() < INSTANCE_THRESHOLD) continue;
             if (!(batch.shadowCascadeMask & (1 << c))) continue;
+
+            int count = (int)batch.objects.size();
+            size_t requiredSize = sizeof(ShadowInstanceData) * count;
+            glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_instanceSSBO);
+            if (requiredSize > m_instanceSSBOSize) {
+                glBufferData(GL_SHADER_STORAGE_BUFFER, requiredSize, nullptr, GL_DYNAMIC_DRAW);
+                m_instanceSSBOSize = requiredSize;
+            }
+
+            ShadowInstanceData* ptr = (ShadowInstanceData*)glMapBufferRange(
+                GL_SHADER_STORAGE_BUFFER, 0, requiredSize,
+                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+            if (ptr) {
+                for (int i = 0; i < count; ++i) {
+                    ptr[i].modelMatrix  = batch.objects[i]->GetTransform().GetMatrix();
+                    ptr[i].objectColour = Vector4(1, 1, 1, 1);
+                }
+                glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+            }
 
             UseShader(*shadowShader);
             GLuint pid = shadowShader->GetProgramID();
@@ -1025,7 +1018,6 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
 
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_instanceSSBO);
 
-            int count = (int)batch.objects.size();
             BindMesh(*batch.mesh);
             size_t layerCount = batch.mesh->GetSubMeshCount();
             if (layerCount == 0) DrawBoundMesh(0, count);
