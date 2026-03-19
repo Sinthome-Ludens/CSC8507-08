@@ -43,6 +43,11 @@ namespace ECS {
 
 namespace {
 
+/**
+ * @brief 生成权威地图顺序表，用于随机化关卡轮换。
+ * @param outSequence 输出的序列缓冲区指针。
+ * @param count 缓冲区中可写入的元素个数。
+ */
 void GenerateAuthoritativeMapSequence(uint8_t* outSequence, size_t count) {
     if (outSequence == nullptr || count == 0) {
         return;
@@ -59,6 +64,11 @@ void GenerateAuthoritativeMapSequence(uint8_t* outSequence, size_t count) {
     }
 }
 
+/**
+ * @brief 检查当前网络资源中是否存在至少一个已连接的远端对等体。
+ * @param resNet 当前帧的网络全局资源。
+ * @return 若存在已连接的客户端或服务器对等体则返回 true，否则返回 false。
+ */
 bool HasAnyConnectedRemotePeer(const Res_Network& resNet) {
     if (resNet.mode == PeerType::CLIENT) {
         return resNet.connected
@@ -78,6 +88,11 @@ bool HasAnyConnectedRemotePeer(const Res_Network& resNet) {
     return false;
 }
 
+/**
+ * @brief 从时间全局资源中获取当前网络日志时间（秒）。
+ * @param reg ECS 注册表，用于查询 Res_Time 上下文。
+ * @return 若存在 Res_Time 则返回其累计时间，否则返回 0.0f。
+ */
 float GetNetworkLogTimeSeconds(Registry& reg) {
     if (reg.has_ctx<Res_Time>()) {
         return reg.ctx<Res_Time>().totalTime;
@@ -85,6 +100,13 @@ float GetNetworkLogTimeSeconds(Registry& reg) {
     return 0.0f;
 }
 
+/**
+ * @brief 判定当前时刻是否应输出一次幽灵对象相关的调试日志。
+ * @param nowSeconds 当前时间（秒）。
+ * @param lastLogTime 上次输出日志的时间，将在允许输出时被更新。
+ * @param intervalSeconds 两次日志之间的最小时间间隔（秒）。
+ * @return 若满足时间间隔条件应输出日志则返回 true，否则返回 false。
+ */
 bool ShouldEmitGhostLog(float nowSeconds, float& lastLogTime, float intervalSeconds = 1.0f) {
     if (lastLogTime < 0.0f || (nowSeconds - lastLogTime) >= intervalSeconds) {
         lastLogTime = nowSeconds;
