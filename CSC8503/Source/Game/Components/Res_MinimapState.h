@@ -20,9 +20,17 @@ struct MinimapEdge {
     float x1, z1;  ///< 终点 XZ
 };
 
+/// @brief 小地图可行走三角形（NavMesh XZ 投影，用于填充绘制）
+struct MinimapTriangle {
+    float x0, z0;
+    float x1, z1;
+    float x2, z2;
+};
+
 /// @brief 小地图全局状态资源（Scene ctx）
 struct Res_MinimapState {
     static constexpr int   kMaxEdges       = 512;
+    static constexpr int   kMaxTriangles   = 1024;
     static constexpr float kActiveDuration = 10.0f; ///< 激活持续时间（秒）
 
     bool  isActive    = false; ///< 是否激活显示（道具使用后置 true）
@@ -30,6 +38,9 @@ struct Res_MinimapState {
     int   edgeCount   = 0;     ///< 缓存的边界边数量
 
     MinimapEdge edges[kMaxEdges] = {};  ///< 边界边缓存
+
+    int             triangleCount = 0;                  ///< 缓存的可行走三角形数量
+    MinimapTriangle triangles[kMaxTriangles] = {};      ///< 可行走三角形缓存
 
     // 地图 AABB 包围盒（世界坐标，用于坐标映射）
     float worldMinX =  1e9f;

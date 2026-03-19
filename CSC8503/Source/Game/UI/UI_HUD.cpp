@@ -513,6 +513,15 @@ static void RenderHUD_Minimap(ImDrawList* draw, Registry& registry, float /*disp
             offsetZ + (wz - minimap.worldMinZ) * scale);
     };
 
+    // ── 绘制可行走区域填充（半透明） ──
+    for (int t = 0; t < minimap.triangleCount; ++t) {
+        const auto& tri = minimap.triangles[t];
+        ImVec2 a = toScreen(tri.x0, tri.z0);
+        ImVec2 b = toScreen(tri.x1, tri.z1);
+        ImVec2 c = toScreen(tri.x2, tri.z2);
+        draw->AddTriangleFilled(a, b, c, IM_COL32(60, 55, 50, 100));
+    }
+
     // ── 绘制边界线段（灰色） ──
     for (int i = 0; i < minimap.edgeCount; ++i) {
         const auto& e = minimap.edges[i];
