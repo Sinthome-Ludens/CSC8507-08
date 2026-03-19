@@ -113,6 +113,16 @@ namespace NCL {
 			bool                 useSkinning     = false;
 			std::vector<Matrix4> skinBoneMatrices; ///< 仅在 useSkinning 时填充
 
+			// ── 性能优化标志 ────────────────────────────────────
+			bool lightweightSync = false;    ///< GPU 驱动模式：跳过所有 CPU 同步（Transform/材质/视觉/骨骼）
+			mutable bool instanced = false;  ///< 当前帧是否已被 instanced batch 绘制
+			uint8_t shadowCascadeMask = 0x07; ///< CSM 级联参与掩码（bit0=c0, bit1=c1, bit2=c2），默认全部参与
+
+		// ── 数据海洋 GPU 噪波参数（由 Sys_Render 创建时写入，渲染器上传到 ocean SSBO）──
+		float pillarBaseY      = 0.0f;  ///< 柱子基准 Y
+		float pillarAmplitude  = 2.0f;  ///< 柱子个体振幅倍率
+		float pillarPhaseShift = 0.0f;  ///< 柱子噪波相位偏移
+
 		protected:
 			Transform&	transform;
 			GameTechMaterial material;

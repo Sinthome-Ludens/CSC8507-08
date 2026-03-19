@@ -21,6 +21,7 @@
  */
 #include "PrefabFactory.h"
 #include "ComponentRegistry.h"
+#include "Game/Components/Res_DataOcean.h"
 
 #include "Assets.h"
 #include "Game/Components/C_D_Transform.h"
@@ -119,6 +120,99 @@ EntityID PrefabFactory::Create(
     if (!comps) return Entity::NULL_ENTITY;
 
     return EmplaceFromJson(reg, *comps, overrides);
+}
+
+/**
+ * @brief 预解析 JSON 蓝图并缓存组件 Emplace 函数指针。
+ *
+ * 执行一次 JSON 加载 + ComponentRegistry::Find 查表，
+ * 将结果缓存到 outCache，供后续 CreateFromCache 零查表调用。
+ *
+ * @param prefabJsonFile  JSON 蓝图文件名
+ * @param outCache        输出缓存列表
+ * @return true 成功，false JSON 加载失败或无 Components
+ */
+bool PrefabFactory::ResolveBlueprintCache(
+    const std::string&              prefabJsonFile,
+    std::vector<CachedEmplaceEntry>& outCache)
+{
+    ComponentRegistry::RegisterAll();
+
+    const json* doc = PrefabLoader::LoadBlueprint(prefabJsonFile);
+    if (!doc) return false;
+
+    const json* comps = GetComponents(*doc);
+    if (!comps) return false;
+
+    outCache.clear();
+    outCache.reserve(comps->size());
+    for (auto it = comps->begin(); it != comps->end(); ++it) {
+        const EmplaceFn* fn = ComponentRegistry::Find(it.key());
+        if (!fn) {
+            LOG_WARN("[PrefabFactory] ResolveBlueprintCache: unknown component: " << it.key());
+            continue;
+        }
+        CachedEmplaceEntry entry;
+        entry.fn       = *fn;
+        entry.jsonData = &it.value();
+        outCache.push_back(std::move(entry));
+    }
+    return true;
+}
+
+/**
+ * @brief 使用预缓存的函数指针创建单个实体，无查表开销。
+ *
+ * 直接遍历缓存的 {fn, jsonData} 列表调用 Emplace，
+ * 跳过 JSON 解析和 ComponentRegistry::Find。
+ *
+ * @param reg       ECS Registry
+ * @param cache     ResolveBlueprintCache 输出的缓存
+ * @param overrides 运行时覆盖参数
+ * @return 创建的实体 ID
+ */
+EntityID PrefabFactory::CreateFromCache(
+    Registry&                              reg,
+    const std::vector<CachedEmplaceEntry>& cache,
+    const RuntimeOverrides&                overrides)
+{
+    EntityID entity = reg.Create();
+    for (const auto& entry : cache) {
+        entry.fn(reg, entity, *entry.jsonData, overrides);
+    }
+    return entity;
+}
+
+/**
+ * @brief Resolve-Once 批量创建：JSON 解析和查表只做一次，循环内直接调用缓存。
+ *
+ * 1. ComponentRegistry::RegisterAll()（幂等）
+ * 2. PrefabLoader::LoadBlueprint（1 次 JSON 加载）
+ * 3. 遍历 Components key → ComponentRegistry::Find → 缓存到 vector
+ * 4. 循环 overridesList：reg.Create() + 遍历缓存直接调用 fn
+ *
+ * @param reg             ECS Registry
+ * @param prefabJsonFile  JSON 蓝图文件名
+ * @param overridesList   每个实体的运行时覆盖参数
+ * @return 创建的实体 ID 列表
+ */
+std::vector<EntityID> PrefabFactory::CreateBatch(
+    Registry&                            reg,
+    const std::string&                   prefabJsonFile,
+    const std::vector<RuntimeOverrides>& overridesList)
+{
+    std::vector<CachedEmplaceEntry> cache;
+    if (!ResolveBlueprintCache(prefabJsonFile, cache)) {
+        LOG_WARN("[PrefabFactory] CreateBatch: failed to resolve " << prefabJsonFile);
+        return {};
+    }
+
+    std::vector<EntityID> result;
+    result.reserve(overridesList.size());
+    for (const auto& ovr : overridesList) {
+        result.push_back(CreateFromCache(reg, cache, ovr));
+    }
+    return result;
 }
 
 /**

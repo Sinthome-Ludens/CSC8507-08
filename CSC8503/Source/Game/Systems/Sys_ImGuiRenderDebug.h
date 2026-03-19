@@ -89,7 +89,7 @@ private:
     float m_shadowBiasConstant = 0.00005f;
     float m_shadowNearBuffer = 50.0f;
     float m_shadowFarBuffer  = 20.0f;
-    float m_shadowNormalOffsetScale = 0.5f;
+    float m_shadowNormalOffsetScale = 0.01f;
     bool  m_ssaoEnabled      = true;
     float m_ssaoRadius       = 0.5f;
     float m_ssaoBias         = 0.025f;

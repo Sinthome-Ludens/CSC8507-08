@@ -12,12 +12,18 @@
  * - CleanupOrphans：检测并移除 ECS 中已销毁但代理仍存在的 GameObject
  */
 #include "Sys_Render.h"
+#include "Core/ECS/EntityID.h"
 #include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/C_D_CQCHighlight.h"
 #include "Game/Components/C_D_Animation.h"
+#include "Game/Components/C_D_DataOceanPillar.h"
+#include "Game/Components/Res_DataOcean.h"
 #include "Game/Utils/Log.h"
+#include "GameTechRendererInterface.h"
 #include "Matrix.h"
 #include "OGLMesh.h"
+
+#include <algorithm>
 
 using namespace NCL;
 using namespace NCL::Maths;
@@ -34,9 +40,13 @@ void Sys_Render::OnAwake(Registry& registry) {
                 "[Sys_Render] Res_NCL_Pointers not in context. Register it before AwakeAll.");
 
     m_GameWorld = registry.ctx<Res_NCL_Pointers>().world;
+    m_Renderer  = registry.ctx<Res_NCL_Pointers>().renderer;
 
     GAME_ASSERT(m_GameWorld != nullptr,
                 "[Sys_Render] GameWorld pointer is null in Res_NCL_Pointers.");
+
+    m_ProxyObjects.reserve(8192);
+    m_ProxyEntityIDs.reserve(8192);
 
     LOG_INFO("[Sys_Render] OnAwake - bridge to GameWorld ready");
 }
@@ -49,16 +59,36 @@ void Sys_Render::OnUpdate(Registry& registry, float dt) {
 
     registry.view<C_D_Transform, C_D_MeshRenderer>().each(
         [&](EntityID id, C_D_Transform& tf, C_D_MeshRenderer& mr) {
-            auto it = m_ProxyObjects.find(id);
-            if (it == m_ProxyObjects.end()) {
-                CreateProxy(registry, id, tf, mr);
+            uint32_t idx = Entity::GetIndex(id);
+            if (idx < m_ProxyObjects.size() && m_ProxyObjects[idx] != nullptr
+                && m_ProxyEntityIDs[idx] == id) {
+                SyncProxy(registry, id, m_ProxyObjects[idx], tf);
             } else {
-                SyncProxy(registry, id, it->second, tf);
+                CreateProxy(registry, id, tf, mr);
             }
         }
     );
 
     CleanupOrphans(registry);
+
+    if (m_Renderer && !m_PillarProxies.empty()) {
+        if (m_PillarProxies.size() != m_LastPillarProxyCount) {
+            m_Renderer->SetOceanPillarProxies(&m_PillarProxies);
+            m_LastPillarProxyCount = m_PillarProxies.size();
+        }
+        if (registry.has_ctx<Res_DataOcean>()) {
+            auto& cfg = registry.ctx<Res_DataOcean>();
+            m_Renderer->SetOceanTime(cfg.gpuTime);
+            m_Renderer->SetOceanNoiseParams(cfg.noiseScale, cfg.noiseSpeed, cfg.baseAmplitude);
+            // spawning 完成且 proxy 数量匹配 → 标记 allProxiesCreated
+            if (!cfg.spawning && !cfg.allProxiesCreated
+                && cfg.totalSpawnCount > 0
+                && (int)m_PillarProxies.size() >= cfg.totalSpawnCount) {
+                cfg.allProxiesCreated = true;
+                LOG_INFO("[Sys_Render] All " << m_PillarProxies.size() << " pillar proxies created");
+            }
+        }
+    }
 }
 
 // ============================================================
@@ -67,10 +97,24 @@ void Sys_Render::OnUpdate(Registry& registry, float dt) {
 void Sys_Render::OnDestroy(Registry& registry) {
     if (!m_GameWorld) return;
 
-    for (auto& [id, proxy] : m_ProxyObjects) {
-        m_GameWorld->RemoveGameObject(proxy, /*andDelete=*/true);
+    for (uint32_t idx = 0; idx < m_ProxyObjects.size(); ++idx) {
+        if (m_ProxyObjects[idx]) {
+            auto* ro = m_ProxyObjects[idx]->GetRenderObject();
+            if (ro && ro->lightweightSync) continue;
+            m_GameWorld->RemoveGameObject(m_ProxyObjects[idx], /*andDelete=*/true);
+        }
     }
     m_ProxyObjects.clear();
+    m_ProxyEntityIDs.clear();
+
+    for (auto* p : m_PillarProxies) {
+        delete p;
+    }
+    m_PillarProxies.clear();
+    m_LastPillarProxyCount = 0;
+    if (m_Renderer) {
+        m_Renderer->SetOceanPillarProxies(nullptr);
+    }
 
     LOG_INFO("[Sys_Render] OnDestroy - all proxies removed");
 }
@@ -180,14 +224,41 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
 
     proxy->SetRenderObject(ro);
 
-    m_GameWorld->AddGameObject(proxy);
-    m_ProxyObjects[id] = proxy;
+    if (reg.Has<C_D_DataOceanPillar>(id)) {
+        ro->lightweightSync = true;
+        ro->shadowCascadeMask = 0x04;
+        const auto& pillar = reg.Get<C_D_DataOceanPillar>(id);
+        ro->pillarBaseY      = pillar.baseY;
+        ro->pillarAmplitude  = pillar.amplitude;
+        ro->pillarPhaseShift = pillar.phaseShift;
+        m_PillarProxies.push_back(proxy);
+    } else {
+        m_GameWorld->AddGameObject(proxy);
+    }
+
+    uint32_t idx = Entity::GetIndex(id);
+    if (idx >= m_ProxyObjects.size()) {
+        m_ProxyObjects.resize(idx + 1, nullptr);
+        m_ProxyEntityIDs.resize(idx + 1, Entity::NULL_ENTITY);
+    } else if (m_ProxyObjects[idx] != nullptr) {
+        auto* oldProxy = m_ProxyObjects[idx];
+        auto* oldRo = oldProxy->GetRenderObject();
+        if (oldRo && oldRo->lightweightSync) {
+            auto it = std::find(m_PillarProxies.begin(), m_PillarProxies.end(), oldProxy);
+            if (it != m_PillarProxies.end()) m_PillarProxies.erase(it);
+            delete oldProxy;
+        } else {
+            m_GameWorld->RemoveGameObject(oldProxy, true);
+        }
+        m_ProxyObjects[idx] = nullptr;
+        m_ProxyEntityIDs[idx] = Entity::NULL_ENTITY;
+    }
+    m_ProxyObjects[idx] = proxy;
+    m_ProxyEntityIDs[idx] = id;
 
     if (reg.has_ctx<ECS::EventBus*>()) {
         reg.ctx<ECS::EventBus*>()->publish(Evt_Render_ProxyCreated{id});
     }
-
-    LOG_INFO("[Sys_Render] Proxy created for entity " << id);
 }
 
 // ============================================================
@@ -202,6 +273,10 @@ void Sys_Render::CreateProxy(Registry& reg, EntityID id,
 void Sys_Render::SyncProxy(Registry& reg, EntityID id,
                             NCL::CSC8503::GameObject* proxy, const C_D_Transform& tf)
 {
+    if (proxy->GetRenderObject() && proxy->GetRenderObject()->lightweightSync) {
+        return;
+    }
+
     proxy->GetTransform()
         .SetPosition(tf.position)
         .SetScale(tf.scale)
@@ -269,11 +344,15 @@ void Sys_Render::SyncProxy(Registry& reg, EntityID id,
 // CleanupOrphans
 // ============================================================
 void Sys_Render::CleanupOrphans(Registry& reg) {
-    std::vector<EntityID> toRemove;
+    std::vector<uint32_t> toRemove;
 
-    for (auto& [id, proxy] : m_ProxyObjects) {
+    for (uint32_t idx = 0; idx < m_ProxyObjects.size(); ++idx) {
+        auto* proxy = m_ProxyObjects[idx];
+        if (!proxy) continue;
+        if (proxy->GetRenderObject() && proxy->GetRenderObject()->lightweightSync) continue;
+        EntityID id = m_ProxyEntityIDs[idx];
         if (!reg.Valid(id)) {
-            toRemove.push_back(id);
+            toRemove.push_back(idx);
         }
     }
 
@@ -283,14 +362,16 @@ void Sys_Render::CleanupOrphans(Registry& reg) {
                        ? reg.ctx<ECS::EventBus*>()
                        : nullptr;
 
-    for (EntityID id : toRemove) {
-        m_GameWorld->RemoveGameObject(m_ProxyObjects[id], /*andDelete=*/true);
+    for (uint32_t idx : toRemove) {
+        EntityID id = m_ProxyEntityIDs[idx];
+        m_GameWorld->RemoveGameObject(m_ProxyObjects[idx], /*andDelete=*/true);
 
         if (bus) {
             bus->publish(Evt_Render_ProxyDestroyed{id});
         }
 
-        m_ProxyObjects.erase(id);
+        m_ProxyObjects[idx] = nullptr;
+        m_ProxyEntityIDs[idx] = Entity::NULL_ENTITY;
         LOG_INFO("[Sys_Render] Proxy destroyed for entity " << id);
     }
 }
