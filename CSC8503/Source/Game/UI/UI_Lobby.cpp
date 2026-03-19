@@ -68,7 +68,13 @@ void RenderLobbyScreen(Registry& registry, float dt) {
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
         Col32_Bg());
 
-    float cx = vpPos.x + vpSize.x * 0.5f;
+    // Entry animation + slide
+    float entryRaw = (ui.screenEntryDuration > 0.0f)
+        ? std::clamp(ui.screenEntryElapsed / ui.screenEntryDuration, 0.0f, 1.0f) : 1.0f;
+    float entryT = Anim::EaseOutCubic(entryRaw);
+    float slideX = Anim::SlideOffset(entryT, ui.transDirection);
+
+    float cx = vpPos.x + vpSize.x * 0.5f + slideX;
 
     // ── Title ─────────────────────────────────────────────────
     ImFont* titleFont = GetFont_TerminalLarge();

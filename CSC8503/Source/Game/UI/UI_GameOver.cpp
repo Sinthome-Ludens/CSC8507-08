@@ -74,10 +74,12 @@ void RenderGameOverScreen(Registry& registry, float dt) {
 
     // Title drops from above: offset decreases 30→0
     float titleDropOffset = -30.0f * (1.0f - entryT);
+    // Slide transition offset
+    float slideX = Anim::SlideOffset(entryT, ui.transDirection);
     // Data fades in with slight delay (use entryT clamped to later portion)
     float dataFadeT = std::clamp((entryRaw - 0.3f) / 0.7f, 0.0f, 1.0f);
 
-    float cx = vpPos.x + vpSize.x * 0.5f;
+    float cx = vpPos.x + vpSize.x * 0.5f + slideX;
 
     // Get game data
     GameOverReason reason = GameOverReason::None;

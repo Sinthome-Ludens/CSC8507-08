@@ -40,6 +40,7 @@
 #include "Game/UI/UI_MissionSelect.h"
 #include "Game/UI/UI_Victory.h"
 #include "Game/UI/UI_ActionNotify.h"
+#include "Game/UI/UI_Anim.h"
 #include "Game/Components/Res_InputConfig.h"
 #include "Game/Components/Res_UIKeyConfig.h"
 #include "Game/Components/Res_AudioConfig.h"
@@ -398,6 +399,11 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     // ── Screen entry animation: detect changes & tick ──────
     if (ui.activeScreen != ui._lastTickScreen) {
+        // Determine slide direction from depth comparison
+        int depthOld = UI::Anim::ScreenDepth(ui._lastTickScreen);
+        int depthNew = UI::Anim::ScreenDepth(ui.activeScreen);
+        ui.transDirection = (depthNew >= depthOld) ? (int8_t)1 : (int8_t)-1;
+
         ui.screenEntryElapsed  = 0.0f;
         ui.screenEntryDuration = 0.35f;
         // Reset hover progress for the new menu

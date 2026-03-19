@@ -380,8 +380,11 @@ void RenderMainMenu(Registry& registry, float dt) {
     float rightPanelX = vpPos.x + leftPanelW;
     float rightPanelW = vpSize.x * 0.65f;
 
-    // Left panel slide offset (-40→0)
-    float leftSlideX = -40.0f * (1.0f - entryT);
+    // Slide transition offset (direction-dependent)
+    float slideX = Anim::SlideOffset(entryT, ui.transDirection);
+
+    // Left panel slide offset (-40→0) + transition slide
+    float leftSlideX = -40.0f * (1.0f - entryT) + slideX;
 
     // Right panel: tactical background animation (fade in via alpha)
     // Right panel alpha increases 0→1 during entry
@@ -619,10 +622,16 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
         Col32_Bg());
 
+    // Entry animation + slide
+    float entryRaw = (ui.screenEntryDuration > 0.0f)
+        ? std::clamp(ui.screenEntryElapsed / ui.screenEntryDuration, 0.0f, 1.0f) : 1.0f;
+    float entryT = Anim::EaseOutCubic(entryRaw);
+    float slideX = Anim::SlideOffset(entryT, ui.transDirection);
+
     // Settings panel centered (responsive to viewport)
     float panelW = std::clamp(vpSize.x * 0.45f, 380.0f, 500.0f);
     float panelH = std::clamp(vpSize.y * 0.70f, 340.0f, 460.0f);
-    float panelX = vpPos.x + (vpSize.x - panelW) * 0.5f;
+    float panelX = vpPos.x + (vpSize.x - panelW) * 0.5f + slideX;
     float panelY = vpPos.y + (vpSize.y - panelH) * 0.5f;
 
     // Panel background

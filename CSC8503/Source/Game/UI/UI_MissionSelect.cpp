@@ -23,6 +23,7 @@
 #include "Game/Components/Res_ItemInventory2.h"
 #include "Game/Components/Res_ToastState.h"
 #include "Game/UI/UITheme.h"
+#include "Game/UI/UI_Anim.h"
 #include "Game/UI/UI_Toast.h"
 #include "Game/Utils/Log.h"
 
@@ -77,17 +78,23 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
         Col32_Bg());
 
+    // Entry animation + slide
+    float entryRaw = (ui.screenEntryDuration > 0.0f)
+        ? std::clamp(ui.screenEntryElapsed / ui.screenEntryDuration, 0.0f, 1.0f) : 1.0f;
+    float entryT = Anim::EaseOutCubic(entryRaw);
+    float slideX = Anim::SlideOffset(entryT, ui.transDirection);
+
     // ── Title ──────────────────────────────────────────────
     ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
-    draw->AddText(ImVec2(vpPos.x + 40.0f, vpPos.y + 30.0f),
+    draw->AddText(ImVec2(vpPos.x + 40.0f + slideX, vpPos.y + 30.0f),
         Col32_Text(), "MISSION SELECT");
     if (titleFont) ImGui::PopFont();
 
     float headerLineY = vpPos.y + 70.0f;
     draw->AddLine(
-        ImVec2(vpPos.x + 40.0f, headerLineY),
-        ImVec2(vpPos.x + vpSize.x - 40.0f, headerLineY),
+        ImVec2(vpPos.x + 40.0f + slideX, headerLineY),
+        ImVec2(vpPos.x + vpSize.x - 40.0f + slideX, headerLineY),
         Col32_Gray(100), 1.0f);
 
     // ── Gather items/weapons from Res_ItemInventory2 ───────

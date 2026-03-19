@@ -160,6 +160,18 @@ struct Res_UIState {
     float screenEntryDuration = 0.0f;  ///< Entry animation duration (0 = no anim)
     UIScreen _lastTickScreen  = UIScreen::None;  ///< Internal: previous frame's activeScreen
 
+    // ── Menu slide transition ───────────────────────────────
+    UIScreen transFromScreen   = UIScreen::None;  ///< 过渡起始画面
+    UIScreen transToScreen     = UIScreen::None;  ///< 过渡目标画面
+    float    transElapsed      = 0.0f;            ///< 过渡已过时间
+    float    transDuration     = 0.25f;           ///< 过渡总时长
+    bool     transActive       = false;           ///< 是否在过渡中
+    int8_t   transDirection    = 1;               ///< 1=前进(左滑), -1=后退(右滑)
+
+    // ── Click flash feedback ────────────────────────────────
+    float    menuClickFlashTimer = 0.0f;          ///< 点击闪光计时器
+    int8_t   menuClickFlashIndex = -1;            ///< 闪光的菜单项索引
+
     // ── Campaign score (跨场景持久化) ──────────────────────────
     int32_t campaignScore                 = 1000;  ///< 战役积分（初始1000, 纯扣减制）
     float   scoreDecayAccum               = 0.0f;  ///< 时间衰减子秒累加器

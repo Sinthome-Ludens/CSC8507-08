@@ -87,6 +87,39 @@ struct ScreenEntryState {
     }
 };
 
+// ============================================================
+// Screen depth (for slide transition direction)
+// ============================================================
+
+/// @brief Returns "depth" of a screen for transition direction.
+///        Higher depth = deeper in menu hierarchy.
+inline int ScreenDepth(ECS::UIScreen s) {
+    switch (s) {
+        case ECS::UIScreen::TitleScreen:  return 0;
+        case ECS::UIScreen::Splash:       return 1;
+        case ECS::UIScreen::MainMenu:     return 2;
+        case ECS::UIScreen::Settings:     return 3;
+        case ECS::UIScreen::MissionSelect:return 3;
+        case ECS::UIScreen::Lobby:        return 3;
+        case ECS::UIScreen::Team:         return 3;
+        case ECS::UIScreen::PauseMenu:    return 2;
+        case ECS::UIScreen::HUD:          return 1;
+        case ECS::UIScreen::GameOver:     return 1;
+        case ECS::UIScreen::Victory:      return 1;
+        case ECS::UIScreen::Inventory:    return 3;
+        case ECS::UIScreen::Loading:      return 1;
+        default: return 0;
+    }
+}
+
+/// @brief Compute horizontal slide offset for screen transition.
+/// @param entryT  Entry animation progress [0,1] (1 = fully entered)
+/// @param direction  1=forward (slide from right), -1=backward (slide from left)
+/// @param maxSlide  Maximum slide distance in pixels (default 60)
+inline float SlideOffset(float entryT, int8_t direction, float maxSlide = 60.0f) {
+    return (float)direction * maxSlide * (1.0f - entryT);
+}
+
 } // namespace ECS::UI::Anim
 
 #endif // USE_IMGUI
