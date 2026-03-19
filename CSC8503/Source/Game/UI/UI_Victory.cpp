@@ -17,6 +17,7 @@
 #include "Mouse.h"
 
 using namespace NCL;
+using namespace ECS::UITheme;
 
 namespace ECS::UI {
 
@@ -52,34 +53,34 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     // Background #F5EEE8
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(245, 238, 232, 255));
+        Col32_Bg(255));
 
     float cx = vpPos.x + vpSize.x * 0.5f;
 
     // ── Title ─────────────────────────────────────────────────
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
     const char* title = "CAMPAIGN COMPLETE";
     ImVec2 titleSize = ImGui::CalcTextSize(title);
     float titleX = cx - titleSize.x * 0.5f;
     float titleY = vpPos.y + vpSize.y * 0.13f;
     draw->AddText(ImVec2(titleX, titleY),
-        IM_COL32(252, 111, 41, 255), title);
+        Col32_Accent(255), title);
     if (titleFont) ImGui::PopFont();
 
     // ── Subtitle ──────────────────────────────────────────────
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
     const char* subtitle = "ALL AREAS SECURED";
     ImVec2 subSize = ImGui::CalcTextSize(subtitle);
     draw->AddText(ImVec2(cx - subSize.x * 0.5f, titleY + titleSize.y + 6.0f),
-        IM_COL32(16, 13, 10, 180), subtitle);
+        Col32_Text(180), subtitle);
     if (termFont) ImGui::PopFont();
 
     // ── Decorative line ───────────────────────────────────────
     float lineY = titleY + titleSize.y + 36.0f;
     draw->AddLine(ImVec2(cx - 140.0f, lineY), ImVec2(cx + 140.0f, lineY),
-        IM_COL32(200, 200, 200, 120), 1.0f);
+        Col32_Gray(120), 1.0f);
 
     // ── Statistics ────────────────────────────────────────────
     if (termFont) ImGui::PushFont(termFont);
@@ -96,12 +97,12 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
 
     snprintf(buf, sizeof(buf), "TOTAL TIME:  %02d:%02d", mm, ss);
     draw->AddText(ImVec2(statsX, statsY),
-        IM_COL32(16, 13, 10, 220), buf);
+        Col32_Text(220), buf);
 
     // ── Map names ─────────────────────────────────────────────
     float mapsY = statsY + 40.0f;
     draw->AddText(ImVec2(statsX, mapsY),
-        IM_COL32(16, 13, 10, 220), "CLEARED MAPS:");
+        Col32_Text(220), "CLEARED MAPS:");
 
     for (int i = 0; i < Res_UIState::MAP_SEQUENCE_LENGTH; ++i) {
         int idx = ui.mapSequence[i];
@@ -109,7 +110,7 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
             ? kMapDisplayNames[idx] : "???";
         snprintf(buf, sizeof(buf), "  %d. %s", i + 1, mapName);
         draw->AddText(ImVec2(statsX + 10.0f, mapsY + 26.0f + i * 24.0f),
-            IM_COL32(252, 111, 41, 220), buf);
+            Col32_Accent(220), buf);
     }
 
     // ── Score + Rating ───────────────────────────────────────
@@ -118,10 +119,10 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     const char* rating = GetScoreRating(finalScore);
     int8_t ratingTier = GetScoreRatingTier(finalScore);
 
-    const ImU32 ratingCol = UITheme::GetScoreRatingColor(ratingTier);
+    const ImU32 ratingCol = GetScoreRatingColor(ratingTier);
 
-    ImU32 labelCol  = IM_COL32(16, 13, 10, 220);
-    ImU32 deductCol = IM_COL32(220, 60, 40, 220);
+    ImU32 labelCol  = Col32_Text(220);
+    ImU32 deductCol = IM_COL32(220, 60, 40, 220);   // unique deduction-red
     float valX = statsX + 180.0f;
 
     snprintf(buf, sizeof(buf), "FINAL SCORE:  %d  [%s]", std::max(0, finalScore), rating);
@@ -171,7 +172,7 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     // ── Separator ─────────────────────────────────────────────
     float sepY = scoreY + 154.0f;
     draw->AddLine(ImVec2(cx - 80.0f, sepY), ImVec2(cx + 80.0f, sepY),
-        IM_COL32(200, 200, 200, 100), 1.0f);
+        Col32_Gray(100), 1.0f);
 
     // ── Menu: RETURN TO MENU ──────────────────────────────────
     if (termFont) ImGui::PushFont(termFont);
@@ -191,12 +192,12 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     }
 
     draw->AddRectFilled(itemMin, itemMax,
-        IM_COL32(252, 111, 41, 25), 2.0f);
+        Col32_Accent(25), 2.0f);
     draw->AddRect(itemMin, itemMax,
-        IM_COL32(252, 111, 41, 120), 2.0f, 0, 1.0f);
+        Col32_Accent(120), 2.0f, 0, 1.0f);
 
     draw->AddText(ImVec2(itemX + 14.0f, menuY),
-        IM_COL32(16, 13, 10, 255), "> RETURN TO MENU");
+        Col32_Text(255), "> RETURN TO MENU");
 
     if (termFont) ImGui::PopFont();
 
@@ -215,10 +216,10 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     }
 
     // ── Bottom hint ───────────────────────────────────────────
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(ImVec2(cx - 60.0f, vpPos.y + vpSize.y - 35.0f),
-        IM_COL32(16, 13, 10, 180), "[ENTER] SELECT");
+        Col32_Text(180), "[ENTER] SELECT");
     if (smallFont) ImGui::PopFont();
 
     ImGui::End();
