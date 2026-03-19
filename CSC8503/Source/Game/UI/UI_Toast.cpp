@@ -9,6 +9,8 @@
 
 namespace ECS::UI {
 
+using namespace ECS::UITheme;
+
 // ============================================================
 // PushToast — 写入环形缓冲的下一个槽位
 // ============================================================
@@ -36,7 +38,7 @@ void RenderToasts(Registry& registry, float dt) {
     auto& state = registry.ctx<Res_ToastState>();
 
     ImDrawList* drawList = ImGui::GetForegroundDrawList();
-    ImFont* font = UITheme::GetFont_Small();
+    ImFont* font = GetFont_Small();
     if (!font) return;
 
     const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
@@ -77,14 +79,14 @@ void RenderToasts(Registry& registry, float dt) {
         const ImU32 textAlpha   = static_cast<ImU32>(255 * alpha);
 
         // ── 背景 & 边框颜色（项目 5 色标准）──
-        const ImU32 bgColor     = IM_COL32(245, 238, 232, bgAlpha);      // #F5EEE8
-        const ImU32 borderColor = IM_COL32(200, 200, 200, borderAlpha);  // #C8C8C8
+        const ImU32 bgColor     = Col32_Bg(bgAlpha);
+        const ImU32 borderColor = Col32_Gray(borderAlpha);
 
         // ── 文字颜色：Info = 近黑，Success = 橙色，Warning = 橙色暗，Danger = 红 ──
         ImU32 textColor;
         switch (entry.type) {
             case ToastType::Success:
-                textColor = IM_COL32(252, 111, 41, textAlpha);  // #FC6F29 orange
+                textColor = Col32_Accent(textAlpha);
                 break;
             case ToastType::Warning:
                 textColor = IM_COL32(200, 150, 30, textAlpha);  // amber
@@ -94,7 +96,7 @@ void RenderToasts(Registry& registry, float dt) {
                 break;
             case ToastType::Info:
             default:
-                textColor = IM_COL32(16, 13, 10, textAlpha);    // #100D0A
+                textColor = Col32_Text(textAlpha);
                 break;
         }
 

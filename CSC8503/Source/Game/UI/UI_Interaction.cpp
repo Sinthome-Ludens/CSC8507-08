@@ -22,6 +22,7 @@
 
 using namespace NCL;
 using namespace NCL::Maths;
+using namespace ECS::UITheme;
 
 namespace ECS::UI {
 
@@ -74,7 +75,7 @@ void RenderInteractionPrompts(Registry& registry, float /*dt*/) {
     float displayH = ImGui::GetIO().DisplaySize.y;
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
 
     // Collect nearby interactables
     struct PromptData {
@@ -156,7 +157,7 @@ void RenderInteractionPrompts(Registry& registry, float /*dt*/) {
         draw->AddRectFilled(
             ImVec2(labelX, labelY),
             ImVec2(labelX + labelW, labelY + labelH),
-            IM_COL32(16, 13, 10, (uint8_t)(p.alpha * 0.7f)), 3.0f);
+            Col32_BgDark((uint8_t)(p.alpha * 0.7f)), 3.0f);
 
         // Left type-color bar
         draw->AddRectFilled(
@@ -167,7 +168,7 @@ void RenderInteractionPrompts(Registry& registry, float /*dt*/) {
         // Text
         draw->AddText(
             ImVec2(labelX + 10.0f, labelY + 4.0f),
-            IM_COL32(245, 238, 232, p.alpha),
+            Col32_Bg(p.alpha),
             actionText);
     }
 

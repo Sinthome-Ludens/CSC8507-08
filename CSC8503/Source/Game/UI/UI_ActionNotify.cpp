@@ -8,8 +8,11 @@
 #include <imgui.h>
 #include <cstdio>
 #include "Game/Components/Res_ActionNotifyState.h"
+#include "Game/UI/UITheme.h"
 
 namespace ECS::UI {
+
+using namespace ECS::UITheme;
 
 static constexpr float kFadeOut = 0.4f;   ///< 淡出时长（秒）
 
@@ -109,14 +112,14 @@ void RenderActionNotify(Registry& registry, float dt) {
         draw->AddRectFilled(
             ImVec2(boxX, boxY),
             ImVec2(boxX + kBoxW, boxY + kBoxH),
-            IM_COL32(245, 238, 232, static_cast<uint8_t>(220.0f * alpha)),
+            Col32_Bg(static_cast<uint8_t>(220.0f * alpha)),
             kRounding);
 
         // 卡片边框
         draw->AddRect(
             ImVec2(boxX, boxY),
             ImVec2(boxX + kBoxW, boxY + kBoxH),
-            IM_COL32(200, 200, 200, static_cast<uint8_t>(180.0f * alpha)),
+            Col32_Gray(static_cast<uint8_t>(180.0f * alpha)),
             kRounding, 0, 1.0f);
 
         // 左侧彩色竖条
@@ -135,7 +138,7 @@ void RenderActionNotify(Registry& registry, float dt) {
 
         // 动词（近黑）
         draw->AddText(ImVec2(textX, textY),
-            IM_COL32(16, 13, 10, a), e.verb);
+            Col32_Text(a), e.verb);
 
         // 目标名（类型色）— 紧跟动词后
         ImVec2 verbSize = ImGui::CalcTextSize(e.verb);
@@ -151,7 +154,7 @@ void RenderActionNotify(Registry& registry, float dt) {
             if (e.scoreDelta > 0) {
                 std::snprintf(scoreBuf, sizeof(scoreBuf), "+%d", e.scoreDelta);
                 draw->AddText(ImVec2(scoreX, textY),
-                    IM_COL32(252, 111, 41, a), scoreBuf);
+                    Col32_Accent(a), scoreBuf);
             } else {
                 std::snprintf(scoreBuf, sizeof(scoreBuf), "%d", e.scoreDelta);
                 draw->AddText(ImVec2(scoreX, textY),
