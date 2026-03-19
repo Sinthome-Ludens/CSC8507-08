@@ -458,6 +458,35 @@ void NavMeshPathfinderUtil::BuildAdjacency()
 }
 
 // ============================================================
+// SnapToNavMesh — 将世界坐标吸附到最近可行走三角形表面
+// ============================================================
+bool NavMeshPathfinderUtil::SnapToNavMesh(
+    const NCL::Maths::Vector3& worldPos,
+    NCL::Maths::Vector3& outSnapped) const
+{
+    if (!m_Loaded || m_Triangles.empty()) return false;
+    int triIdx = FindNearestTriangle(worldPos);
+    if (triIdx < 0) return false;
+
+    const auto& tri = m_Triangles[triIdx];
+    const auto& a = m_Vertices[tri.v[0]];
+    const auto& b = m_Vertices[tri.v[1]];
+    const auto& c = m_Vertices[tri.v[2]];
+
+    // XZ: keep original if inside triangle, otherwise use centroid
+    if (PointInTriangleXZ(worldPos, a, b, c)) {
+        outSnapped.x = worldPos.x;
+        outSnapped.z = worldPos.z;
+    } else {
+        outSnapped.x = tri.centroid.x;
+        outSnapped.z = tri.centroid.z;
+    }
+    // Y: use triangle centroid Y (ground surface height)
+    outSnapped.y = tri.centroid.y;
+    return true;
+}
+
+// ============================================================
 // PointInTriangleXZ — 判断点 p 的 XZ 投影是否在三角形 abc 内（重心坐标法）
 // 用于多层地图精确定位：先确定 XZ 包含关系，再比较 Y 距离。
 // ============================================================

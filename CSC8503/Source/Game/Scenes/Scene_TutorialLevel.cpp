@@ -20,6 +20,7 @@
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Components/Res_AIConfig.h"
 #include "Game/Components/Res_MinimapState.h"
+#include "Game/Components/C_D_Transform.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Countdown.h"
@@ -144,6 +145,18 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     m_Pathfinder->LoadNavMesh(mapResult.navmeshPath);
     m_Pathfinder->ScaleVertices(mapConfig.mapScale);
     m_Pathfinder->OffsetVertices(NCL::Maths::Vector3(0.0f, mapConfig.yOffset * mapConfig.mapScale, 0.0f));
+
+    // ── Snap item pickups to NavMesh walkable surface ──
+    for (ECS::EntityID pickupId : mapResult.itemPickups) {
+        if (!registry.Valid(pickupId)) continue;
+        auto& tf = registry.Get<ECS::C_D_Transform>(pickupId);
+        NCL::Maths::Vector3 snapped;
+        if (m_Pathfinder->SnapToNavMesh(tf.position, snapped)) {
+            tf.position.x = snapped.x;
+            tf.position.z = snapped.z;
+            tf.position.y = snapped.y + 0.8f;
+        }
+    }
 
     // ── Cache NavMesh boundary edges for minimap ──
     {
