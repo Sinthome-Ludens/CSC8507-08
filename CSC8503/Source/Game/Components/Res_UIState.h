@@ -58,6 +58,7 @@ enum class SceneRequest : uint8_t {
     HostGame,
     JoinGame,
     NextLevel,          ///< 关卡序列：前进到下一张地图
+    LaunchMultiplayerMatch, ///< 同图联机：收到服务端权威选图后进入首关
     StartTutorial,      ///< 教程关卡入口
 };
 

@@ -112,6 +112,12 @@ private:
      */
     void HandleLocalInput(Registry& reg, Res_Network& resNet);
     /**
+     * @brief 同步本地玩家位姿到远端幽灵显示通道。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     */
+    void SyncGhostTransforms(Registry& reg, Res_Network& resNet);
+    /**
      * @brief 将服务端权威世界状态广播给客户端。
      * @param reg ECS 注册表
      * @param resNet 网络资源对象
@@ -148,12 +154,26 @@ private:
      */
     void HandleMatchRestart(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     /**
+     * @brief 处理服务端下发的同图模式配置与权威地图序列。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
+    void HandleMultiplayerSetup(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
      * @brief 处理客户端上报的输入位掩码。
      * @param reg ECS 注册表
      * @param resNet 网络资源对象
      * @param event 底层 ENet 接收事件
      */
     void HandleClientInput(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理客户端上报的幽灵位姿。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
+    void HandleClientGhostTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     /**
      * @brief 处理客户端上报的三阶段比赛进度与终局状态。
      * @param reg ECS 注册表
@@ -175,6 +195,13 @@ private:
      * @param event 底层 ENet 接收事件
      */
     void HandleGameAction(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理服务端广播的远端幽灵位姿。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
+    void HandleSyncGhostTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event);
 
     /**
      * @brief 清空仅在单帧内有效的比赛状态边沿标记。
@@ -207,16 +234,22 @@ private:
      */
     void BroadcastMatchRestart(Registry& reg, Res_Network& resNet);
     /**
+     * @brief 由服务端向目标对端广播同图模式配置与权威地图序列。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param explicitPeer 目标对端；为空时广播给所有客户端
+     */
+    void BroadcastMultiplayerSetup(Registry& reg, Res_Network& resNet, ENetPeer* explicitPeer = nullptr);
+    /**
      * @brief 将当前多人战局状态重置为新一局的初始值。
      * @param reg ECS 注册表
      */
     void ResetMatchStateForRestart(Registry& reg);
     /**
-     * @brief 根据本地/远端阶段与终局原因收口权威比赛结果。
-     * @param gs 当前比赛状态资源
-     * @param remoteGameOverReason 对手最新上报的终局原因；0 表示未终局
+     * @brief 根据本地/远端阶段与终局终态收口权威比赛结果。
+     * @param gs 当前比赛状态资源（包含 localTerminalState / remoteTerminalState）
      */
-    void ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReason = 0u);
+    void ApplyMatchResult(Res_GameState& gs);
     /**
      * @brief 将 Finished 比赛状态映射到 GameOver UI。
      * @param reg ECS 注册表
@@ -240,7 +273,19 @@ private:
      * @param gs 当前比赛状态资源
      * @return 0 表示尚未进入本地终局，否则返回现有 gameOverReason 编码
      */
-    static uint8_t GetLocalTerminalReason(Registry& reg, const Res_GameState& gs);
+    static MultiplayerTerminalState GetLocalTerminalState(const Res_GameState& gs);
+    /**
+     * @brief 从当前比赛状态计算本地客户端的终局原因编码。
+     * @param gs 当前比赛状态资源
+     * @return 0 表示尚未进入本地终局，否则返回现有 gameOverReason 编码
+     */
+    static uint8_t GetLocalTerminalReason(const Res_GameState& gs);
+    /**
+     * @brief 判断给定多人比赛终局状态是否为最终稳定终态。
+     * @param state 待判断的终局状态
+     * @return 若为最终不可再变更的终局状态则返回 true，否则返回 false
+     */
+    static bool IsFinalTerminalState(MultiplayerTerminalState state);
     /**
      * @brief 判断当前 `Res_Network` 是否仍持有可安全跨场景复用的 ENet 会话。
      * @param resNet 网络资源对象
@@ -273,6 +318,44 @@ private:
      * @return 当前应显示的轮次索引
      */
     static uint8_t ComputeCurrentRoundIndex(uint8_t hostStageProgress, uint8_t clientStageProgress);
+    /**
+     * @brief 将服务端权威地图序列写入会话级 UI 状态。
+     * @param reg ECS 注册表
+     * @param mapSequence 三关地图序列
+     * @param roundIndex 当前轮次索引
+     */
+    static void ApplyAuthoritativeMapSequence(Registry& reg,
+                                              const uint8_t* mapSequence,
+                                              uint8_t roundIndex);
+    /**
+     * @brief 确保远程玩家幽灵实体存在并已在网络资源中注册。
+     * @param reg ECS 注册表，用于创建或查询远程幽灵实体。
+     * @param resNet 当前会话的网络资源，用于缓存远程幽灵实体的 EntityID 等状态。
+     * @return 远程幽灵实体的 EntityID（如不存在则创建后返回）。
+     */
+    static EntityID EnsureRemoteGhostEntity(Registry& reg, Res_Network& resNet);
+    /**
+     * @brief 缓存最新接收到的远程幽灵实体变换快照。
+     * @param resNet 网络资源，用于保存远程幽灵的最近一次位姿快照。
+     * @param pkt 从网络接收到的幽灵变换数据包。
+     */
+    static void CacheRemoteGhostSnapshot(Res_Network& resNet, const Net_Packet_GhostTransform& pkt);
+    /**
+     * @brief 将已缓存的远程幽灵变换快照应用到场景中的对应实体。
+     * @param reg ECS 注册表，用于访问并更新远程幽灵实体的组件。
+     * @param resNet 网络资源，提供已缓存的远程幽灵变换快照及实体引用。
+     * @param resetInterpolationBuffer 是否重置插值缓冲（通常在首次同步或传送时启用）。
+     */
+    static void ApplyCachedRemoteGhostSnapshot(Registry& reg,
+                                               Res_Network& resNet,
+                                               bool resetInterpolationBuffer);
+    /**
+     * @brief 刷新远程幽灵实体的引用与组件状态以适配当前会话/场景。
+     * @param reg ECS 注册表，用于重新绑定或重建远程幽灵实体。
+     * @param resNet 网络资源，用于更新远程幽灵实体的缓存信息。
+     */
+    static void RefreshRemoteGhostEntity(Registry& reg, Res_Network& resNet);
+    static void HideRemoteGhostEntity(Registry& reg, Res_Network& resNet);
 
     // ── 数据包解包与物理驱动辅助方法 ──
     template<typename T>
@@ -330,6 +413,9 @@ private:
     uint32_t m_NextClientID = 1; ///< 服务端分配给下一个连接客户端的 ID
     uint32_t m_LastInputMask = 0; ///< 记录客户端上一帧的输入，用于判断状态变化
     float m_InputTimer = 0.0f;    ///< 客户端输入发送计时器
+    float m_GhostTransformTimer = 0.0f; ///< 幽灵位姿同步计时器
+    EntityID m_LastGhostSourceEntity = Entity::NULL_ENTITY;
+    uint8_t m_LastGhostSentRoundIndex = 0xFF;
     uint8_t m_LastReportedLocalStageProgress = 0xFF;
     uint8_t m_LastReportedLocalGameOverReason = 0xFF;
     uint8_t m_LastBroadcastPhase = 0xFF;
