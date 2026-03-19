@@ -49,6 +49,9 @@ void Sys_Network::RegisterHandlers() {
     m_PacketHandlers[CLIENT_MATCH_PROGRESS] = &Sys_Network::HandleClientMatchProgress;
     m_PacketHandlers[CLIENT_MATCH_RESTART_REQUEST] = &Sys_Network::HandleClientMatchRestartRequest;
     m_PacketHandlers[GAME_EVENT]     = &Sys_Network::HandleGameAction;
+    m_PacketHandlers[GHOST_SCORE_SYNC]   = &Sys_Network::HandleGhostScoreSync;
+    m_PacketHandlers[GHOST_POSITION]     = &Sys_Network::HandleGhostPosition;
+    m_PacketHandlers[GHOST_MAP_PROGRESS] = &Sys_Network::HandleGhostMapProgress;
 }
 
 /**
@@ -228,6 +231,24 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
         m_TimeSinceLastSend -= m_SendRate;
         if (m_TimeSinceLastSend > m_SendRate) m_TimeSinceLastSend = 0.0f; // prevent spiral
         BroadcastWorldState(reg, resNet);
+    }
+
+    // 4. Ghost Duel specific broadcasts (bidirectional)
+    if (reg.has_ctx<Res_GameState>() && reg.ctx<Res_GameState>().isGhostDuel && resNet.connected) {
+        m_GhostScoreTimer += dt;
+        m_GhostPositionTimer += dt;
+
+        if (m_GhostScoreTimer >= kGhostScoreRate) {
+            m_GhostScoreTimer -= kGhostScoreRate;
+            if (m_GhostScoreTimer > kGhostScoreRate) m_GhostScoreTimer = 0.0f;
+            BroadcastGhostScore(reg, resNet);
+        }
+
+        if (m_GhostPositionTimer >= kGhostPositionRate) {
+            m_GhostPositionTimer -= kGhostPositionRate;
+            if (m_GhostPositionTimer > kGhostPositionRate) m_GhostPositionTimer = 0.0f;
+            BroadcastGhostPosition(reg, resNet);
+        }
     }
 }
 /**
@@ -838,10 +859,18 @@ void Sys_Network::UpdateMatchUIState(Registry& reg) {
     if (!gs.isMultiplayer || gs.matchPhase != MatchPhase::Finished) return;
 
     auto& ui = reg.ctx<Res_UIState>();
-    if (ui.activeScreen != UIScreen::GameOver) {
-        ui.previousScreen = ui.activeScreen;
-        ui.activeScreen = UIScreen::GameOver;
-        ui.gameOverSelectedIndex = 0;
+    if (gs.isGhostDuel) {
+        if (ui.activeScreen != UIScreen::GhostDuelResult) {
+            ui.previousScreen = ui.activeScreen;
+            ui.activeScreen = UIScreen::GhostDuelResult;
+            ui.ghostDuelResultSelectedIndex = 0;
+        }
+    } else {
+        if (ui.activeScreen != UIScreen::GameOver) {
+            ui.previousScreen = ui.activeScreen;
+            ui.activeScreen = UIScreen::GameOver;
+            ui.gameOverSelectedIndex = 0;
+        }
     }
 }
 
@@ -1039,8 +1068,151 @@ void Sys_Network::OnDestroy(Registry& reg) {
     LOG_INFO("Network System shut down. Sent: " << resNet.packetsSent << ", Received: " << resNet.packetsReceived);
 }
 
+// ── Ghost Duel: packet handlers ──────────────────────────────
+
 /**
- * @brief 监听本地产生的游戏动作事件，并将其打包发送到网络中
+ * @brief 处理对端发来的 Ghost Duel 积分明细同步包。
+ * @param reg    ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event  底层 ENet 接收事件
+ */
+void Sys_Network::HandleGhostScoreSync(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    auto* pkt = GetPacketData<Net_Packet_GhostScoreSync>(event);
+    if (!pkt || !reg.has_ctx<Res_GhostDuelState>()) return;
+
+    auto& gd = reg.ctx<Res_GhostDuelState>();
+    gd.opponentScore             = pkt->score;
+    gd.opponentScoreLost_time    = pkt->lost_time;
+    gd.opponentScoreLost_kills   = pkt->lost_kills;
+    gd.opponentScoreLost_items   = pkt->lost_items;
+    gd.opponentScoreLost_countdown = pkt->lost_countdown;
+    gd.opponentScoreLost_failure = pkt->lost_failure;
+    gd.opponentKillCount         = pkt->killCount;
+    gd.opponentItemUseCount      = pkt->itemUseCount;
+}
+
+/**
+ * @brief 处理对端发来的 Ghost Duel 虚影位置同步包，更新 ghost 可见性。
+ * @param reg    ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event  底层 ENet 接收事件
+ */
+void Sys_Network::HandleGhostPosition(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    auto* pkt = GetPacketData<Net_Packet_GhostPosition>(event);
+    if (!pkt || !reg.has_ctx<Res_GhostDuelState>() || !reg.has_ctx<Res_UIState>()) return;
+
+    auto& gd = reg.ctx<Res_GhostDuelState>();
+    gd.ghostPosX = pkt->pos[0];
+    gd.ghostPosY = pkt->pos[1];
+    gd.ghostPosZ = pkt->pos[2];
+    gd.ghostRotX = pkt->rot[0];
+    gd.ghostRotY = pkt->rot[1];
+    gd.ghostRotZ = pkt->rot[2];
+    gd.ghostRotW = pkt->rot[3];
+    gd.ghostMapIndex = pkt->mapIndex;
+
+    // Ghost is visible only when on the same map
+    const auto& ui = reg.ctx<Res_UIState>();
+    gd.ghostVisible = (pkt->mapIndex == ui.mapSequenceIndex);
+}
+
+/**
+ * @brief 处理对端发来的 Ghost Duel 关卡进度通知（可靠传输）。
+ * @param reg    ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event  底层 ENet 接收事件
+ */
+void Sys_Network::HandleGhostMapProgress(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    auto* pkt = GetPacketData<Net_Packet_GhostMapProgress>(event);
+    if (!pkt || !reg.has_ctx<Res_GhostDuelState>()) return;
+
+    auto& gd = reg.ctx<Res_GhostDuelState>();
+    gd.ghostMapIndex = pkt->mapIndex;
+    gd.opponentPlayTime = pkt->playTime;
+    if (pkt->finished) {
+        gd.opponentFinished = true;
+    }
+}
+
+/**
+ * @brief 将本地积分明细打包广播给对端（Server 广播 / Client 单播）。
+ * @param reg    ECS 注册表
+ * @param resNet 网络资源对象
+ */
+void Sys_Network::BroadcastGhostScore(Registry& reg, Res_Network& resNet) {
+    if (!reg.has_ctx<Res_UIState>() || !reg.has_ctx<Res_Time>()) return;
+    const auto& ui = reg.ctx<Res_UIState>();
+
+    Net_Packet_GhostScoreSync pkt;
+    pkt.type = GHOST_SCORE_SYNC;
+    pkt.timestamp = static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f);
+    pkt.score         = ui.campaignScore;
+    pkt.lost_time     = ui.scoreLost_time;
+    pkt.lost_kills    = ui.scoreLost_kills;
+    pkt.lost_items    = ui.scoreLost_items;
+    pkt.lost_countdown = ui.scoreLost_countdown;
+    pkt.lost_failure  = ui.scoreLost_failure;
+    pkt.killCount     = ui.scoreKillCount;
+    pkt.itemUseCount  = ui.scoreItemUseCount;
+
+    if (resNet.mode == PeerType::SERVER) {
+        SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Unreliable);
+    } else if (resNet.peer) {
+        SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Unreliable);
+    }
+}
+
+/**
+ * @brief 将本地玩家位置打包广播给对端（Server 广播 / Client 单播）。
+ * @param reg    ECS 注册表
+ * @param resNet 网络资源对象
+ */
+void Sys_Network::BroadcastGhostPosition(Registry& reg, Res_Network& resNet) {
+    if (!reg.has_ctx<Res_UIState>() || !reg.has_ctx<Res_Time>()) return;
+    const auto& ui = reg.ctx<Res_UIState>();
+
+    // Find local player transform
+    Net_Packet_GhostPosition pkt;
+    pkt.type = GHOST_POSITION;
+    pkt.timestamp = static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f);
+    pkt.mapIndex = ui.mapSequenceIndex;
+
+    // Try to find local player entity's transform
+    bool found = false;
+    if (reg.has_ctx<Res_Network>()) {
+        const auto& netRes = reg.ctx<Res_Network>();
+        reg.view<C_D_Transform, C_D_NetworkIdentity>().each(
+            [&](EntityID, C_D_Transform& tf, C_D_NetworkIdentity& net) {
+                if (!found && net.ownerClientID == netRes.localClientID) {
+                    pkt.pos[0] = tf.position.x;
+                    pkt.pos[1] = tf.position.y;
+                    pkt.pos[2] = tf.position.z;
+                    pkt.rot[0] = tf.rotation.x;
+                    pkt.rot[1] = tf.rotation.y;
+                    pkt.rot[2] = tf.rotation.z;
+                    pkt.rot[3] = tf.rotation.w;
+                    found = true;
+                }
+            });
+    }
+
+    if (!found) {
+        pkt.pos[0] = pkt.pos[1] = pkt.pos[2] = 0.0f;
+        pkt.rot[0] = pkt.rot[1] = pkt.rot[2] = 0.0f;
+        pkt.rot[3] = 1.0f;
+    }
+
+    if (resNet.mode == PeerType::SERVER) {
+        SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Unreliable);
+    } else if (resNet.peer) {
+        SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Unreliable);
+    }
+}
+
+// ── Event handlers ──────────────────────────────────────────
+
+/**
+ * @brief 监听本地产生的游戏动作事件，并将其打包发送到网络中。
  * @param evt 游戏动作事件对象
  */
 void Sys_Network::OnLocalGameAction(const Evt_Net_GameAction& evt) {
