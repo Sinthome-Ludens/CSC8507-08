@@ -323,6 +323,7 @@ private:
                                                Res_Network& resNet,
                                                bool resetInterpolationBuffer);
     static void RefreshRemoteGhostEntity(Registry& reg, Res_Network& resNet);
+    static void HideRemoteGhostEntity(Registry& reg, Res_Network& resNet);
 
     // ── 数据包解包与物理驱动辅助方法 ──
     template<typename T>
@@ -383,11 +384,6 @@ private:
     float m_GhostTransformTimer = 0.0f; ///< 幽灵位姿同步计时器
     EntityID m_LastGhostSourceEntity = Entity::NULL_ENTITY;
     uint8_t m_LastGhostSentRoundIndex = 0xFF;
-    float m_LastGhostBlockedLogTime = -1000.0f;
-    float m_LastGhostSendLogTime = -1000.0f;
-    float m_LastGhostServerReceiveLogTime = -1000.0f;
-    float m_LastGhostClientReceiveLogTime = -1000.0f;
-    float m_LastGhostApplyLogTime = -1000.0f;
     uint8_t m_LastReportedLocalStageProgress = 0xFF;
     uint8_t m_LastReportedLocalGameOverReason = 0xFF;
     uint8_t m_LastBroadcastPhase = 0xFF;
