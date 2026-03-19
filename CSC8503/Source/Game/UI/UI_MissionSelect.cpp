@@ -95,11 +95,11 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
         int         invIndex; // index into Res_ItemInventory2.slots[]
     };
 
-    DisplaySlot gadgets[5] = {};
+    DisplaySlot gadgets[Res_ItemInventory2::kItemCount] = {};
     int gadgetCount = 0;
-    DisplaySlot weapons[5] = {};
+    DisplaySlot weapons[Res_ItemInventory2::kItemCount] = {};
     int weaponCount = 0;
-    char descBuf[5][80] = {}; // scratch buffer for dynamic descriptions
+    char descBuf[Res_ItemInventory2::kItemCount][80] = {};
 
     // ctx 中可能还没有 Res_ItemInventory2（主菜单阶段 Sys_Item 尚未注册），
     // 此时用临时默认实例读取道具列表，并从存档缓存恢复 storeCount。
@@ -128,12 +128,12 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             snprintf(descBuf[i], sizeof(descBuf[i]), "%s [Stock: %d]",
                      slot.desc, static_cast<int>(slot.storeCount));
             ds.desc = descBuf[i];
-            if (gadgetCount < 5) gadgets[gadgetCount++] = ds;
+            if (gadgetCount < Res_ItemInventory2::kItemCount) gadgets[gadgetCount++] = ds;
         } else {
             // Only show unlocked weapons
             if (!slot.unlocked) continue;
             ds.desc = slot.desc;
-            if (weaponCount < 5) weapons[weaponCount++] = ds;
+            if (weaponCount < Res_ItemInventory2::kItemCount) weapons[weaponCount++] = ds;
         }
     }
 
@@ -309,8 +309,8 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
 
     // Col 1: Gadgets
     {
-        const char* gNames[5] = {};
-        const char* gDescs[5] = {};
+        const char* gNames[Res_ItemInventory2::kItemCount] = {};
+        const char* gDescs[Res_ItemInventory2::kItemCount] = {};
         for (int i = 0; i < gadgetCount; ++i) {
             gNames[i] = gadgets[i].name;
             gDescs[i] = gadgets[i].desc;
@@ -320,8 +320,8 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
 
     // Col 2: Weapons
     if (weaponCount > 0) {
-        const char* wNames[5] = {};
-        const char* wDescs[5] = {};
+        const char* wNames[Res_ItemInventory2::kItemCount] = {};
+        const char* wDescs[Res_ItemInventory2::kItemCount] = {};
         for (int i = 0; i < weaponCount; ++i) {
             wNames[i] = weapons[i].name;
             wDescs[i] = weapons[i].desc;
