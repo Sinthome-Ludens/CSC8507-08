@@ -77,9 +77,15 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
 
                 if (isMultiplayer) {
                     auto& gs = registry.ctx<Res_GameState>();
+                    int32_t campaignScore = 1000;
+#ifdef USE_IMGUI
                     Res_UIState* uiState = registry.has_ctx<Res_UIState>()
                         ? &registry.ctx<Res_UIState>()
                         : nullptr;
+                    if (uiState != nullptr) {
+                        campaignScore = uiState->campaignScore;
+                    }
+#endif
                     if (gs.localStageProgress < kMultiplayerStageCount) {
                         ++gs.localStageProgress;
                     }
@@ -88,7 +94,7 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                     gs.roundJustAdvanced = true;
                     if (gs.localStageProgress >= kMultiplayerStageCount) {
                         gs.isGameOver = true;
-                        const bool scorePassed = (uiState == nullptr) || (uiState->campaignScore > 500);
+                        const bool scorePassed = campaignScore > 500;
                         gs.gameOverReason = scorePassed ? 3 : 2;
                         gs.gameOverTime = gs.playTime;
                     }
