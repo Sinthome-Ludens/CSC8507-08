@@ -12,6 +12,7 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/UI/UITheme.h"
+#include "Game/UI/UI_Anim.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/Res_UIKeyConfig.h"
@@ -40,7 +41,7 @@ static constexpr int kGameOverItemCount = 2;
  * @param registry 当前 ECS 注册表
  * @param dt 本帧时间步长（未使用）
  */
-void RenderGameOverScreen(Registry& registry, float /*dt*/) {
+void RenderGameOverScreen(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
     const auto& input = registry.ctx<Res_Input>();
@@ -355,27 +356,43 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         }
     }
 
+    // Update hover progress
+    for (int i = 0; i < kGameOverItemCount; ++i) {
+        float target = (i == ui.gameOverSelectedIndex) ? 1.0f : 0.0f;
+        ui.menuHoverProgress[i] = Anim::SmoothLerp(ui.menuHoverProgress[i], target, 10.0f, dt);
+    }
+
     for (int i = 0; i < kGameOverItemCount; ++i) {
         float itemY = menuStartY + i * menuItemH;
-        bool isSelected = (i == ui.gameOverSelectedIndex);
+        float hoverT = Anim::EaseOutCubic(ui.menuHoverProgress[i]);
 
         ImVec2 itemMin(itemStartX, itemY - 2.0f);
         ImVec2 itemMax(itemStartX + itemW, itemY + menuItemH - 6.0f);
 
-        if (isSelected) {
-            draw->AddRectFilled(itemMin, itemMax,
-                Col32_Accent(25), 2.0f);
-            draw->AddRect(itemMin, itemMax,
-                Col32_Accent(120), 2.0f, 0, 1.0f);
+        uint8_t bgAlpha = (uint8_t)(hoverT * 35);
+        uint8_t borderAlpha = (uint8_t)(80 + hoverT * 100);
+        if (bgAlpha > 2) {
+            draw->AddRectFilled(itemMin, itemMax, Col32_Accent(bgAlpha), 2.0f);
+            draw->AddRect(itemMin, itemMax, Col32_Accent(borderAlpha), 2.0f, 0, 1.0f);
+        }
+
+        // Left orange bar
+        if (hoverT > 0.01f) {
+            float barFullH = menuItemH - 8.0f;
+            float barH = hoverT * barFullH;
+            float barCY = itemY + (menuItemH - 6.0f) * 0.5f - 2.0f;
+            draw->AddRectFilled(
+                ImVec2(itemMin.x, barCY - barH * 0.5f),
+                ImVec2(itemMin.x + 3.0f, barCY + barH * 0.5f),
+                Col32_Accent((uint8_t)(hoverT * 200)));
         }
 
         char label[64];
-        snprintf(label, sizeof(label), isSelected ? "> %s" : "  %s",
-            kGameOverItems[i]);
-        ImU32 textColor = isSelected ? Col32_Text()
-                                     : Col32_Text(220);
-        float textX = itemStartX + 10.0f + (isSelected ? 4.0f : 0.0f);
-        draw->AddText(ImVec2(textX, itemY), textColor, label);
+        bool showCaret = (hoverT > 0.5f);
+        snprintf(label, sizeof(label), showCaret ? "> %s" : "  %s", kGameOverItems[i]);
+        uint8_t textAlpha = (uint8_t)(220 + hoverT * 35);
+        float textX = itemStartX + 10.0f + hoverT * 8.0f;
+        draw->AddText(ImVec2(textX, itemY), Col32_Text(textAlpha), label);
     }
 
     if (termFont) ImGui::PopFont();

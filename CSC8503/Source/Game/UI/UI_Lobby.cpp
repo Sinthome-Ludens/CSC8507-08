@@ -13,6 +13,7 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/UI/UITheme.h"
+#include "Game/UI/UI_Anim.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/Res_UIKeyConfig.h"
@@ -37,7 +38,7 @@ static constexpr int kLobbyItemCount = 3;
 // RenderLobbyScreen
 // ============================================================
 
-void RenderLobbyScreen(Registry& registry, float /*dt*/) {
+void RenderLobbyScreen(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
 
@@ -140,14 +141,31 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
         ui.lobbySelectedIndex = 1;
     }
 
+    // Update hover progress for lobby cards
+    for (int i = 0; i < kLobbyItemCount; ++i) {
+        float target = (i == ui.lobbySelectedIndex) ? 1.0f : 0.0f;
+        ui.menuHoverProgress[i] = Anim::SmoothLerp(ui.menuHoverProgress[i], target, 10.0f, dt);
+    }
+
     // Draw HOST card
     {
-        bool sel = (ui.lobbySelectedIndex == 0);
-        ImU32 bgCol = sel ? Col32_Accent(20) : Col32_Bg();
-        ImU32 bdCol = sel ? Col32_Accent(150) : Col32_Gray(100);
+        float hoverT = Anim::EaseOutCubic(ui.menuHoverProgress[0]);
+        uint8_t bgAlpha = (uint8_t)(hoverT * 30);
+        uint8_t bdAlpha = (uint8_t)(100 + hoverT * 80);
+        float bdWidth = 1.0f + hoverT * 1.0f;
 
-        draw->AddRectFilled(hostMin, hostMax, bgCol, 4.0f);
-        draw->AddRect(hostMin, hostMax, bdCol, 4.0f, 0, sel ? 2.0f : 1.0f);
+        draw->AddRectFilled(hostMin, hostMax, Col32_Accent(bgAlpha), 4.0f);
+        draw->AddRect(hostMin, hostMax, Col32_Accent(bdAlpha), 4.0f, 0, bdWidth);
+
+        // Left accent bar
+        if (hoverT > 0.01f) {
+            float barH = hoverT * cardH * 0.6f;
+            float barCY = cardsStartY + cardH * 0.5f;
+            draw->AddRectFilled(
+                ImVec2(hostCardX, barCY - barH * 0.5f),
+                ImVec2(hostCardX + 3.0f, barCY + barH * 0.5f),
+                Col32_Accent((uint8_t)(hoverT * 200)), 1.0f);
+        }
 
         if (titleFont) ImGui::PushFont(titleFont);
         const char* hostTitle = "HOST";
@@ -173,12 +191,23 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
 
     // Draw JOIN card
     {
-        bool sel = (ui.lobbySelectedIndex == 1);
-        ImU32 bgCol = sel ? Col32_Accent(20) : Col32_Bg();
-        ImU32 bdCol = sel ? Col32_Accent(150) : Col32_Gray(100);
+        float hoverT = Anim::EaseOutCubic(ui.menuHoverProgress[1]);
+        uint8_t bgAlpha = (uint8_t)(hoverT * 30);
+        uint8_t bdAlpha = (uint8_t)(100 + hoverT * 80);
+        float bdWidth = 1.0f + hoverT * 1.0f;
 
-        draw->AddRectFilled(joinMin, joinMax, bgCol, 4.0f);
-        draw->AddRect(joinMin, joinMax, bdCol, 4.0f, 0, sel ? 2.0f : 1.0f);
+        draw->AddRectFilled(joinMin, joinMax, Col32_Accent(bgAlpha), 4.0f);
+        draw->AddRect(joinMin, joinMax, Col32_Accent(bdAlpha), 4.0f, 0, bdWidth);
+
+        // Left accent bar
+        if (hoverT > 0.01f) {
+            float barH = hoverT * cardH * 0.6f;
+            float barCY = cardsStartY + cardH * 0.5f;
+            draw->AddRectFilled(
+                ImVec2(joinCardX, barCY - barH * 0.5f),
+                ImVec2(joinCardX + 3.0f, barCY + barH * 0.5f),
+                Col32_Accent((uint8_t)(hoverT * 200)), 1.0f);
+        }
 
         if (titleFont) ImGui::PushFont(titleFont);
         const char* joinTitle = "JOIN";
@@ -254,19 +283,22 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
         ui.lobbySelectedIndex = 2;
     }
 
-    bool backSel = (ui.lobbySelectedIndex == 2);
-    draw->AddRectFilled(backMin, backMax,
-        backSel ? Col32_Accent(25) : Col32_Bg(), 3.0f);
-    draw->AddRect(backMin, backMax,
-        backSel ? Col32_Accent(150) : Col32_Gray(100), 3.0f);
+    {
+        float hoverT = Anim::EaseOutCubic(ui.menuHoverProgress[2]);
+        uint8_t bgAlpha = (uint8_t)(hoverT * 30);
+        uint8_t bdAlpha = (uint8_t)(100 + hoverT * 80);
+        draw->AddRectFilled(backMin, backMax, Col32_Accent(bgAlpha), 3.0f);
+        draw->AddRect(backMin, backMax, Col32_Accent(bdAlpha), 3.0f);
 
-    if (termFont) ImGui::PushFont(termFont);
-    const char* backText = "< BACK";
-    ImVec2 backTextSize = ImGui::CalcTextSize(backText);
-    draw->AddText(
-        ImVec2(backX + (backW - backTextSize.x) * 0.5f, backY + (backH - backTextSize.y) * 0.5f),
-        backSel ? Col32_Text() : Col32_Text(200), backText);
-    if (termFont) ImGui::PopFont();
+        if (termFont) ImGui::PushFont(termFont);
+        const char* backText = "< BACK";
+        ImVec2 backTextSize = ImGui::CalcTextSize(backText);
+        uint8_t textAlpha = (uint8_t)(200 + hoverT * 55);
+        draw->AddText(
+            ImVec2(backX + (backW - backTextSize.x) * 0.5f, backY + (backH - backTextSize.y) * 0.5f),
+            Col32_Text(textAlpha), backText);
+        if (termFont) ImGui::PopFont();
+    }
 
     // ── Confirm action ────────────────────────────────────────
     int8_t confirmedIndex = -1;

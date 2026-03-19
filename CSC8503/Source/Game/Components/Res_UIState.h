@@ -151,6 +151,9 @@ struct Res_UIState {
     // ── Debug mode (bypass map sequence) ──
     int8_t    debugCurrentScene        = -1;  ///< >=0 表示当前为 debug 模式进入的场景 index，-1 表示正常流程
 
+    // ── Menu hover animation (shared across all menus) ─────────
+    float menuHoverProgress[8] = {};   ///< Per-item hover progress 0.0~1.0, driven by SmoothLerp
+
     // ── Campaign score (跨场景持久化) ──────────────────────────
     int32_t campaignScore                 = 1000;  ///< 战役积分（初始1000, 纯扣减制）
     float   scoreDecayAccum               = 0.0f;  ///< 时间衰减子秒累加器

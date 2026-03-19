@@ -12,6 +12,7 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/UI/UITheme.h"
+#include "Game/UI/UI_Anim.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/Res_UIKeyConfig.h"
@@ -270,7 +271,7 @@ void RenderSplashScreen(Registry& registry, float dt) {
 // RenderMainMenu
 // ============================================================
 
-void RenderMainMenu(Registry& registry, float /*dt*/) {
+void RenderMainMenu(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
 
@@ -388,33 +389,49 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
         }
     }
 
+    // Update hover progress (SmoothLerp per item)
+    for (int i = 0; i < kMenuItemCount; ++i) {
+        float target = (i == ui.menuSelectedIndex) ? 1.0f : 0.0f;
+        ui.menuHoverProgress[i] = Anim::SmoothLerp(ui.menuHoverProgress[i], target, 10.0f, dt);
+    }
+
     for (int i = 0; i < kMenuItemCount; ++i) {
         float itemY = menuStartY + i * menuItemH;
-        bool isSelected = (i == ui.menuSelectedIndex);
+        float hoverT = Anim::EaseOutCubic(ui.menuHoverProgress[i]);
 
-        float offsetX = isSelected ? 4.0f : 0.0f;
+        float offsetX = hoverT * 8.0f;
         float baseX = vpPos.x + panelPadX + offsetX;
 
         ImVec2 itemMin(vpPos.x + panelPadX - 5.0f, itemY - 2.0f);
         ImVec2 itemMax(vpPos.x + leftPanelW - 10.0f, itemY + menuItemH - 6.0f);
 
-        // Selected item highlight (orange accent)
-        if (isSelected) {
+        // Animated highlight
+        uint8_t bgAlpha = (uint8_t)(hoverT * 35);
+        uint8_t borderAlpha = (uint8_t)(80 + hoverT * 100);
+        if (bgAlpha > 2) {
             draw->AddRectFilled(itemMin, itemMax,
-                Col32_Accent(25), 2.0f);
+                Col32_Accent(bgAlpha), 2.0f);
             draw->AddRect(itemMin, itemMax,
-                Col32_Accent(120), 2.0f, 0, Layout::kBorderWidth);
+                Col32_Accent(borderAlpha), 2.0f, 0, Layout::kBorderWidth);
+        }
+
+        // Left orange bar (grows from center)
+        if (hoverT > 0.01f) {
+            float barFullH = menuItemH - 8.0f;
+            float barH = hoverT * barFullH;
+            float barCY = itemY + (menuItemH - 6.0f) * 0.5f - 2.0f;
+            draw->AddRectFilled(
+                ImVec2(itemMin.x, barCY - barH * 0.5f),
+                ImVec2(itemMin.x + 3.0f, barCY + barH * 0.5f),
+                Col32_Accent((uint8_t)(hoverT * 200)));
         }
 
         char buf[128];
-        if (isSelected) {
-            snprintf(buf, sizeof(buf), "> %s", kMenuItems[i]);
-        } else {
-            snprintf(buf, sizeof(buf), "  %s", kMenuItems[i]);
-        }
+        bool showCaret = (hoverT > 0.5f);
+        snprintf(buf, sizeof(buf), showCaret ? "> %s" : "  %s", kMenuItems[i]);
 
-        ImU32 textColor = isSelected ? Col32_Text(255) : Col32_Text(220);
-        draw->AddText(ImVec2(baseX, itemY), textColor, buf);
+        uint8_t textAlpha = (uint8_t)(220 + hoverT * 35);
+        draw->AddText(ImVec2(baseX, itemY), Col32_Text(textAlpha), buf);
     }
 
     if (termFont) ImGui::PopFont();
@@ -667,7 +684,7 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
 // RenderPauseMenu
 // ============================================================
 
-void RenderPauseMenu(Registry& registry, float /*dt*/) {
+void RenderPauseMenu(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
 
@@ -774,24 +791,44 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
         }
     }
 
+    // Update hover progress
+    for (int i = 0; i < kPauseItemCount; ++i) {
+        float target = (i == ui.pauseSelectedIndex) ? 1.0f : 0.0f;
+        ui.menuHoverProgress[i] = Anim::SmoothLerp(ui.menuHoverProgress[i], target, 10.0f, dt);
+    }
+
     for (int i = 0; i < kPauseItemCount; ++i) {
         float itemY = menuStartY + i * menuItemH;
-        bool isSelected = (i == ui.pauseSelectedIndex);
+        float hoverT = Anim::EaseOutCubic(ui.menuHoverProgress[i]);
 
-        float baseX = panelX + 50.0f + (isSelected ? 4.0f : 0.0f);
+        float baseX = panelX + 50.0f + hoverT * 8.0f;
 
         ImVec2 itemMin(panelX + 30.0f, itemY - 2.0f);
         ImVec2 itemMax(panelX + panelW - 30.0f, itemY + menuItemH - 6.0f);
 
-        if (isSelected) {
-            draw->AddRectFilled(itemMin, itemMax, Col32_Accent(25), 2.0f);
-            draw->AddRect(itemMin, itemMax, Col32_Accent(120), 2.0f, 0, Layout::kBorderWidth);
+        uint8_t bgAlpha = (uint8_t)(hoverT * 35);
+        uint8_t borderAlpha = (uint8_t)(80 + hoverT * 100);
+        if (bgAlpha > 2) {
+            draw->AddRectFilled(itemMin, itemMax, Col32_Accent(bgAlpha), 2.0f);
+            draw->AddRect(itemMin, itemMax, Col32_Accent(borderAlpha), 2.0f, 0, Layout::kBorderWidth);
+        }
+
+        // Left orange bar
+        if (hoverT > 0.01f) {
+            float barFullH = menuItemH - 8.0f;
+            float barH = hoverT * barFullH;
+            float barCY = itemY + (menuItemH - 6.0f) * 0.5f - 2.0f;
+            draw->AddRectFilled(
+                ImVec2(itemMin.x, barCY - barH * 0.5f),
+                ImVec2(itemMin.x + 3.0f, barCY + barH * 0.5f),
+                Col32_Accent((uint8_t)(hoverT * 200)));
         }
 
         char buf[64];
-        snprintf(buf, sizeof(buf), isSelected ? "> %s" : "  %s", kPauseItems[i]);
-        ImU32 textColor = isSelected ? Col32_Text(255) : Col32_Text(220);
-        draw->AddText(ImVec2(baseX, itemY), textColor, buf);
+        bool showCaret = (hoverT > 0.5f);
+        snprintf(buf, sizeof(buf), showCaret ? "> %s" : "  %s", kPauseItems[i]);
+        uint8_t textAlpha = (uint8_t)(220 + hoverT * 35);
+        draw->AddText(ImVec2(baseX, itemY), Col32_Text(textAlpha), buf);
     }
 
     if (termFont) ImGui::PopFont();
