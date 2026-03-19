@@ -307,6 +307,7 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
         if (m_TimeSinceLastSend > m_SendRate) m_TimeSinceLastSend = 0.0f; // prevent spiral
         BroadcastWorldState(reg, resNet);
     }
+
 }
 /**
  * @brief 轮询并处理底层的 ENet 网络事件（连接、接收数据、断开）
@@ -1464,6 +1465,8 @@ void Sys_Network::OnDestroy(Registry& reg) {
     LOG_INFO("Network System shut down. Sent: " << resNet.packetsSent << ", Received: " << resNet.packetsReceived);
 }
 
+// ── Event handlers ──────────────────────────────────────────
+
 /**
  * @brief 判断当前 ENet 会话是否仍然健康且可被新场景复用。
  * @param resNet 网络资源对象
@@ -1554,7 +1557,7 @@ void Sys_Network::ResetNetworkRuntimeState(Res_Network& resNet, bool keepConfigu
 }
 
 /**
- * @brief 监听本地产生的游戏动作事件，并将其打包发送到网络中
+ * @brief 监听本地产生的游戏动作事件，并将其打包发送到网络中。
  * @param evt 游戏动作事件对象
  */
 void Sys_Network::OnLocalGameAction(const Evt_Net_GameAction& evt) {

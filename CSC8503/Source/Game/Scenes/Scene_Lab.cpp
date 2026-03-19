@@ -5,6 +5,8 @@
 #include "Scene_Lab.h"
 
 #include <cstring>
+#include <algorithm>
+#include <vector>
 #include "Assets.h"
 #include "Core/Bridge/AssetManager.h"
 #include "Core/ECS/Registry.h"
@@ -18,6 +20,8 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Components/Res_AIConfig.h"
+#include "Game/Components/Res_MinimapState.h"
+#include "Game/Components/C_D_Transform.h"
 #include "Game/Components/Res_DataOcean.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
@@ -156,6 +160,49 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
     m_Pathfinder->ScaleVertices(mapConfig.mapScale);
     m_Pathfinder->OffsetVertices(NCL::Maths::Vector3(0.0f, mapConfig.yOffset * mapConfig.mapScale, 0.0f));
 
+    // ── Snap item pickups to NavMesh walkable surface ──
+    for (ECS::EntityID pickupId : mapResult.itemPickups) {
+        if (!registry.Valid(pickupId)) continue;
+        auto& tf = registry.Get<ECS::C_D_Transform>(pickupId);
+        NCL::Maths::Vector3 snapped;
+        if (m_Pathfinder->SnapToNavMesh(tf.position, snapped)) {
+            tf.position.x = snapped.x;
+            tf.position.z = snapped.z;
+            tf.position.y = snapped.y + 0.8f;
+        }
+    }
+
+    // ── Cache NavMesh boundary edges for minimap ──
+    {
+        auto& minimap = registry.ctx_emplace<ECS::Res_MinimapState>();
+        auto boundaryEdges = m_Pathfinder->GetBoundaryEdges();
+        minimap.edgeCount = std::min(static_cast<int>(boundaryEdges.size()),
+                                     ECS::Res_MinimapState::kMaxEdges);
+        for (int i = 0; i < minimap.edgeCount; ++i) {
+            minimap.edges[i] = {
+                boundaryEdges[i].v0.x, boundaryEdges[i].v0.z,
+                boundaryEdges[i].v1.x, boundaryEdges[i].v1.z
+            };
+            minimap.worldMinX = std::min({minimap.worldMinX, boundaryEdges[i].v0.x, boundaryEdges[i].v1.x});
+            minimap.worldMaxX = std::max({minimap.worldMaxX, boundaryEdges[i].v0.x, boundaryEdges[i].v1.x});
+            minimap.worldMinZ = std::min({minimap.worldMinZ, boundaryEdges[i].v0.z, boundaryEdges[i].v1.z});
+            minimap.worldMaxZ = std::max({minimap.worldMaxZ, boundaryEdges[i].v0.z, boundaryEdges[i].v1.z});
+        }
+
+        // Cache walkable triangles for minimap fill
+        std::vector<NCL::Maths::Vector3> verts;
+        std::vector<int> indices;
+        m_Pathfinder->GetWalkableGeometry(verts, indices);
+        int triCount = static_cast<int>(indices.size()) / 3;
+        minimap.triangleCount = std::min(triCount, ECS::Res_MinimapState::kMaxTriangles);
+        for (int t = 0; t < minimap.triangleCount; ++t) {
+            const auto& v0 = verts[indices[t * 3]];
+            const auto& v1 = verts[indices[t * 3 + 1]];
+            const auto& v2 = verts[indices[t * 3 + 2]];
+            minimap.triangles[t] = { v0.x, v0.z, v1.x, v1.z, v2.x, v2.z };
+        }
+    }
+
     systems.Register<ECS::Sys_PlayerCamera>    (150);
     systems.Register<ECS::Sys_Camera>          (155);
     systems.Register<ECS::Sys_DataOcean>       (195);
@@ -272,6 +319,7 @@ void Scene_Lab::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_DataOcean>())       registry.ctx_erase<ECS::Res_DataOcean>();
     if (registry.has_ctx<ECS::Res_ItemInventory2>())  registry.ctx_erase<ECS::Res_ItemInventory2>();
     if (registry.has_ctx<ECS::Res_RadarState>())      registry.ctx_erase<ECS::Res_RadarState>();
+    if (registry.has_ctx<ECS::Res_MinimapState>())   registry.ctx_erase<ECS::Res_MinimapState>();
     if (!isMultiplayer && registry.has_ctx<ECS::Res_GameState>()) registry.ctx_erase<ECS::Res_GameState>();
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_ToastState>())      registry.ctx_erase<ECS::Res_ToastState>();

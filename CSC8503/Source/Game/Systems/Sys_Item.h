@@ -85,6 +85,12 @@ private:
 
     /// @brief 每帧同步 Res_ItemInventory2 → Res_InventoryState（供 UI_Inventory 读取）。
     void SyncInventoryState(Registry& registry);
+
+    /// @brief 每帧旋转地图上的道具实体（视觉效果，便于发现）。
+    void AnimatePickups(Registry& registry, float dt);
+
+    /// 道具旋转动画累计时间
+    float m_PickupAnimTime = 0.0f;
 };
 
 } // namespace ECS

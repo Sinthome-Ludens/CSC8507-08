@@ -1,6 +1,6 @@
 /**
  * @file Res_ItemInventory2.h
- * @brief 全局道具库存资源：存储玩家对五种道具的携带数量与仓库存量。
+ * @brief 全局道具库存资源：存储玩家对六种道具的携带数量与仓库存量。
  *
  * @details
  * 场景级 ctx 资源，由 Sys_Item 管理生命周期：
@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <cstdio>
 #include "Game/Components/C_D_Item.h"
+#include "Game/Components/Res_MinimapState.h"
 
 namespace ECS {
 
@@ -150,6 +151,18 @@ struct Res_ItemInventory2 {
         snprintf(slots[4].name, sizeof(slots[4].name), "Strike");
         snprintf(slots[4].desc, sizeof(slots[4].desc), "Kill nearest enemy instantly (AUTO x2)");
         slots[4].cooldownDuration = 10.0f;
+
+        // 006 GlobalMap (全局地图) — Gadget, 始终可用
+        slots[5].itemId      = ItemID::GlobalMap;
+        slots[5].itemType    = ItemType::Gadget;
+        slots[5].maxCarry    = 1;
+        slots[5].maxStore    = 99;
+        slots[5].mapPickupMax = 2;   // 地图可拾取（稀有，每图最多 2 个）
+        slots[5].unlocked    = true;
+        slots[5].storeCount  = 3;
+        snprintf(slots[5].name, sizeof(slots[5].name), "Map");
+        snprintf(slots[5].desc, sizeof(slots[5].desc), "Reveal map layout on HUD");
+        slots[5].cooldownDuration = Res_MinimapState::kActiveDuration;
     }
 
     /**

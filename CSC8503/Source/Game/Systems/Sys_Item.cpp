@@ -6,15 +6,13 @@
  * 实现要点：
  *  - OnAwake 中初始化 Res_ItemInventory2 并调用 OnRoundStart()，
  *    订阅 Evt_Item_Pickup 以更新携带数量。
- *  - OnUpdate 分两步：DetectPickup（XZ 范围检测）和 ProcessItemUseInput（数字键 1-5）。
+ *  - OnUpdate 分两步：DetectPickup（XZ 范围检测）和 ProcessItemUseInput（Q/E 装备槽）。
  *  - OnDestroy 取消订阅并执行 OnRoundEnd()（游戏结束结算）。
  *
- * ## 道具使用按键约定（C_D_Input 字段，由 Sys_InputDispatch 填入）
- *  - 数字键 1 → ItemID::HoloBait   （全息诱饵炸弹）
- *  - 数字键 2 → ItemID::PhotonRadar（光子雷达，激活/关闭雷达 HUD）
- *  - 数字键 3 → ItemID::DDoS       （冻结目标）
- *  - 数字键 4 → ItemID::RoamAI     （释放流窜 AI）
- *  - 数字键 5 → ItemID::TargetStrike（靶向打击，目标即死）
+ * ## 道具使用按键约定
+ *  - Q 键 → 使用当前激活的道具槽（Gadget）
+ *  - E 键 → 使用当前激活的武器槽（Weapon）
+ *  - TAB 键 → 切换激活的道具/武器槽
  */
 #include "Sys_Item.h"
 #include "Game/Utils/PauseGuard.h"
@@ -39,6 +37,7 @@
 #include "Game/Components/Res_ActionNotifyState.h"
 #endif
 
+#include <cmath>
 #include <cstring>
 #include <vector>
 
@@ -78,6 +77,7 @@ void Sys_Item::OnUpdate(Registry& registry, float dt) {
     ProcessItemUseInput(registry);
     SyncDisplaySlots(registry, dt);
     SyncInventoryState(registry);
+    AnimatePickups(registry, dt);
 }
 
 // ============================================================
@@ -259,11 +259,6 @@ void Sys_Item::ProcessItemUseInput(Registry& registry) {
     registry.view<C_T_Player, C_D_Input, C_D_Transform>().each(
         [&](EntityID playerId, C_T_Player&, C_D_Input& input, C_D_Transform& tf) {
             int slotPressed = -1;
-            if      (input.item1JustPressed) slotPressed = 0;
-            else if (input.item2JustPressed) slotPressed = 1;
-            else if (input.item3JustPressed) slotPressed = 2;
-            else if (input.item4JustPressed) slotPressed = 3;
-            else if (input.item5JustPressed) slotPressed = 4;
 
             // Q: use active gadget slot
             if (slotPressed < 0 && input.gadgetUseJustPressed && registry.has_ctx<Res_GameState>()) {
@@ -404,6 +399,22 @@ void Sys_Item::SyncInventoryState(Registry& registry) {
     for (int i = Res_ItemInventory2::kItemCount; i < Res_InventoryState::kSlotCount; ++i) {
         invState.slots[i] = {};
     }
+}
+
+// ============================================================
+// AnimatePickups — 每帧旋转地图上的道具实体（视觉效果）
+// ============================================================
+/// @brief 每帧以 90°/s 旋转所有 C_T_ItemPickup 实体（yaw 轴视觉动画）。
+void Sys_Item::AnimatePickups(Registry& registry, float dt) {
+    m_PickupAnimTime += dt;
+    float yawDeg = std::fmod(m_PickupAnimTime * 90.0f, 360.0f); // 90°/s rotation speed
+
+    auto rot = Quaternion::EulerAnglesToQuaternion(0.0f, yawDeg, 0.0f);
+
+    registry.view<C_T_ItemPickup, C_D_Transform>().each(
+        [&](EntityID, C_T_ItemPickup&, C_D_Transform& tf) {
+            tf.rotation = rot;
+        });
 }
 
 } // namespace ECS

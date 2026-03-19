@@ -108,6 +108,24 @@ static void DrawIcon_TargetStrike(ImDrawList* draw, ImVec2 c, float r, ImU32 col
     draw->AddLine(ImVec2(c.x + br, c.y + br), ImVec2(c.x + br - bl, c.y + br), col, 1.5f);
 }
 
+/// GlobalMap: 圆形外框 + 十字准线 + 中心点 + 北方三角指示器
+static void DrawIcon_GlobalMap(ImDrawList* draw, ImVec2 c, float r, ImU32 col) {
+    // 外圆
+    draw->AddCircle(c, r * 0.9f, col, 24, 1.5f);
+    // 十字准线
+    draw->AddLine(ImVec2(c.x - r * 0.5f, c.y),
+                  ImVec2(c.x + r * 0.5f, c.y), col, 1.0f);
+    draw->AddLine(ImVec2(c.x, c.y - r * 0.5f),
+                  ImVec2(c.x, c.y + r * 0.5f), col, 1.0f);
+    // 中心点
+    draw->AddCircleFilled(c, 2.0f, col);
+    // 北方指示三角（顶部）
+    draw->AddTriangleFilled(
+        ImVec2(c.x, c.y - r * 0.85f),
+        ImVec2(c.x - 2.5f, c.y - r * 0.6f),
+        ImVec2(c.x + 2.5f, c.y - r * 0.6f), col);
+}
+
 void DrawItemIcon(ImDrawList* draw, ImVec2 center, float size, ItemID id, ImU32 color) {
     switch (id) {
         case ItemID::HoloBait:     DrawIcon_HoloBait(draw, center, size, color);     break;
@@ -115,6 +133,7 @@ void DrawItemIcon(ImDrawList* draw, ImVec2 center, float size, ItemID id, ImU32 
         case ItemID::DDoS:         DrawIcon_DDoS(draw, center, size, color);         break;
         case ItemID::RoamAI:       DrawIcon_RoamAI(draw, center, size, color);       break;
         case ItemID::TargetStrike: DrawIcon_TargetStrike(draw, center, size, color); break;
+        case ItemID::GlobalMap:    DrawIcon_GlobalMap(draw, center, size, color);     break;
         default: break;
     }
 }

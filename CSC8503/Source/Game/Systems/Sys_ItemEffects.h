@@ -104,6 +104,13 @@ private:
      */
     void EffectTargetStrike(Registry& registry, const struct Evt_Item_Use& evt);
 
+    /**
+     * @brief 处理全局地图（GlobalMap）使用效果：激活小地图显示 + 雷达联动。
+     * @param registry ECS 注册表。
+     * @param evt      道具使用事件。
+     */
+    void EffectGlobalMap(Registry& registry, const struct Evt_Item_Use& evt);
+
     // ── 每帧持续效果更新 ──
 
     /**
@@ -133,6 +140,13 @@ private:
      * @param dt       帧时间（秒）。
      */
     void UpdateRadar(Registry& registry, float dt);
+
+    /**
+     * @brief 每帧更新小地图计时器（到期自动关闭显示）。
+     * @param registry ECS 注册表。
+     * @param dt       帧时间（秒）。
+     */
+    void UpdateMinimap(Registry& registry, float dt);
 
     /**
      * @brief 在所有带 C_T_Enemy + C_D_Transform 的敌人中，找出距 origin 最近的一个。
