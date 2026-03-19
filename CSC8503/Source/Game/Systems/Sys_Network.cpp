@@ -1379,16 +1379,21 @@ uint8_t Sys_Network::ComputeGameOverReasonForResult(MatchResult result) {
 }
 
 /**
- * @brief 从当前本地状态推导客户端需要上报给服务端的终局原因。
- * @details 覆盖三关完成、倒计时耗尽、玩家死亡，以及已切入 GameOver 但尚未写入明确原因的兜底场景。
- * @param reg ECS 注册表
+ * @brief 获取当前本地终局状态。
+ * @details 直接返回 Res_GameState 中缓存的 localTerminalState，用于向服务端上报本地终局状态。
  * @param gs 当前比赛状态资源
- * @return 0 表示本地仍未终局，否则返回标准 gameOverReason
+ * @return 本地终局状态
  */
 MultiplayerTerminalState Sys_Network::GetLocalTerminalState(const Res_GameState& gs) {
     return gs.localTerminalState;
 }
 
+/**
+ * @brief 获取当前本地终局原因编码。
+ * @details 直接返回 Res_GameState 中缓存的 localTerminalReason，用于向服务端上报本地终局原因。
+ * @param gs 当前比赛状态资源
+ * @return 本地终局原因编码（与 gameOverReason 对应）
+ */
 uint8_t Sys_Network::GetLocalTerminalReason(const Res_GameState& gs) {
     return gs.localTerminalReason;
 }
