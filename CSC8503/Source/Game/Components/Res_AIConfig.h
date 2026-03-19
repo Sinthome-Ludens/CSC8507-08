@@ -17,12 +17,18 @@ namespace ECS {
 struct Res_AIConfig {
     float contact_distance       = 1.5f;
     float hunt_lock_duration     = 1.5f;
-    float global_alert_increment = 15.0f;
+    float global_alert_increment = 25.0f;
     float hysteresis_band        = 5.0f;
     float noise_hearing_range    = 15.0f;
     float noise_boost_factor     = 1.0f;
     float ally_alert_range       = 15.0f;
     float ally_alert_boost       = 20.0f;
+
+    // ── 检测值参数（消除 Sys_EnemyAI 内联 magic number）──
+    float maxDetectionValue      = 100.0f;  ///< 检测值上限
+    float visionDistModulation   = 0.7f;    ///< 距离衰减系数
+    float minDistFactor          = 0.3f;    ///< 衰减 clamp 下限
+    float maxDistFactor          = 1.0f;    ///< 衰减 clamp 上限
 };
 
 } // namespace ECS

@@ -144,9 +144,8 @@ void RenderTitleScreen(Registry& registry, float dt) {
             }
         }
         if (!anyInput) {
-            if (input.mouseButtonPressed[NCL::MouseButtons::Left] ||
-                input.mouseButtonPressed[NCL::MouseButtons::Right]) {
-                anyInput = true;
+            for (size_t m = 0; m < std::size(input.mouseButtonPressed); ++m) {
+                if (input.mouseButtonPressed[m]) { anyInput = true; break; }
             }
         }
         if (anyInput) {

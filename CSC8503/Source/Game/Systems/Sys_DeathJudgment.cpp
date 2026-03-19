@@ -25,11 +25,16 @@
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_ScoreConfig.h"
 #include "Game/Components/Res_EnemyEnums.h"
+#ifdef USE_IMGUI
 #include "Game/UI/UI_ActionNotify.h"
+#endif
 #include "Game/Events/Evt_Phys_Trigger.h"
 #include "Game/Events/Evt_Death.h"
 #include "Game/Utils/Log.h"
+
+#include <algorithm>
 
 namespace ECS {
 
@@ -157,8 +162,14 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
 
     // ── 3. 死亡检查 ──
     // 已 GameOver 则跳过，避免每帧重复发布 Evt_Death
-    if (registry.has_ctx<Res_GameState>() && registry.ctx<Res_GameState>().isGameOver) {
-        return;
+    if (registry.has_ctx<Res_GameState>()) {
+        const auto& gs = registry.ctx<Res_GameState>();
+        if (gs.isGameOver
+            || (gs.isMultiplayer
+                && (gs.matchPhase != MatchPhase::Running
+                    || gs.localTerminalState != MultiplayerTerminalState::None))) {
+            return;
+        }
     }
     // Registry::Destroy 是延迟销毁（加入 m_PendingDestroy），
     // 帧末 ProcessPendingDestroy 才真正移除实体，不会在 view.each()
@@ -188,11 +199,28 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                     if (registry.has_ctx<Res_GameState>() && registry.has_ctx<Res_UIState>()) {
                         auto& gs = registry.ctx<Res_GameState>();
                         auto& ui = registry.ctx<Res_UIState>();
-                        gs.isGameOver       = true;
-                        gs.gameOverReason   = 2;   // OPERATOR DETECTED
-                        gs.gameOverTime     = gs.playTime;
-                        ui.activeScreen          = UIScreen::GameOver;
-                        ui.gameOverSelectedIndex  = 0;
+                        if (gs.isMultiplayer) {
+                            gs.localTerminalState = MultiplayerTerminalState::Death;
+                            gs.localTerminalReason = ToU8(GameOverReason::Detected);
+                        } else {
+                            gs.isGameOver       = true;
+                            gs.gameOverReason   = GameOverReason::Detected;
+                            gs.gameOverTime     = gs.playTime;
+                            ui.activeScreen = UIScreen::GameOver;
+                            ui.gameOverSelectedIndex = 0;
+                        }
+                        // 失败惩罚 -500（挑战模式全局规则）
+                        Res_ScoreConfig defaultScoreCfg;
+                        const auto& scoreCfg = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
+                        if (!ui.failureScorePenaltyApplied) {
+                            ui.failureScorePenaltyApplied = true;
+                            ui.scoreLost_failure += scoreCfg.penaltyCapture;
+                            ui.campaignScore = std::max(0, ui.campaignScore - scoreCfg.penaltyCapture);
+#ifdef USE_IMGUI
+                            ECS::UI::PushActionNotify(registry, "MISSION", "FAILED",
+                                                      -scoreCfg.penaltyCapture, ActionNotifyType::Alert);
+#endif
+                        }
                     }
                 }
             } else if (registry.Has<C_T_Enemy>(entity)) {
@@ -213,11 +241,20 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                 registry.Emplace<C_D_Dying>(entity);
                 registry.Emplace<C_D_DeathVisual>(entity);
 
-                // 击杀通知
+                // 击杀扣分通知 -10（挑战模式全局规则）
+                if (registry.has_ctx<Res_UIState>()
+                    && registry.has_ctx<Res_GameState>()) {
+                    Res_ScoreConfig defaultScoreCfg2;
+                    const auto& sc = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg2;
+                    auto& uiS = registry.ctx<Res_UIState>();
+                    uiS.campaignScore = std::max(0, uiS.campaignScore - sc.penaltyKill);
+                    uiS.scoreLost_kills += sc.penaltyKill;
+                    uiS.scoreKillCount++;
 #ifdef USE_IMGUI
-                ECS::UI::PushActionNotify(registry, "消灭", "敌人", 10,
-                                          ActionNotifyType::Kill);
+                    ECS::UI::PushActionNotify(registry, "KILL PENALTY", "ENEMY",
+                                              -sc.penaltyKill, ActionNotifyType::Kill);
 #endif
+                }
             }
         }
     );

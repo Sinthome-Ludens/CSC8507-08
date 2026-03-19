@@ -23,8 +23,6 @@ class Sys_PlayerDisguise : public ISystem {
 public:
     void OnUpdate(Registry& registry, float dt) override;
 
-private:
-    static constexpr float HIDE_SPEED_THRESHOLD = 1.0f;
 };
 
 } // namespace ECS

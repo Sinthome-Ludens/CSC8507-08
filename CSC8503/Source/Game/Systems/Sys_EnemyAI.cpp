@@ -67,7 +67,7 @@ void Sys_EnemyAI::OnAwake(Registry& registry) {
                     float falloff = 1.0f - (dist / cfg.noise_hearing_range);
                     float boost = e.volume * cfg.noise_boost_factor * falloff;
                     perception.detection_value = std::min(
-                        perception.detection_value + boost, 100.0f);
+                        perception.detection_value + boost, cfg.maxDetectionValue);
                 });
         });
 
@@ -100,7 +100,7 @@ void Sys_EnemyAI::OnAwake(Registry& registry) {
                     float dz = e.position.z - etf.position.z;
                     if (dx * dx + dz * dz < rangeSq) {
                         perception.detection_value = std::min(
-                            perception.detection_value + cfg.ally_alert_boost, 100.0f);
+                            perception.detection_value + cfg.ally_alert_boost, cfg.maxDetectionValue);
                     }
                 });
         });
@@ -121,10 +121,9 @@ void Sys_EnemyAI::OnUpdate(Registry& registry, float dt) {
         aiCfg = registry.ctx<Res_AIConfig>();
     }
 
-    float visionMaxDist = 20.0f;
-    if (registry.has_ctx<Res_VisionConfig>()) {
-        visionMaxDist = registry.ctx<Res_VisionConfig>().maxDistance;
-    }
+    Res_VisionConfig defaultVisCfg;
+    const auto& visCfg = registry.has_ctx<Res_VisionConfig>() ? registry.ctx<Res_VisionConfig>() : defaultVisCfg;
+    const float visionMaxDist = visCfg.maxDistance;
 
     const float contactDistSq = aiCfg.contact_distance * aiCfg.contact_distance;
     const float hyst           = aiCfg.hysteresis_band;
@@ -177,10 +176,10 @@ void Sys_EnemyAI::OnUpdate(Registry& registry, float dt) {
              * 即 0m 处增速为 100%，maxDistance 处增速为 30%。
              * clamp 在 [0.3, 1.0] 确保不会降为零。
              */
-            float distFactor = 1.0f;
+            float distFactor = aiCfg.maxDistFactor;
             if (visionMaxDist > 0.001f) {
-                distFactor = 1.0f - 0.7f * (detect.spotted_distance / visionMaxDist);
-                distFactor = std::clamp(distFactor, 0.3f, 1.0f);
+                distFactor = aiCfg.maxDistFactor - aiCfg.visionDistModulation * (detect.spotted_distance / visionMaxDist);
+                distFactor = std::clamp(distFactor, aiCfg.minDistFactor, aiCfg.maxDistFactor);
             }
             detect.detection_value += detect.detection_value_increase * distFactor * dt;
         } else {
@@ -193,7 +192,7 @@ void Sys_EnemyAI::OnUpdate(Registry& registry, float dt) {
             }
         }
 
-        detect.detection_value = std::clamp(detect.detection_value, 0.0f, 100.0f);
+        detect.detection_value = std::clamp(detect.detection_value, 0.0f, aiCfg.maxDetectionValue);
 
         /**
          * 状态切换（带 hysteresis）：

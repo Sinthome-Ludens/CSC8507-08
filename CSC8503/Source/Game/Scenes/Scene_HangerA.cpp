@@ -18,9 +18,11 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_VisionConfig.h"
 #include "Game/Components/Res_AIConfig.h"
+#include "Game/Components/Res_DataOcean.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Countdown.h"
+#include "Game/Systems/Sys_DataOcean.h"
 #include "Game/Systems/Sys_DeathJudgment.h"
 #include "Game/Systems/Sys_DeathEffect.h"
 #include "Game/Systems/Sys_Input.h"
@@ -37,6 +39,7 @@
 #include "Game/Systems/Sys_Navigation.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Network.h"
+#include "Game/Systems/Sys_Interpolation.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
@@ -79,7 +82,7 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
         && registry.ctx<ECS::Res_Network>().mode != ECS::PeerType::OFFLINE;
     const bool hasActiveNetworkSession = isMultiplayer
         && registry.ctx<ECS::Res_Network>().host != nullptr
-        && registry.ctx<ECS::Res_Network>().connected;
+        && registry.ctx<ECS::Res_Network>().remotePeerConnected;
 
     // ── 1. Asset init ───────────────────────────────────────────────────
     ECS::AssetManager::Instance().Init();
@@ -113,6 +116,8 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_NavTestState>(std::move(navState));
     }
 
+    registry.ctx_emplace<ECS::Res_DataOcean>();
+
     // ── 3. Map loading (MapLoadConfig driven) ───────────────────────────
     MapLoadConfig mapConfig{};
     if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_HangerA.json", mapConfig)) {
@@ -121,12 +126,20 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
     }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
+    if (isMultiplayer && registry.has_ctx<ECS::Res_Network>()) {
+        auto& resNet = registry.ctx<ECS::Res_Network>();
+        if (resNet.multiplayerMode == ECS::MultiplayerMode::SameMapGhostRace) {
+            resNet.localPlayerEntity = mapResult.playerEntity;
+            resNet.remoteGhostEntity = ECS::Entity::NULL_ENTITY;
+        }
+    }
 
     // ── 4. System registration (priority ascending) ─────────────────────
     systems.Register<ECS::Sys_Input>           ( 10);
     systems.Register<ECS::Sys_Animation>       ( 50);
     if (isMultiplayer) {
         systems.Register<ECS::Sys_Network>     ( 54);
+        systems.Register<ECS::Sys_Interpolation>( 56);
     }
     systems.Register<ECS::Sys_InputDispatch>   ( 55);
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);
@@ -150,6 +163,7 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
 
     systems.Register<ECS::Sys_PlayerCamera>    (150);
     systems.Register<ECS::Sys_Camera>          (155);
+    systems.Register<ECS::Sys_DataOcean>       (195);
     systems.Register<ECS::Sys_Render>          (200);
     systems.Register<ECS::Sys_Item>            (250);
     systems.Register<ECS::Sys_ItemEffects>     (260);
@@ -256,6 +270,7 @@ void Scene_HangerA::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_DeathConfig>())     registry.ctx_erase<ECS::Res_DeathConfig>();
     if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
     if (registry.has_ctx<ECS::Res_AIConfig>())        registry.ctx_erase<ECS::Res_AIConfig>();
+    if (registry.has_ctx<ECS::Res_DataOcean>())       registry.ctx_erase<ECS::Res_DataOcean>();
     if (registry.has_ctx<ECS::Res_ItemInventory2>())  registry.ctx_erase<ECS::Res_ItemInventory2>();
     if (registry.has_ctx<ECS::Res_RadarState>())      registry.ctx_erase<ECS::Res_RadarState>();
     if (!isMultiplayer && registry.has_ctx<ECS::Res_GameState>()) registry.ctx_erase<ECS::Res_GameState>();

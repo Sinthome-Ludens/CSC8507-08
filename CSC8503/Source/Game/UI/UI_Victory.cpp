@@ -7,8 +7,10 @@
 
 #include <imgui.h>
 #include <cstdio>
+#include <algorithm>
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
 #include "Keyboard.h"
@@ -30,6 +32,9 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
     const auto& input = registry.ctx<Res_Input>();
+
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
@@ -107,10 +112,64 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
             IM_COL32(252, 111, 41, 220), buf);
     }
 
+    // ── Score + Rating ───────────────────────────────────────
+    float scoreY = mapsY + 26.0f + Res_UIState::MAP_SEQUENCE_LENGTH * 24.0f + 16.0f;
+    int32_t finalScore = ui.campaignScore;
+    const char* rating = GetScoreRating(finalScore);
+    int8_t ratingTier = GetScoreRatingTier(finalScore);
+
+    const ImU32 ratingCol = UITheme::GetScoreRatingColor(ratingTier);
+
+    ImU32 labelCol  = IM_COL32(16, 13, 10, 220);
+    ImU32 deductCol = IM_COL32(220, 60, 40, 220);
+    float valX = statsX + 180.0f;
+
+    snprintf(buf, sizeof(buf), "FINAL SCORE:  %d  [%s]", std::max(0, finalScore), rating);
+    draw->AddText(ImVec2(statsX, scoreY), ratingCol, buf);
+
+    // Breakdown
+    draw->AddText(ImVec2(statsX, scoreY + 28.0f), labelCol, "-- BREAKDOWN --");
+
+    snprintf(buf, sizeof(buf), "TIME (-1/s):");
+    draw->AddText(ImVec2(statsX + 10.0f, scoreY + 52.0f), labelCol, buf);
+    if (ui.scoreLost_time > 0) {
+        snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_time);
+        draw->AddText(ImVec2(valX, scoreY + 52.0f), deductCol, buf);
+    } else {
+        draw->AddText(ImVec2(valX, scoreY + 52.0f), labelCol, "0");
+    }
+
+    snprintf(buf, sizeof(buf), "KILLS (x%d):", ui.scoreKillCount);
+    draw->AddText(ImVec2(statsX + 10.0f, scoreY + 76.0f), labelCol, buf);
+    if (ui.scoreLost_kills > 0) {
+        snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_kills);
+        draw->AddText(ImVec2(valX, scoreY + 76.0f), deductCol, buf);
+    } else {
+        draw->AddText(ImVec2(valX, scoreY + 76.0f), labelCol, "0");
+    }
+
+    snprintf(buf, sizeof(buf), "ITEMS (x%d):", ui.scoreItemUseCount);
+    draw->AddText(ImVec2(statsX + 10.0f, scoreY + 100.0f), labelCol, buf);
+    if (ui.scoreLost_items > 0) {
+        snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_items);
+        draw->AddText(ImVec2(valX, scoreY + 100.0f), deductCol, buf);
+    } else {
+        draw->AddText(ImVec2(valX, scoreY + 100.0f), labelCol, "0");
+    }
+
+    // COUNTDOWN
+    draw->AddText(ImVec2(statsX + 10.0f, scoreY + 124.0f), labelCol, "COUNTDOWN:");
+    if (ui.scoreLost_countdown > 0) {
+        snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_countdown);
+        draw->AddText(ImVec2(valX, scoreY + 124.0f), deductCol, buf);
+    } else {
+        draw->AddText(ImVec2(valX, scoreY + 124.0f), labelCol, "0");
+    }
+
     if (termFont) ImGui::PopFont();
 
     // ── Separator ─────────────────────────────────────────────
-    float sepY = mapsY + 26.0f + Res_UIState::MAP_SEQUENCE_LENGTH * 24.0f + 16.0f;
+    float sepY = scoreY + 154.0f;
     draw->AddLine(ImVec2(cx - 80.0f, sepY), ImVec2(cx + 80.0f, sepY),
         IM_COL32(200, 200, 200, 100), 1.0f);
 
@@ -143,10 +202,10 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
 
     // ── Confirm action ────────────────────────────────────────
     bool confirmed = false;
-    if (input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE]) {
+    if (input.keyPressed[uiCfg.keyConfirm] || input.keyPressed[uiCfg.keyConfirmAlt]) {
         confirmed = true;
     }
-    if (input.mouseButtonPressed[NCL::MouseButtons::Left] && hovered) {
+    if (input.mouseButtonPressed[uiCfg.mouseConfirm] && hovered) {
         confirmed = true;
     }
 

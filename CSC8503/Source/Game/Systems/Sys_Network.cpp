@@ -29,13 +29,67 @@
 #include "Game/Events/Evt_Net_GameAction.h"
 #include "Core/ECS/EventBus.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_InputConfig.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_PlayerInput.h"
+#include "Core/Bridge/AssetManager.h"
+#include "Game/Prefabs/PrefabFactory.h"
+#include "Assets.h"
 #include "Keyboard.h"
 #include <algorithm>
+#include <random>
 #include <iostream>
 
 namespace ECS {
+
+namespace {
+
+/**
+ * @brief 生成权威地图顺序表，用于随机化关卡轮换。
+ * @param outSequence 输出的序列缓冲区指针。
+ * @param count 缓冲区中可写入的元素个数。
+ */
+void GenerateAuthoritativeMapSequence(uint8_t* outSequence, size_t count) {
+    if (outSequence == nullptr || count == 0) {
+        return;
+    }
+
+    uint8_t pool[] = { 0, 1, 2, 3, 4 };
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(std::begin(pool), std::end(pool), gen);
+
+    const size_t copyCount = std::min<size_t>(count, std::size(pool));
+    for (size_t i = 0; i < copyCount; ++i) {
+        outSequence[i] = pool[i];
+    }
+}
+
+/**
+ * @brief 检查当前网络资源中是否存在至少一个已连接的远端对等体。
+ * @param resNet 当前帧的网络全局资源。
+ * @return 若存在已连接的客户端或服务器对等体则返回 true，否则返回 false。
+ */
+bool HasAnyConnectedRemotePeer(const Res_Network& resNet) {
+    if (resNet.mode == PeerType::CLIENT) {
+        return resNet.connected
+            && resNet.peer != nullptr
+            && resNet.peer->state == ENET_PEER_STATE_CONNECTED;
+    }
+
+    if (resNet.mode != PeerType::SERVER || resNet.host == nullptr || resNet.host->peers == nullptr) {
+        return false;
+    }
+
+    for (size_t i = 0; i < resNet.host->peerCount; ++i) {
+        if (resNet.host->peers[i].state == ENET_PEER_STATE_CONNECTED) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
 
 /**
  * @brief 注册网络数据包类型的处理函数映射
@@ -45,7 +99,10 @@ void Sys_Network::RegisterHandlers() {
     m_PacketHandlers[SYNC_TRANSFORM] = &Sys_Network::HandleSyncTransform;
     m_PacketHandlers[SYNC_MATCH_STATE] = &Sys_Network::HandleMatchState;
     m_PacketHandlers[SYNC_MATCH_RESTART] = &Sys_Network::HandleMatchRestart;
+    m_PacketHandlers[SYNC_MULTIPLAYER_SETUP] = &Sys_Network::HandleMultiplayerSetup;
+    m_PacketHandlers[SYNC_GHOST_TRANSFORM] = &Sys_Network::HandleSyncGhostTransform;
     m_PacketHandlers[CLIENT_INPUT]   = &Sys_Network::HandleClientInput;
+    m_PacketHandlers[CLIENT_GHOST_TRANSFORM] = &Sys_Network::HandleClientGhostTransform;
     m_PacketHandlers[CLIENT_MATCH_PROGRESS] = &Sys_Network::HandleClientMatchProgress;
     m_PacketHandlers[CLIENT_MATCH_RESTART_REQUEST] = &Sys_Network::HandleClientMatchRestartRequest;
     m_PacketHandlers[GAME_EVENT]     = &Sys_Network::HandleGameAction;
@@ -60,11 +117,15 @@ void Sys_Network::OnAwake(Registry& reg) {
     InitializeEvents(reg);
 
     auto& resNet = reg.ctx<Res_Network>();
-    if (resNet.host != nullptr) {
+    if (resNet.host != nullptr && CanReuseSession(resNet)) {
         resNet.preserveSessionOnSceneExit = false;
+        resNet.remotePeerConnected = HasAnyConnectedRemotePeer(resNet);
         m_TimeSinceLastSend = 0.0f;
         m_InputTimer = 0.0f;
+        m_GhostTransformTimer = 0.0f;
         m_LastInputMask = 0u;
+        m_LastGhostSourceEntity = Entity::NULL_ENTITY;
+        m_LastGhostSentRoundIndex = 0xFF;
         m_LastReportedLocalStageProgress = 0xFF;
         m_LastReportedLocalGameOverReason = 0xFF;
         m_LastBroadcastPhase = 0xFF;
@@ -92,6 +153,13 @@ void Sys_Network::OnAwake(Registry& reg) {
         return;
     }
 
+    if (resNet.host != nullptr) {
+        LOG_WARN("[Sys_Network] Discarding stale ENet session before reinitialization.");
+        enet_host_destroy(resNet.host);
+        enet_deinitialize();
+        ResetNetworkRuntimeState(resNet, true);
+    }
+
     if (enet_initialize() != 0) {
         LOG_ERROR("An error occurred while initializing ENet.");
         return;
@@ -103,6 +171,9 @@ void Sys_Network::OnAwake(Registry& reg) {
     else if (resNet.mode == PeerType::CLIENT) {
         InitializeClient(resNet);
     }
+    m_GhostTransformTimer = 0.0f;
+    m_LastGhostSourceEntity = Entity::NULL_ENTITY;
+    m_LastGhostSentRoundIndex = 0xFF;
 }
 
 /**
@@ -138,6 +209,7 @@ void Sys_Network::InitializeServer(Res_Network& resNet) {
     }
     resNet.localClientID = 0;
     resNet.connected = true;
+    resNet.remotePeerConnected = false;
     m_NextClientID = 1; 
     LOG_INFO("Network Server started on port " << resNet.serverPort << ".");
 }
@@ -152,6 +224,7 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
         LOG_ERROR("An error occurred while trying to create an ENet client host.");
         resNet.peer        = nullptr;
         resNet.connected   = false;
+        resNet.remotePeerConnected = false;
         resNet.localClientID = UINT32_MAX;
         return;
     }
@@ -166,6 +239,7 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
         resNet.host        = nullptr;
         resNet.peer        = nullptr;
         resNet.connected   = false;
+        resNet.remotePeerConnected = false;
         resNet.localClientID = UINT32_MAX;
         return;
     }
@@ -178,6 +252,7 @@ void Sys_Network::InitializeClient(Res_Network& resNet) {
         resNet.host        = nullptr;
         resNet.peer        = nullptr;
         resNet.connected   = false;
+        resNet.remotePeerConnected = false;
         resNet.localClientID = UINT32_MAX;
         return;
     }
@@ -209,12 +284,15 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
 
     if (!resNet.connected) return;
 
+    RefreshRemoteGhostEntity(reg, resNet);
+
     // 2. 处理本地输入（客户端发包，服务端直接驱动物理）
     HandleLocalInput(reg, resNet);
 
     if (resNet.mode == PeerType::CLIENT) {
         UpdateClientMatchProgress(reg, resNet);
     }
+    SyncGhostTransforms(reg, resNet);
 
     ProcessMatchRestartRequest(reg, resNet);
 
@@ -243,6 +321,7 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
             case ENET_EVENT_TYPE_CONNECT: {
                 std::cout << "[INFO] A new peer connected.\n";
                 if (resNet.mode == PeerType::SERVER) {
+                    resNet.remotePeerConnected = true;
                     uint32_t newClientID = m_NextClientID++;
                     event.peer->data = (void*)(uintptr_t)newClientID;
                     if (reg.has_ctx<EventBus*>()) {
@@ -263,9 +342,19 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                             gs.matchJustStarted = true;
                         }
                     }
+                    if (resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace) {
+                        BroadcastMultiplayerSetup(reg, resNet, event.peer);
+                        if (reg.has_ctx<Res_UIState>()) {
+                            auto& ui = reg.ctx<Res_UIState>();
+                            if (resNet.bootstrapSceneActive && ui.pendingSceneRequest == SceneRequest::None) {
+                                ui.pendingSceneRequest = SceneRequest::LaunchMultiplayerMatch;
+                            }
+                        }
+                    }
                     BroadcastMatchStateIfDirty(reg, resNet, true);
                 } else {
                     resNet.connected = true;
+                    resNet.remotePeerConnected = true;
                     // Client 侧不在此处抛出事件，在收到 SYS_WELCOME 知道自己 ID 时再抛出
                 }
                 break;
@@ -289,13 +378,15 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                         gs.matchResult = MatchResult::Disconnected;
                         gs.matchJustFinished = true;
                         gs.isGameOver = true;
-                        gs.gameOverReason = 0;
+                        gs.gameOverReason = GameOverReason::None;
                     }
                 }
                 UpdateMatchUIState(reg);
                 if (resNet.mode == PeerType::CLIENT) {
                     resNet.connected = false;
+                    resNet.remotePeerConnected = false;
                 } else {
+                    resNet.remotePeerConnected = HasAnyConnectedRemotePeer(resNet);
                     BroadcastMatchStateIfDirty(reg, resNet, true);
                 }
                 break;
@@ -339,6 +430,7 @@ void Sys_Network::HandleWelcomePacket(Registry& reg, Res_Network& resNet, const 
     if (!pkt) return;
 
     resNet.localClientID = pkt->clientID;
+    resNet.remotePeerConnected = true;
     LOG_INFO("Received SYS_WELCOME. Assigned Client ID: " << resNet.localClientID);
     
     // 此时已经收到真实的 ClientID，可以在这里抛出事件通知其他系统进行玩家实体的创建等逻辑
@@ -365,14 +457,12 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
     const uint8_t previousLocalProgress = gs.localStageProgress;
     const uint8_t previousOpponentProgress = gs.opponentStageProgress;
     const uint8_t pendingLocalStageProgress = gs.localStageProgress;
-    const uint8_t pendingLocalGameOverReason = GetLocalTerminalReason(reg, gs);
-    const bool hasPendingLocalTerminalState =
-        pendingLocalGameOverReason != 0u || pendingLocalStageProgress >= kMultiplayerStageCount;
     const MatchPhase incomingPhase = static_cast<MatchPhase>(pkt->matchPhase);
     const MatchResult incomingResult = ToClientPerspective(static_cast<MatchResult>(pkt->matchResult));
 
     gs.matchPhase = incomingPhase;
     gs.matchResult = incomingResult;
+    gs.authoritativeMatchFinished = (incomingPhase == MatchPhase::Finished);
     gs.localStageProgress = std::max(ClampStageProgress(pkt->clientStageProgress), pendingLocalStageProgress);
     gs.opponentStageProgress = ClampStageProgress(pkt->hostStageProgress);
     gs.currentRoundIndex = std::min<uint8_t>(pkt->currentRoundIndex, kMultiplayerStageCount - 1);
@@ -384,17 +474,10 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
         || (previousOpponentProgress != gs.opponentStageProgress);
 
     if (incomingPhase == MatchPhase::Finished) {
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.gameOverReason = ToGameOverReason(ComputeGameOverReasonForResult(gs.matchResult));
         gs.isGameOver = true;
-    } else if (hasPendingLocalTerminalState) {
-        const uint8_t inferredPendingReason =
-            pendingLocalGameOverReason != 0u
-            ? pendingLocalGameOverReason
-            : (pendingLocalStageProgress >= kMultiplayerStageCount ? 3u : 0u);
-        gs.gameOverReason = inferredPendingReason;
-        gs.isGameOver = (inferredPendingReason != 0u);
     } else {
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.gameOverReason = GameOverReason::None;
         gs.isGameOver = false;
     }
 
@@ -409,12 +492,44 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
  * @param event ENet 事件对象
  */
 void Sys_Network::HandleMatchRestart(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
-    if (!GetPacketData<Net_Packet_MatchRestart>(event) || !reg.has_ctx<Res_UIState>()) return;
+    auto* pkt = GetPacketData<Net_Packet_MatchRestart>(event);
+    if (!pkt || !reg.has_ctx<Res_UIState>()) return;
 
     ResetMatchStateForRestart(reg);
+    resNet.multiplayerMode = static_cast<MultiplayerMode>(pkt->multiplayerMode);
+    if (resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace) {
+        ApplyAuthoritativeMapSequence(reg, pkt->mapSequence, pkt->currentRoundIndex);
+        resNet.matchSetupReceived = true;
+    }
     auto& ui = reg.ctx<Res_UIState>();
     ui.multiplayerRetryRequested = false;
     ui.pendingSceneRequest = SceneRequest::RestartLevel;
+}
+
+/**
+ * @brief 处理服务端下发的同图模式配置与地图序列。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
+void Sys_Network::HandleMultiplayerSetup(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (resNet.mode != PeerType::CLIENT) return;
+
+    auto* pkt = GetPacketData<Net_Packet_MultiplayerSetup>(event);
+    if (!pkt) return;
+
+    resNet.multiplayerMode = static_cast<MultiplayerMode>(pkt->multiplayerMode);
+    ApplyAuthoritativeMapSequence(reg, pkt->mapSequence, pkt->currentRoundIndex);
+    resNet.matchSetupReceived = true;
+
+    if (resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace
+        && resNet.bootstrapSceneActive
+        && reg.has_ctx<Res_UIState>()) {
+        auto& ui = reg.ctx<Res_UIState>();
+        if (ui.pendingSceneRequest == SceneRequest::None) {
+            ui.pendingSceneRequest = SceneRequest::LaunchMultiplayerMatch;
+        }
+    }
 }
 
 /**
@@ -461,6 +576,25 @@ void Sys_Network::HandleClientInput(Registry& reg, Res_Network& resNet, const EN
 }
 
 /**
+ * @brief 处理客户端上报的幽灵位姿，并在 Host 本地更新远端幽灵。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
+void Sys_Network::HandleClientGhostTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (resNet.mode != PeerType::SERVER || resNet.multiplayerMode != MultiplayerMode::SameMapGhostRace) {
+        return;
+    }
+
+    auto* pkt = GetPacketData<Net_Packet_GhostTransform>(event);
+    if (!pkt) return;
+    const bool roundChanged = !resNet.remoteGhostSnapshotValid
+        || resNet.remoteGhostSnapshotRoundIndex != pkt->currentRoundIndex;
+    CacheRemoteGhostSnapshot(resNet, *pkt);
+    ApplyCachedRemoteGhostSnapshot(reg, resNet, roundChanged);
+}
+
+/**
  * @brief 处理客户端上报的阶段推进和终局状态。
  * @details 服务端收到后会收口权威比赛结果，并在状态变化后广播最新快照。
  * @param reg ECS 注册表
@@ -479,25 +613,22 @@ void Sys_Network::HandleClientMatchProgress(Registry& reg, Res_Network& resNet, 
     gs.currentRoundIndex = ComputeCurrentRoundIndex(gs.localStageProgress, gs.opponentStageProgress);
     gs.opponentProgress = gs.opponentStageProgress;
     gs.roundJustAdvanced = (previousOpponentProgress != gs.opponentStageProgress);
-    const uint8_t remoteGameOverReason = pkt->gameOverReason;
+    gs.remoteTerminalState = static_cast<MultiplayerTerminalState>(pkt->terminalState);
+    gs.remoteTerminalReason = pkt->terminalReason;
 
     if (gs.matchPhase == MatchPhase::WaitingForPeer || gs.matchPhase == MatchPhase::Starting) {
         gs.matchPhase = MatchPhase::Running;
         gs.matchJustStarted = true;
     }
 
-    if (pkt->reportedFinished != 0u || remoteGameOverReason != 0u) {
+    if (pkt->reportedFinished != 0u || IsFinalTerminalState(gs.remoteTerminalState)) {
         LOG_INFO("[Sys_Network] Server received client terminal state: stage="
                  << (int)pkt->stageProgress << " finished=" << (int)pkt->reportedFinished
-                 << " reason=" << (int)remoteGameOverReason);
-        const MatchPhase previousPhase = gs.matchPhase;
-        gs.matchPhase = MatchPhase::Finished;
-        if (previousPhase != MatchPhase::Finished) {
-            gs.matchJustFinished = true;
-        }
+                 << " terminalState=" << (int)pkt->terminalState
+                 << " reason=" << (int)pkt->terminalReason);
     }
 
-    ApplyMatchResult(gs, remoteGameOverReason);
+    ApplyMatchResult(gs);
     BroadcastMatchStateIfDirty(reg, resNet, true);
 }
 
@@ -568,11 +699,14 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
     if (!reg.has_ctx<Res_Input>()) return;
     auto& input = reg.ctx<Res_Input>();
 
+    Res_InputConfig defaultCfg;
+    const auto& cfg = reg.has_ctx<Res_InputConfig>() ? reg.ctx<Res_InputConfig>() : defaultCfg;
+
     uint32_t currentMask = 0;
-    if (input.keyStates[NCL::KeyCodes::UP])    currentMask |= PlayerInputFlags::Up;
-    if (input.keyStates[NCL::KeyCodes::DOWN])  currentMask |= PlayerInputFlags::Down;
-    if (input.keyStates[NCL::KeyCodes::LEFT])  currentMask |= PlayerInputFlags::Left;
-    if (input.keyStates[NCL::KeyCodes::RIGHT]) currentMask |= PlayerInputFlags::Right;
+    if (input.keyStates[cfg.keyChatUp])    currentMask |= PlayerInputFlags::Up;
+    if (input.keyStates[cfg.keyChatDown])  currentMask |= PlayerInputFlags::Down;
+    if (input.keyStates[cfg.keyChatLeft])  currentMask |= PlayerInputFlags::Left;
+    if (input.keyStates[cfg.keyChatRight]) currentMask |= PlayerInputFlags::Right;
     
     // --- 1. Client：收集输入并发送给 Server ---
     if (resNet.mode == PeerType::CLIENT && resNet.peer != nullptr) {
@@ -604,6 +738,64 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
 }
 
 /**
+ * @brief 同步本地玩家位姿到远端幽灵显示通道。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ */
+void Sys_Network::SyncGhostTransforms(Registry& reg, Res_Network& resNet) {
+    const bool eligibleMode = resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace;
+    const bool hasGameState = reg.has_ctx<Res_GameState>();
+    const bool hasTime = reg.has_ctx<Res_Time>();
+    const bool localPlayerAssigned = Entity::IsValid(resNet.localPlayerEntity);
+    const bool localPlayerValid = localPlayerAssigned && reg.Valid(resNet.localPlayerEntity);
+    const bool localPlayerHasTransform = localPlayerValid && reg.Has<C_D_Transform>(resNet.localPlayerEntity);
+
+    if (!eligibleMode
+        || !hasGameState
+        || !hasTime
+        || resNet.bootstrapSceneActive
+        || !localPlayerAssigned
+        || !localPlayerValid
+        || !localPlayerHasTransform) {
+        return;
+    }
+
+    m_GhostTransformTimer += reg.ctx<Res_Time>().deltaTime;
+    if (m_GhostTransformTimer < m_SendRate) {
+        return;
+    }
+    m_GhostTransformTimer -= m_SendRate;
+    if (m_GhostTransformTimer > m_SendRate) {
+        m_GhostTransformTimer = 0.0f;
+    }
+
+    const auto& tf = reg.Get<C_D_Transform>(resNet.localPlayerEntity);
+    Net_Packet_GhostTransform pkt;
+    pkt.timestamp = static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f);
+    pkt.pos[0] = tf.position.x; pkt.pos[1] = tf.position.y; pkt.pos[2] = tf.position.z;
+    pkt.rot[0] = tf.rotation.x; pkt.rot[1] = tf.rotation.y; pkt.rot[2] = tf.rotation.z; pkt.rot[3] = tf.rotation.w;
+    pkt.currentRoundIndex = reg.ctx<Res_GameState>().currentRoundIndex;
+    const bool forceReliableSeed = (m_LastGhostSourceEntity != resNet.localPlayerEntity)
+        || (m_LastGhostSentRoundIndex != pkt.currentRoundIndex);
+    m_LastGhostSourceEntity = resNet.localPlayerEntity;
+    m_LastGhostSentRoundIndex = pkt.currentRoundIndex;
+
+    if (resNet.mode == PeerType::SERVER) {
+        pkt.type = SYNC_GHOST_TRANSFORM;
+        SendPacket(resNet,
+            pkt,
+            NetTarget::Broadcast,
+            forceReliableSeed ? NetDelivery::Reliable : NetDelivery::Unreliable);
+    } else if (resNet.mode == PeerType::CLIENT && resNet.peer != nullptr) {
+        pkt.type = CLIENT_GHOST_TRANSFORM;
+        SendPacket(resNet,
+            pkt,
+            NetTarget::Single,
+            forceReliableSeed ? NetDelivery::Reliable : NetDelivery::Unreliable);
+    }
+}
+
+/**
  * @brief 由客户端向服务端上报本地阶段进度和待确认终局状态。
  * @details 当客户端已经本地终局但尚未收到权威 `Finished` 时，会持续重发，避免单次丢包卡死。
  * @param reg ECS 注册表
@@ -616,13 +808,14 @@ void Sys_Network::UpdateClientMatchProgress(Registry& reg, Res_Network& resNet) 
     if (!gs.isMultiplayer) return;
 
     const uint8_t localStageProgress = ClampStageProgress(gs.localStageProgress);
-    const uint8_t localGameOverReason = GetLocalTerminalReason(reg, gs);
+    const MultiplayerTerminalState localTerminalState = GetLocalTerminalState(gs);
+    const uint8_t localTerminalReason = GetLocalTerminalReason(gs);
     const bool hasPendingTerminalState =
-        (localStageProgress >= kMultiplayerStageCount || localGameOverReason != 0u)
+        IsFinalTerminalState(localTerminalState)
         && gs.matchPhase != MatchPhase::Finished;
     if (!hasPendingTerminalState
         && m_LastReportedLocalStageProgress == localStageProgress
-        && m_LastReportedLocalGameOverReason == localGameOverReason) {
+        && m_LastReportedLocalGameOverReason == localTerminalReason) {
         return;
     }
 
@@ -631,19 +824,21 @@ void Sys_Network::UpdateClientMatchProgress(Registry& reg, Res_Network& resNet) 
     pkt.timestamp = static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f);
     pkt.stageProgress = localStageProgress;
     pkt.currentRoundIndex = std::min<uint8_t>(gs.currentRoundIndex, kMultiplayerStageCount - 1);
-    pkt.reportedFinished = (localStageProgress >= kMultiplayerStageCount || localGameOverReason != 0u) ? 1u : 0u;
-    pkt.gameOverReason = localGameOverReason;
+    pkt.reportedFinished = hasPendingTerminalState ? 1u : 0u;
+    pkt.terminalState = static_cast<uint8_t>(localTerminalState);
+    pkt.terminalReason = localTerminalReason;
 
-    if (pkt.reportedFinished != 0u || pkt.gameOverReason != 0u) {
+    if (pkt.reportedFinished != 0u || pkt.terminalReason != 0u) {
         LOG_INFO("[Sys_Network] Client reporting terminal state: stage="
                  << (int)pkt.stageProgress << " finished=" << (int)pkt.reportedFinished
-                 << " reason=" << (int)pkt.gameOverReason
+                 << " terminalState=" << (int)pkt.terminalState
+                 << " reason=" << (int)pkt.terminalReason
                  << " phase=" << (int)gs.matchPhase);
     }
 
     SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Reliable);
     m_LastReportedLocalStageProgress = localStageProgress;
-    m_LastReportedLocalGameOverReason = localGameOverReason;
+    m_LastReportedLocalGameOverReason = localTerminalReason;
 }
 
 /**
@@ -731,7 +926,7 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
     const uint8_t clientStage = gs.opponentStageProgress;
     const uint8_t roundIndex = gs.currentRoundIndex;
     const uint8_t gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
-    gs.gameOverReason = gameOverReason;
+    gs.gameOverReason = ToGameOverReason(gameOverReason);
 
     const bool dirty = force
         || m_LastBroadcastPhase != phase
@@ -769,6 +964,61 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
 }
 
 /**
+ * @brief 处理服务端广播的远端幽灵位姿。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
+void Sys_Network::HandleSyncGhostTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (resNet.mode != PeerType::CLIENT || resNet.multiplayerMode != MultiplayerMode::SameMapGhostRace) {
+        return;
+    }
+
+    auto* pkt = GetPacketData<Net_Packet_GhostTransform>(event);
+    if (!pkt) return;
+    const bool roundChanged = !resNet.remoteGhostSnapshotValid
+        || resNet.remoteGhostSnapshotRoundIndex != pkt->currentRoundIndex;
+    CacheRemoteGhostSnapshot(resNet, *pkt);
+    ApplyCachedRemoteGhostSnapshot(reg, resNet, roundChanged);
+}
+
+/**
+ * @brief 由服务端向目标对端广播同图模式配置与权威地图序列。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param explicitPeer 为空时广播给所有客户端
+ */
+void Sys_Network::BroadcastMultiplayerSetup(Registry& reg, Res_Network& resNet, ENetPeer* explicitPeer) {
+    if (resNet.mode != PeerType::SERVER || !reg.has_ctx<Res_UIState>()) {
+        return;
+    }
+
+    auto& ui = reg.ctx<Res_UIState>();
+    if (!ui.mapSequenceGenerated) {
+        GenerateAuthoritativeMapSequence(ui.mapSequence, Res_UIState::MAP_SEQUENCE_LENGTH);
+        ui.mapSequenceGenerated = true;
+        ui.mapSequenceIndex = 0;
+    }
+
+    Net_Packet_MultiplayerSetup pkt;
+    pkt.type = SYNC_MULTIPLAYER_SETUP;
+    pkt.timestamp = reg.has_ctx<Res_Time>()
+        ? static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f)
+        : 0u;
+    pkt.multiplayerMode = static_cast<uint8_t>(resNet.multiplayerMode);
+    for (int i = 0; i < Res_UIState::MAP_SEQUENCE_LENGTH; ++i) {
+        pkt.mapSequence[i] = ui.mapSequence[i];
+    }
+    pkt.currentRoundIndex = ui.mapSequenceIndex;
+
+    if (explicitPeer != nullptr) {
+        SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Reliable, explicitPeer);
+    } else {
+        SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Reliable);
+    }
+}
+
+/**
  * @brief 由服务端广播多人重开指令，并让本地 UI 同步进入重开流程。
  * @param reg ECS 注册表
  * @param resNet 网络资源对象
@@ -777,15 +1027,27 @@ void Sys_Network::BroadcastMatchRestart(Registry& reg, Res_Network& resNet) {
     if (!reg.has_ctx<Res_UIState>()) return;
 
     ResetMatchStateForRestart(reg);
+    auto& ui = reg.ctx<Res_UIState>();
+
+    if (resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace) {
+        GenerateAuthoritativeMapSequence(ui.mapSequence, Res_UIState::MAP_SEQUENCE_LENGTH);
+        ui.mapSequenceGenerated = true;
+        ui.mapSequenceIndex = 0;
+        resNet.matchSetupReceived = true;
+    }
 
     Net_Packet_MatchRestart pkt;
     pkt.type = SYNC_MATCH_RESTART;
     pkt.timestamp = reg.has_ctx<Res_Time>()
         ? static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f)
         : 0u;
+    pkt.multiplayerMode = static_cast<uint8_t>(resNet.multiplayerMode);
+    for (int i = 0; i < Res_UIState::MAP_SEQUENCE_LENGTH; ++i) {
+        pkt.mapSequence[i] = ui.mapSequence[i];
+    }
+    pkt.currentRoundIndex = 0u;
     SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Reliable);
 
-    auto& ui = reg.ctx<Res_UIState>();
     ui.multiplayerRetryRequested = false;
     ui.pendingSceneRequest = SceneRequest::RestartLevel;
 }
@@ -801,6 +1063,7 @@ void Sys_Network::ResetMatchStateForRestart(Registry& reg) {
         if (gs.isMultiplayer) {
             gs.matchPhase = MatchPhase::Running;
             gs.matchResult = MatchResult::None;
+            gs.authoritativeMatchFinished = false;
             gs.currentRoundIndex = 0;
             gs.localStageProgress = 0;
             gs.opponentStageProgress = 0;
@@ -809,8 +1072,12 @@ void Sys_Network::ResetMatchStateForRestart(Registry& reg) {
             gs.roundJustAdvanced = false;
             gs.matchJustStarted = true;
             gs.matchJustFinished = false;
+            gs.localTerminalState = MultiplayerTerminalState::None;
+            gs.remoteTerminalState = MultiplayerTerminalState::None;
+            gs.localTerminalReason = 0u;
+            gs.remoteTerminalReason = 0u;
             gs.isGameOver = false;
-            gs.gameOverReason = 0;
+            gs.gameOverReason = GameOverReason::None;
             gs.gameOverTime = 0.0f;
             gs.countdownActive = false;
             gs.countdownTimer = gs.countdownMax;
@@ -828,6 +1095,154 @@ void Sys_Network::ResetMatchStateForRestart(Registry& reg) {
 }
 
 /**
+ * @brief 将服务端权威地图序列写入 UI 会话状态。
+ * @param reg ECS 注册表
+ * @param mapSequence 三关地图序列
+ * @param roundIndex 当前轮次索引
+ */
+void Sys_Network::ApplyAuthoritativeMapSequence(Registry& reg,
+                                                const uint8_t* mapSequence,
+                                                uint8_t roundIndex) {
+    if (!reg.has_ctx<Res_UIState>() || mapSequence == nullptr) {
+        return;
+    }
+
+    auto& ui = reg.ctx<Res_UIState>();
+    for (int i = 0; i < Res_UIState::MAP_SEQUENCE_LENGTH; ++i) {
+        ui.mapSequence[i] = mapSequence[i];
+    }
+    ui.mapSequenceGenerated = true;
+    ui.mapSequenceIndex = std::min<uint8_t>(roundIndex, Res_UIState::MAP_SEQUENCE_LENGTH - 1);
+}
+
+/**
+ * @brief 确保当前场景存在远端幽灵显示实体。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @return 幽灵实体 ID；失败时返回 NULL_ENTITY
+ */
+EntityID Sys_Network::EnsureRemoteGhostEntity(Registry& reg, Res_Network& resNet) {
+    if (Entity::IsValid(resNet.remoteGhostEntity)
+        && reg.Valid(resNet.remoteGhostEntity)
+        && reg.Has<C_D_Transform>(resNet.remoteGhostEntity)
+        && reg.Has<C_D_InterpBuffer>(resNet.remoteGhostEntity)) {
+        return resNet.remoteGhostEntity;
+    }
+
+    ECS::AssetManager::Instance().Init();
+    ECS::MeshHandle cubeMesh = ECS::AssetManager::Instance().LoadMesh(NCL::Assets::MESHDIR + "cube.obj");
+    const EntityID ghost = PrefabFactory::CreateGhostPlayer(
+        reg, cubeMesh, NCL::Maths::Vector3(0.0f, 1.5f, 0.0f));
+    if (!Entity::IsValid(ghost)) {
+        return Entity::NULL_ENTITY;
+    }
+
+    resNet.remoteGhostEntity = ghost;
+    return ghost;
+}
+
+/**
+ * @brief 将最新的远端幽灵状态快照写入网络资源缓存。
+ *
+ * @details
+ * - 标记 `remoteGhostSnapshotValid` 为 true，并记录收到快照时的轮次索引。
+ * - 把包体中的位置与旋转数组拷贝到 `Res_Network` 的缓存字段中，覆盖之前的快照。
+ * - 不做额外合法性检查，调用方应只在收到权威幽灵同步包时调用。
+ *
+ * @param resNet 全局网络资源，内部持有远端幽灵的缓存状态。
+ * @param pkt    来自网络的幽灵变换同步包。
+ */
+void Sys_Network::CacheRemoteGhostSnapshot(Res_Network& resNet, const Net_Packet_GhostTransform& pkt) {
+    resNet.remoteGhostSnapshotValid = true;
+    resNet.remoteGhostSnapshotRoundIndex = pkt.currentRoundIndex;
+    std::copy(std::begin(pkt.pos), std::end(pkt.pos), std::begin(resNet.remoteGhostSnapshotPos));
+    std::copy(std::begin(pkt.rot), std::end(pkt.rot), std::begin(resNet.remoteGhostSnapshotRot));
+}
+
+/**
+ * @brief 将缓存的远端幽灵快照应用到当前场景中的幽灵实体。
+ *
+ * @details
+ * - 若 `Res_Network` 中不存在有效快照，或无法确保/创建幽灵实体，则直接返回。
+ * - 使用缓存的位姿数据更新幽灵实体的变换/插值缓冲组件，用于在本地场景中可视化远端玩家轨迹。
+ * - 典型在每帧网络更新或回合切换时被调用，以驱动“幽灵回放”表现。
+ *
+ * @param reg   ECS 注册表，用于访问或创建幽灵实体及其组件。
+ * @param resNet 全局网络资源，提供缓存的幽灵快照数据。
+ */
+void Sys_Network::ApplyCachedRemoteGhostSnapshot(Registry& reg,
+                                                 Res_Network& resNet,
+                                                 bool resetInterpolationBuffer) {
+    if (resNet.multiplayerMode != MultiplayerMode::SameMapGhostRace
+        || !resNet.remoteGhostSnapshotValid) {
+        HideRemoteGhostEntity(reg, resNet);
+        return;
+    }
+
+    if (!reg.has_ctx<Res_GameState>()) {
+        HideRemoteGhostEntity(reg, resNet);
+        return;
+    }
+
+    const auto& gs = reg.ctx<Res_GameState>();
+    if (resNet.remoteGhostSnapshotRoundIndex != gs.currentRoundIndex) {
+        HideRemoteGhostEntity(reg, resNet);
+        return;
+    }
+
+    EntityID ghost = EnsureRemoteGhostEntity(reg, resNet);
+    if (!Entity::IsValid(ghost) || !reg.Valid(ghost) || !reg.Has<C_D_Transform>(ghost)) {
+        return;
+    }
+
+    const NCL::Maths::Vector3 ghostPos(
+        resNet.remoteGhostSnapshotPos[0],
+        resNet.remoteGhostSnapshotPos[1],
+        resNet.remoteGhostSnapshotPos[2]);
+    const NCL::Maths::Quaternion ghostRot(
+        resNet.remoteGhostSnapshotRot[0],
+        resNet.remoteGhostSnapshotRot[1],
+        resNet.remoteGhostSnapshotRot[2],
+        resNet.remoteGhostSnapshotRot[3]);
+
+    if (reg.Has<C_D_InterpBuffer>(ghost)) {
+        auto& buffer = reg.Get<C_D_InterpBuffer>(ghost);
+        if (resetInterpolationBuffer) {
+            buffer = C_D_InterpBuffer{};
+        }
+
+        const float localReceiveTimeMs = reg.has_ctx<Res_Time>()
+            ? reg.ctx<Res_Time>().totalTime * 1000.0f
+            : 0.0f;
+        InterpBuffer_AddSnapshot(buffer, ghostPos, ghostRot, localReceiveTimeMs);
+    }
+
+    auto& tf = reg.Get<C_D_Transform>(ghost);
+    tf.position = ghostPos;
+    tf.rotation = ghostRot;
+}
+
+void Sys_Network::RefreshRemoteGhostEntity(Registry& reg, Res_Network& resNet) {
+    if (!resNet.connected
+        || resNet.multiplayerMode != MultiplayerMode::SameMapGhostRace
+        || !resNet.remotePeerConnected
+        || !resNet.remoteGhostSnapshotValid
+        || resNet.bootstrapSceneActive) {
+        HideRemoteGhostEntity(reg, resNet);
+        return;
+    }
+
+    ApplyCachedRemoteGhostSnapshot(reg, resNet, false);
+}
+
+void Sys_Network::HideRemoteGhostEntity(Registry& reg, Res_Network& resNet) {
+    if (Entity::IsValid(resNet.remoteGhostEntity) && reg.Valid(resNet.remoteGhostEntity)) {
+        reg.Destroy(resNet.remoteGhostEntity);
+    }
+    resNet.remoteGhostEntity = Entity::NULL_ENTITY;
+}
+
+/**
  * @brief 将多人比赛结束态映射到 `UIScreen::GameOver`。
  * @param reg ECS 注册表
  */
@@ -838,6 +1253,17 @@ void Sys_Network::UpdateMatchUIState(Registry& reg) {
     if (!gs.isMultiplayer || gs.matchPhase != MatchPhase::Finished) return;
 
     auto& ui = reg.ctx<Res_UIState>();
+    const bool isLeavingCurrentScene =
+        ui.pendingSceneRequest != SceneRequest::None
+        || ui.transitionSceneRequest != SceneRequest::None
+        || ui.transitionActive
+        || ui.sceneRequestDispatched
+        || ui.activeScreen == UIScreen::Loading
+        || ui.activeScreen == UIScreen::None;
+    if (isLeavingCurrentScene) {
+        return;
+    }
+
     if (ui.activeScreen != UIScreen::GameOver) {
         ui.previousScreen = ui.activeScreen;
         ui.activeScreen = UIScreen::GameOver;
@@ -850,13 +1276,13 @@ void Sys_Network::UpdateMatchUIState(Registry& reg) {
  * @details 该函数只运行在权威状态收口路径，确保 `matchPhase/matchResult/isGameOver` 保持一致。
  * @param gs 当前比赛状态资源
  */
-void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReason) {
-    const bool hostFinishedBySuccess = gs.localStageProgress >= kMultiplayerStageCount
-        || (gs.isGameOver && gs.gameOverReason == 3u);
-    const bool hostFinishedByFailure = gs.isGameOver && gs.gameOverReason != 0u && gs.gameOverReason != 3u;
-    const bool clientFinishedBySuccess = gs.opponentStageProgress >= kMultiplayerStageCount
-        || remoteGameOverReason == 3u;
-    const bool clientFinishedByFailure = remoteGameOverReason != 0u && remoteGameOverReason != 3u;
+void Sys_Network::ApplyMatchResult(Res_GameState& gs) {
+    const bool hostFinishedBySuccess = gs.localTerminalState == MultiplayerTerminalState::FinishedVictory;
+    const bool clientFinishedBySuccess = gs.remoteTerminalState == MultiplayerTerminalState::FinishedVictory;
+    const bool hostFinishedByFailure =
+        IsFinalTerminalState(gs.localTerminalState) && !hostFinishedBySuccess;
+    const bool clientFinishedByFailure =
+        IsFinalTerminalState(gs.remoteTerminalState) && !clientFinishedBySuccess;
 
     const bool hostFinished = hostFinishedBySuccess || hostFinishedByFailure;
     const bool clientFinished = clientFinishedBySuccess || clientFinishedByFailure;
@@ -866,8 +1292,9 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReas
             gs.matchPhase = MatchPhase::Running;
         }
         gs.matchResult = MatchResult::None;
+        gs.authoritativeMatchFinished = false;
         gs.isGameOver = false;
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.gameOverReason = ToGameOverReason(ComputeGameOverReasonForResult(gs.matchResult));
         return;
     }
 
@@ -881,8 +1308,9 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReas
     } else {
         gs.matchResult = MatchResult::OpponentWin;
     }
+    gs.authoritativeMatchFinished = true;
     gs.isGameOver = true;
-    gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+    gs.gameOverReason = ToGameOverReason(ComputeGameOverReasonForResult(gs.matchResult));
     if (previousPhase != MatchPhase::Finished) {
         gs.matchJustFinished = true;
     }
@@ -921,29 +1349,30 @@ uint8_t Sys_Network::ComputeGameOverReasonForResult(MatchResult result) {
 }
 
 /**
- * @brief 从当前本地状态推导客户端需要上报给服务端的终局原因。
- * @details 覆盖三关完成、倒计时耗尽、玩家死亡，以及已切入 GameOver 但尚未写入明确原因的兜底场景。
- * @param reg ECS 注册表
+ * @brief 获取当前本地终局状态。
+ * @details 直接返回 Res_GameState 中缓存的 localTerminalState，用于向服务端上报本地终局状态。
  * @param gs 当前比赛状态资源
- * @return 0 表示本地仍未终局，否则返回标准 gameOverReason
+ * @return 本地终局状态
  */
-uint8_t Sys_Network::GetLocalTerminalReason(Registry& reg, const Res_GameState& gs) {
-    if (gs.gameOverReason != 0u) {
-        return gs.gameOverReason;
-    }
-    if (gs.localStageProgress >= kMultiplayerStageCount) {
-        return 3u;
-    }
-    if (gs.isGameOver) {
-        return 2u;
-    }
-    if (reg.has_ctx<Res_UIState>()) {
-        const auto& ui = reg.ctx<Res_UIState>();
-        if (ui.activeScreen == UIScreen::GameOver) {
-            return (gs.matchResult == MatchResult::LocalWin) ? 3u : 2u;
-        }
-    }
-    return 0u;
+MultiplayerTerminalState Sys_Network::GetLocalTerminalState(const Res_GameState& gs) {
+    return gs.localTerminalState;
+}
+
+/**
+ * @brief 获取当前本地终局原因编码。
+ * @details 直接返回 Res_GameState 中缓存的 localTerminalReason，用于向服务端上报本地终局原因。
+ * @param gs 当前比赛状态资源
+ * @return 本地终局原因编码（与 gameOverReason 对应）
+ */
+uint8_t Sys_Network::GetLocalTerminalReason(const Res_GameState& gs) {
+    return gs.localTerminalReason;
+}
+
+bool Sys_Network::IsFinalTerminalState(MultiplayerTerminalState state) {
+    return state == MultiplayerTerminalState::Death
+        || state == MultiplayerTerminalState::Timeout
+        || state == MultiplayerTerminalState::FinishedVictory
+        || state == MultiplayerTerminalState::FinishedScoreFail;
 }
 
 /**
@@ -1014,8 +1443,7 @@ void Sys_Network::OnDestroy(Registry& reg) {
     m_Registry = nullptr;
 
     if (!reg.has_ctx<Res_Network>()) {
-        enet_deinitialize();
-        LOG_INFO("[Sys_Network] Network context already removed; ENet deinitialized without host teardown.");
+        LOG_WARN("[Sys_Network] Res_Network missing during OnDestroy; skipping ENet teardown to avoid orphaning a live host.");
         return;
     }
 
@@ -1023,20 +1451,103 @@ void Sys_Network::OnDestroy(Registry& reg) {
 
     if (resNet.preserveSessionOnSceneExit && resNet.mode != PeerType::OFFLINE) {
         resNet.preserveSessionOnSceneExit = false;
+        ResetSceneLocalState(resNet);
         LOG_INFO("[Sys_Network] Preserving ENet session across scene transition.");
         return;
     }
 
     if (resNet.host) {
         enet_host_destroy(resNet.host);
-        resNet.host = nullptr;
     }
-    resNet.peer = nullptr;
-    resNet.connected = false;
-    resNet.localClientID = (resNet.mode == PeerType::SERVER) ? 0u : UINT32_MAX;
-    resNet.preserveSessionOnSceneExit = false;
     enet_deinitialize();
+    ResetNetworkRuntimeState(resNet, false);
     LOG_INFO("Network System shut down. Sent: " << resNet.packetsSent << ", Received: " << resNet.packetsReceived);
+}
+
+/**
+ * @brief 判断当前 ENet 会话是否仍然健康且可被新场景复用。
+ * @param resNet 网络资源对象
+ * @return `true` 表示会话仍可复用
+ */
+bool Sys_Network::CanReuseSession(const Res_Network& resNet) {
+    if (resNet.host == nullptr || resNet.mode == PeerType::OFFLINE) {
+        return false;
+    }
+
+    if (resNet.mode == PeerType::CLIENT) {
+        return resNet.connected
+            && resNet.peer != nullptr
+            && resNet.peer->state == ENET_PEER_STATE_CONNECTED;
+    }
+
+    return true;
+}
+
+/**
+ * @brief 清理与当前场景实体绑定相关的网络状态。
+ * @param resNet 网络资源对象
+ */
+void Sys_Network::ResetSceneLocalState(Res_Network& resNet) {
+    resNet.netIdMap.clear();
+    resNet.nextNetID = 1u;
+    resNet.localPlayerEntity = Entity::NULL_ENTITY;
+    resNet.remoteGhostEntity = Entity::NULL_ENTITY;
+    resNet.remoteGhostSnapshotValid = false;
+    resNet.remoteGhostSnapshot.roundIndex = 0u;
+    resNet.remoteGhostSnapshot.pos = {};
+    resNet.remoteGhostSnapshot.rot = {};
+}
+
+/**
+ * @brief 将 `Res_Network` 重置到不持有活动会话的干净运行态。
+ * @param resNet 网络资源对象
+ * @param keepConfiguration 是否保留 mode/IP/port 配置以便随后重新初始化
+ */
+void Sys_Network::ResetNetworkRuntimeState(Res_Network& resNet, bool keepConfiguration) {
+    const PeerType previousMode = resNet.mode;
+    const MultiplayerMode previousMultiplayerMode = resNet.multiplayerMode;
+    char previousIP[sizeof(resNet.serverIP)] = {};
+    strncpy_s(previousIP, sizeof(previousIP), resNet.serverIP, _TRUNCATE);
+    const uint16_t previousPort = resNet.serverPort;
+
+    resNet.host = nullptr;
+    resNet.peer = nullptr;
+    resNet.localClientID = (keepConfiguration && previousMode == PeerType::SERVER) ? 0u : UINT32_MAX;
+    resNet.rtt = 0u;
+    resNet.connected = false;
+    resNet.remotePeerConnected = false;
+    resNet.matchSetupReceived = false;
+    resNet.bootstrapSceneActive = false;
+    resNet.preserveSessionOnSceneExit = false;
+    resNet.nextNetID = 1u;
+    resNet.netIdMap.clear();
+    resNet.localPlayerEntity = Entity::NULL_ENTITY;
+    resNet.remoteGhostEntity = Entity::NULL_ENTITY;
+    resNet.remoteGhostSnapshotValid = false;
+    resNet.remoteGhostSnapshotRoundIndex = 0u;
+    resNet.remoteGhostSnapshotPos[0] = 0.0f;
+    resNet.remoteGhostSnapshotPos[1] = 0.0f;
+    resNet.remoteGhostSnapshotPos[2] = 0.0f;
+    resNet.remoteGhostSnapshotRot[0] = 0.0f;
+    resNet.remoteGhostSnapshotRot[1] = 0.0f;
+    resNet.remoteGhostSnapshotRot[2] = 0.0f;
+    resNet.remoteGhostSnapshotRot[3] = 1.0f;
+    resNet.packetsSent = 0u;
+    resNet.packetsReceived = 0u;
+    resNet.bytesSent = 0u;
+    resNet.bytesReceived = 0u;
+
+    if (keepConfiguration) {
+        resNet.mode = previousMode;
+        resNet.multiplayerMode = previousMultiplayerMode;
+        strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), previousIP, _TRUNCATE);
+        resNet.serverPort = previousPort;
+    } else {
+        resNet.mode = PeerType::OFFLINE;
+        resNet.multiplayerMode = MultiplayerMode::SameMapGhostRace;
+        resNet.serverIP[0] = '\0';
+        resNet.serverPort = 0u;
+    }
 }
 
 /**

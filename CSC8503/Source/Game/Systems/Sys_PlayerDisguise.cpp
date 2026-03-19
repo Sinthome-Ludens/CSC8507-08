@@ -8,6 +8,7 @@
 #include "Sys_PlayerDisguise.h"
 #include "Game/Utils/PauseGuard.h"
 
+#include "Game/Components/Res_StealthConfig.h"
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_PlayerState.h"
@@ -32,6 +33,9 @@ void Sys_PlayerDisguise::OnUpdate(Registry& registry, float /*dt*/) {
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;
 
+    Res_StealthConfig defaultSlCfg;
+    const auto& slCfg = registry.has_ctx<Res_StealthConfig>() ? registry.ctx<Res_StealthConfig>() : defaultSlCfg;
+
     registry.view<C_D_Input, C_D_RigidBody, C_T_Player, C_D_PlayerState>().each(
         [&](EntityID id, C_D_Input& input, C_D_RigidBody& rb,
             C_T_Player&, C_D_PlayerState& ps) {
@@ -48,7 +52,7 @@ void Sys_PlayerDisguise::OnUpdate(Registry& registry, float /*dt*/) {
                 NCL::Maths::Vector3 vel = physics->GetLinearVelocity(id);
                 float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);
 
-                if (horizSpeed >= HIDE_SPEED_THRESHOLD) {
+                if (horizSpeed >= slCfg.hideSpeedThreshold) {
                     LOG_INFO("[Sys_PlayerDisguise] Cannot disguise: moving too fast");
                     return;
                 }

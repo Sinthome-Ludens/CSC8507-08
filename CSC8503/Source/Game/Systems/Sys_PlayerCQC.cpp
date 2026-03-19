@@ -20,6 +20,7 @@
 #include "Game/Components/C_D_CQCHighlight.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_AIState.h"
+#include "Game/Components/C_D_Health.h"
 #include "Game/Components/C_D_Dying.h"
 #include "Game/Components/C_D_DeathVisual.h"
 #include "Game/Components/C_T_Player.h"
@@ -28,10 +29,13 @@
 #include "Game/Events/Evt_CQC_Takedown.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_ScoreConfig.h"
 #include "Game/UI/UI_ActionNotify.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cfloat>
 
@@ -110,16 +114,29 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
                     ClearHighlight(registry, cqc);
                     EntityID target = cqc.targetEnemy;
                     if (target != 0 && !registry.Has<C_D_Dying>(target)) {
-                        // 直接触发死亡动画（无需 C_D_Health）
+                        // 设 hp=0 确保 health 状态一致
+                        if (registry.Has<C_D_Health>(target)) {
+                            auto& hp = registry.Get<C_D_Health>(target);
+                            hp.hp = 0.0f;
+                            hp.deathCause = DeathType::EnemyHpZero;
+                        }
                         registry.Emplace<C_D_Dying>(target);
                         registry.Emplace<C_D_DeathVisual>(target);
                         LOG_INFO("[Sys_PlayerCQC] CQC kill: entity " << (int)target);
 
-                        // 击杀通知
+                        // CQC 击杀扣分（直接写入，不依赖通知系统）
+                        if (registry.has_ctx<Res_UIState>()) {
+                            Res_ScoreConfig defaultScoreCfg;
+                            const auto& sc = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
+                            auto& uiS = registry.ctx<Res_UIState>();
+                            uiS.campaignScore = std::max(0, uiS.campaignScore - sc.penaltyKill);
+                            uiS.scoreLost_kills += sc.penaltyKill;
+                            uiS.scoreKillCount++;
 #ifdef USE_IMGUI
-                        ECS::UI::PushActionNotify(registry, "消灭", "敌人", 10,
-                                                  ECS::ActionNotifyType::Kill);
+                            ECS::UI::PushActionNotify(registry, "KILL PENALTY", "CQC",
+                                                      -sc.penaltyKill, ActionNotifyType::Kill);
 #endif
+                        }
 
                         // 发布 CQC 完成事件
                         if (bus) {

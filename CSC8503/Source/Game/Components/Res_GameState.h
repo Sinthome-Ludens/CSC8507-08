@@ -25,10 +25,10 @@ namespace ECS {
 
 // ── 警戒等级枚举 ──────────────────────────────────────────────
 enum class AlertStatus : uint8_t {
-    Safe   = 0,   // 0 ~ 15
-    Search = 1,   // 16 ~ 30
-    Alert  = 2,   // 31 ~ 50
-    Hunt   = 3,   // 51 ~ 100
+    Safe   = 0,   // 0 ~ 25
+    Search = 1,   // 26 ~ 50
+    Alert  = 2,   // 51 ~ 75
+    Hunt   = 3,   // 76 ~ 100
 };
 
 /**
@@ -37,9 +37,9 @@ enum class AlertStatus : uint8_t {
  * @return 对应的 AlertStatus 值（Safe/Search/Alert/Hunt）
  */
 inline AlertStatus GetAlertStatus(float alertLevel) {
-    if (alertLevel <= 15.0f)  return AlertStatus::Safe;
-    if (alertLevel <= 30.0f)  return AlertStatus::Search;
-    if (alertLevel <= 50.0f)  return AlertStatus::Alert;
+    if (alertLevel <= 25.0f)  return AlertStatus::Safe;
+    if (alertLevel <= 50.0f)  return AlertStatus::Search;
+    if (alertLevel <= 75.0f)  return AlertStatus::Alert;
     return AlertStatus::Hunt;
 }
 
@@ -65,6 +65,19 @@ enum class PlayerMoveState : uint8_t {
     Running   = 2,
 };
 
+/// @brief GameOver 原因枚举，消除裸数字 0/1/2/3 硬编码。
+enum class GameOverReason : uint8_t {
+    None         = 0,   ///< 游戏进行中
+    Countdown    = 1,   ///< 倒计时耗尽
+    Detected     = 2,   ///< 被发现 / 分数不足
+    Success      = 3,   ///< 成功完成
+};
+
+/// @brief GameOverReason → uint8_t（网络序列化用）
+inline uint8_t ToU8(GameOverReason r) { return static_cast<uint8_t>(r); }
+/// @brief uint8_t → GameOverReason（网络反序列化用）
+inline GameOverReason ToGameOverReason(uint8_t v) { return static_cast<GameOverReason>(v); }
+
 /// @brief 多人比赛阶段（等待/开始/进行中/结束）。
 enum class MatchPhase : uint8_t {
     WaitingForPeer = 0,
@@ -80,6 +93,15 @@ enum class MatchResult : uint8_t {
     OpponentWin  = 2,
     Draw         = 3,
     Disconnected = 4,
+};
+
+enum class MultiplayerTerminalState : uint8_t {
+    None               = 0,
+    StageCleared       = 1,
+    Death              = 2,
+    Timeout            = 3,
+    FinishedVictory    = 4,
+    FinishedScoreFail  = 5,
 };
 
 /// @brief 多人比赛固定为三关，用于三段式进度条和比赛结束判定。
@@ -136,7 +158,7 @@ struct Res_GameState {
     float noiseLevel = 0.0f;  ///< [0.0, 1.0]
 
     // ─ GameOver ───────────────────────────────────────────
-    uint8_t gameOverReason = 0;   ///< 0=无, 1=倒计时, 2=被发现, 3=成功
+    GameOverReason gameOverReason = GameOverReason::None;
     float   gameOverTime   = 0.0f;
 
     // ─ 累计游玩时间 ──────────────────────────────────────
@@ -152,11 +174,16 @@ struct Res_GameState {
     bool       roundJustAdvanced     = false;  ///< 本帧是否刚推进一关
     bool       matchJustStarted      = false;  ///< 本帧是否刚开始比赛
     bool       matchJustFinished     = false;  ///< 本帧是否刚结束比赛
+    bool       authoritativeMatchFinished = false; ///< 是否已由服务端权威收口比赛
     char       opponentName[16]      = "RIVAL";///< 对手显示名称
     uint8_t    disruptionType        = 0;      ///< 受到的干扰类型: 0=无 1=视觉干扰 2=减速 3=信号扰乱
     float      disruptionTimer       = 0.0f;   ///< 干扰剩余时长
     float      disruptionDuration    = 0.0f;   ///< 干扰总时长
     uint32_t   networkPing           = 0;      ///< 网络延迟 RTT (ms)
+    MultiplayerTerminalState localTerminalState = MultiplayerTerminalState::None; ///< 本地多人局内终局状态
+    MultiplayerTerminalState remoteTerminalState = MultiplayerTerminalState::None; ///< 对手多人局内终局状态
+    uint8_t    localTerminalReason   = 0;      ///< 本地多人终局原因码
+    uint8_t    remoteTerminalReason  = 0;      ///< 对手多人终局原因码
 
     // 兼容旧 HUD 逻辑：Phase 0 仅新增三阶段状态，不在本阶段移除旧百分比字段。
     uint8_t  localProgress       = 0;      ///< Deprecated: 旧多人 HUD 进度 (0-100%)

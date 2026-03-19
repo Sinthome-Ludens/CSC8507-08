@@ -17,6 +17,9 @@
 
 namespace ECS {
 
+static constexpr float kPI = 3.14159265f;
+static constexpr float kDegToRad = kPI / 180.0f;
+
 static bool BuildCameraRay(Registry& registry,
                            float& ox, float& oy, float& oz,
                            float& dx, float& dy, float& dz) {
@@ -30,8 +33,8 @@ static bool BuildCameraRay(Registry& registry,
     const auto& tf = registry.Get<C_D_Transform>(camCtx.active_camera);
     const auto& cam = registry.Get<C_D_Camera>(camCtx.active_camera);
 
-    const float yawRad = cam.yaw * (3.14159265f / 180.0f);
-    const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
+    const float yawRad = cam.yaw * (kDegToRad);
+    const float pitchRad = cam.pitch * (kDegToRad);
 
     dx = -sinf(yawRad) * cosf(pitchRad);
     dy = sinf(pitchRad);

@@ -14,6 +14,7 @@
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 #include "Keyboard.h"
 #include "Mouse.h"
 
@@ -43,6 +44,9 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     auto& ui = registry.ctx<Res_UIState>();
     const auto& input = registry.ctx<Res_Input>();
 
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
+
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
     const ImVec2 vpSize = viewport->Size;
@@ -64,7 +68,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float cx = vpPos.x + vpSize.x * 0.5f;
 
     // Get game data
-    uint8_t reason = 0;
+    GameOverReason reason = GameOverReason::None;
     float alertLevel = 0.0f;
     float alertMax = 150.0f;
     float playTime = 0.0f;
@@ -122,17 +126,17 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         }
     } else {
         switch (reason) {
-            case 1: // Countdown expired
+            case GameOverReason::Countdown:
                 resultTitle    = "MISSION FAILED";
                 resultSubtitle = "COUNTDOWN EXPIRED";
                 titleColor     = IM_COL32(220, 60, 40, 255);
                 break;
-            case 2: // Detected
+            case GameOverReason::Detected:
                 resultTitle    = "MISSION FAILED";
                 resultSubtitle = "OPERATOR DETECTED";
                 titleColor     = IM_COL32(220, 60, 40, 255);
                 break;
-            case 3: // Success
+            case GameOverReason::Success:
                 resultTitle    = "MISSION COMPLETE";
                 resultSubtitle = "ALL OBJECTIVES ACHIEVED";
                 titleColor     = IM_COL32(252, 111, 41, 255);
@@ -146,7 +150,32 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         }
     }
 
-    // Title
+    // ── Score + Rating ──────────────────────────────────────
+    const int32_t finalScore = ui.campaignScore;
+    const char* rating = GetScoreRating(finalScore);
+    int8_t ratingTier = GetScoreRatingTier(finalScore);
+
+    // 单人通关但积分≤500 → 覆盖为失败（在绘制标题之前判断）
+    if (!isMultiplayer && isSuccess && finalScore <= 500) {
+        resultTitle    = "MISSION FAILED";
+        resultSubtitle = "INSUFFICIENT SCORE";
+        titleColor     = IM_COL32(220, 60, 40, 255);
+        isSuccess      = false;
+    }
+
+    // Multiplayer: override rating with match result string
+    if (isMultiplayer) {
+        switch (matchResult) {
+            case MatchResult::LocalWin:    rating = "WIN"; break;
+            case MatchResult::OpponentWin: rating = "LOSS"; break;
+            case MatchResult::Draw:        rating = "DRAW"; break;
+            case MatchResult::Disconnected:rating = "DISCONNECTED"; break;
+            case MatchResult::None:
+            default:                       rating = "UNKNOWN"; break;
+        }
+    }
+
+    // Title（仅绘制一次）
     ImFont* titleFont = UITheme::GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
     ImVec2 titleSize = ImGui::CalcTextSize(resultTitle);
@@ -168,51 +197,34 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     draw->AddLine(ImVec2(cx - 120.0f, lineY), ImVec2(cx + 120.0f, lineY),
         IM_COL32(200, 200, 200, 120), 1.0f);
 
-    // ── Rating ────────────────────────────────────────────
+    const ImU32 ratingCol = UITheme::GetScoreRatingColor(ratingTier);
+
     ImFont* bodyFont = UITheme::GetFont_Body();
     if (bodyFont) ImGui::PushFont(bodyFont);
-
-    const char* rating;
-    if (isMultiplayer) {
-        switch (matchResult) {
-            case MatchResult::LocalWin:    rating = "RESULT: WIN"; break;
-            case MatchResult::OpponentWin: rating = "RESULT: LOSS"; break;
-            case MatchResult::Draw:        rating = "RESULT: DRAW"; break;
-            case MatchResult::Disconnected:rating = "RESULT: DISCONNECTED"; break;
-            case MatchResult::None:
-            default:                       rating = "RESULT: UNKNOWN"; break;
-        }
-    } else if (!isSuccess) {
-        rating = "RATING: F";
-    } else if (alertLevel < 30.0f) {
-        rating = "RATING: S";
-    } else if (alertLevel < 75.0f) {
-        rating = "RATING: A";
-    } else {
-        rating = "RATING: B";
-    }
-
-    ImVec2 ratingSize = ImGui::CalcTextSize(rating);
+    char ratingStr[32];
+    snprintf(ratingStr, sizeof(ratingStr), "RATING: [%s]", rating);
+    ImVec2 ratingSize = ImGui::CalcTextSize(ratingStr);
     float ratingY = lineY + 16.0f;
-    draw->AddText(ImVec2(cx - ratingSize.x * 0.5f, ratingY),
-        IM_COL32(252, 111, 41, 255), rating);
+    draw->AddText(ImVec2(cx - ratingSize.x * 0.5f, ratingY), ratingCol, ratingStr);
     if (bodyFont) ImGui::PopFont();
 
-    // ── Statistics panel ──────────────────────────────────
+    // ── Score Breakdown ──────────────────────────────────
     if (termFont) ImGui::PushFont(termFont);
 
     float statsY = ratingY + 46.0f;
-    float statsX = cx - 110.0f;
+    float statsX = cx - 140.0f;
+    float valX   = cx + 40.0f;  // 右对齐值列
+    char buf[64];
+    ImU32 labelCol  = IM_COL32(16, 13, 10, 220);
+    ImU32 deductCol = IM_COL32(220, 60, 40, 220);
 
     // Play time MM:SS
     int totalSec = (int)playTime;
     int mm = totalSec / 60;
     int ss = totalSec % 60;
-    char buf[64];
 
-    snprintf(buf, sizeof(buf), "TIME:      %02d:%02d", mm, ss);
-    draw->AddText(ImVec2(statsX, statsY),
-        IM_COL32(16, 13, 10, 220), buf);
+    snprintf(buf, sizeof(buf), "TIME:        %02d:%02d", mm, ss);
+    draw->AddText(ImVec2(statsX, statsY), labelCol, buf);
 
     if (isMultiplayer) {
         snprintf(buf, sizeof(buf), "LOCAL:     %d / %d",
@@ -225,20 +237,73 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         draw->AddText(ImVec2(statsX, statsY + 56.0f),
             IM_COL32(16, 13, 10, 220), buf);
     } else {
-        snprintf(buf, sizeof(buf), "ALERT:     %.0f / %.0f", alertLevel, alertMax);
-        draw->AddText(ImVec2(statsX, statsY + 28.0f),
-            IM_COL32(16, 13, 10, 220), buf);
+        // INITIAL
+        draw->AddText(ImVec2(statsX, statsY + 28.0f), labelCol, "INITIAL:");
+        draw->AddText(ImVec2(valX, statsY + 28.0f), IM_COL32(80, 200, 120, 220), "1000");
 
-        const char* detectedStr = (reason == 2) ? "YES" : "NO";
-        snprintf(buf, sizeof(buf), "DETECTED:  %s", detectedStr);
-        draw->AddText(ImVec2(statsX, statsY + 56.0f),
-            IM_COL32(16, 13, 10, 220), buf);
+        // TIME penalty
+        snprintf(buf, sizeof(buf), "TIME (-1/s):");
+        draw->AddText(ImVec2(statsX, statsY + 52.0f), labelCol, buf);
+        if (ui.scoreLost_time > 0) {
+            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_time);
+            draw->AddText(ImVec2(valX, statsY + 52.0f), deductCol, buf);
+        } else {
+            draw->AddText(ImVec2(valX, statsY + 52.0f), labelCol, "0");
+        }
+
+        // KILLS
+        snprintf(buf, sizeof(buf), "KILLS (x%d):", ui.scoreKillCount);
+        draw->AddText(ImVec2(statsX, statsY + 76.0f), labelCol, buf);
+        if (ui.scoreLost_kills > 0) {
+            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_kills);
+            draw->AddText(ImVec2(valX, statsY + 76.0f), deductCol, buf);
+        } else {
+            draw->AddText(ImVec2(valX, statsY + 76.0f), labelCol, "0");
+        }
+
+        // ITEMS
+        snprintf(buf, sizeof(buf), "ITEMS (x%d):", ui.scoreItemUseCount);
+        draw->AddText(ImVec2(statsX, statsY + 100.0f), labelCol, buf);
+        if (ui.scoreLost_items > 0) {
+            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_items);
+            draw->AddText(ImVec2(valX, statsY + 100.0f), deductCol, buf);
+        } else {
+            draw->AddText(ImVec2(valX, statsY + 100.0f), labelCol, "0");
+        }
+
+        // COUNTDOWN
+        draw->AddText(ImVec2(statsX, statsY + 124.0f), labelCol, "COUNTDOWN:");
+        if (ui.scoreLost_countdown > 0) {
+            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_countdown);
+            draw->AddText(ImVec2(valX, statsY + 124.0f), deductCol, buf);
+        } else {
+            draw->AddText(ImVec2(valX, statsY + 124.0f), labelCol, "0");
+        }
+
+        // FAILURE
+        draw->AddText(ImVec2(statsX, statsY + 148.0f), labelCol, "FAILURE:");
+        if (ui.scoreLost_failure > 0) {
+            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_failure);
+            draw->AddText(ImVec2(valX, statsY + 148.0f), deductCol, buf);
+        } else {
+            draw->AddText(ImVec2(valX, statsY + 148.0f), labelCol, "0");
+        }
+
+        // Separator line
+        draw->AddLine(ImVec2(statsX, statsY + 172.0f), ImVec2(valX + 60.0f, statsY + 172.0f),
+            IM_COL32(200, 200, 200, 120), 1.0f);
+
+        // FINAL SCORE
+        snprintf(buf, sizeof(buf), "FINAL SCORE:");
+        draw->AddText(ImVec2(statsX, statsY + 180.0f), labelCol, buf);
+        snprintf(buf, sizeof(buf), "%d  [%s]", std::max(0, finalScore), rating);
+        draw->AddText(ImVec2(valX, statsY + 180.0f), ratingCol, buf);
     }
 
     if (termFont) ImGui::PopFont();
 
     // ── Separator before menu ─────────────────────────────
-    float sepY = statsY + 100.0f;
+    float sepY = statsY + 210.0f;
     draw->AddLine(ImVec2(cx - 80.0f, sepY), ImVec2(cx + 80.0f, sepY),
         IM_COL32(200, 200, 200, 100), 1.0f);
 
@@ -249,10 +314,10 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float menuItemH  = 38.0f;
 
     {
-        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP]) {
+        if (input.keyPressed[uiCfg.keyMenuUp] || input.keyPressed[uiCfg.keyMenuUpAlt]) {
             ui.gameOverSelectedIndex = (ui.gameOverSelectedIndex - 1 + kGameOverItemCount) % kGameOverItemCount;
         }
-        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN]) {
+        if (input.keyPressed[uiCfg.keyMenuDown] || input.keyPressed[uiCfg.keyMenuDownAlt]) {
             ui.gameOverSelectedIndex = (ui.gameOverSelectedIndex + 1) % kGameOverItemCount;
         }
     }
@@ -273,10 +338,10 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     }
 
     int8_t confirmedIndex = -1;
-    if (input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE]) {
+    if (input.keyPressed[uiCfg.keyConfirm] || input.keyPressed[uiCfg.keyConfirmAlt]) {
         confirmedIndex = ui.gameOverSelectedIndex;
     }
-    if (input.mouseButtonPressed[NCL::MouseButtons::Left]) {
+    if (input.mouseButtonPressed[uiCfg.mouseConfirm]) {
         ImVec2 mousePos = ImGui::GetMousePos();
         for (int i = 0; i < kGameOverItemCount; ++i) {
             ImVec2 itemMin(itemStartX, menuStartY + i * menuItemH - 2.0f);

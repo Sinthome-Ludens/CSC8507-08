@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstdint>
+#include "Game/Components/Res_Network.h"
 
 namespace ECS {
 
@@ -16,6 +17,7 @@ struct Res_LobbyState {
     char     joinIP[16]     = "127.0.0.1";   // 加入游戏时的目标 IP
     uint16_t port           = 32499;          // 端口号
     bool     ipInputActive  = false;          // IP 输入框焦点状态（由 ImGui 更新）
+    MultiplayerMode multiplayerMode = MultiplayerMode::SameMapGhostRace; // 隐藏配置：默认同图竞速
 };
 
 } // namespace ECS

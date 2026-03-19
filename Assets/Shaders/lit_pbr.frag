@@ -1,4 +1,4 @@
-#version 400 core
+#version 430 core
 
 // ── 输出 ──────────────────────────────────────────────────
 layout(location = 0) out vec4 fragColor;

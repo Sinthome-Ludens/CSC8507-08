@@ -16,6 +16,7 @@
 #include "Window.h"
 #include "Assets.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_InputConfig.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/StratagemTable.h"
@@ -329,9 +330,9 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
 
     // ── Update chatMode based on alertLevel ───────────────
     uint8_t newMode;
-    if (alertLevel <= 30.0f) {
+    if (alertLevel <= 50.0f) {
         newMode = 0;
-    } else if (alertLevel <= 50.0f) {
+    } else if (alertLevel <= 75.0f) {
         newMode = 1;
     } else {
         newMode = 2;
@@ -359,13 +360,16 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
     const auto& input = registry.ctx<Res_Input>();
     int8_t confirmedReply = -1;
 
+    Res_InputConfig defaultCfg;
+    const auto& cfg = registry.has_ctx<Res_InputConfig>() ? registry.ctx<Res_InputConfig>() : defaultCfg;
+
     if (chat.replyCount > 0 && chat.dirInputActive) {
         DirKey pressed = DirKey::Up;
         bool hasPress = false;
-        if      (input.keyPressed[KeyCodes::UP])    { pressed = DirKey::Up;    hasPress = true; }
-        else if (input.keyPressed[KeyCodes::DOWN])  { pressed = DirKey::Down;  hasPress = true; }
-        else if (input.keyPressed[KeyCodes::LEFT])  { pressed = DirKey::Left;  hasPress = true; }
-        else if (input.keyPressed[KeyCodes::RIGHT]) { pressed = DirKey::Right; hasPress = true; }
+        if      (input.keyPressed[cfg.keyChatUp])    { pressed = DirKey::Up;    hasPress = true; }
+        else if (input.keyPressed[cfg.keyChatDown])  { pressed = DirKey::Down;  hasPress = true; }
+        else if (input.keyPressed[cfg.keyChatLeft])  { pressed = DirKey::Left;  hasPress = true; }
+        else if (input.keyPressed[cfg.keyChatRight]) { pressed = DirKey::Right; hasPress = true; }
 
         if (hasPress && chat.inputBufferLen < Res_ChatState::kInputBufferSize) {
             chat.inputBuffer[chat.inputBufferLen++] = pressed;
