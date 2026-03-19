@@ -6,10 +6,10 @@
 #ifdef USE_IMGUI
 
 #include <cmath>
+#include "Game/UI/UITheme.h"
 
 namespace ECS::UI {
-
-static constexpr float kPI = 3.14159265f;
+using namespace ECS::UITheme;
 
 /// HoloBait: 六角棱镜 + 3 条中心辐射线
 static void DrawIcon_HoloBait(ImDrawList* draw, ImVec2 c, float r, ImU32 col) {

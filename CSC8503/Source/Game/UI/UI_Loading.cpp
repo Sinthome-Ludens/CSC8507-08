@@ -8,6 +8,7 @@
 #include "Game/UI/UITheme.h"
 
 namespace ECS::UI {
+using namespace ECS::UITheme;
 
 // 系统消息：赛博朋克风格的加载提示
 static constexpr const char* kLoadingMessages[] = {
@@ -56,7 +57,7 @@ void RenderLoadingScreen(Registry& registry, float dt) {
     // Background — near-black (#100D0A)
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(16, 13, 10, 255));
+        Col32_BgDark());
 
     float cx = vpPos.x + vpSize.x * 0.5f;
     float cy = vpPos.y + vpSize.y * 0.5f;
@@ -67,12 +68,12 @@ void RenderLoadingScreen(Registry& registry, float dt) {
 
     // Outer ring (dim)
     draw->AddCircle(ImVec2(cx, ringCY), ringR,
-        IM_COL32(245, 238, 232, 30), 48, 1.5f);
+        Col32_Bg(30), 48, 1.5f);
 
     // Rotating arc segments (orange)
     float angle = ui.loadingTimer * 2.5f;
     for (int i = 0; i < 3; ++i) {
-        float a0 = angle + (float)i * (UITheme::kPI * 2.0f / 3.0f);
+        float a0 = angle + (float)i * (kPI * 2.0f / 3.0f);
         float a1 = a0 + 0.8f;
         constexpr int arcSegs = 12;
         for (int s = 0; s < arcSegs; ++s) {
@@ -81,18 +82,18 @@ void RenderLoadingScreen(Registry& registry, float dt) {
             draw->AddLine(
                 ImVec2(cx + cosf(t0) * ringR, ringCY + sinf(t0) * ringR),
                 ImVec2(cx + cosf(t1) * ringR, ringCY + sinf(t1) * ringR),
-                IM_COL32(252, 111, 41, 200), 2.0f);
+                Col32_Accent(200), 2.0f);
         }
     }
 
     // Inner dot (pulsing)
-    float pulse = (sinf(ui.loadingTimer * UITheme::kPI * 2.0f) + 1.0f) * 0.5f;
+    float pulse = (sinf(ui.loadingTimer * kPI * 2.0f) + 1.0f) * 0.5f;
     uint8_t dotAlpha = (uint8_t)(120.0f + pulse * 135.0f);
     draw->AddCircleFilled(ImVec2(cx, ringCY), 4.0f,
-        IM_COL32(252, 111, 41, dotAlpha));
+        Col32_Accent(dotAlpha));
 
     // ── "LOADING" title ───────────────────────────────────────
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
 
     // Animated dots
@@ -110,12 +111,12 @@ void RenderLoadingScreen(Registry& registry, float dt) {
     float loadY = ringCY + ringR + 24.0f;
 
     draw->AddText(ImVec2(loadX, loadY),
-        IM_COL32(245, 238, 232, 255), loadingText);
+        Col32_Bg(), loadingText);
 
     if (titleFont) ImGui::PopFont();
 
     // ── Progress bar ──────────────────────────────────────────
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
 
     float barW = vpSize.x * 0.4f;
@@ -131,13 +132,13 @@ void RenderLoadingScreen(Registry& registry, float dt) {
     draw->AddRectFilled(
         ImVec2(barX, barY),
         ImVec2(barX + barW, barY + barH),
-        IM_COL32(245, 238, 232, 30));
+        Col32_Bg(30));
 
     // Bar fill (orange)
     draw->AddRectFilled(
         ImVec2(barX, barY),
         ImVec2(barX + barW * progress, barY + barH),
-        IM_COL32(252, 111, 41, 220));
+        Col32_Accent(220));
 
     // Percentage
     char pctText[8];
@@ -148,11 +149,11 @@ void RenderLoadingScreen(Registry& registry, float dt) {
     ImVec2 pctSize = ImGui::CalcTextSize(pctDisplay);
     draw->AddText(
         ImVec2(barX + barW + 12.0f, barY - pctSize.y * 0.5f + barH * 0.5f),
-        IM_COL32(245, 238, 232, 180), pctDisplay);
+        Col32_Bg(180), pctDisplay);
 
     // ── System messages (scrolling log) ───────────────────────
     float msgY = barY + barH + 30.0f;
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) {
         if (termFont) ImGui::PopFont();  // pop termFont only if it was pushed
         ImGui::PushFont(smallFont);
@@ -177,21 +178,21 @@ void RenderLoadingScreen(Registry& registry, float dt) {
 
         draw->AddText(
             ImVec2(barX, msgY + (float)i * 18.0f),
-            IM_COL32(245, 238, 232, alpha), msgBuf);
+            Col32_Bg(alpha), msgBuf);
     }
 
     if (smallFont) ImGui::PopFont();
     else if (termFont) ImGui::PopFont();
 
     // ── Bottom hint ───────────────────────────────────────────
-    ImFont* bodyFont = UITheme::GetFont_Body();
+    ImFont* bodyFont = GetFont_Body();
     if (bodyFont) ImGui::PushFont(bodyFont);
 
     const char* hint = "TEAM 08 // NEUROMANCER";
     ImVec2 hintSize = ImGui::CalcTextSize(hint);
     draw->AddText(
         ImVec2(cx - hintSize.x * 0.5f, vpPos.y + vpSize.y - 35.0f),
-        IM_COL32(245, 238, 232, 80), hint);
+        Col32_Bg(80), hint);
 
     if (bodyFont) ImGui::PopFont();
 
