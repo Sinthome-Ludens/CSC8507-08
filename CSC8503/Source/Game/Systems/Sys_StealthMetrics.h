@@ -22,15 +22,6 @@ class Sys_StealthMetrics : public ISystem {
 public:
     void OnUpdate(Registry& registry, float dt) override;
 
-private:
-    // ── 姿态速度乘数 ──
-    static constexpr float STANCE_MUL_STANDING  = 1.0f;
-    static constexpr float STANCE_MUL_CROUCHING = 0.5f;
-
-    // ── 伪装常量 ──
-    static constexpr float DISGUISE_MUL   = 0.3f;
-    static constexpr float NOISE_THROTTLE = 0.3f;
-
 };
 
 } // namespace ECS

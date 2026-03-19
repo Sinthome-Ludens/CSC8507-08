@@ -10,6 +10,7 @@
 #include <algorithm>
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
 #include "Keyboard.h"
@@ -31,6 +32,9 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
     const auto& input = registry.ctx<Res_Input>();
+
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
@@ -198,10 +202,10 @@ void RenderVictoryScreen(Registry& registry, float /*dt*/) {
 
     // ── Confirm action ────────────────────────────────────────
     bool confirmed = false;
-    if (input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE]) {
+    if (input.keyPressed[uiCfg.keyConfirm] || input.keyPressed[uiCfg.keyConfirmAlt]) {
         confirmed = true;
     }
-    if (input.mouseButtonPressed[NCL::MouseButtons::Left] && hovered) {
+    if (input.mouseButtonPressed[uiCfg.mouseConfirm] && hovered) {
         confirmed = true;
     }
 

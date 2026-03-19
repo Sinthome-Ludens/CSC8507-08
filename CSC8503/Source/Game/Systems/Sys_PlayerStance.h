@@ -32,15 +32,6 @@ public:
      */
     void OnUpdate(Registry& registry, float dt) override;
 
-private:
-    // ── 玩家 Box 碰撞体参数（与 cube.obj 外观对齐）──
-    static constexpr float STAND_HALF_X = 1.0f;
-    static constexpr float STAND_HALF_Y = 1.0f;
-    static constexpr float STAND_HALF_Z = 1.0f;
-
-    static constexpr float CROUCH_HALF_X = 1.0f;
-    static constexpr float CROUCH_HALF_Y = 0.5f;
-    static constexpr float CROUCH_HALF_Z = 1.0f;
 };
 
 } // namespace ECS

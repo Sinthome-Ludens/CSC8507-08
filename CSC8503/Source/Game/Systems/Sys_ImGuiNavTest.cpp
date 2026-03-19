@@ -20,6 +20,8 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
+static constexpr float kDegToRad = 3.14159265f / 180.0f;
+
 void Sys_ImGuiNavTest::OnAwake(Registry& /*registry*/) {
     LOG_INFO("[Sys_ImGuiNavTest] OnAwake");
 }
@@ -47,7 +49,7 @@ static Vector3 CalcNavSpawnPos(Registry& registry, float yOffset = 0.0f) {
         {
             auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
             auto& cam = registry.Get<C_D_Camera>   (camCtx.active_camera);
-            const float yawRad = cam.yaw * (3.14159265f / 180.0f);
+            const float yawRad = cam.yaw * kDegToRad;
             const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
             spawnPos   = tf.position + forward * 6.0f;
             spawnPos.y = tf.position.y + yOffset;  // 跟随相机高度，支持多层平台

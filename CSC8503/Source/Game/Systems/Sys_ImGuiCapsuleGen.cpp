@@ -15,6 +15,8 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
+static constexpr float kDegToRad = 3.14159265f / 180.0f;
+
 void Sys_ImGuiCapsuleGen::OnAwake(Registry& /*registry*/) {
     LOG_INFO("[Sys_ImGuiCapsuleGen] OnAwake");
 }
@@ -71,8 +73,8 @@ void Sys_ImGuiCapsuleGen::SpawnCapsule(Registry& registry) {
         {
             auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
             auto& cam = registry.Get<C_D_Camera>   (camCtx.active_camera);
-            const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
-            const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
+            const float yawRad   = cam.yaw   * kDegToRad;
+            const float pitchRad = cam.pitch * kDegToRad;
             const Vector3 forward(
                 -sinf(yawRad) * cosf(pitchRad),
                  sinf(pitchRad),

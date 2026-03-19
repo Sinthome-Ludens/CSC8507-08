@@ -25,6 +25,7 @@
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_ScoreConfig.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #ifdef USE_IMGUI
 #include "Game/UI/UI_ActionNotify.h"
@@ -193,18 +194,20 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                         auto& gs = registry.ctx<Res_GameState>();
                         auto& ui = registry.ctx<Res_UIState>();
                         gs.isGameOver       = true;
-                        gs.gameOverReason   = 2;   // OPERATOR DETECTED
+                        gs.gameOverReason   = GameOverReason::Detected;
                         gs.gameOverTime     = gs.playTime;
                         ui.activeScreen          = UIScreen::GameOver;
                         ui.gameOverSelectedIndex  = 0;
                         // 失败惩罚 -500（挑战模式全局规则）
+                        Res_ScoreConfig defaultScoreCfg;
+                        const auto& scoreCfg = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
                         if (!ui.failureScorePenaltyApplied) {
                             ui.failureScorePenaltyApplied = true;
-                            ui.scoreLost_failure += 500;
-                            ui.campaignScore = std::max(0, ui.campaignScore - 500);
+                            ui.scoreLost_failure += scoreCfg.penaltyCapture;
+                            ui.campaignScore = std::max(0, ui.campaignScore - scoreCfg.penaltyCapture);
 #ifdef USE_IMGUI
                             ECS::UI::PushActionNotify(registry, "MISSION", "FAILED",
-                                                      -500, ActionNotifyType::Alert);
+                                                      -scoreCfg.penaltyCapture, ActionNotifyType::Alert);
 #endif
                         }
                     }
@@ -230,13 +233,15 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                 // 击杀扣分通知 -10（挑战模式全局规则）
                 if (registry.has_ctx<Res_UIState>()
                     && registry.has_ctx<Res_GameState>()) {
+                    Res_ScoreConfig defaultScoreCfg2;
+                    const auto& sc = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg2;
                     auto& uiS = registry.ctx<Res_UIState>();
-                    uiS.campaignScore = std::max(0, uiS.campaignScore - 10);
-                    uiS.scoreLost_kills += 10;
+                    uiS.campaignScore = std::max(0, uiS.campaignScore - sc.penaltyKill);
+                    uiS.scoreLost_kills += sc.penaltyKill;
                     uiS.scoreKillCount++;
 #ifdef USE_IMGUI
                     ECS::UI::PushActionNotify(registry, "KILL PENALTY", "ENEMY",
-                                              -10, ActionNotifyType::Kill);
+                                              -sc.penaltyKill, ActionNotifyType::Kill);
 #endif
                 }
             }

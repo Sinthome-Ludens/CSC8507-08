@@ -15,6 +15,7 @@
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 
 using namespace NCL;
 
@@ -43,6 +44,9 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
     auto& lobby = registry.ctx<Res_LobbyState>();
 
     const auto& input = registry.ctx<Res_Input>();
+
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
@@ -106,12 +110,12 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
 
     // Keyboard navigation
     if (!lobby.ipInputActive) {
-        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP] ||
-            input.keyPressed[KeyCodes::A] || input.keyPressed[KeyCodes::LEFT]) {
+        if (input.keyPressed[uiCfg.keyMenuUp] || input.keyPressed[uiCfg.keyMenuUpAlt] ||
+            input.keyPressed[uiCfg.keyMenuLeft] || input.keyPressed[uiCfg.keyMenuLeftAlt]) {
             ui.lobbySelectedIndex = (ui.lobbySelectedIndex - 1 + kLobbyItemCount) % kLobbyItemCount;
         }
-        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN] ||
-            input.keyPressed[KeyCodes::D] || input.keyPressed[KeyCodes::RIGHT]) {
+        if (input.keyPressed[uiCfg.keyMenuDown] || input.keyPressed[uiCfg.keyMenuDownAlt] ||
+            input.keyPressed[uiCfg.keyMenuRight] || input.keyPressed[uiCfg.keyMenuRightAlt]) {
             ui.lobbySelectedIndex = (ui.lobbySelectedIndex + 1) % kLobbyItemCount;
         }
     }
@@ -265,11 +269,11 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
 
     // ── Confirm action ────────────────────────────────────────
     int8_t confirmedIndex = -1;
-    if ((input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE])
+    if ((input.keyPressed[uiCfg.keyConfirm] || input.keyPressed[uiCfg.keyConfirmAlt])
         && !lobby.ipInputActive) {
         confirmedIndex = ui.lobbySelectedIndex;
     }
-    if (input.mouseButtonPressed[NCL::MouseButtons::Left]) {
+    if (input.mouseButtonPressed[uiCfg.mouseConfirm]) {
         // Check HOST card
         if (mousePos.x >= hostMin.x && mousePos.x <= hostMax.x &&
             mousePos.y >= hostMin.y && mousePos.y <= hostMax.y) {

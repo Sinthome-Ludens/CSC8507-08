@@ -8,6 +8,7 @@
 #include "Sys_PlayerStance.h"
 #include "Game/Utils/PauseGuard.h"
 
+#include "Game/Components/Res_StanceConfig.h"
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Collider.h"
@@ -18,10 +19,6 @@
 #include "Game/Events/Evt_Player_StanceChanged.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
-
-namespace {
-    constexpr float SKIN_OFFSET = 0.05f; // 防止碰撞体嵌入地面的皮肤偏移
-}
 
 namespace ECS {
 
@@ -37,6 +34,9 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;
 
+    Res_StanceConfig defaultStCfg;
+    const auto& stCfg = registry.has_ctx<Res_StanceConfig>() ? registry.ctx<Res_StanceConfig>() : defaultStCfg;
+
     registry.view<C_D_Input, C_D_Transform, C_D_RigidBody, C_T_Player, C_D_PlayerState>().each(
         [&](EntityID id, C_D_Input& input, C_D_Transform& tf, C_D_RigidBody& rb,
             C_T_Player&, C_D_PlayerState& ps) {
@@ -50,20 +50,20 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
                     float oldHalfHeight = ps.colliderHalfHeight;
 
                     ps.stance = PlayerStance::Standing;
-                    ps.colliderRadius = STAND_HALF_X;
-                    ps.colliderHalfHeight = STAND_HALF_Y;
+                    ps.colliderRadius = stCfg.standHalfX;
+                    ps.colliderHalfHeight = stCfg.standHalfY;
                     if (registry.Has<C_D_Collider>(id)) {
                         auto& col = registry.Get<C_D_Collider>(id);
                         col.type = ColliderType::Box;
                         col.fit_mode = ColliderFitMode::Manual;
-                        col.half_x = STAND_HALF_X;
-                        col.half_y = STAND_HALF_Y;
-                        col.half_z = STAND_HALF_Z;
+                        col.half_x = stCfg.standHalfX;
+                        col.half_y = stCfg.standHalfY;
+                        col.half_z = stCfg.standHalfZ;
                     }
-                    physics->ReplaceShapeBox(id, STAND_HALF_X, STAND_HALF_Y, STAND_HALF_Z);
+                    physics->ReplaceShapeBox(id, stCfg.standHalfX, stCfg.standHalfY, stCfg.standHalfZ);
 
-                    float oldBottom = (tf.position.y - SKIN_OFFSET) - oldHalfHeight;
-                    float newCenterY = oldBottom + STAND_HALF_Y + SKIN_OFFSET;
+                    float oldBottom = (tf.position.y - stCfg.skinOffset) - oldHalfHeight;
+                    float newCenterY = oldBottom + stCfg.standHalfY + stCfg.skinOffset;
                     physics->SetPosition(id, tf.position.x, newCenterY, tf.position.z);
                     tf.position.y = newCenterY;
                     physics->ActivateBody(id);
@@ -115,30 +115,30 @@ void Sys_PlayerStance::OnUpdate(Registry& registry, float /*dt*/) {
 
             // 确定新碰撞体半高
             float oldHalfHeight = (oldStance == PlayerStance::Standing)
-                                  ? STAND_HALF_Y : CROUCH_HALF_Y;
+                                  ? stCfg.standHalfY : stCfg.crouchHalfY;
             float newHalfHeight = (ps.stance == PlayerStance::Crouching)
-                                  ? CROUCH_HALF_Y : STAND_HALF_Y;
+                                  ? stCfg.crouchHalfY : stCfg.standHalfY;
             ps.colliderHalfHeight = newHalfHeight;
-            ps.colliderRadius = STAND_HALF_X;
+            ps.colliderRadius = stCfg.standHalfX;
 
             // 1) 替换碰撞体形状
             if (registry.Has<C_D_Collider>(id)) {
                 auto& col = registry.Get<C_D_Collider>(id);
                 col.type = ColliderType::Box;
                 col.fit_mode = ColliderFitMode::Manual;
-                col.half_x = (ps.stance == PlayerStance::Crouching) ? CROUCH_HALF_X : STAND_HALF_X;
+                col.half_x = (ps.stance == PlayerStance::Crouching) ? stCfg.crouchHalfX : stCfg.standHalfX;
                 col.half_y = newHalfHeight;
-                col.half_z = (ps.stance == PlayerStance::Crouching) ? CROUCH_HALF_Z : STAND_HALF_Z;
+                col.half_z = (ps.stance == PlayerStance::Crouching) ? stCfg.crouchHalfZ : stCfg.standHalfZ;
             }
             physics->ReplaceShapeBox(
                 id,
-                (ps.stance == PlayerStance::Crouching) ? CROUCH_HALF_X : STAND_HALF_X,
+                (ps.stance == PlayerStance::Crouching) ? stCfg.crouchHalfX : stCfg.standHalfX,
                 newHalfHeight,
-                (ps.stance == PlayerStance::Crouching) ? CROUCH_HALF_Z : STAND_HALF_Z);
+                (ps.stance == PlayerStance::Crouching) ? stCfg.crouchHalfZ : stCfg.standHalfZ);
 
             // 2) 调整 Y 位置，保持脚底不动
-            float oldBottom = (tf.position.y - SKIN_OFFSET) - oldHalfHeight;
-            float newCenterY = oldBottom + newHalfHeight + SKIN_OFFSET;
+            float oldBottom = (tf.position.y - stCfg.skinOffset) - oldHalfHeight;
+            float newCenterY = oldBottom + newHalfHeight + stCfg.skinOffset;
             physics->SetPosition(id, tf.position.x, newCenterY, tf.position.z);
             tf.position.y = newCenterY;
 

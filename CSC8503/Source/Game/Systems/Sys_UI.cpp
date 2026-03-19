@@ -39,6 +39,8 @@
 #include "Game/UI/UI_MissionSelect.h"
 #include "Game/UI/UI_Victory.h"
 #include "Game/UI/UI_ActionNotify.h"
+#include "Game/Components/Res_InputConfig.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/SaveManager.h"
 
@@ -84,6 +86,14 @@ void Sys_UI::OnAwake(Registry& registry) {
         registry.ctx_emplace<Res_ActionNotifyState>();
     }
 
+    if (!registry.has_ctx<Res_InputConfig>()) {
+        registry.ctx_emplace<Res_InputConfig>();
+    }
+
+    if (!registry.has_ctx<Res_UIKeyConfig>()) {
+        registry.ctx_emplace<Res_UIKeyConfig>();
+    }
+
     // 加载存档到 UIState 缓存（菜单阶段只有 UIState 存在）
     if (ECS::HasSaveFile()) {
         ECS::LoadGame(registry);
@@ -112,7 +122,9 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     // F1: toggle devMode
     const auto& input = registry.ctx<Res_Input>();
-    if (input.keyPressed[KeyCodes::F1]) {
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
+    if (input.keyPressed[uiCfg.keyDevMode]) {
         ui.devMode = !ui.devMode;
         LOG_INFO("[Sys_UI] DevMode: " << (ui.devMode ? "ON" : "OFF"));
     }
@@ -122,7 +134,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         auto& gs = registry.ctx<Res_GameState>();
 
         // F2: Cycle alertLevel (0/25/50/75/100) — derive next from current value
-        if (input.keyPressed[KeyCodes::F2]) {
+        if (input.keyPressed[uiCfg.keyDebugAlertCycle]) {
             static const float kAlertCycle[] = { 0.0f, 25.0f, 50.0f, 75.0f, 100.0f };
             float next = kAlertCycle[0];
             for (int i = 0; i < 5; ++i) {
@@ -133,24 +145,24 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F3: Toggle countdownActive
-        if (input.keyPressed[KeyCodes::F3]) {
+        if (input.keyPressed[uiCfg.keyDebugCountdown]) {
             gs.countdownActive = !gs.countdownActive;
             if (gs.countdownActive) gs.countdownTimer = gs.countdownMax;
             LOG_INFO("[DevMode] F3 countdownActive=" << gs.countdownActive);
         }
 
         // F5: Preview GameOver (cycle reason 1/2/3) — derive from current
-        if (input.keyPressed[KeyCodes::F5]) {
-            gs.gameOverReason = (gs.gameOverReason % 3) + 1;
+        if (input.keyPressed[uiCfg.keyDebugGameOver]) {
+            gs.gameOverReason = ToGameOverReason((ToU8(gs.gameOverReason) % 3) + 1);
             gs.isGameOver = true;
             gs.gameOverTime = gs.playTime;
             ui.activeScreen = UIScreen::GameOver;
             ui.gameOverSelectedIndex = 0;
-            LOG_INFO("[DevMode] F5 GameOver reason=" << (int)gs.gameOverReason);
+            LOG_INFO("[DevMode] F5 GameOver reason=" << (int)ToU8(gs.gameOverReason));
         }
 
         // F6: Cycle noiseLevel (0/0.3/0.6/1.0) — derive from current value
-        if (input.keyPressed[KeyCodes::F6]) {
+        if (input.keyPressed[uiCfg.keyDebugNoiseCycle]) {
             static const float kNoiseCycle[] = { 0.0f, 0.3f, 0.6f, 1.0f };
             float next = kNoiseCycle[0];
             for (int i = 0; i < 4; ++i) {
@@ -161,7 +173,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F7: Trigger CRT transition
-        if (input.keyPressed[KeyCodes::F7]) {
+        if (input.keyPressed[uiCfg.keyDebugCRT]) {
             ui.transitionActive   = true;
             ui.transitionTimer    = 0.0f;
             ui.transitionDuration = 0.5f;
@@ -170,7 +182,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F8: Push test Toast (Info/Warning/Danger/Success cycle)
-        if (input.keyPressed[KeyCodes::F8]) {
+        if (input.keyPressed[uiCfg.keyDebugToast]) {
             const char* toastTexts[] = { "TEST INFO", "TEST WARNING", "TEST DANGER", "TEST SUCCESS" };
             ToastType toastTypes[] = { ToastType::Info, ToastType::Warning, ToastType::Danger, ToastType::Success };
             UI::PushToast(registry, toastTexts[ui.devToastCycle], toastTypes[ui.devToastCycle]);
@@ -179,7 +191,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F9: Toggle all C_D_Interactable.isEnabled — read first entity's value, then invert
-        if (input.keyPressed[KeyCodes::F9]) {
+        if (input.keyPressed[uiCfg.keyDebugInteractables]) {
             bool newVal = true;
             auto view = registry.view<C_D_Interactable>();
             bool first = true;
@@ -192,7 +204,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     }
 
     // ESC navigation
-    if (input.keyPressed[KeyCodes::ESCAPE]) {
+    if (input.keyPressed[uiCfg.keyMenuBack]) {
         switch (ui.activeScreen) {
             case UIScreen::Settings:
                 UI::NavigateBackFromSettings(ui);
@@ -267,7 +279,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     }
 
     // I key: toggle HUD <-> Inventory (only when in HUD or Inventory)
-    if (input.keyPressed[KeyCodes::I]) {
+    if (input.keyPressed[uiCfg.keyInventory]) {
         if (ui.activeScreen == UIScreen::HUD) {
             ui.activeScreen = UIScreen::Inventory;
             ui.inventorySelectedSlot = 0;
@@ -280,7 +292,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     // TAB key: hold mode for ItemWheel (only when in HUD)
     if (ui.activeScreen == UIScreen::HUD) {
-        bool tabDown = input.keyStates[KeyCodes::TAB];
+        bool tabDown = input.keyStates[uiCfg.keyItemWheel];
         if (tabDown && !ui.itemWheelOpen) {
             // TAB pressed — open wheel
             ui.itemWheelOpen = true;

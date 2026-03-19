@@ -8,6 +8,7 @@
 #include "Sys_StealthMetrics.h"
 #include "Game/Utils/PauseGuard.h"
 
+#include "Game/Components/Res_StealthConfig.h"
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_RigidBody.h"
@@ -36,6 +37,9 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;
 
+    Res_StealthConfig defaultSlCfg;
+    const auto& slCfg = registry.has_ctx<Res_StealthConfig>() ? registry.ctx<Res_StealthConfig>() : defaultSlCfg;
+
     registry.view<C_D_Input, C_D_Transform, C_D_RigidBody, C_T_Player, C_D_PlayerState>().each(
         [&](EntityID id, C_D_Input& input, C_D_Transform& tf, C_D_RigidBody& rb,
             C_T_Player&, C_D_PlayerState& ps) {
@@ -47,39 +51,39 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
 
             Vector3 vel = physics->GetLinearVelocity(id);
             float horizSpeed = std::sqrt(vel.x * vel.x + vel.z * vel.z);
-            bool isMoving = (horizSpeed > 0.1f);
+            bool isMoving = (horizSpeed > slCfg.moveDetectThreshold);
 
             // ── 奔跑判定 + 速度乘数 ──
             float stanceMul = (ps.stance == PlayerStance::Crouching)
-                              ? STANCE_MUL_CROUCHING : STANCE_MUL_STANDING;
+                              ? slCfg.stanceMulCrouching : slCfg.stanceMulStanding;
 
-            float disguiseMul = ps.isDisguised ? DISGUISE_MUL : 1.0f;
+            float disguiseMul = ps.isDisguised ? slCfg.disguiseMul : 1.0f;
             ps.moveSpeedMul = stanceMul * disguiseMul;
 
             bool wantSprint = input.shiftDown && input.hasInput && !ps.isDisguised;
 
             if (wantSprint && ps.stance == PlayerStance::Crouching) {
                 ps.forceStandPending = true;
-                stanceMul = STANCE_MUL_STANDING;
+                stanceMul = slCfg.stanceMulStanding;
                 ps.moveSpeedMul = stanceMul * disguiseMul;
             }
 
             bool canSprint = wantSprint && ps.stance == PlayerStance::Standing;
             ps.isSprinting = canSprint;
 
-            // ── 噪音/可见度指标 ──
+            // ── 噪音/可见度指标（数据驱动，参数来自 Res_StealthConfig）──
             if (ps.isDisguised) {
-                ps.visibilityFactor = isMoving ? 0.4f : 0.0f;
-                ps.noiseLevel       = isMoving ? 0.5f : 0.0f;
+                ps.visibilityFactor = isMoving ? slCfg.disguiseVisMoving  : slCfg.disguiseVisStatic;
+                ps.noiseLevel       = isMoving ? slCfg.disguiseNoiseMoving : slCfg.disguiseNoiseStatic;
             } else {
                 switch (ps.stance) {
                     case PlayerStance::Standing:
-                        ps.visibilityFactor = isMoving ? 1.0f : 0.7f;
-                        ps.noiseLevel       = isMoving ? (ps.isSprinting ? 0.6f : 0.2f) : 0.0f;
+                        ps.visibilityFactor = isMoving ? slCfg.standVisMoving : slCfg.standVisStatic;
+                        ps.noiseLevel       = isMoving ? (ps.isSprinting ? slCfg.standNoiseSprint : slCfg.standNoiseWalk) : 0.0f;
                         break;
                     case PlayerStance::Crouching:
-                        ps.visibilityFactor = isMoving ? 0.5f : 0.3f;
-                        ps.noiseLevel       = isMoving ? (ps.isSprinting ? 0.6f : 0.2f) * 0.4f : 0.0f;
+                        ps.visibilityFactor = isMoving ? slCfg.crouchVisMoving : slCfg.crouchVisStatic;
+                        ps.noiseLevel       = isMoving ? (ps.isSprinting ? slCfg.crouchNoiseSprint : slCfg.crouchNoiseWalk) * slCfg.crouchNoiseMul : 0.0f;
                         break;
                     default:
                         ps.visibilityFactor = 0.0f;
@@ -89,7 +93,7 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             }
 
             // ── 噪音事件发布（节流） ──
-            if (isMoving && ps.noiseLevel >= 0.01f && ps.noiseCooldown <= 0.0f) {
+            if (isMoving && ps.noiseLevel >= slCfg.noiseEventThreshold && ps.noiseCooldown <= 0.0f) {
                 auto* bus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;
                 if (bus) {
                     Evt_Player_Noise evt{};
@@ -99,7 +103,7 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
                     evt.type     = ps.isDisguised ? PlayerNoiseType::BoxScrape : PlayerNoiseType::Footstep;
 
                     bus->publish_deferred(evt);
-                    ps.noiseCooldown = NOISE_THROTTLE;
+                    ps.noiseCooldown = slCfg.noiseThrottle;
 
                     LOG_INFO("[Sys_StealthMetrics] Noise: type="
                              << (int)evt.type << " vol=" << evt.volume);

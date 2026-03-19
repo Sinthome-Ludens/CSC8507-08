@@ -15,6 +15,7 @@
 #include "Game/UI/UI_ItemIcons.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 
 using namespace NCL;
 
@@ -82,21 +83,23 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
 
     // Keyboard navigation
     const auto& input = registry.ctx<Res_Input>();
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
     {
         int sel = ui.inventorySelectedSlot;
         int row = sel / Res_InventoryState::kCols;
         int col = sel % Res_InventoryState::kCols;
 
-        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP]) {
+        if (input.keyPressed[uiCfg.keyMenuUp] || input.keyPressed[uiCfg.keyMenuUpAlt]) {
             row = (row - 1 + Res_InventoryState::kRows) % Res_InventoryState::kRows;
         }
-        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN]) {
+        if (input.keyPressed[uiCfg.keyMenuDown] || input.keyPressed[uiCfg.keyMenuDownAlt]) {
             row = (row + 1) % Res_InventoryState::kRows;
         }
-        if (input.keyPressed[KeyCodes::A] || input.keyPressed[KeyCodes::LEFT]) {
+        if (input.keyPressed[uiCfg.keyMenuLeft] || input.keyPressed[uiCfg.keyMenuLeftAlt]) {
             col = (col - 1 + Res_InventoryState::kCols) % Res_InventoryState::kCols;
         }
-        if (input.keyPressed[KeyCodes::D] || input.keyPressed[KeyCodes::RIGHT]) {
+        if (input.keyPressed[uiCfg.keyMenuRight] || input.keyPressed[uiCfg.keyMenuRightAlt]) {
             col = (col + 1) % Res_InventoryState::kCols;
         }
         ui.inventorySelectedSlot = static_cast<int8_t>(row * Res_InventoryState::kCols + col);

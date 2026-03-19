@@ -29,6 +29,7 @@
 #include "Game/Events/Evt_Net_GameAction.h"
 #include "Core/ECS/EventBus.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_InputConfig.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_PlayerInput.h"
 #include "Keyboard.h"
@@ -297,7 +298,7 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                         gs.matchResult = MatchResult::Disconnected;
                         gs.matchJustFinished = true;
                         gs.isGameOver = true;
-                        gs.gameOverReason = 0;
+                        gs.gameOverReason = GameOverReason::None;
                     }
                 }
                 UpdateMatchUIState(reg);
@@ -392,17 +393,17 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
         || (previousOpponentProgress != gs.opponentStageProgress);
 
     if (incomingPhase == MatchPhase::Finished) {
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.gameOverReason = ToGameOverReason(ComputeGameOverReasonForResult(gs.matchResult));
         gs.isGameOver = true;
     } else if (hasPendingLocalTerminalState) {
         const uint8_t inferredPendingReason =
             pendingLocalGameOverReason != 0u
             ? pendingLocalGameOverReason
             : (pendingLocalStageProgress >= kMultiplayerStageCount ? 3u : 0u);
-        gs.gameOverReason = inferredPendingReason;
+        gs.gameOverReason = ToGameOverReason(inferredPendingReason);
         gs.isGameOver = (inferredPendingReason != 0u);
     } else {
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.gameOverReason = ToGameOverReason(ComputeGameOverReasonForResult(gs.matchResult));
         gs.isGameOver = false;
     }
 
@@ -576,11 +577,14 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
     if (!reg.has_ctx<Res_Input>()) return;
     auto& input = reg.ctx<Res_Input>();
 
+    Res_InputConfig defaultCfg;
+    const auto& cfg = reg.has_ctx<Res_InputConfig>() ? reg.ctx<Res_InputConfig>() : defaultCfg;
+
     uint32_t currentMask = 0;
-    if (input.keyStates[NCL::KeyCodes::UP])    currentMask |= PlayerInputFlags::Up;
-    if (input.keyStates[NCL::KeyCodes::DOWN])  currentMask |= PlayerInputFlags::Down;
-    if (input.keyStates[NCL::KeyCodes::LEFT])  currentMask |= PlayerInputFlags::Left;
-    if (input.keyStates[NCL::KeyCodes::RIGHT]) currentMask |= PlayerInputFlags::Right;
+    if (input.keyStates[cfg.keyChatUp])    currentMask |= PlayerInputFlags::Up;
+    if (input.keyStates[cfg.keyChatDown])  currentMask |= PlayerInputFlags::Down;
+    if (input.keyStates[cfg.keyChatLeft])  currentMask |= PlayerInputFlags::Left;
+    if (input.keyStates[cfg.keyChatRight]) currentMask |= PlayerInputFlags::Right;
     
     // --- 1. Client：收集输入并发送给 Server ---
     if (resNet.mode == PeerType::CLIENT && resNet.peer != nullptr) {
@@ -739,7 +743,7 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
     const uint8_t clientStage = gs.opponentStageProgress;
     const uint8_t roundIndex = gs.currentRoundIndex;
     const uint8_t gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
-    gs.gameOverReason = gameOverReason;
+    gs.gameOverReason = ToGameOverReason(gameOverReason);
 
     const bool dirty = force
         || m_LastBroadcastPhase != phase
@@ -818,7 +822,7 @@ void Sys_Network::ResetMatchStateForRestart(Registry& reg) {
             gs.matchJustStarted = true;
             gs.matchJustFinished = false;
             gs.isGameOver = false;
-            gs.gameOverReason = 0;
+            gs.gameOverReason = GameOverReason::None;
             gs.gameOverTime = 0.0f;
             gs.countdownActive = false;
             gs.countdownTimer = gs.countdownMax;
@@ -870,10 +874,10 @@ void Sys_Network::UpdateMatchUIState(Registry& reg) {
  * @param gs 当前比赛状态资源
  */
 void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReason) {
-    const bool hostFinishedByFailure = gs.isGameOver && gs.gameOverReason != 0u && gs.gameOverReason != 3u;
+    const bool hostFinishedByFailure = gs.isGameOver && gs.gameOverReason != GameOverReason::None && gs.gameOverReason != GameOverReason::Success;
     const bool clientFinishedByFailure = remoteGameOverReason != 0u && remoteGameOverReason != 3u;
     const bool hostFinishedBySuccess =
-        (gs.isGameOver && gs.gameOverReason == 3u)
+        (gs.isGameOver && gs.gameOverReason == GameOverReason::Success)
         || (gs.localStageProgress >= kMultiplayerStageCount && !hostFinishedByFailure);
     const bool clientFinishedBySuccess =
         (remoteGameOverReason == 3u)
@@ -888,7 +892,7 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReas
         }
         gs.matchResult = MatchResult::None;
         gs.isGameOver = false;
-        gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+        gs.gameOverReason = ToGameOverReason(ComputeGameOverReasonForResult(gs.matchResult));
         return;
     }
 
@@ -903,7 +907,7 @@ void Sys_Network::ApplyMatchResult(Res_GameState& gs, uint8_t remoteGameOverReas
         gs.matchResult = MatchResult::OpponentWin;
     }
     gs.isGameOver = true;
-    gs.gameOverReason = ComputeGameOverReasonForResult(gs.matchResult);
+    gs.gameOverReason = ToGameOverReason(ComputeGameOverReasonForResult(gs.matchResult));
     if (previousPhase != MatchPhase::Finished) {
         gs.matchJustFinished = true;
     }
@@ -949,14 +953,14 @@ uint8_t Sys_Network::ComputeGameOverReasonForResult(MatchResult result) {
  * @return 0 表示本地仍未终局，否则返回标准 gameOverReason
  */
 uint8_t Sys_Network::GetLocalTerminalReason(Registry& reg, const Res_GameState& gs) {
-    if (gs.gameOverReason != 0u) {
-        return gs.gameOverReason;
+    if (gs.gameOverReason != GameOverReason::None) {
+        return ToU8(gs.gameOverReason);
     }
     if (gs.localStageProgress >= kMultiplayerStageCount) {
-        return 3u;
+        return ToU8(GameOverReason::Success);
     }
     if (gs.isGameOver) {
-        return 2u;
+        return ToU8(GameOverReason::Detected);
     }
     if (reg.has_ctx<Res_UIState>()) {
         const auto& ui = reg.ctx<Res_UIState>();

@@ -34,6 +34,12 @@ struct C_D_NavAgent {
     float stopping_distance     = 1.0f;
     float update_frequency      = 0.5f;
     float corner_decel_range    = 1.5f;
+    float corner_decel_floor    = 0.4f;  ///< 转弯减速下限（速度百分比）
+    float waypoint_arrival_sq   = 0.36f; ///< 非终点路点到达距离² (0.6m²)
+    float obstacle_ray_height   = 0.5f;  ///< 障碍物检测射线 Y 偏移
+    float obstacle_ray_range    = 1.5f;  ///< 障碍物检测距离 (m)
+    float obstacle_check_min_dist = 0.5f; ///< 启用障碍物检测的最小目标距离 (m)
+    float max_vertical_speed    = 8.0f;  ///< Y 轴速度限幅 (m/s)
     float timer             = 0.0f;
 
     /// 要追踪的目标实体标签（匹配 C_T_NavTarget::target_type）

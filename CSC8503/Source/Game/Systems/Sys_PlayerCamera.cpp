@@ -1,5 +1,6 @@
 #include "Sys_PlayerCamera.h"
 
+#include "Game/Components/Res_PlayerCameraConfig.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
 #include "Game/Components/C_T_MainCamera.h"
@@ -12,6 +13,9 @@ using namespace NCL::Maths;
 namespace ECS {
 
 void Sys_PlayerCamera::OnUpdate(Registry& registry, float dt) {
+    Res_PlayerCameraConfig defaultCamCfg;
+    const auto& camCfg = registry.has_ctx<Res_PlayerCameraConfig>() ? registry.ctx<Res_PlayerCameraConfig>() : defaultCamCfg;
+
     // Debug 模式检查：纯自由飞行时跳过，Sync 模式时跟随但不锁定旋转
     bool syncMode = false;
     if (registry.has_ctx<Sys_Camera*>()) {
@@ -39,16 +43,16 @@ void Sys_PlayerCamera::OnUpdate(Registry& registry, float dt) {
     registry.view<C_T_MainCamera, C_D_Camera, C_D_Transform>().each(
         [&](EntityID /*id*/, C_T_MainCamera&, C_D_Camera& cam, C_D_Transform& camTf) {
             // 目标位置 = 玩家位置 + 偏移
-            Vector3 targetPos = playerPos + CAMERA_OFFSET;
+            Vector3 targetPos = playerPos + camCfg.cameraOffset;
 
             // Lerp 平滑跟随
-            float t = std::min(1.0f, SMOOTH_SPEED * dt);
+            float t = std::min(1.0f, camCfg.smoothSpeed * dt);
             camTf.position = camTf.position + (targetPos - camTf.position) * t;
 
             // Sync 模式：不设置 pitch/yaw，由 Sys_Camera (155) 通过鼠标控制
             if (!syncMode) {
-                cam.pitch = FIXED_PITCH;
-                cam.yaw   = FIXED_YAW;
+                cam.pitch = camCfg.fixedPitch;
+                cam.yaw   = camCfg.fixedYaw;
             }
         }
     );
