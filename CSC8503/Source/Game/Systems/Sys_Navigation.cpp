@@ -156,7 +156,7 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
      * "停止-重规划"死循环。仅在完全正对墙面无法滑移时才清零速度。
      * 使用 Sys_Physics::CastRayIgnoring（Jolt），不走 NCLGL。
      */
-    if (physics && rb.body_created && dist > agent.obstacle_ray_height) {
+    if (physics && rb.body_created && dist > agent.obstacle_check_min_dist) {
         auto fwdHit = physics->CastRayIgnoring(
             tf.position.x, tf.position.y + agent.obstacle_ray_height, tf.position.z,
             dir.x, 0.0f, dir.z,

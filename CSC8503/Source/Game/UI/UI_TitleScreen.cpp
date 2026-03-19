@@ -144,7 +144,7 @@ void RenderTitleScreen(Registry& registry, float dt) {
             }
         }
         if (!anyInput) {
-            for (int m = 0; m < 5; ++m) {
+            for (size_t m = 0; m < std::size(input.mouseButtonPressed); ++m) {
                 if (input.mouseButtonPressed[m]) { anyInput = true; break; }
             }
         }

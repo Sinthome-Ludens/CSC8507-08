@@ -38,6 +38,7 @@ struct C_D_NavAgent {
     float waypoint_arrival_sq   = 0.36f; ///< 非终点路点到达距离² (0.6m²)
     float obstacle_ray_height   = 0.5f;  ///< 障碍物检测射线 Y 偏移
     float obstacle_ray_range    = 1.5f;  ///< 障碍物检测距离 (m)
+    float obstacle_check_min_dist = 0.5f; ///< 启用障碍物检测的最小目标距离 (m)
     float max_vertical_speed    = 8.0f;  ///< Y 轴速度限幅 (m/s)
     float timer             = 0.0f;
 

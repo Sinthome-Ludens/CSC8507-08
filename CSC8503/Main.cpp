@@ -88,9 +88,8 @@ void DisplayPathfinding() {}
 // 辅助函数
 // ============================================================
 
-/// 处理键盘快捷键（已迁移到 ECS：Sys_UI 通过 Res_Input 检测并写入 Res_UIState）
-/// 此处保留为空函数，由 Main.cpp 主循环从 Res_UIState.showConsole 读取状态。
-/// 注：console 功能目前无实际使用场景，保留占位以便后续扩展。
+/// 键盘快捷键已迁移到 ECS（Sys_UI 通过 Res_Input 处理）。
+/// 原 HandleKeyboardShortcuts() 及 ShowConsole 功能已删除，无实际使用场景。
 
 /// 更新窗口标题
 static void UpdateWindowTitle(Window* w, float dt) {
