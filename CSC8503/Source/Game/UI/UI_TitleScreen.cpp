@@ -59,6 +59,32 @@ void RenderTitleScreen(Registry& registry, float dt) {
     draw->AddCircleFilled(ImVec2(cx, cy), recordR * 0.08f,
         Col32_Accent(120));
 
+    // Record groove lines (dense arcs between main rings)
+    for (int i = 1; i <= 6; ++i) {
+        float t = (float)i / 7.0f;
+        float grooveR = recordR * (0.4f + t * 0.6f);
+        uint8_t grooveAlpha = (uint8_t)(12 + i * 3);
+        draw->AddCircle(ImVec2(cx, cy), grooveR,
+            Col32_Gray(grooveAlpha), 48, 0.5f);
+    }
+
+    // Outer ring with slow rotation (tick marks)
+    {
+        float outerR = recordR * 1.08f;
+        float rotAngle = ui.titleTimer * 0.05f;
+        constexpr int tickCount = 36;
+        for (int i = 0; i < tickCount; ++i) {
+            float a = rotAngle + (float)i * (2.0f * 3.14159f / tickCount);
+            float inner = outerR - 4.0f;
+            float outer = outerR;
+            uint8_t tickAlpha = (i % 3 == 0) ? (uint8_t)50 : (uint8_t)25;
+            draw->AddLine(
+                ImVec2(cx + cosf(a) * inner, cy + sinf(a) * inner),
+                ImVec2(cx + cosf(a) * outer, cy + sinf(a) * outer),
+                Col32_Gray(tickAlpha), 1.0f);
+        }
+    }
+
     // Rotating needle line
     float needleAngle = ui.titleTimer * 0.3f;
     float needleLen = recordR * 0.9f;

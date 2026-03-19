@@ -90,14 +90,21 @@ static void RenderMenuBackground(float globalTime,
     draw->AddLine(ImVec2(cx, cy - maxR), ImVec2(cx, cy + maxR),
         Col32_Accent(25), 1.0f);
 
-    // Rotating sweep line
+    // Primary rotating sweep line
     float angle = globalTime * 0.8f;
     float scanX = cx + cosf(angle) * maxR;
     float scanY = cy + sinf(angle) * maxR;
     draw->AddLine(ImVec2(cx, cy), ImVec2(scanX, scanY),
         Col32_Accent(100), 2.0f);
 
-    // Sweep trail
+    // Secondary sweep line (180° offset, dimmer)
+    float angle2 = angle + 3.14159f;
+    float scan2X = cx + cosf(angle2) * maxR;
+    float scan2Y = cy + sinf(angle2) * maxR;
+    draw->AddLine(ImVec2(cx, cy), ImVec2(scan2X, scan2Y),
+        Col32_Accent(40), 1.5f);
+
+    // Sweep trail (primary)
     constexpr int trailSegments = 12;
     constexpr float trailAngle  = 0.5f;
     for (int i = 0; i < trailSegments; ++i) {
@@ -108,6 +115,18 @@ static void RenderMenuBackground(float globalTime,
         ImVec2 p1(cx + cosf(a) * r, cy + sinf(a) * r);
         float a2 = angle - trailAngle * (t + 1.0f / trailSegments);
         ImVec2 p2(cx + cosf(a2) * r, cy + sinf(a2) * r);
+        draw->AddTriangleFilled(ImVec2(cx, cy), p1, p2,
+            Col32_Accent(alpha));
+    }
+
+    // Sweep trail (secondary, dimmer)
+    for (int i = 0; i < 8; ++i) {
+        float t = (float)i / 8.0f;
+        float a = angle2 - 0.3f * t;
+        uint8_t alpha = (uint8_t)(std::min(25.0f * (1.0f - t), 255.0f));
+        ImVec2 p1(cx + cosf(a) * maxR, cy + sinf(a) * maxR);
+        float a2 = angle2 - 0.3f * (t + 1.0f / 8.0f);
+        ImVec2 p2(cx + cosf(a2) * maxR, cy + sinf(a2) * maxR);
         draw->AddTriangleFilled(ImVec2(cx, cy), p1, p2,
             Col32_Accent(alpha));
     }
@@ -144,6 +163,32 @@ static void RenderMenuBackground(float globalTime,
         Col32_Text(180), "STATUS: STANDBY");
     draw->AddText(ImVec2(panelX + panelW - 180.0f, panelY + 45.0f),
         Col32_Text(160), "ENCRYPTION: AES-256");
+
+    // Vertical data flow text (scrolling upward on left edge)
+    static const char* kDataLines[] = {
+        "0xA3F1:OK", "NODE.17", "PING 12ms", "TCP/443",
+        "HASH:5E9C", "AUTH:RSA", "SYNC.OK", "0xFF02:RX",
+        "PKT:1024", "ROUTE:3", "DNS.OK", "TLS1.3",
+    };
+    constexpr int kDataLineCount = 12;
+    constexpr float lineH = 14.0f;
+    float scrollOffset = fmodf(globalTime * 20.0f, lineH * kDataLineCount);
+    float dataX = panelX + 10.0f;
+    // Clip to panel region
+    draw->PushClipRect(ImVec2(panelX, panelY), ImVec2(panelX + 90.0f, panelY + panelH));
+    for (int i = 0; i < kDataLineCount + 1; ++i) {
+        float y = panelY + panelH - (i * lineH) + scrollOffset;
+        if (y < panelY - lineH || y > panelY + panelH) continue;
+        int idx = i % kDataLineCount;
+        // Fade at edges
+        float distTop = y - panelY;
+        float distBot = (panelY + panelH) - y;
+        float edgeFade = std::min(distTop, distBot) / 30.0f;
+        edgeFade = std::clamp(edgeFade, 0.0f, 1.0f);
+        uint8_t alpha = (uint8_t)(80.0f * edgeFade);
+        draw->AddText(ImVec2(dataX, y), Col32_Accent(alpha), kDataLines[idx]);
+    }
+    draw->PopClipRect();
 
     if (smallFont) ImGui::PopFont();
 }
@@ -235,6 +280,38 @@ void RenderSplashScreen(Registry& registry, float dt) {
     float cxLine = vpPos.x + vpSize.x * 0.5f;
     draw->AddLine(ImVec2(cxLine - lineHalfW, lineY), ImVec2(cxLine + lineHalfW, lineY),
         Col32_Gray(120), 1.0f);
+
+    // Military-style corner frames
+    {
+        float margin = 30.0f;
+        float cornerLen = 40.0f;
+        ImU32 cornerCol = Col32_Accent(60);
+        float cw = 1.5f;
+        ImVec2 tl(vpPos.x + margin, vpPos.y + margin);
+        ImVec2 br(vpPos.x + vpSize.x - margin, vpPos.y + vpSize.y - margin);
+        // Top-left
+        draw->AddLine(tl, ImVec2(tl.x + cornerLen, tl.y), cornerCol, cw);
+        draw->AddLine(tl, ImVec2(tl.x, tl.y + cornerLen), cornerCol, cw);
+        // Top-right
+        draw->AddLine(ImVec2(br.x, tl.y), ImVec2(br.x - cornerLen, tl.y), cornerCol, cw);
+        draw->AddLine(ImVec2(br.x, tl.y), ImVec2(br.x, tl.y + cornerLen), cornerCol, cw);
+        // Bottom-left
+        draw->AddLine(ImVec2(tl.x, br.y), ImVec2(tl.x + cornerLen, br.y), cornerCol, cw);
+        draw->AddLine(ImVec2(tl.x, br.y), ImVec2(tl.x, br.y - cornerLen), cornerCol, cw);
+        // Bottom-right
+        draw->AddLine(br, ImVec2(br.x - cornerLen, br.y), cornerCol, cw);
+        draw->AddLine(br, ImVec2(br.x, br.y - cornerLen), cornerCol, cw);
+    }
+
+    // Horizontal scan line (sweeps down slowly)
+    {
+        float scanPeriod = 4.0f;
+        float scanT = fmodf(ui.splashTimer, scanPeriod) / scanPeriod;
+        float scanLineY = vpPos.y + vpSize.y * scanT;
+        uint8_t scanAlpha = (uint8_t)(40.0f * (1.0f - fabsf(scanT - 0.5f) * 2.0f));
+        draw->AddLine(ImVec2(vpPos.x, scanLineY), ImVec2(vpPos.x + vpSize.x, scanLineY),
+            Col32_Accent(scanAlpha), 1.0f);
+    }
 
     ImGui::End();
 
@@ -585,7 +662,15 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
 
     ImGui::PushItemWidth(200.0f);
 
-    // Display section
+    // Display section — monitor icon decoration
+    {
+        ImVec2 cp = ImGui::GetCursorScreenPos();
+        float ix = cp.x - 22.0f, iy = cp.y + 2.0f;
+        draw->AddRect(ImVec2(ix, iy), ImVec2(ix + 14.0f, iy + 10.0f),
+            Col32_Accent(100), 1.0f, 0, 1.0f);
+        draw->AddLine(ImVec2(ix + 4.0f, iy + 11.0f), ImVec2(ix + 10.0f, iy + 11.0f),
+            Col32_Accent(80), 1.0f);
+    }
     ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "DISPLAY");
     ImGui::Spacing();
 
@@ -621,7 +706,16 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
     ImGui::Spacing();
     ImGui::Spacing();
 
-    // Audio section
+    // Audio section — speaker icon decoration
+    {
+        ImVec2 cp = ImGui::GetCursorScreenPos();
+        float ix = cp.x - 22.0f, iy = cp.y + 2.0f;
+        draw->AddRectFilled(ImVec2(ix, iy + 3.0f), ImVec2(ix + 5.0f, iy + 9.0f),
+            Col32_Accent(100));
+        draw->AddTriangleFilled(
+            ImVec2(ix + 5.0f, iy + 1.0f), ImVec2(ix + 5.0f, iy + 11.0f),
+            ImVec2(ix + 11.0f, iy + 6.0f), Col32_Accent(80));
+    }
     ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "AUDIO");
     ImGui::Spacing();
 
@@ -667,7 +761,14 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
     ImGui::Spacing();
     ImGui::Spacing();
 
-    // Controls section
+    // Controls section — crosshair icon decoration
+    {
+        ImVec2 cp = ImGui::GetCursorScreenPos();
+        float ix = cp.x - 16.0f, iy = cp.y + 6.0f;
+        draw->AddCircle(ImVec2(ix, iy), 5.0f, Col32_Accent(100), 16, 1.0f);
+        draw->AddLine(ImVec2(ix - 7.0f, iy), ImVec2(ix + 7.0f, iy), Col32_Accent(80), 1.0f);
+        draw->AddLine(ImVec2(ix, iy - 7.0f), ImVec2(ix, iy + 7.0f), Col32_Accent(80), 1.0f);
+    }
     ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "CONTROLS");
     ImGui::Spacing();
 
