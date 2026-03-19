@@ -153,12 +153,12 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
         // F5: Preview GameOver (cycle reason 1/2/3) — derive from current
         if (input.keyPressed[uiCfg.keyDebugGameOver]) {
-            gs.gameOverReason = (gs.gameOverReason % 3) + 1;
+            gs.gameOverReason = ToGameOverReason((ToU8(gs.gameOverReason) % 3) + 1);
             gs.isGameOver = true;
             gs.gameOverTime = gs.playTime;
             ui.activeScreen = UIScreen::GameOver;
             ui.gameOverSelectedIndex = 0;
-            LOG_INFO("[DevMode] F5 GameOver reason=" << (int)gs.gameOverReason);
+            LOG_INFO("[DevMode] F5 GameOver reason=" << (int)ToU8(gs.gameOverReason));
         }
 
         // F6: Cycle noiseLevel (0/0.3/0.6/1.0) — derive from current value

@@ -29,6 +29,15 @@ using namespace NCL::CSC8503;
 
 namespace ECS {
 
+static constexpr float kPI = 3.14159265f;
+static constexpr float kDegToRad = kPI / 180.0f;
+static constexpr float kPitchMin = -89.0f;
+static constexpr float kPitchMax =  89.0f;
+
+// ── 默认场景光照（无 Res_LightingConfig 时使用）──
+static const Vector3 kDefaultSunPosition{-100.0f, 350.0f, -100.0f};
+static const Vector3 kDefaultSunColour  { 0.8f, 0.8f, 0.5f};
+
 // ============================================================
 // OnAwake
 // ============================================================
@@ -57,8 +66,8 @@ void Sys_Camera::OnAwake(Registry& registry) {
     }
 
     // ── 初始化场景光照（Bridge：写入 NCL GameWorld）──────────────
-    m_GameWorld->SetSunPosition(Vector3(-100.0f, 350.0f, -100.0f));
-    m_GameWorld->SetSunColour(Vector3(0.8f, 0.8f, 0.5f));
+    m_GameWorld->SetSunPosition(kDefaultSunPosition);
+    m_GameWorld->SetSunColour(kDefaultSunColour);
 
     // ── 首帧同步：将相机实体状态推送到 NCL ────────────────────────
     auto& tf  = registry.Get<C_D_Transform>(entity_camera_main);
@@ -131,15 +140,15 @@ void Sys_Camera::OnUpdate(Registry& registry, float dt) {
                     const Vector2 delta = input.mouseDelta;
                     cam.yaw   -= delta.x * cam.sensitivity;
                     cam.pitch -= delta.y * cam.sensitivity;
-                    cam.pitch  = std::clamp(cam.pitch, -89.0f, 89.0f);
+                    cam.pitch  = std::clamp(cam.pitch, kPitchMin, kPitchMax);
 
                     if (win) win->WarpCursorToCenter();
                 }
 
                 // ── 键盘平移（WASD + Q/E，UI 阻塞或 ImGui 捕获键盘时禁用）──
                 if (!m_SyncToPlayer && windowActive && !uiBlocking && !imguiCapturingKeyboard) {
-                    const float yawRad   = cam.yaw   * (3.14159265f / 180.0f);
-                    const float pitchRad = cam.pitch * (3.14159265f / 180.0f);
+                    const float yawRad   = cam.yaw   * (kDegToRad);
+                    const float pitchRad = cam.pitch * (kDegToRad);
 
                     // 前方向量（包含 pitch，实现仰望/俯视时仍能前进）
                     const Vector3 forward(

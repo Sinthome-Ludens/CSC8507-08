@@ -14,6 +14,8 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
+static constexpr float kDegToRad = 3.14159265f / 180.0f;
+
 void Sys_ImGuiPhysicsTest::OnAwake(Registry& /*registry*/) {
     LOG_INFO("[Sys_ImGuiPhysicsTest] OnAwake");
 }
@@ -70,7 +72,7 @@ void Sys_ImGuiPhysicsTest::SpawnEnemy(Registry& registry) {
         {
             auto& tf  = registry.Get<C_D_Transform>(camCtx.active_camera);
             auto& cam = registry.Get<C_D_Camera>   (camCtx.active_camera);
-            const float yawRad = cam.yaw * (3.14159265f / 180.0f);
+            const float yawRad = cam.yaw * kDegToRad;
             const Vector3 forward(-sinf(yawRad), 0.0f, -cosf(yawRad));
             spawnPos   = tf.position + forward * 5.0f;
             // 将胶囊底部放在地板顶面上：地板顶约在 y=-5，胶囊 bottom offset ≈1.5 -> 中心 y≈-3.5

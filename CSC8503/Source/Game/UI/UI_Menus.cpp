@@ -251,9 +251,8 @@ void RenderSplashScreen(Registry& registry, float dt) {
         }
 
         if (!anyInput) {
-            if (input.mouseButtonPressed[NCL::MouseButtons::Left] ||
-                input.mouseButtonPressed[NCL::MouseButtons::Right]) {
-                anyInput = true;
+            for (int m = 0; m < 5; ++m) {
+                if (input.mouseButtonPressed[m]) { anyInput = true; break; }
             }
         }
 

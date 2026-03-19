@@ -11,6 +11,7 @@
 
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_ScoreConfig.h"
 #include "Game/Utils/Log.h"
 
 #include <algorithm>
@@ -34,6 +35,8 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
 
     auto& gs = registry.ctx<Res_GameState>();
     auto& ui = registry.ctx<Res_UIState>();
+    Res_ScoreConfig defaultScoreCfg;
+    const auto& scoreCfg = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
 
     // Only run during HUD or None screen (gameplay)
     if (ui.activeScreen != UIScreen::HUD && ui.activeScreen != UIScreen::None) return;
@@ -49,11 +52,11 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
         // 倒计时积分惩罚 -200（挑战模式全局规则）
         if (!ui.countdownScorePenaltyApplied) {
             ui.countdownScorePenaltyApplied = true;
-            ui.scoreLost_countdown += 200;
-            ui.campaignScore = std::max(0, ui.campaignScore - 200);
+            ui.scoreLost_countdown += scoreCfg.penaltyCountdownSurge;
+            ui.campaignScore = std::max(0, ui.campaignScore - scoreCfg.penaltyCountdownSurge);
 #ifdef USE_IMGUI
             ECS::UI::PushActionNotify(registry, "ALERT SURGE", "COUNTDOWN",
-                                      -200, ActionNotifyType::Alert);
+                                      -scoreCfg.penaltyCountdownSurge, ActionNotifyType::Alert);
 #endif
         }
     }
@@ -67,7 +70,7 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
             gs.countdownTimer  = 0.0f;
             gs.countdownActive = false;
             gs.isGameOver      = true;
-            gs.gameOverReason  = 1;  // countdown expired
+            gs.gameOverReason  = GameOverReason::Countdown;
             gs.gameOverTime    = gs.playTime;
 
             ui.activeScreen         = UIScreen::GameOver;
@@ -76,11 +79,11 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
             // 失败惩罚 -500（挑战模式全局规则）
             if (!ui.failureScorePenaltyApplied) {
                 ui.failureScorePenaltyApplied = true;
-                ui.scoreLost_failure += 500;
-                ui.campaignScore = std::max(0, ui.campaignScore - 500);
+                ui.scoreLost_failure += scoreCfg.penaltyCountdownExpire;
+                ui.campaignScore = std::max(0, ui.campaignScore - scoreCfg.penaltyCountdownExpire);
 #ifdef USE_IMGUI
                 ECS::UI::PushActionNotify(registry, "MISSION", "FAILED",
-                                          -500, ActionNotifyType::Alert);
+                                          -scoreCfg.penaltyCountdownExpire, ActionNotifyType::Alert);
 #endif
             }
 

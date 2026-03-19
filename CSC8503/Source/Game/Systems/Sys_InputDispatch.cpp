@@ -37,7 +37,7 @@ void Sys_InputDispatch::OnUpdate(Registry& registry, float /*dt*/) {
         inputX /= inputLen;
         inputZ /= inputLen;
     }
-    bool hasInput = (inputLen > 0.001f);
+    bool hasInput = (inputLen > cfg.inputDeadzone);
     bool shiftDown = res.keyStates[cfg.keySprint];
 
     // ── C/V/E/F/Q/G 上升沿检测 ──

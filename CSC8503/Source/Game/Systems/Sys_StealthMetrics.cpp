@@ -71,19 +71,19 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             bool canSprint = wantSprint && ps.stance == PlayerStance::Standing;
             ps.isSprinting = canSprint;
 
-            // ── 噪音/可见度指标 ──
+            // ── 噪音/可见度指标（数据驱动，参数来自 Res_StealthConfig）──
             if (ps.isDisguised) {
-                ps.visibilityFactor = isMoving ? 0.4f : 0.0f;
-                ps.noiseLevel       = isMoving ? 0.5f : 0.0f;
+                ps.visibilityFactor = isMoving ? slCfg.disguiseVisMoving  : slCfg.disguiseVisStatic;
+                ps.noiseLevel       = isMoving ? slCfg.disguiseNoiseMoving : slCfg.disguiseNoiseStatic;
             } else {
                 switch (ps.stance) {
                     case PlayerStance::Standing:
-                        ps.visibilityFactor = isMoving ? 1.0f : 0.7f;
-                        ps.noiseLevel       = isMoving ? (ps.isSprinting ? 0.6f : 0.2f) : 0.0f;
+                        ps.visibilityFactor = isMoving ? slCfg.standVisMoving : slCfg.standVisStatic;
+                        ps.noiseLevel       = isMoving ? (ps.isSprinting ? slCfg.standNoiseSprint : slCfg.standNoiseWalk) : 0.0f;
                         break;
                     case PlayerStance::Crouching:
-                        ps.visibilityFactor = isMoving ? 0.5f : 0.3f;
-                        ps.noiseLevel       = isMoving ? (ps.isSprinting ? 0.6f : 0.2f) * 0.4f : 0.0f;
+                        ps.visibilityFactor = isMoving ? slCfg.crouchVisMoving : slCfg.crouchVisStatic;
+                        ps.noiseLevel       = isMoving ? (ps.isSprinting ? slCfg.crouchNoiseSprint : slCfg.crouchNoiseWalk) * slCfg.crouchNoiseMul : 0.0f;
                         break;
                     default:
                         ps.visibilityFactor = 0.0f;
@@ -93,7 +93,7 @@ void Sys_StealthMetrics::OnUpdate(Registry& registry, float dt) {
             }
 
             // ── 噪音事件发布（节流） ──
-            if (isMoving && ps.noiseLevel >= 0.01f && ps.noiseCooldown <= 0.0f) {
+            if (isMoving && ps.noiseLevel >= slCfg.noiseEventThreshold && ps.noiseCooldown <= 0.0f) {
                 auto* bus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;
                 if (bus) {
                     Evt_Player_Noise evt{};

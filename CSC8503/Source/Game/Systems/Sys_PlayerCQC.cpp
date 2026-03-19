@@ -30,6 +30,7 @@
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_ScoreConfig.h"
 #include "Game/UI/UI_ActionNotify.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
@@ -125,15 +126,17 @@ void Sys_PlayerCQC::OnUpdate(Registry& registry, float dt) {
 
                         // CQC 击杀扣分（直接写入，不依赖通知系统）
                         if (registry.has_ctx<Res_UIState>()) {
+                            Res_ScoreConfig defaultScoreCfg;
+                            const auto& sc = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
                             auto& uiS = registry.ctx<Res_UIState>();
-                            uiS.campaignScore = std::max(0, uiS.campaignScore - 10);
-                            uiS.scoreLost_kills += 10;
+                            uiS.campaignScore = std::max(0, uiS.campaignScore - sc.penaltyKill);
+                            uiS.scoreLost_kills += sc.penaltyKill;
                             uiS.scoreKillCount++;
-                        }
 #ifdef USE_IMGUI
-                        ECS::UI::PushActionNotify(registry, "KILL PENALTY", "CQC",
-                                                  -10, ActionNotifyType::Kill);
+                            ECS::UI::PushActionNotify(registry, "KILL PENALTY", "CQC",
+                                                      -sc.penaltyKill, ActionNotifyType::Kill);
 #endif
+                        }
 
                         // 发布 CQC 完成事件
                         if (bus) {

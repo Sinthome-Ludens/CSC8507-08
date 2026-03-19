@@ -62,6 +62,7 @@
 #include "Game/Scenes/Scene_NavTest.h"
 #include "Game/Scenes/Scene_NetworkGame.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_ScoreConfig.h"
 #include "Game/Utils/WindowHelper.h"
 #include "Game/Utils/Log.h"
 
@@ -87,15 +88,9 @@ void DisplayPathfinding() {}
 // 辅助函数
 // ============================================================
 
-/// 处理键盘快捷键
-static void HandleKeyboardShortcuts(Window* w) {
-    if (Window::GetKeyboard()->KeyPressed(KeyCodes::PRIOR)) {
-        w->ShowConsole(true);
-    }
-    if (Window::GetKeyboard()->KeyPressed(KeyCodes::NEXT)) {
-        w->ShowConsole(false);
-    }
-}
+/// 处理键盘快捷键（已迁移到 ECS：Sys_UI 通过 Res_Input 检测并写入 Res_UIState）
+/// 此处保留为空函数，由 Main.cpp 主循环从 Res_UIState.showConsole 读取状态。
+/// 注：console 功能目前无实际使用场景，保留占位以便后续扩展。
 
 /// 更新窗口标题
 static void UpdateWindowTitle(Window* w, float dt) {
@@ -137,13 +132,13 @@ static IScene* CreateDebugScene(int index) {
 /// 地图名称（调试用）
 static const char* kMapNames[] = { "HangerA", "HangerB", "Helipad", "Lab", "Dock" };
 
-/// 重置战役积分到初始状态（1000 分，所有分项归零）。
-static void ResetCampaignScore(ECS::Res_UIState& ui) {
-    ui.campaignScore                = 1000;
+/// 重置战役积分到初始状态（由 Res_ScoreConfig 驱动，所有分项归零）。
+static void ResetCampaignScore(ECS::Res_UIState& ui, const ECS::Res_ScoreConfig& scoreCfg = {}) {
+    ui.campaignScore                = scoreCfg.initialScore;
     ui.scoreDecayAccum              = 0.0f;
     ui.countdownScorePenaltyApplied = false;
     ui.failureScorePenaltyApplied   = false;
-    ui.lastScoreRatingTier          = 7;  // SSS
+    ui.lastScoreRatingTier          = static_cast<int8_t>(ECS::Res_ScoreConfig::RATING_COUNT - 1);
     ui.scoreLost_time      = 0;
     ui.scoreLost_kills     = 0;
     ui.scoreLost_items     = 0;
@@ -484,9 +479,6 @@ int main(int argc, char** argv) {
                 std::cout << "Skipping large time delta" << std::endl;
                 continue;
             }
-
-            // 键盘快捷键
-            HandleKeyboardShortcuts(w);
 
             // 窗口标题更新
             UpdateWindowTitle(w, dt);

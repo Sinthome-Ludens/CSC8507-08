@@ -65,6 +65,19 @@ enum class PlayerMoveState : uint8_t {
     Running   = 2,
 };
 
+/// @brief GameOver 原因枚举，消除裸数字 0/1/2/3 硬编码。
+enum class GameOverReason : uint8_t {
+    None         = 0,   ///< 游戏进行中
+    Countdown    = 1,   ///< 倒计时耗尽
+    Detected     = 2,   ///< 被发现 / 分数不足
+    Success      = 3,   ///< 成功完成
+};
+
+/// @brief GameOverReason → uint8_t（网络序列化用）
+inline uint8_t ToU8(GameOverReason r) { return static_cast<uint8_t>(r); }
+/// @brief uint8_t → GameOverReason（网络反序列化用）
+inline GameOverReason ToGameOverReason(uint8_t v) { return static_cast<GameOverReason>(v); }
+
 /// @brief 多人比赛阶段（等待/开始/进行中/结束）。
 enum class MatchPhase : uint8_t {
     WaitingForPeer = 0,
@@ -136,7 +149,7 @@ struct Res_GameState {
     float noiseLevel = 0.0f;  ///< [0.0, 1.0]
 
     // ─ GameOver ───────────────────────────────────────────
-    uint8_t gameOverReason = 0;   ///< 0=无, 1=倒计时, 2=被发现, 3=成功
+    GameOverReason gameOverReason = GameOverReason::None;
     float   gameOverTime   = 0.0f;
 
     // ─ 累计游玩时间 ──────────────────────────────────────

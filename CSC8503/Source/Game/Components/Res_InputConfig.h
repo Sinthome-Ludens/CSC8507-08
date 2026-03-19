@@ -34,6 +34,9 @@ struct Res_InputConfig {
     NCL::KeyCodes::Type keyChatDown   = NCL::KeyCodes::DOWN;
     NCL::KeyCodes::Type keyChatLeft   = NCL::KeyCodes::LEFT;
     NCL::KeyCodes::Type keyChatRight  = NCL::KeyCodes::RIGHT;
+
+    // ── 输入处理参数 ──
+    float inputDeadzone = 0.001f;  ///< 移动输入死区阈值
 };
 
 } // namespace ECS

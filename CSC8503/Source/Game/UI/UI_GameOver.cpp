@@ -68,7 +68,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float cx = vpPos.x + vpSize.x * 0.5f;
 
     // Get game data
-    uint8_t reason = 0;
+    GameOverReason reason = GameOverReason::None;
     float alertLevel = 0.0f;
     float alertMax = 150.0f;
     float playTime = 0.0f;
@@ -126,17 +126,17 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         }
     } else {
         switch (reason) {
-            case 1: // Countdown expired
+            case GameOverReason::Countdown:
                 resultTitle    = "MISSION FAILED";
                 resultSubtitle = "COUNTDOWN EXPIRED";
                 titleColor     = IM_COL32(220, 60, 40, 255);
                 break;
-            case 2: // Detected
+            case GameOverReason::Detected:
                 resultTitle    = "MISSION FAILED";
                 resultSubtitle = "OPERATOR DETECTED";
                 titleColor     = IM_COL32(220, 60, 40, 255);
                 break;
-            case 3: // Success
+            case GameOverReason::Success:
                 resultTitle    = "MISSION COMPLETE";
                 resultSubtitle = "ALL OBJECTIVES ACHIEVED";
                 titleColor     = IM_COL32(252, 111, 41, 255);
