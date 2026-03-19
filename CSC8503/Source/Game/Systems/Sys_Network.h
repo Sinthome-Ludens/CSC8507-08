@@ -148,6 +148,13 @@ private:
      */
     void HandleMatchRestart(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     /**
+     * @brief 处理服务端下发的同图模式配置与权威地图序列。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
+    void HandleMultiplayerSetup(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
      * @brief 处理客户端上报的输入位掩码。
      * @param reg ECS 注册表
      * @param resNet 网络资源对象
@@ -206,6 +213,13 @@ private:
      * @param resNet 网络资源对象
      */
     void BroadcastMatchRestart(Registry& reg, Res_Network& resNet);
+    /**
+     * @brief 由服务端向目标对端广播同图模式配置与权威地图序列。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param explicitPeer 目标对端；为空时广播给所有客户端
+     */
+    void BroadcastMultiplayerSetup(Registry& reg, Res_Network& resNet, ENetPeer* explicitPeer = nullptr);
     /**
      * @brief 将当前多人战局状态重置为新一局的初始值。
      * @param reg ECS 注册表
@@ -273,6 +287,15 @@ private:
      * @return 当前应显示的轮次索引
      */
     static uint8_t ComputeCurrentRoundIndex(uint8_t hostStageProgress, uint8_t clientStageProgress);
+    /**
+     * @brief 将服务端权威地图序列写入会话级 UI 状态。
+     * @param reg ECS 注册表
+     * @param mapSequence 三关地图序列
+     * @param roundIndex 当前轮次索引
+     */
+    static void ApplyAuthoritativeMapSequence(Registry& reg,
+                                              const uint8_t* mapSequence,
+                                              uint8_t roundIndex);
 
     // ── 数据包解包与物理驱动辅助方法 ──
     template<typename T>

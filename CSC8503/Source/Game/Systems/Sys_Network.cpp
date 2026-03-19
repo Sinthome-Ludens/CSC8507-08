@@ -33,9 +33,30 @@
 #include "Game/Components/C_D_PlayerInput.h"
 #include "Keyboard.h"
 #include <algorithm>
+#include <random>
 #include <iostream>
 
 namespace ECS {
+
+namespace {
+
+void GenerateAuthoritativeMapSequence(uint8_t* outSequence, size_t count) {
+    if (outSequence == nullptr || count == 0) {
+        return;
+    }
+
+    uint8_t pool[] = { 0, 1, 2, 3, 4 };
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(std::begin(pool), std::end(pool), gen);
+
+    const size_t copyCount = std::min<size_t>(count, std::size(pool));
+    for (size_t i = 0; i < copyCount; ++i) {
+        outSequence[i] = pool[i];
+    }
+}
+
+} // namespace
 
 /**
  * @brief 注册网络数据包类型的处理函数映射
@@ -45,6 +66,7 @@ void Sys_Network::RegisterHandlers() {
     m_PacketHandlers[SYNC_TRANSFORM] = &Sys_Network::HandleSyncTransform;
     m_PacketHandlers[SYNC_MATCH_STATE] = &Sys_Network::HandleMatchState;
     m_PacketHandlers[SYNC_MATCH_RESTART] = &Sys_Network::HandleMatchRestart;
+    m_PacketHandlers[SYNC_MULTIPLAYER_SETUP] = &Sys_Network::HandleMultiplayerSetup;
     m_PacketHandlers[CLIENT_INPUT]   = &Sys_Network::HandleClientInput;
     m_PacketHandlers[CLIENT_MATCH_PROGRESS] = &Sys_Network::HandleClientMatchProgress;
     m_PacketHandlers[CLIENT_MATCH_RESTART_REQUEST] = &Sys_Network::HandleClientMatchRestartRequest;
@@ -271,6 +293,15 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                             gs.matchJustStarted = true;
                         }
                     }
+                    if (resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace) {
+                        BroadcastMultiplayerSetup(reg, resNet, event.peer);
+                        if (reg.has_ctx<Res_UIState>()) {
+                            auto& ui = reg.ctx<Res_UIState>();
+                            if (resNet.bootstrapSceneActive && ui.pendingSceneRequest == SceneRequest::None) {
+                                ui.pendingSceneRequest = SceneRequest::LaunchMultiplayerMatch;
+                            }
+                        }
+                    }
                     BroadcastMatchStateIfDirty(reg, resNet, true);
                 } else {
                     resNet.connected = true;
@@ -417,12 +448,44 @@ void Sys_Network::HandleMatchState(Registry& reg, Res_Network& resNet, const ENe
  * @param event ENet 事件对象
  */
 void Sys_Network::HandleMatchRestart(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
-    if (!GetPacketData<Net_Packet_MatchRestart>(event) || !reg.has_ctx<Res_UIState>()) return;
+    auto* pkt = GetPacketData<Net_Packet_MatchRestart>(event);
+    if (!pkt || !reg.has_ctx<Res_UIState>()) return;
 
     ResetMatchStateForRestart(reg);
+    resNet.multiplayerMode = static_cast<MultiplayerMode>(pkt->multiplayerMode);
+    if (resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace) {
+        ApplyAuthoritativeMapSequence(reg, pkt->mapSequence, pkt->currentRoundIndex);
+        resNet.matchSetupReceived = true;
+    }
     auto& ui = reg.ctx<Res_UIState>();
     ui.multiplayerRetryRequested = false;
     ui.pendingSceneRequest = SceneRequest::RestartLevel;
+}
+
+/**
+ * @brief 处理服务端下发的同图模式配置与地图序列。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
+void Sys_Network::HandleMultiplayerSetup(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (resNet.mode != PeerType::CLIENT) return;
+
+    auto* pkt = GetPacketData<Net_Packet_MultiplayerSetup>(event);
+    if (!pkt) return;
+
+    resNet.multiplayerMode = static_cast<MultiplayerMode>(pkt->multiplayerMode);
+    ApplyAuthoritativeMapSequence(reg, pkt->mapSequence, pkt->currentRoundIndex);
+    resNet.matchSetupReceived = true;
+
+    if (resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace
+        && resNet.bootstrapSceneActive
+        && reg.has_ctx<Res_UIState>()) {
+        auto& ui = reg.ctx<Res_UIState>();
+        if (ui.pendingSceneRequest == SceneRequest::None) {
+            ui.pendingSceneRequest = SceneRequest::LaunchMultiplayerMatch;
+        }
+    }
 }
 
 /**
@@ -777,6 +840,42 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
 }
 
 /**
+ * @brief 由服务端向目标对端广播同图模式配置与权威地图序列。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param explicitPeer 为空时广播给所有客户端
+ */
+void Sys_Network::BroadcastMultiplayerSetup(Registry& reg, Res_Network& resNet, ENetPeer* explicitPeer) {
+    if (resNet.mode != PeerType::SERVER || !reg.has_ctx<Res_UIState>()) {
+        return;
+    }
+
+    auto& ui = reg.ctx<Res_UIState>();
+    if (!ui.mapSequenceGenerated) {
+        GenerateAuthoritativeMapSequence(ui.mapSequence, Res_UIState::MAP_SEQUENCE_LENGTH);
+        ui.mapSequenceGenerated = true;
+        ui.mapSequenceIndex = 0;
+    }
+
+    Net_Packet_MultiplayerSetup pkt;
+    pkt.type = SYNC_MULTIPLAYER_SETUP;
+    pkt.timestamp = reg.has_ctx<Res_Time>()
+        ? static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f)
+        : 0u;
+    pkt.multiplayerMode = static_cast<uint8_t>(resNet.multiplayerMode);
+    for (int i = 0; i < Res_UIState::MAP_SEQUENCE_LENGTH; ++i) {
+        pkt.mapSequence[i] = ui.mapSequence[i];
+    }
+    pkt.currentRoundIndex = ui.mapSequenceIndex;
+
+    if (explicitPeer != nullptr) {
+        SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Reliable, explicitPeer);
+    } else {
+        SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Reliable);
+    }
+}
+
+/**
  * @brief 由服务端广播多人重开指令，并让本地 UI 同步进入重开流程。
  * @param reg ECS 注册表
  * @param resNet 网络资源对象
@@ -785,15 +884,27 @@ void Sys_Network::BroadcastMatchRestart(Registry& reg, Res_Network& resNet) {
     if (!reg.has_ctx<Res_UIState>()) return;
 
     ResetMatchStateForRestart(reg);
+    auto& ui = reg.ctx<Res_UIState>();
+
+    if (resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace) {
+        GenerateAuthoritativeMapSequence(ui.mapSequence, Res_UIState::MAP_SEQUENCE_LENGTH);
+        ui.mapSequenceGenerated = true;
+        ui.mapSequenceIndex = 0;
+        resNet.matchSetupReceived = true;
+    }
 
     Net_Packet_MatchRestart pkt;
     pkt.type = SYNC_MATCH_RESTART;
     pkt.timestamp = reg.has_ctx<Res_Time>()
         ? static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f)
         : 0u;
+    pkt.multiplayerMode = static_cast<uint8_t>(resNet.multiplayerMode);
+    for (int i = 0; i < Res_UIState::MAP_SEQUENCE_LENGTH; ++i) {
+        pkt.mapSequence[i] = ui.mapSequence[i];
+    }
+    pkt.currentRoundIndex = 0u;
     SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Reliable);
 
-    auto& ui = reg.ctx<Res_UIState>();
     ui.multiplayerRetryRequested = false;
     ui.pendingSceneRequest = SceneRequest::RestartLevel;
 }
@@ -833,6 +944,27 @@ void Sys_Network::ResetMatchStateForRestart(Registry& reg) {
     m_LastBroadcastClientStage = 0xFF;
     m_LastBroadcastRoundIndex = 0xFF;
     m_LastBroadcastGameOverReason = 0xFF;
+}
+
+/**
+ * @brief 将服务端权威地图序列写入 UI 会话状态。
+ * @param reg ECS 注册表
+ * @param mapSequence 三关地图序列
+ * @param roundIndex 当前轮次索引
+ */
+void Sys_Network::ApplyAuthoritativeMapSequence(Registry& reg,
+                                                const uint8_t* mapSequence,
+                                                uint8_t roundIndex) {
+    if (!reg.has_ctx<Res_UIState>() || mapSequence == nullptr) {
+        return;
+    }
+
+    auto& ui = reg.ctx<Res_UIState>();
+    for (int i = 0; i < Res_UIState::MAP_SEQUENCE_LENGTH; ++i) {
+        ui.mapSequence[i] = mapSequence[i];
+    }
+    ui.mapSequenceGenerated = true;
+    ui.mapSequenceIndex = std::min<uint8_t>(roundIndex, Res_UIState::MAP_SEQUENCE_LENGTH - 1);
 }
 
 /**
@@ -1091,6 +1223,7 @@ void Sys_Network::ResetSceneLocalState(Res_Network& resNet) {
  */
 void Sys_Network::ResetNetworkRuntimeState(Res_Network& resNet, bool keepConfiguration) {
     const PeerType previousMode = resNet.mode;
+    const MultiplayerMode previousMultiplayerMode = resNet.multiplayerMode;
     char previousIP[sizeof(resNet.serverIP)] = {};
     strncpy_s(previousIP, sizeof(previousIP), resNet.serverIP, _TRUNCATE);
     const uint16_t previousPort = resNet.serverPort;
@@ -1100,6 +1233,8 @@ void Sys_Network::ResetNetworkRuntimeState(Res_Network& resNet, bool keepConfigu
     resNet.localClientID = (keepConfiguration && previousMode == PeerType::SERVER) ? 0u : UINT32_MAX;
     resNet.rtt = 0u;
     resNet.connected = false;
+    resNet.matchSetupReceived = false;
+    resNet.bootstrapSceneActive = false;
     resNet.preserveSessionOnSceneExit = false;
     resNet.nextNetID = 1u;
     resNet.netIdMap.clear();
@@ -1110,10 +1245,12 @@ void Sys_Network::ResetNetworkRuntimeState(Res_Network& resNet, bool keepConfigu
 
     if (keepConfiguration) {
         resNet.mode = previousMode;
+        resNet.multiplayerMode = previousMultiplayerMode;
         strncpy_s(resNet.serverIP, sizeof(resNet.serverIP), previousIP, _TRUNCATE);
         resNet.serverPort = previousPort;
     } else {
         resNet.mode = PeerType::OFFLINE;
+        resNet.multiplayerMode = MultiplayerMode::SameMapGhostRace;
         resNet.serverIP[0] = '\0';
         resNet.serverPort = 0u;
     }
