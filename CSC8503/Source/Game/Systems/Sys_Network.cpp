@@ -78,6 +78,21 @@ bool HasAnyConnectedRemotePeer(const Res_Network& resNet) {
     return false;
 }
 
+float GetNetworkLogTimeSeconds(Registry& reg) {
+    if (reg.has_ctx<Res_Time>()) {
+        return reg.ctx<Res_Time>().totalTime;
+    }
+    return 0.0f;
+}
+
+bool ShouldEmitGhostLog(float nowSeconds, float& lastLogTime, float intervalSeconds = 1.0f) {
+    if (lastLogTime < 0.0f || (nowSeconds - lastLogTime) >= intervalSeconds) {
+        lastLogTime = nowSeconds;
+        return true;
+    }
+    return false;
+}
+
 } // namespace
 
 /**
@@ -116,6 +131,11 @@ void Sys_Network::OnAwake(Registry& reg) {
         m_LastInputMask = 0u;
         m_LastGhostSourceEntity = Entity::NULL_ENTITY;
         m_LastGhostSentRoundIndex = 0xFF;
+        m_LastGhostBlockedLogTime = -1000.0f;
+        m_LastGhostSendLogTime = -1000.0f;
+        m_LastGhostServerReceiveLogTime = -1000.0f;
+        m_LastGhostClientReceiveLogTime = -1000.0f;
+        m_LastGhostApplyLogTime = -1000.0f;
         m_LastReportedLocalStageProgress = 0xFF;
         m_LastReportedLocalGameOverReason = 0xFF;
         m_LastBroadcastPhase = 0xFF;
@@ -164,6 +184,11 @@ void Sys_Network::OnAwake(Registry& reg) {
     m_GhostTransformTimer = 0.0f;
     m_LastGhostSourceEntity = Entity::NULL_ENTITY;
     m_LastGhostSentRoundIndex = 0xFF;
+    m_LastGhostBlockedLogTime = -1000.0f;
+    m_LastGhostSendLogTime = -1000.0f;
+    m_LastGhostServerReceiveLogTime = -1000.0f;
+    m_LastGhostClientReceiveLogTime = -1000.0f;
+    m_LastGhostApplyLogTime = -1000.0f;
 }
 
 /**
@@ -587,6 +612,12 @@ void Sys_Network::HandleClientGhostTransform(Registry& reg, Res_Network& resNet,
 
     auto* pkt = GetPacketData<Net_Packet_GhostTransform>(event);
     if (!pkt) return;
+    if (ShouldEmitGhostLog(GetNetworkLogTimeSeconds(reg), m_LastGhostServerReceiveLogTime)) {
+        LOG_INFO("[Sys_Network][Ghost] Host received CLIENT_GHOST_TRANSFORM from clientID="
+                 << GetClientID(event)
+                 << " round=" << (int)pkt->currentRoundIndex
+                 << " pos=(" << pkt->pos[0] << "," << pkt->pos[1] << "," << pkt->pos[2] << ")");
+    }
     const bool roundChanged = !resNet.remoteGhostSnapshotValid
         || resNet.remoteGhostSnapshotRoundIndex != pkt->currentRoundIndex;
     CacheRemoteGhostSnapshot(resNet, *pkt);
@@ -742,13 +773,30 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
  * @param resNet 网络资源对象
  */
 void Sys_Network::SyncGhostTransforms(Registry& reg, Res_Network& resNet) {
-    if (resNet.multiplayerMode != MultiplayerMode::SameMapGhostRace
-        || !reg.has_ctx<Res_GameState>()
-        || !reg.has_ctx<Res_Time>()
+    const bool eligibleMode = resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace;
+    const bool hasGameState = reg.has_ctx<Res_GameState>();
+    const bool hasTime = reg.has_ctx<Res_Time>();
+    const bool localPlayerAssigned = Entity::IsValid(resNet.localPlayerEntity);
+    const bool localPlayerValid = localPlayerAssigned && reg.Valid(resNet.localPlayerEntity);
+    const bool localPlayerHasTransform = localPlayerValid && reg.Has<C_D_Transform>(resNet.localPlayerEntity);
+
+    if (!eligibleMode
+        || !hasGameState
+        || !hasTime
         || resNet.bootstrapSceneActive
-        || !Entity::IsValid(resNet.localPlayerEntity)
-        || !reg.Valid(resNet.localPlayerEntity)
-        || !reg.Has<C_D_Transform>(resNet.localPlayerEntity)) {
+        || !localPlayerAssigned
+        || !localPlayerValid
+        || !localPlayerHasTransform) {
+        if (eligibleMode && hasTime && resNet.connected
+            && ShouldEmitGhostLog(GetNetworkLogTimeSeconds(reg), m_LastGhostBlockedLogTime)) {
+            LOG_INFO("[Sys_Network][Ghost] Send skipped: side="
+                     << (resNet.mode == PeerType::SERVER ? "Host" : "Client")
+                     << " bootstrap=" << (int)resNet.bootstrapSceneActive
+                     << " localPlayerAssigned=" << (int)localPlayerAssigned
+                     << " localPlayerValid=" << (int)localPlayerValid
+                     << " hasTransform=" << (int)localPlayerHasTransform
+                     << " remotePeerConnected=" << (int)resNet.remotePeerConnected);
+        }
         return;
     }
 
@@ -784,6 +832,16 @@ void Sys_Network::SyncGhostTransforms(Registry& reg, Res_Network& resNet) {
             pkt,
             NetTarget::Single,
             forceReliableSeed ? NetDelivery::Reliable : NetDelivery::Unreliable);
+    }
+
+    if (ShouldEmitGhostLog(GetNetworkLogTimeSeconds(reg), m_LastGhostSendLogTime) || forceReliableSeed) {
+        LOG_INFO("[Sys_Network][Ghost] Sent "
+                 << (pkt.type == CLIENT_GHOST_TRANSFORM ? "CLIENT_GHOST_TRANSFORM" : "SYNC_GHOST_TRANSFORM")
+                 << " side=" << (resNet.mode == PeerType::SERVER ? "Host" : "Client")
+                 << " entity=" << (uint32_t)resNet.localPlayerEntity
+                 << " round=" << (int)pkt.currentRoundIndex
+                 << " reliable=" << (int)forceReliableSeed
+                 << " pos=(" << pkt.pos[0] << "," << pkt.pos[1] << "," << pkt.pos[2] << ")");
     }
 }
 
@@ -965,6 +1023,11 @@ void Sys_Network::HandleSyncGhostTransform(Registry& reg, Res_Network& resNet, c
 
     auto* pkt = GetPacketData<Net_Packet_GhostTransform>(event);
     if (!pkt) return;
+    if (ShouldEmitGhostLog(GetNetworkLogTimeSeconds(reg), m_LastGhostClientReceiveLogTime)) {
+        LOG_INFO("[Sys_Network][Ghost] Client received SYNC_GHOST_TRANSFORM"
+                 << " round=" << (int)pkt->currentRoundIndex
+                 << " pos=(" << pkt->pos[0] << "," << pkt->pos[1] << "," << pkt->pos[2] << ")");
+    }
     const bool roundChanged = !resNet.remoteGhostSnapshotValid
         || resNet.remoteGhostSnapshotRoundIndex != pkt->currentRoundIndex;
     CacheRemoteGhostSnapshot(resNet, *pkt);
@@ -1122,6 +1185,7 @@ EntityID Sys_Network::EnsureRemoteGhostEntity(Registry& reg, Res_Network& resNet
     }
 
     resNet.remoteGhostEntity = ghost;
+    LOG_INFO("[Sys_Network][Ghost] Created remote ghost entity=" << (uint32_t)ghost);
     return ghost;
 }
 
@@ -1170,6 +1234,13 @@ void Sys_Network::ApplyCachedRemoteGhostSnapshot(Registry& reg,
     auto& tf = reg.Get<C_D_Transform>(ghost);
     tf.position = ghostPos;
     tf.rotation = ghostRot;
+
+    if (resetInterpolationBuffer) {
+        LOG_INFO("[Sys_Network][Ghost] Applied cached snapshot to entity=" << (uint32_t)ghost
+                 << " round=" << (int)resNet.remoteGhostSnapshotRoundIndex
+                 << " resetBuffer=" << (int)resetInterpolationBuffer
+                 << " pos=(" << ghostPos.x << "," << ghostPos.y << "," << ghostPos.z << ")");
+    }
 }
 
 void Sys_Network::RefreshRemoteGhostEntity(Registry& reg, Res_Network& resNet) {
