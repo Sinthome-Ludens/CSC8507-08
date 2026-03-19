@@ -34,6 +34,7 @@
 #include "Game/Components/C_T_RoamAI.h"
 #include "Game/Components/C_D_RoamAI.h"
 #include "Game/Components/C_D_Item.h"
+#include "Game/Components/C_D_DataOceanPillar.h"
 #include "Game/Utils/PrefabLoader.h"
 #include "Game/Utils/Log.h"
 
@@ -320,6 +321,18 @@ void ComponentRegistry::RegisterAll() {
             pickup.itemId = static_cast<ItemID>(data["itemId"].get<int>());
         if (data.contains("quantity") && data["quantity"].is_number())
             pickup.quantity = data["quantity"].get<uint8_t>();
+    });
+
+    // ============================================================
+    // C_D_DataOceanPillar
+    // ============================================================
+    Register("C_D_DataOceanPillar", [](Registry& reg, EntityID id, const json& data, const RuntimeOverrides&) {
+        C_D_DataOceanPillar pillar{};
+        if (data.contains("baseY")      && data["baseY"].is_number())      pillar.baseY      = data["baseY"].get<float>();
+        if (data.contains("amplitude")  && data["amplitude"].is_number())  pillar.amplitude  = data["amplitude"].get<float>();
+        if (data.contains("phaseShift") && data["phaseShift"].is_number()) pillar.phaseShift = data["phaseShift"].get<float>();
+        if (data.contains("sizeXZ")    && data["sizeXZ"].is_number())     pillar.sizeXZ     = data["sizeXZ"].get<float>();
+        reg.Emplace<C_D_DataOceanPillar>(id, pillar);
     });
 
     LOG_INFO("[ComponentRegistry] RegisterAll: " << GetMap().size() << " components registered.");
