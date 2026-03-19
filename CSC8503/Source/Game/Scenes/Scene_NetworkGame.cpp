@@ -153,6 +153,8 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
         ui.previousScreen       = ui.activeScreen;
         ui.activeScreen         = isSameMapBootstrap ? ECS::UIScreen::Loading : ECS::UIScreen::HUD;
         ui.pendingSceneRequest  = ECS::SceneRequest::None;
+        ui.transitionSceneRequest = ECS::SceneRequest::None;
+        ui.sceneRequestDispatched = false;
         ui.loadingTimer         = 0.0f;
         ui.loadingMsgTimer      = 0.0f;
         ui.loadingMsgIndex      = 0;
