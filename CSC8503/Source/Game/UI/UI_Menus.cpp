@@ -17,6 +17,7 @@
 #include "Game/Components/Res_UIKeyConfig.h"
 
 using namespace NCL;
+using namespace ECS::UITheme;
 
 namespace ECS::UI {
 
@@ -63,7 +64,7 @@ static void RenderMenuBackground(float globalTime,
 
     // Grid lines
     constexpr float gridSpacing = 40.0f;
-    ImU32 gridColor = IM_COL32(200, 200, 200, 30);
+    ImU32 gridColor = Col32_Gray(30);
 
     for (float x = panelX; x < panelX + panelW; x += gridSpacing) {
         draw->AddLine(ImVec2(x, panelY), ImVec2(x, panelY + panelH), gridColor, 1.0f);
@@ -78,22 +79,22 @@ static void RenderMenuBackground(float globalTime,
     float maxR = panelH * 0.30f;
 
     // Radar rings (orange accent)
-    draw->AddCircle(ImVec2(cx, cy), maxR,        IM_COL32(252, 111, 41, 30), 64, 1.0f);
-    draw->AddCircle(ImVec2(cx, cy), maxR * 0.6f, IM_COL32(252, 111, 41, 25), 48, 1.0f);
-    draw->AddCircle(ImVec2(cx, cy), maxR * 0.3f, IM_COL32(252, 111, 41, 20), 32, 1.0f);
+    draw->AddCircle(ImVec2(cx, cy), maxR,        Col32_Accent(30), 64, 1.0f);
+    draw->AddCircle(ImVec2(cx, cy), maxR * 0.6f, Col32_Accent(25), 48, 1.0f);
+    draw->AddCircle(ImVec2(cx, cy), maxR * 0.3f, Col32_Accent(20), 32, 1.0f);
 
     // Crosshairs
     draw->AddLine(ImVec2(cx - maxR, cy), ImVec2(cx + maxR, cy),
-        IM_COL32(252, 111, 41, 25), 1.0f);
+        Col32_Accent(25), 1.0f);
     draw->AddLine(ImVec2(cx, cy - maxR), ImVec2(cx, cy + maxR),
-        IM_COL32(252, 111, 41, 25), 1.0f);
+        Col32_Accent(25), 1.0f);
 
     // Rotating sweep line
     float angle = globalTime * 0.8f;
     float scanX = cx + cosf(angle) * maxR;
     float scanY = cy + sinf(angle) * maxR;
     draw->AddLine(ImVec2(cx, cy), ImVec2(scanX, scanY),
-        IM_COL32(252, 111, 41, 100), 2.0f);
+        Col32_Accent(100), 2.0f);
 
     // Sweep trail
     constexpr int trailSegments = 12;
@@ -107,7 +108,7 @@ static void RenderMenuBackground(float globalTime,
         float a2 = angle - trailAngle * (t + 1.0f / trailSegments);
         ImVec2 p2(cx + cosf(a2) * r, cy + sinf(a2) * r);
         draw->AddTriangleFilled(ImVec2(cx, cy), p1, p2,
-            IM_COL32(252, 111, 41, alpha));
+            Col32_Accent(alpha));
     }
 
     // Data nodes
@@ -122,26 +123,26 @@ static void RenderMenuBackground(float globalTime,
         float nodeR = 2.0f + pulse * 2.0f;
 
         draw->AddCircleFilled(ImVec2(nx, ny), nodeR,
-            IM_COL32(252, 111, 41, nodeAlpha));
+            Col32_Accent(nodeAlpha));
 
         if (pulse > 0.6f) {
             draw->AddLine(ImVec2(nx, ny), ImVec2(cx, cy),
-                IM_COL32(252, 111, 41, (uint8_t)(std::min(20.0f * pulse, 255.0f))), 1.0f);
+                Col32_Accent((uint8_t)(std::min(20.0f * pulse, 255.0f))), 1.0f);
         }
     }
 
     // Top-right decorative text
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
 
     char statusBuf[64];
     snprintf(statusBuf, sizeof(statusBuf), "SYS.TIME: %.1f", globalTime);
     draw->AddText(ImVec2(panelX + panelW - 180.0f, panelY + 15.0f),
-        IM_COL32(16, 13, 10, 200), statusBuf);
+        Col32_Text(200), statusBuf);
     draw->AddText(ImVec2(panelX + panelW - 180.0f, panelY + 30.0f),
-        IM_COL32(16, 13, 10, 180), "STATUS: STANDBY");
+        Col32_Text(180), "STATUS: STANDBY");
     draw->AddText(ImVec2(panelX + panelW - 180.0f, panelY + 45.0f),
-        IM_COL32(16, 13, 10, 160), "ENCRYPTION: AES-256");
+        Col32_Text(160), "ENCRYPTION: AES-256");
 
     if (smallFont) ImGui::PopFont();
 }
@@ -168,13 +169,13 @@ void RenderSplashScreen(Registry& registry, float dt) {
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
 
-    // Background #F5EEE8
+    // Background
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(245, 238, 232, 255));
+        Col32_Bg());
 
     // Game title
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
 
     const char* title = "NEUROMANCER";
@@ -182,48 +183,48 @@ void RenderSplashScreen(Registry& registry, float dt) {
     float titleX = vpPos.x + (vpSize.x - titleSize.x) * 0.5f;
     float titleY = vpPos.y + vpSize.y * 0.35f;
 
-    draw->AddText(ImVec2(titleX, titleY), IM_COL32(16, 13, 10, 80), title);
-    draw->AddText(ImVec2(titleX - 1, titleY), IM_COL32(16, 13, 10, 140), title);
-    draw->AddText(ImVec2(titleX, titleY), IM_COL32(16, 13, 10, 255), title);
+    draw->AddText(ImVec2(titleX, titleY), Col32_Text(80), title);
+    draw->AddText(ImVec2(titleX - 1, titleY), Col32_Text(140), title);
+    draw->AddText(ImVec2(titleX, titleY), Col32_Text(255), title);
 
     if (titleFont) ImGui::PopFont();
 
     // Subtitle
-    ImFont* bodyFont = UITheme::GetFont_Body();
+    ImFont* bodyFont = GetFont_Body();
     if (bodyFont) ImGui::PushFont(bodyFont);
 
     const char* subtitle = "TACTICAL NETWORK INFILTRATION SYSTEM";
     ImVec2 subSize = ImGui::CalcTextSize(subtitle);
     float subX = vpPos.x + (vpSize.x - subSize.x) * 0.5f;
     float subY = titleY + titleSize.y + 12.0f;
-    draw->AddText(ImVec2(subX, subY), IM_COL32(16, 13, 10, 220), subtitle);
+    draw->AddText(ImVec2(subX, subY), Col32_Text(220), subtitle);
 
     if (bodyFont) ImGui::PopFont();
 
-    // ">> PRESS ANY KEY TO INITIALIZE <<" — blinking (black)
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    // ">> PRESS ANY KEY TO INITIALIZE <<" — blinking
+    ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
 
     const char* prompt = ">> PRESS ANY KEY TO INITIALIZE <<";
-    float blinkAlpha = (sinf(ui.splashTimer * UITheme::kPI * 2.0f) + 1.0f) * 0.5f;
+    float blinkAlpha = (sinf(ui.splashTimer * kPI * 2.0f) + 1.0f) * 0.5f;
     uint8_t promptAlpha = (uint8_t)(std::min(blinkAlpha * 200.0f + 55.0f, 255.0f));
     ImVec2 promptSize = ImGui::CalcTextSize(prompt);
     float promptX = vpPos.x + (vpSize.x - promptSize.x) * 0.5f;
     float promptY = vpPos.y + vpSize.y * 0.62f;
     draw->AddText(ImVec2(promptX, promptY),
-        IM_COL32(16, 13, 10, promptAlpha), prompt);
+        Col32_Text(promptAlpha), prompt);
 
     if (termFont) ImGui::PopFont();
 
     // Bottom team info
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
 
     const char* team = "TEAM 08 // CSC8507 ADVANCED GAME TECHNOLOGIES // 2025";
     ImVec2 teamSize = ImGui::CalcTextSize(team);
     float teamX = vpPos.x + (vpSize.x - teamSize.x) * 0.5f;
     float teamY = vpPos.y + vpSize.y - 40.0f;
-    draw->AddText(ImVec2(teamX, teamY), IM_COL32(16, 13, 10, 200), team);
+    draw->AddText(ImVec2(teamX, teamY), Col32_Text(200), team);
 
     if (smallFont) ImGui::PopFont();
 
@@ -232,7 +233,7 @@ void RenderSplashScreen(Registry& registry, float dt) {
     float lineHalfW = 120.0f;
     float cxLine = vpPos.x + vpSize.x * 0.5f;
     draw->AddLine(ImVec2(cxLine - lineHalfW, lineY), ImVec2(cxLine + lineHalfW, lineY),
-        IM_COL32(200, 200, 200, 120), 1.0f);
+        Col32_Gray(120), 1.0f);
 
     ImGui::End();
 
@@ -286,10 +287,10 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
 
-    // Background #F5EEE8
+    // Background
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(245, 238, 232, 255));
+        Col32_Bg());
 
     // Layout
     float leftPanelW = vpSize.x * 0.35f;
@@ -303,45 +304,45 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
     draw->AddLine(
         ImVec2(vpPos.x + leftPanelW, vpPos.y + 40.0f),
         ImVec2(vpPos.x + leftPanelW, vpPos.y + vpSize.y - 40.0f),
-        IM_COL32(200, 200, 200, 100), 1.0f);
+        Col32_Gray(100), 1.0f);
 
     // Left panel
-    float panelPadX = 40.0f;
+    float panelPadX = Layout::kPagePadX;
     float startY = vpPos.y + 60.0f;
 
     // Game title
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
 
     const char* title = "NEUROMANCER";
     draw->AddText(ImVec2(vpPos.x + panelPadX, startY),
-        IM_COL32(16, 13, 10, 255), title);
+        Col32_Text(255), title);
 
     if (titleFont) ImGui::PopFont();
 
     // Subtitle
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
 
     float subtitleY = startY + 36.0f;
     draw->AddText(ImVec2(vpPos.x + panelPadX, subtitleY),
-        IM_COL32(16, 13, 10, 200), "TACTICAL INFILTRATION v1.0");
+        Col32_Text(200), "TACTICAL INFILTRATION v1.0");
 
     // Decorative line
     float lineY = subtitleY + 22.0f;
     draw->AddLine(
         ImVec2(vpPos.x + panelPadX, lineY),
         ImVec2(vpPos.x + panelPadX + 200.0f, lineY),
-        IM_COL32(200, 200, 200, 120), 1.0f);
+        Col32_Gray(120), 1.0f);
 
     if (smallFont) ImGui::PopFont();
 
     // Menu items
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
 
     float menuStartY = lineY + 30.0f;
-    float menuItemH  = 34.0f;
+    float menuItemH  = Layout::kMenuItemH;
 
     // Keyboard navigation
     const auto& input = registry.ctx<Res_Input>();
@@ -400,9 +401,9 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
         // Selected item highlight (orange accent)
         if (isSelected) {
             draw->AddRectFilled(itemMin, itemMax,
-                IM_COL32(252, 111, 41, 25), 2.0f);
+                Col32_Accent(25), 2.0f);
             draw->AddRect(itemMin, itemMax,
-                IM_COL32(252, 111, 41, 120), 2.0f, 0, 1.0f);
+                Col32_Accent(120), 2.0f, 0, Layout::kBorderWidth);
         }
 
         char buf[128];
@@ -412,8 +413,7 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
             snprintf(buf, sizeof(buf), "  %s", kMenuItems[i]);
         }
 
-        ImU32 textColor = isSelected ? IM_COL32(16, 13, 10, 255)
-                                     : IM_COL32(16, 13, 10, 220);
+        ImU32 textColor = isSelected ? Col32_Text(255) : Col32_Text(220);
         draw->AddText(ImVec2(baseX, itemY), textColor, buf);
     }
 
@@ -464,14 +464,14 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
     // Bottom status bar
     if (smallFont) ImGui::PushFont(smallFont);
 
-    float bottomY = vpPos.y + vpSize.y - 35.0f;
+    float bottomY = vpPos.y + vpSize.y - Layout::kBottomHintY;
     draw->AddLine(
         ImVec2(vpPos.x + panelPadX, bottomY - 8.0f),
         ImVec2(vpPos.x + leftPanelW - 20.0f, bottomY - 8.0f),
-        IM_COL32(200, 200, 200, 80), 1.0f);
+        Col32_Gray(80), 1.0f);
 
     draw->AddText(ImVec2(vpPos.x + panelPadX, bottomY),
-        IM_COL32(16, 13, 10, 200),
+        Col32_Text(200),
         "[W/S] NAVIGATE  [ENTER] SELECT  [ESC] BACK");
 
     if (smallFont) ImGui::PopFont();
@@ -500,10 +500,10 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
 
-    // Background #F5EEE8
+    // Background
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(245, 238, 232, 255));
+        Col32_Bg());
 
     // Settings panel centered (responsive to viewport)
     float panelW = std::clamp(vpSize.x * 0.45f, 380.0f, 500.0f);
@@ -511,23 +511,23 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
     float panelX = vpPos.x + (vpSize.x - panelW) * 0.5f;
     float panelY = vpPos.y + (vpSize.y - panelH) * 0.5f;
 
-    // Panel background #F5EEE8
+    // Panel background
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        IM_COL32(245, 238, 232, 255), 3.0f);
+        Col32_Bg(), Layout::kPanelRounding);
     draw->AddRect(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        IM_COL32(200, 200, 200, 120), 3.0f, 0, 1.0f);
+        Col32_Gray(120), Layout::kPanelRounding, 0, Layout::kBorderWidth);
 
     float contentX = panelX + 30.0f;
     float contentY = panelY + 25.0f;
 
     // Title
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
-    draw->AddText(ImVec2(contentX, contentY), IM_COL32(16, 13, 10, 255), "SETTINGS");
+    draw->AddText(ImVec2(contentX, contentY), Col32_Text(255), "SETTINGS");
     if (titleFont) ImGui::PopFont();
 
     contentY += 45.0f;
@@ -536,14 +536,14 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
     draw->AddLine(
         ImVec2(contentX, contentY),
         ImVec2(panelX + panelW - 30.0f, contentY),
-        IM_COL32(200, 200, 200, 100), 1.0f);
+        Col32_Gray(100), 1.0f);
 
-    contentY += 20.0f;
+    contentY += Layout::kSeparatorGap;
 
     // ImGui controls
     ImGui::SetCursorScreenPos(ImVec2(contentX, contentY));
 
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
 
     ImGui::PushItemWidth(200.0f);
@@ -687,7 +687,7 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
     // Semi-transparent overlay
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(245, 238, 232, 200));
+        Col32_Bg(200));
 
     // Panel centered
     float panelW = 400.0f;
@@ -695,24 +695,24 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
     float panelX = vpPos.x + (vpSize.x - panelW) * 0.5f;
     float panelY = vpPos.y + (vpSize.y - panelH) * 0.5f;
 
-    // Panel background #F5EEE8
+    // Panel background
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        IM_COL32(245, 238, 232, 255), 3.0f);
+        Col32_Bg(), Layout::kPanelRounding);
     draw->AddRect(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        IM_COL32(200, 200, 200, 120), 3.0f, 0, 1.0f);
+        Col32_Gray(120), Layout::kPanelRounding, 0, Layout::kBorderWidth);
 
     // Title
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
 
     const char* title = "PAUSED";
     ImVec2 titleSize = ImGui::CalcTextSize(title);
     float titleX = panelX + (panelW - titleSize.x) * 0.5f;
-    draw->AddText(ImVec2(titleX, panelY + 25.0f), IM_COL32(16, 13, 10, 255), title);
+    draw->AddText(ImVec2(titleX, panelY + 25.0f), Col32_Text(255), title);
 
     if (titleFont) ImGui::PopFont();
 
@@ -721,14 +721,14 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
     draw->AddLine(
         ImVec2(panelX + 30.0f, lineY),
         ImVec2(panelX + panelW - 30.0f, lineY),
-        IM_COL32(200, 200, 200, 100), 1.0f);
+        Col32_Gray(100), 1.0f);
 
     // Menu items
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
 
     float menuStartY = lineY + 20.0f;
-    float menuItemH  = 38.0f;
+    float menuItemH  = Layout::kPauseItemH;
 
     // Keyboard navigation
     const auto& input = registry.ctx<Res_Input>();
@@ -784,14 +784,13 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
         ImVec2 itemMax(panelX + panelW - 30.0f, itemY + menuItemH - 6.0f);
 
         if (isSelected) {
-            draw->AddRectFilled(itemMin, itemMax, IM_COL32(252, 111, 41, 25), 2.0f);
-            draw->AddRect(itemMin, itemMax, IM_COL32(252, 111, 41, 120), 2.0f, 0, 1.0f);
+            draw->AddRectFilled(itemMin, itemMax, Col32_Accent(25), 2.0f);
+            draw->AddRect(itemMin, itemMax, Col32_Accent(120), 2.0f, 0, Layout::kBorderWidth);
         }
 
         char buf[64];
         snprintf(buf, sizeof(buf), isSelected ? "> %s" : "  %s", kPauseItems[i]);
-        ImU32 textColor = isSelected ? IM_COL32(16, 13, 10, 255)
-                                     : IM_COL32(16, 13, 10, 220);
+        ImU32 textColor = isSelected ? Col32_Text(255) : Col32_Text(220);
         draw->AddText(ImVec2(baseX, itemY), textColor, buf);
     }
 
@@ -825,11 +824,11 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
     }
 
     // Bottom hint
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(
         ImVec2(panelX + 30.0f, panelY + panelH - 30.0f),
-        IM_COL32(16, 13, 10, 200),
+        Col32_Text(200),
         "[W/S] NAVIGATE  [ENTER] SELECT  [ESC] RESUME");
     if (smallFont) ImGui::PopFont();
 
