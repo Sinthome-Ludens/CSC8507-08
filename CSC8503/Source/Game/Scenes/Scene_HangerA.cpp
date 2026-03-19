@@ -230,6 +230,8 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
         ui.activeScreen         = ECS::UIScreen::HUD;
         ui.pendingSceneRequest  = ECS::SceneRequest::None;
         ui.sceneRequestDispatched = false;
+        ui.loadingWaitForSpawn    = false;
+        ui.transitionSceneRequest = ECS::SceneRequest::None;
         ui.transitionActive     = true;
         ui.transitionTimer      = 0.0f;
         ui.transitionDuration   = 0.5f;

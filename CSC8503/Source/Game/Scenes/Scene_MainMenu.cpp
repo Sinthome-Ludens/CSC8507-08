@@ -75,6 +75,7 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
 
         // 重置场景过渡锁（防止卡在 Loading screen）
         ui.sceneRequestDispatched = false;
+        ui.loadingWaitForSpawn    = false;
 
         // 重置光标状态（菜单场景需要自由光标）
         ui.gameCursorFree = false;  // 菜单不是游戏模式

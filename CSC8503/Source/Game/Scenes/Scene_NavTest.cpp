@@ -139,6 +139,8 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
 
         // 重置场景过渡锁（防止卡在 Loading screen）
         ui.sceneRequestDispatched = false;
+        ui.loadingWaitForSpawn    = false;
+        ui.transitionSceneRequest = ECS::SceneRequest::None;
         ui.transitionActive       = false;
         ui.transitionTimer        = 0.0f;
 

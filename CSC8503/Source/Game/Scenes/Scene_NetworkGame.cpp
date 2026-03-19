@@ -166,6 +166,7 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
         ui.pendingSceneRequest  = ECS::SceneRequest::None;
         ui.transitionSceneRequest = ECS::SceneRequest::None;
         ui.sceneRequestDispatched = false;
+        ui.loadingWaitForSpawn    = false;
         ui.loadingTimer         = 0.0f;
         ui.loadingMsgTimer      = 0.0f;
         ui.loadingMsgIndex      = 0;
