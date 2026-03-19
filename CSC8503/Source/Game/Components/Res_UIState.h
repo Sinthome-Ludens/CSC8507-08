@@ -88,6 +88,7 @@ struct Res_UIState {
     bool      sceneRequestDispatched = false;
 
     float     masterVolume       = 0.8f;
+    float     bgmVolume          = 0.8f;
     float     sfxVolume          = 0.8f;
     float     mouseSensitivity   = 0.5f;
 

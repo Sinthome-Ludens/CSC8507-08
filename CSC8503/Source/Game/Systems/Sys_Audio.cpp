@@ -183,7 +183,7 @@ void Sys_Audio::OnUpdate(Registry& registry, float /*dt*/) {
     // ── 4. 音量同步 ──
     if (registry.has_ctx<Res_UIState>()) {
         const auto& ui = registry.ctx<Res_UIState>();
-        if (m_BgmGroup) m_BgmGroup->setVolume(ui.masterVolume * cfg.bgmVolumeMul);
+        if (m_BgmGroup) m_BgmGroup->setVolume(ui.masterVolume * ui.bgmVolume);
         if (m_SfxGroup) m_SfxGroup->setVolume(ui.masterVolume * ui.sfxVolume);
     }
 

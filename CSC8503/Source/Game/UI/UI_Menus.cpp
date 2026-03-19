@@ -602,6 +602,19 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
     }
     ImGui::PopStyleColor(2);
 
+    ImGui::Text("BGM Volume:");
+    ImGui::SameLine(160.0f);
+    ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.53f, 0.28f, 1.0f));
+    {
+        float bgmPct = ui.bgmVolume * 100.0f;
+        if (ImGui::SliderFloat("##BGMVol", &bgmPct, 0.0f, 100.0f, "%.0f%%",
+                                ImGuiSliderFlags_AlwaysClamp)) {
+            ui.bgmVolume = bgmPct / 100.0f;
+        }
+    }
+    ImGui::PopStyleColor(2);
+
     ImGui::Text("SFX Volume:");
     ImGui::SameLine(160.0f);
     ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
