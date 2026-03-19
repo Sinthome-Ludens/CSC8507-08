@@ -108,6 +108,24 @@ inline const ImVec2 kItemSpacing       = {8.0f, 6.0f};
 inline const ImVec2 kItemInnerSpacing  = {6.0f, 4.0f};
 
 // ============================================================
+// Layout constants
+// ============================================================
+
+namespace Layout {
+    constexpr float kPagePadX       = 40.0f;
+    constexpr float kPagePadTop     = 30.0f;
+    constexpr float kMenuItemH      = 34.0f;
+    constexpr float kPauseItemH     = 38.0f;
+    constexpr float kSeparatorGap   = 20.0f;
+    constexpr float kBottomHintY    = 35.0f;
+    constexpr float kPanelRounding  = 3.0f;
+    constexpr float kCardRounding   = 4.0f;
+    constexpr float kBorderWidth    = 1.0f;
+    constexpr float kSelectedBorderW = 2.0f;
+    constexpr float kHUDPanelAlpha  = 180;
+}
+
+// ============================================================
 // Score rating color (shared across HUD / GameOver / Victory)
 // ============================================================
 
