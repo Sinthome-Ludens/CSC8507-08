@@ -27,6 +27,7 @@
 #include "Game/Utils/Log.h"
 
 using namespace NCL;
+using namespace ECS::UITheme;
 
 namespace ECS::UI {
 
@@ -74,20 +75,20 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     // Background #F5EEE8
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(245, 238, 232, 255));
+        Col32_Bg());
 
     // ── Title ──────────────────────────────────────────────
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
     draw->AddText(ImVec2(vpPos.x + 40.0f, vpPos.y + 30.0f),
-        IM_COL32(16, 13, 10, 255), "MISSION SELECT");
+        Col32_Text(), "MISSION SELECT");
     if (titleFont) ImGui::PopFont();
 
     float headerLineY = vpPos.y + 70.0f;
     draw->AddLine(
         ImVec2(vpPos.x + 40.0f, headerLineY),
         ImVec2(vpPos.x + vpSize.x - 40.0f, headerLineY),
-        IM_COL32(200, 200, 200, 100), 1.0f);
+        Col32_Gray(100), 1.0f);
 
     // ── Gather items/weapons from Res_ItemInventory2 ───────
     struct DisplaySlot {
@@ -179,8 +180,8 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     float startY = headerLineY + 15.0f;
     float entryH = 50.0f;
 
-    ImFont* termFont  = UITheme::GetFont_Terminal();
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* termFont  = GetFont_Terminal();
+    ImFont* smallFont = GetFont_Small();
     // ── Tab headers ────────────────────────────────────────
     const char* tabLabels[] = { "MAP", "ITEMS (MAX 2)", "WEAPONS (MAX 2)" };
     float tabXs[] = { col0X, col1X, col2X };
@@ -188,8 +189,8 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     if (termFont) ImGui::PushFont(termFont);
     for (int t = 0; t < kTabCount; ++t) {
         bool isActiveTab = (t == ui.missionSelectedTab);
-        ImU32 tabColor = isActiveTab ? IM_COL32(252, 111, 41, 255)
-                                     : IM_COL32(16, 13, 10, 160);
+        ImU32 tabColor = isActiveTab ? Col32_Accent()
+                                     : Col32_Text(160);
         draw->AddText(ImVec2(tabXs[t], startY), tabColor, tabLabels[t]);
 
         if (isActiveTab) {
@@ -197,7 +198,7 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             draw->AddLine(
                 ImVec2(tabXs[t], startY + labelSize.y + 2.0f),
                 ImVec2(tabXs[t] + labelSize.x, startY + labelSize.y + 2.0f),
-                IM_COL32(252, 111, 41, 200), 2.0f);
+                Col32_Accent(200), 2.0f);
         }
     }
     if (termFont) ImGui::PopFont();
@@ -228,10 +229,10 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     float divH = entryStartY + 5 * entryH;
     draw->AddLine(ImVec2(col1X - gapX * 0.5f, startY),
                   ImVec2(col1X - gapX * 0.5f, divH),
-                  IM_COL32(200, 200, 200, 80), 1.0f);
+                  Col32_Gray(80), 1.0f);
     draw->AddLine(ImVec2(col2X - gapX * 0.5f, startY),
                   ImVec2(col2X - gapX * 0.5f, divH),
-                  IM_COL32(200, 200, 200, 80), 1.0f);
+                  Col32_Gray(80), 1.0f);
 
     // ── Draw column entries ────────────────────────────────
     // Generic entry drawing lambda
@@ -267,14 +268,14 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             // Highlight
             if (equipped) {
                 draw->AddRectFilled(itemMin, itemMax,
-                    IM_COL32(252, 111, 41, 40), 2.0f);
+                    Col32_Accent(40), 2.0f);
                 draw->AddRect(itemMin, itemMax,
-                    IM_COL32(252, 111, 41, 180), 2.0f, 0, 1.5f);
+                    Col32_Accent(180), 2.0f, 0, 1.5f);
             } else if (isCursor) {
                 draw->AddRectFilled(itemMin, itemMax,
-                    IM_COL32(252, 111, 41, 25), 2.0f);
+                    Col32_Accent(25), 2.0f);
                 draw->AddRect(itemMin, itemMax,
-                    IM_COL32(252, 111, 41, 120), 2.0f, 0, 1.0f);
+                    Col32_Accent(120), 2.0f, 0, 1.0f);
             }
 
             // Name
@@ -288,9 +289,9 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             } else {
                 snprintf(nameBuf, sizeof(nameBuf), isCursor ? "> %s" : "  %s", displayName);
             }
-            ImU32 nameColor = equipped ? IM_COL32(252, 111, 41, 255)
-                            : isCursor ? IM_COL32(16, 13, 10, 255)
-                            : IM_COL32(16, 13, 10, 220);
+            ImU32 nameColor = equipped ? Col32_Accent()
+                            : isCursor ? Col32_Text()
+                            : Col32_Text(220);
             draw->AddText(ImVec2(colX + (isCursor || equipped ? 4.0f : 0.0f), itemY),
                 nameColor, nameBuf);
             if (termFont) ImGui::PopFont();
@@ -299,7 +300,7 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             if (smallFont) ImGui::PushFont(smallFont);
             const char* descText = descs ? descs[i] : (slots ? slots[i].desc : "");
             draw->AddText(ImVec2(colX + 18.0f, itemY + 20.0f),
-                IM_COL32(16, 13, 10, 150), descText);
+                Col32_Text(150), descText);
             if (smallFont) ImGui::PopFont();
         }
     };
@@ -330,7 +331,7 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     } else {
         if (smallFont) ImGui::PushFont(smallFont);
         draw->AddText(ImVec2(col2X, entryStartY + 10.0f),
-            IM_COL32(16, 13, 10, 120),
+            Col32_Text(120),
             "FIND WEAPONS ON THE MAP TO UNLOCK");
         if (smallFont) ImGui::PopFont();
     }
@@ -419,16 +420,16 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     }
 
     draw->AddRectFilled(btnMin, btnMax,
-        btnHovered ? IM_COL32(252, 111, 41, 200) : IM_COL32(252, 111, 41, 160), 3.0f);
+        btnHovered ? Col32_Accent(200) : Col32_Accent(160), 3.0f);
     draw->AddRect(btnMin, btnMax,
-        IM_COL32(252, 111, 41, 255), 3.0f);
+        Col32_Accent(), 3.0f);
 
     if (termFont) ImGui::PushFont(termFont);
     const char* btnText = "DEPLOY";
     ImVec2 btnTextSize = ImGui::CalcTextSize(btnText);
     draw->AddText(
         ImVec2(btnX + (btnW - btnTextSize.x) * 0.5f, btnY + (btnH - btnTextSize.y) * 0.5f),
-        IM_COL32(245, 238, 232, 255), btnText);
+        Col32_Bg(), btnText);
     if (termFont) ImGui::PopFont();
 
     bool btnClicked = false;
@@ -450,7 +451,7 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(
         ImVec2(vpPos.x + 40.0f, vpPos.y + vpSize.y - 30.0f),
-        IM_COL32(16, 13, 10, 180),
+        Col32_Text(180),
         "[A/D] TAB  [W/S] SELECT  [ENTER] EQUIP  [C] DEPLOY  [ESC] BACK");
     if (smallFont) ImGui::PopFont();
 
