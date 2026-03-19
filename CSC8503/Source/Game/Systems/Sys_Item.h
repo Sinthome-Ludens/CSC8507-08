@@ -57,6 +57,7 @@ public:
 private:
     /// 道具拾取事件订阅句柄
     SubscriptionID m_PickupSubId = 0;
+    /// 是否已输出一次道具系统的启动状态日志（只记录一次快照）。
     bool m_DidLogStartupState = false;
 
     /// 拾取检测半径（玩家中心到道具实体中心）
