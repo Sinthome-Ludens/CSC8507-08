@@ -24,6 +24,8 @@
 #include "Game/Systems/Sys_Navigation.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
+#include "Game/Systems/Sys_Audio.h"
+#include "Game/Components/Res_AudioConfig.h"
 #include "Game/Utils/Log.h"
 
 #ifdef USE_IMGUI
@@ -118,9 +120,18 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGuiNavTest>    (310);   // NavTest 敌人/目标生成控制面板
     systems.Register<ECS::Sys_ImGuiRenderDebug>(450);   // 渲染参数调试面板
 #endif
+    systems.Register<ECS::Sys_Audio>           (275);   // FMOD 音频（BGM 状态机 + SFX one-shot）
 
     // ── 5. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
+
+    // ── Audio state (must be AFTER AwakeAll — Res_AudioState created in Sys_Audio::OnAwake) ──
+    if (registry.has_ctx<ECS::Res_AudioState>()) {
+        auto& audio = registry.ctx<ECS::Res_AudioState>();
+        audio.isGameplay   = true;
+        audio.requestedBgm = ECS::BgmId::GameplayNormal;
+        audio.bgmOverride  = false;
+    }
 
     // 重置场景过渡状态和光标状态
     if (registry.has_ctx<ECS::Res_UIState>()) {

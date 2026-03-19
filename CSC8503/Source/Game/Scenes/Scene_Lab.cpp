@@ -42,6 +42,8 @@
 #include "Game/Systems/Sys_ItemEffects.h"
 #include "Game/Systems/Sys_Door.h"
 #include "Game/Systems/Sys_LevelGoal.h"
+#include "Game/Systems/Sys_Audio.h"
+#include "Game/Components/Res_AudioConfig.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/MapLoader.h"
 #include "Game/Utils/PrefabLoader.h"
@@ -147,6 +149,7 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Item>            (250);
     systems.Register<ECS::Sys_ItemEffects>     (260);
     systems.Register<ECS::Sys_Door>            (270);
+    systems.Register<ECS::Sys_Audio>           (275);
 
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>             (300);
@@ -187,6 +190,14 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
     }
 
     systems.AwakeAll(registry);
+
+    // ── Audio state (must be AFTER AwakeAll — Res_AudioState created in Sys_Audio::OnAwake) ──
+    if (registry.has_ctx<ECS::Res_AudioState>()) {
+        auto& audio = registry.ctx<ECS::Res_AudioState>();
+        audio.isGameplay   = true;
+        audio.requestedBgm = ECS::BgmId::GameplayNormal;
+        audio.bgmOverride  = false;
+    }
 
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_UIState>()) {

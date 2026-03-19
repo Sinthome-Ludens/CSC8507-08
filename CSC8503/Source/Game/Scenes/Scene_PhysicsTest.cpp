@@ -37,6 +37,8 @@
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
+#include "Game/Systems/Sys_Audio.h"
+#include "Game/Components/Res_AudioConfig.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/SaveManager.h"
 #include "Game/Utils/ItemEquipSync.h"
@@ -206,6 +208,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Chat>              (450);   // 对话逻辑（在 UI 之前）
     systems.Register<ECS::Sys_UI>                (500);   // UI 渲染 + 输入导航
 #endif
+    systems.Register<ECS::Sys_Audio>              (275);   // FMOD 音频（BGM 状态机 + SFX one-shot）
     systems.Register<ECS::Sys_Raycast>           (330);   // Raycast 独立测试窗口（按钮触发 + 可视化）
     systems.Register<ECS::Sys_Countdown>          (350);   // alertLevel≥100 → 30s 倒计时 → GameOver
 
@@ -216,6 +219,14 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
 
     // ── 6. 启动所有系统 ──────────────────────────────────────────────────
     systems.AwakeAll(registry);
+
+    // ── Audio state (must be AFTER AwakeAll — Res_AudioState created in Sys_Audio::OnAwake) ──
+    if (registry.has_ctx<ECS::Res_AudioState>()) {
+        auto& audio = registry.ctx<ECS::Res_AudioState>();
+        audio.isGameplay   = true;
+        audio.requestedBgm = ECS::BgmId::GameplayNormal;
+        audio.bgmOverride  = false;
+    }
 
     // ── 7. 设置 UI 为 HUD 模式并启动 FadeIn 过渡 ───────────────────────
 #ifdef USE_IMGUI

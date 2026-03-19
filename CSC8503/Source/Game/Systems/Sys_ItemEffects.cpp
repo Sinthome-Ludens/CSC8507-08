@@ -33,6 +33,9 @@
 #include "Game/Components/Res_RadarState.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #include "Game/Events/Evt_Item_Use.h"
+#include "Game/Events/Evt_Audio.h"
+#include "Game/Events/Evt_Death.h"
+#include "Game/Components/Res_ItemInventory2.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
@@ -95,6 +98,15 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
                             uiS.campaignScore = std::max(0, uiS.campaignScore - sc.penaltyItemUse);
                             uiS.scoreLost_items += sc.penaltyItemUse;
                             uiS.scoreItemUseCount++;
+                        }
+                    }
+                    // SFX: 道具使用（通过 ItemType 判断，不硬编码 ItemID）
+                    if (registry.has_ctx<EventBus*>() && registry.has_ctx<Res_ItemInventory2>()) {
+                        auto* audioBus = registry.ctx<EventBus*>();
+                        if (audioBus) {
+                            bool isWeapon = registry.ctx<Res_ItemInventory2>().Get(evt.itemId).itemType == ItemType::Weapon;
+                            SfxId sfx = isWeapon ? SfxId::WeaponUse : SfxId::ItemUse;
+                            audioBus->publish_deferred<Evt_Audio_PlaySFX>(Evt_Audio_PlaySFX{sfx});
                         }
                     }
                     switch (evt.itemId) {
@@ -296,6 +308,10 @@ void Sys_ItemEffects::EffectTargetStrike(Registry& registry, const Evt_Item_Use&
         if (!registry.Has<C_D_Dying>(target)) {
             registry.Emplace<C_D_Dying>(target);
             registry.Emplace<C_D_DeathVisual>(target);
+            if (registry.has_ctx<EventBus*>()) {
+                auto* deathBus = registry.ctx<EventBus*>();
+                if (deathBus) { Evt_Death de{}; de.entity = target; de.deathType = DeathType::EnemyHpZero; deathBus->publish_deferred(de); }
+            }
             if (registry.has_ctx<Res_UIState>()) {
                 Res_ScoreConfig defaultScoreCfg2;
                 const auto& sc2 = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg2;
@@ -416,6 +432,10 @@ void Sys_ItemEffects::UpdateRoamAI(Registry& registry, float dt) {
                             }
                             registry.Emplace<C_D_Dying>(eid);
                             registry.Emplace<C_D_DeathVisual>(eid);
+                            if (registry.has_ctx<EventBus*>()) {
+                                auto* deathBus = registry.ctx<EventBus*>();
+                                if (deathBus) { Evt_Death de{}; de.entity = eid; de.deathType = DeathType::EnemyHpZero; deathBus->publish_deferred(de); }
+                            }
 
                             if (registry.has_ctx<Res_UIState>()) {
                                 Res_ScoreConfig defaultScoreCfg3;

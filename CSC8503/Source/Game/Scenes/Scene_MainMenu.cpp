@@ -9,6 +9,8 @@
 #include "Game/Utils/Log.h"
 
 #include "Game/Systems/Sys_Input.h"
+#include "Game/Systems/Sys_Audio.h"
+#include "Game/Components/Res_AudioConfig.h"
 
 #ifdef USE_IMGUI
 #include "Game/Systems/Sys_ImGui.h"
@@ -89,8 +91,17 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGuiEntityDebug>(310);
     systems.Register<ECS::Sys_UI>              (500);
 #endif
+    systems.Register<ECS::Sys_Audio>           (275);
 
     systems.AwakeAll(registry);
+
+    // ── Audio state（必须在 AwakeAll 之后，Sys_Audio::OnAwake 已创建 Res_AudioState）──
+    if (registry.has_ctx<ECS::Res_AudioState>()) {
+        auto& audio = registry.ctx<ECS::Res_AudioState>();
+        audio.isGameplay   = false;
+        audio.requestedBgm = ECS::BgmId::Menu;
+        audio.bgmOverride  = false;
+    }
 
 #ifdef USE_IMGUI
     ECS::UI::PushToast(registry, "SYSTEM ONLINE", ECS::ToastType::Success, 2.5f);
