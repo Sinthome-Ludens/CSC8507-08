@@ -192,11 +192,14 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                     if (registry.has_ctx<Res_GameState>() && registry.has_ctx<Res_UIState>()) {
                         auto& gs = registry.ctx<Res_GameState>();
                         auto& ui = registry.ctx<Res_UIState>();
+                        const bool isMultiplayer = gs.isMultiplayer;
                         gs.isGameOver       = true;
                         gs.gameOverReason   = 2;   // OPERATOR DETECTED
                         gs.gameOverTime     = gs.playTime;
-                        ui.activeScreen          = UIScreen::GameOver;
-                        ui.gameOverSelectedIndex  = 0;
+                        if (!isMultiplayer) {
+                            ui.activeScreen = UIScreen::GameOver;
+                            ui.gameOverSelectedIndex = 0;
+                        }
                         // 失败惩罚 -500（挑战模式全局规则）
                         if (!ui.failureScorePenaltyApplied) {
                             ui.failureScorePenaltyApplied = true;

@@ -70,8 +70,10 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
             gs.gameOverReason  = 1;  // countdown expired
             gs.gameOverTime    = gs.playTime;
 
-            ui.activeScreen         = UIScreen::GameOver;
-            ui.gameOverSelectedIndex = 0;
+            if (!gs.isMultiplayer) {
+                ui.activeScreen = UIScreen::GameOver;
+                ui.gameOverSelectedIndex = 0;
+            }
 
             // 失败惩罚 -500（挑战模式全局规则）
             if (!ui.failureScorePenaltyApplied) {

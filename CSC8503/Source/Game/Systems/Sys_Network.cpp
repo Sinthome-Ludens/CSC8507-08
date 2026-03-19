@@ -595,14 +595,16 @@ void Sys_Network::HandleClientGhostTransform(Registry& reg, Res_Network& resNet,
     const float localReceiveTimeMs = reg.has_ctx<Res_Time>()
         ? reg.ctx<Res_Time>().totalTime * 1000.0f
         : 0.0f;
+    const NCL::Maths::Vector3 ghostPos(pkt->pos[0], pkt->pos[1], pkt->pos[2]);
+    const NCL::Maths::Quaternion ghostRot(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]);
     InterpBuffer_AddSnapshot(buffer,
-        NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]),
-        NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]),
+        ghostPos,
+        ghostRot,
         localReceiveTimeMs);
-    if (buffer.count == 1 && reg.Has<C_D_Transform>(ghost)) {
+    if (reg.Has<C_D_Transform>(ghost)) {
         auto& tf = reg.Get<C_D_Transform>(ghost);
-        tf.position = NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]);
-        tf.rotation = NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]);
+        tf.position = ghostPos;
+        tf.rotation = ghostRot;
     }
 }
 
@@ -982,14 +984,16 @@ void Sys_Network::HandleSyncGhostTransform(Registry& reg, Res_Network& resNet, c
     const float localReceiveTimeMs = reg.has_ctx<Res_Time>()
         ? reg.ctx<Res_Time>().totalTime * 1000.0f
         : 0.0f;
+    const NCL::Maths::Vector3 ghostPos(pkt->pos[0], pkt->pos[1], pkt->pos[2]);
+    const NCL::Maths::Quaternion ghostRot(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]);
     InterpBuffer_AddSnapshot(buffer,
-        NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]),
-        NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]),
+        ghostPos,
+        ghostRot,
         localReceiveTimeMs);
-    if (buffer.count == 1 && reg.Has<C_D_Transform>(ghost)) {
+    if (reg.Has<C_D_Transform>(ghost)) {
         auto& tf = reg.Get<C_D_Transform>(ghost);
-        tf.position = NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]);
-        tf.rotation = NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]);
+        tf.position = ghostPos;
+        tf.rotation = ghostRot;
     }
 }
 
