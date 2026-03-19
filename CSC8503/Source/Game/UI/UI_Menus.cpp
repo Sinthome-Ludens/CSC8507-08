@@ -646,144 +646,187 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
 
     contentY += 45.0f;
 
-    // Separator
-    draw->AddLine(
-        ImVec2(contentX, contentY),
-        ImVec2(panelX + panelW - 30.0f, contentY),
-        Col32_Gray(100), 1.0f);
-
-    contentY += Layout::kSeparatorGap;
-
-    // ImGui controls
-    ImGui::SetCursorScreenPos(ImVec2(contentX, contentY));
-
+    // ── Tab bar ──────────────────────────────────────────────
+    static const char* kTabLabels[] = { "DISPLAY", "AUDIO", "CONTROLS" };
+    constexpr int kTabCount = 3;
     ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
 
+    float tabX = contentX;
+    float tabY = contentY;
+    float tabGap = 10.0f;
+
+    for (int t = 0; t < kTabCount; ++t) {
+        ImVec2 labelSize = ImGui::CalcTextSize(kTabLabels[t]);
+        float tabW = labelSize.x + 20.0f;
+        bool isActive = (ui.settingsTab == t);
+        ImVec2 tabMin(tabX, tabY);
+        ImVec2 tabMax(tabX + tabW, tabY + 28.0f);
+
+        // Click detection
+        ImVec2 mousePos = ImGui::GetMousePos();
+        bool hovered = (mousePos.x >= tabMin.x && mousePos.x <= tabMax.x &&
+                        mousePos.y >= tabMin.y && mousePos.y <= tabMax.y);
+        if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+            ui.settingsTab = (int8_t)t;
+            isActive = true;
+        }
+
+        // Tab background
+        if (isActive) {
+            draw->AddRectFilled(tabMin, tabMax, Col32_Accent(25), 2.0f);
+        } else if (hovered) {
+            draw->AddRectFilled(tabMin, tabMax, Col32_Gray(20), 2.0f);
+        }
+
+        // Tab text
+        draw->AddText(ImVec2(tabX + 10.0f, tabY + 5.0f),
+            isActive ? Col32_Accent(255) : Col32_Text(160), kTabLabels[t]);
+
+        // Active tab underline
+        if (isActive) {
+            draw->AddLine(ImVec2(tabMin.x, tabMax.y), ImVec2(tabMax.x, tabMax.y),
+                Col32_Accent(200), 2.0f);
+        }
+
+        tabX += tabW + tabGap;
+    }
+
+    // Tab bar separator line
+    float tabLineY = tabY + 29.0f;
+    draw->AddLine(
+        ImVec2(contentX, tabLineY),
+        ImVec2(panelX + panelW - 30.0f, tabLineY),
+        Col32_Gray(60), 1.0f);
+
+    contentY = tabLineY + 16.0f;
+
+    // ── Tab content ──────────────────────────────────────────
+    ImGui::SetCursorScreenPos(ImVec2(contentX, contentY));
     ImGui::PushItemWidth(200.0f);
 
-    // Display section — monitor icon decoration
-    {
-        ImVec2 cp = ImGui::GetCursorScreenPos();
-        float ix = cp.x - 22.0f, iy = cp.y + 2.0f;
-        draw->AddRect(ImVec2(ix, iy), ImVec2(ix + 14.0f, iy + 10.0f),
-            Col32_Accent(100), 1.0f, 0, 1.0f);
-        draw->AddLine(ImVec2(ix + 4.0f, iy + 11.0f), ImVec2(ix + 10.0f, iy + 11.0f),
-            Col32_Accent(80), 1.0f);
-    }
-    ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "DISPLAY");
-    ImGui::Spacing();
-
-    // Build label array from centralized presets
-    const char* resLabels[kResolutionCount];
-    for (int i = 0; i < kResolutionCount; ++i) resLabels[i] = kResolutions[i].label;
-
-    int resIdx = static_cast<int>(ui.resolutionIndex);
-    ImGui::Text("Resolution:");
-    ImGui::SameLine(160.0f);
-    if (ui.isFullscreen) ImGui::BeginDisabled();
-    if (ImGui::Combo("##Resolution", &resIdx, resLabels, kResolutionCount)) {
-        ui.resolutionIndex = static_cast<int8_t>(resIdx);
-        ui.resolutionChanged = true;
-        LOG_INFO("[UI_Menus] Resolution changed: " << resLabels[resIdx]);
-    }
-    if (ui.isFullscreen) ImGui::EndDisabled();
-
-    ImGui::Spacing();
-
-    ImGui::Text("Fullscreen:");
-    ImGui::SameLine(160.0f);
-    ImGui::PushStyleColor(ImGuiCol_FrameBg,        ImVec4(0.063f, 0.051f, 0.039f, 0.8f));
-    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,  ImVec4(0.15f, 0.12f, 0.10f, 0.8f));
-    ImGui::PushStyleColor(ImGuiCol_FrameBgActive,   ImVec4(0.20f, 0.16f, 0.13f, 0.8f));
-    ImGui::PushStyleColor(ImGuiCol_CheckMark,       ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
-    if (ImGui::Checkbox("##Fullscreen", &ui.isFullscreen)) {
-        ui.fullscreenChanged = true;
-        LOG_INFO("[UI_Menus] Fullscreen request: " << (ui.isFullscreen ? "ON" : "OFF"));
-    }
-    ImGui::PopStyleColor(4);
-
-    ImGui::Spacing();
-    ImGui::Spacing();
-
-    // Audio section — speaker icon decoration
-    {
-        ImVec2 cp = ImGui::GetCursorScreenPos();
-        float ix = cp.x - 22.0f, iy = cp.y + 2.0f;
-        draw->AddRectFilled(ImVec2(ix, iy + 3.0f), ImVec2(ix + 5.0f, iy + 9.0f),
-            Col32_Accent(100));
-        draw->AddTriangleFilled(
-            ImVec2(ix + 5.0f, iy + 1.0f), ImVec2(ix + 5.0f, iy + 11.0f),
-            ImVec2(ix + 11.0f, iy + 6.0f), Col32_Accent(80));
-    }
-    ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "AUDIO");
-    ImGui::Spacing();
-
-    ImGui::Text("Master Volume:");
-    ImGui::SameLine(160.0f);
-    ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.53f, 0.28f, 1.0f));
-    {
-        float masterPct = ui.masterVolume * 100.0f;
-        if (ImGui::SliderFloat("##MasterVol", &masterPct, 0.0f, 100.0f, "%.0f%%",
-                                ImGuiSliderFlags_AlwaysClamp)) {
-            ui.masterVolume = masterPct / 100.0f;
+    if (ui.settingsTab == 0) {
+        // ── DISPLAY tab ──────────────────────────────────────
+        // Monitor icon
+        {
+            ImVec2 cp = ImGui::GetCursorScreenPos();
+            float ix = cp.x - 22.0f, iy = cp.y + 2.0f;
+            draw->AddRect(ImVec2(ix, iy), ImVec2(ix + 14.0f, iy + 10.0f),
+                Col32_Accent(100), 1.0f, 0, 1.0f);
+            draw->AddLine(ImVec2(ix + 4.0f, iy + 11.0f), ImVec2(ix + 10.0f, iy + 11.0f),
+                Col32_Accent(80), 1.0f);
         }
-    }
-    ImGui::PopStyleColor(2);
+        ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "DISPLAY");
+        ImGui::Spacing();
 
-    ImGui::Text("BGM Volume:");
-    ImGui::SameLine(160.0f);
-    ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.53f, 0.28f, 1.0f));
-    {
-        float bgmPct = ui.bgmVolume * 100.0f;
-        if (ImGui::SliderFloat("##BGMVol", &bgmPct, 0.0f, 100.0f, "%.0f%%",
-                                ImGuiSliderFlags_AlwaysClamp)) {
-            ui.bgmVolume = bgmPct / 100.0f;
+        const char* resLabels[kResolutionCount];
+        for (int i = 0; i < kResolutionCount; ++i) resLabels[i] = kResolutions[i].label;
+
+        int resIdx = static_cast<int>(ui.resolutionIndex);
+        ImGui::Text("Resolution:");
+        ImGui::SameLine(160.0f);
+        if (ui.isFullscreen) ImGui::BeginDisabled();
+        if (ImGui::Combo("##Resolution", &resIdx, resLabels, kResolutionCount)) {
+            ui.resolutionIndex = static_cast<int8_t>(resIdx);
+            ui.resolutionChanged = true;
+            LOG_INFO("[UI_Menus] Resolution changed: " << resLabels[resIdx]);
         }
-    }
-    ImGui::PopStyleColor(2);
+        if (ui.isFullscreen) ImGui::EndDisabled();
 
-    ImGui::Text("SFX Volume:");
-    ImGui::SameLine(160.0f);
-    ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.53f, 0.28f, 1.0f));
-    {
-        float sfxPct = ui.sfxVolume * 100.0f;
-        if (ImGui::SliderFloat("##SFXVol", &sfxPct, 0.0f, 100.0f, "%.0f%%",
-                                ImGuiSliderFlags_AlwaysClamp)) {
-            ui.sfxVolume = sfxPct / 100.0f;
+        ImGui::Spacing();
+
+        ImGui::Text("Fullscreen:");
+        ImGui::SameLine(160.0f);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg,        ImVec4(0.063f, 0.051f, 0.039f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered,  ImVec4(0.15f, 0.12f, 0.10f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_FrameBgActive,   ImVec4(0.20f, 0.16f, 0.13f, 0.8f));
+        ImGui::PushStyleColor(ImGuiCol_CheckMark,       ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
+        if (ImGui::Checkbox("##Fullscreen", &ui.isFullscreen)) {
+            ui.fullscreenChanged = true;
+            LOG_INFO("[UI_Menus] Fullscreen request: " << (ui.isFullscreen ? "ON" : "OFF"));
         }
+        ImGui::PopStyleColor(4);
     }
-    ImGui::PopStyleColor(2);
-
-    ImGui::Spacing();
-    ImGui::Spacing();
-
-    // Controls section — crosshair icon decoration
-    {
-        ImVec2 cp = ImGui::GetCursorScreenPos();
-        float ix = cp.x - 16.0f, iy = cp.y + 6.0f;
-        draw->AddCircle(ImVec2(ix, iy), 5.0f, Col32_Accent(100), 16, 1.0f);
-        draw->AddLine(ImVec2(ix - 7.0f, iy), ImVec2(ix + 7.0f, iy), Col32_Accent(80), 1.0f);
-        draw->AddLine(ImVec2(ix, iy - 7.0f), ImVec2(ix, iy + 7.0f), Col32_Accent(80), 1.0f);
-    }
-    ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "CONTROLS");
-    ImGui::Spacing();
-
-    ImGui::Text("Mouse Sensitivity:");
-    ImGui::SameLine(160.0f);
-    ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.53f, 0.28f, 1.0f));
-    {
-        float sensPct = ui.mouseSensitivity * 100.0f;
-        if (ImGui::SliderFloat("##MouseSens", &sensPct, 0.0f, 100.0f, "%.0f%%",
-                                ImGuiSliderFlags_AlwaysClamp)) {
-            ui.mouseSensitivity = sensPct / 100.0f;
+    else if (ui.settingsTab == 1) {
+        // ── AUDIO tab ────────────────────────────────────────
+        // Speaker icon
+        {
+            ImVec2 cp = ImGui::GetCursorScreenPos();
+            float ix = cp.x - 22.0f, iy = cp.y + 2.0f;
+            draw->AddRectFilled(ImVec2(ix, iy + 3.0f), ImVec2(ix + 5.0f, iy + 9.0f),
+                Col32_Accent(100));
+            draw->AddTriangleFilled(
+                ImVec2(ix + 5.0f, iy + 1.0f), ImVec2(ix + 5.0f, iy + 11.0f),
+                ImVec2(ix + 11.0f, iy + 6.0f), Col32_Accent(80));
         }
+        ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "AUDIO");
+        ImGui::Spacing();
+
+        ImGui::Text("Master Volume:");
+        ImGui::SameLine(160.0f);
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.53f, 0.28f, 1.0f));
+        {
+            float masterPct = ui.masterVolume * 100.0f;
+            if (ImGui::SliderFloat("##MasterVol", &masterPct, 0.0f, 100.0f, "%.0f%%",
+                                    ImGuiSliderFlags_AlwaysClamp)) {
+                ui.masterVolume = masterPct / 100.0f;
+            }
+        }
+        ImGui::PopStyleColor(2);
+
+        ImGui::Text("BGM Volume:");
+        ImGui::SameLine(160.0f);
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.53f, 0.28f, 1.0f));
+        {
+            float bgmPct = ui.bgmVolume * 100.0f;
+            if (ImGui::SliderFloat("##BGMVol", &bgmPct, 0.0f, 100.0f, "%.0f%%",
+                                    ImGuiSliderFlags_AlwaysClamp)) {
+                ui.bgmVolume = bgmPct / 100.0f;
+            }
+        }
+        ImGui::PopStyleColor(2);
+
+        ImGui::Text("SFX Volume:");
+        ImGui::SameLine(160.0f);
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.53f, 0.28f, 1.0f));
+        {
+            float sfxPct = ui.sfxVolume * 100.0f;
+            if (ImGui::SliderFloat("##SFXVol", &sfxPct, 0.0f, 100.0f, "%.0f%%",
+                                    ImGuiSliderFlags_AlwaysClamp)) {
+                ui.sfxVolume = sfxPct / 100.0f;
+            }
+        }
+        ImGui::PopStyleColor(2);
     }
-    ImGui::PopStyleColor(2);
+    else {
+        // ── CONTROLS tab ─────────────────────────────────────
+        // Crosshair icon
+        {
+            ImVec2 cp = ImGui::GetCursorScreenPos();
+            float ix = cp.x - 16.0f, iy = cp.y + 6.0f;
+            draw->AddCircle(ImVec2(ix, iy), 5.0f, Col32_Accent(100), 16, 1.0f);
+            draw->AddLine(ImVec2(ix - 7.0f, iy), ImVec2(ix + 7.0f, iy), Col32_Accent(80), 1.0f);
+            draw->AddLine(ImVec2(ix, iy - 7.0f), ImVec2(ix, iy + 7.0f), Col32_Accent(80), 1.0f);
+        }
+        ImGui::TextColored(ImVec4(0.063f, 0.051f, 0.039f, 1.0f), "CONTROLS");
+        ImGui::Spacing();
+
+        ImGui::Text("Mouse Sensitivity:");
+        ImGui::SameLine(160.0f);
+        ImGui::PushStyleColor(ImGuiCol_SliderGrab, ImVec4(0.988f, 0.435f, 0.161f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_SliderGrabActive, ImVec4(1.0f, 0.53f, 0.28f, 1.0f));
+        {
+            float sensPct = ui.mouseSensitivity * 100.0f;
+            if (ImGui::SliderFloat("##MouseSens", &sensPct, 0.0f, 100.0f, "%.0f%%",
+                                    ImGuiSliderFlags_AlwaysClamp)) {
+                ui.mouseSensitivity = sensPct / 100.0f;
+            }
+        }
+        ImGui::PopStyleColor(2);
+    }
 
     ImGui::PopItemWidth();
     ImGui::Spacing();

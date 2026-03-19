@@ -76,6 +76,7 @@ struct Res_UIState {
 
     int8_t    menuSelectedIndex      = 0;
     int8_t    settingsSelectedIndex  = 0;
+    int8_t    settingsTab            = 0;      ///< 0=Display, 1=Audio, 2=Controls
     int8_t    pauseSelectedIndex     = 0;
     int8_t    gameOverSelectedIndex  = 0;
     bool      multiplayerRetryRequested = false;
