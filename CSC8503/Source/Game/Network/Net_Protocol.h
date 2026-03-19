@@ -36,7 +36,9 @@ enum Net_PacketType : uint8_t {
     CLIENT_INPUT = 7,              ///< 客户端输入数据包（用于服务器权威架构）
     CLIENT_MATCH_PROGRESS = 8,     ///< 客户端上报当前比赛进度
     CLIENT_MATCH_RESTART_REQUEST = 9, ///< 客户端请求服务端执行多人重开
-    SYNC_MULTIPLAYER_SETUP = 10    ///< 服务端下发同图联机模式与地图序列
+    SYNC_MULTIPLAYER_SETUP = 10,   ///< 服务端下发同图联机模式与地图序列
+    SYNC_GHOST_TRANSFORM = 11,     ///< 服务端广播远端玩家幽灵位姿
+    CLIENT_GHOST_TRANSFORM = 12    ///< 客户端向服务端上报自己的幽灵位姿
 };
 
 // 传输可靠性
@@ -168,6 +170,12 @@ struct Net_Packet_ClientMatchProgress : public Net_PacketHeader {
     uint8_t gameOverReason;
 };
 
+struct Net_Packet_GhostTransform : public Net_PacketHeader {
+    float pos[3];
+    float rot[4];
+    uint8_t currentRoundIndex = 0;
+};
+
 #pragma pack(pop)
 
 /**
@@ -186,5 +194,6 @@ static_assert(sizeof(Net_Packet_MultiplayerSetup) == 10, "Net_Packet_Multiplayer
 static_assert(sizeof(Net_Packet_GameAction) == 18, "Net_Packet_GameAction size mismatch");
 static_assert(sizeof(Net_Packet_ClientInput) == 9, "Net_Packet_ClientInput size mismatch");
 static_assert(sizeof(Net_Packet_ClientMatchProgress) == 9, "Net_Packet_ClientMatchProgress size mismatch");
+static_assert(sizeof(Net_Packet_GhostTransform) == 34, "Net_Packet_GhostTransform size mismatch");
 
 }

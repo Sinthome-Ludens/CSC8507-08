@@ -25,11 +25,19 @@
 #include "Assets.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
+#include "Game/Components/C_D_Collider.h"
 #include "Game/Components/C_D_DebugName.h"
+#include "Game/Components/C_D_Health.h"
+#include "Game/Components/C_D_Input.h"
+#include "Game/Components/C_D_InterpBuffer.h"
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Components/C_D_Material.h"
 #include "Game/Components/C_D_PlayerState.h"
+#include "Game/Components/C_D_CQCState.h"
+#include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_T_ItemPickup.h"
+#include "Game/Components/C_T_Player.h"
+#include "Game/Components/C_T_NavTarget.h"
 #include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Components/C_D_HoloBaitState.h"
 #include "Game/Components/C_T_RoamAI.h"
@@ -309,6 +317,65 @@ EntityID PrefabFactory::CreatePlayer(
         auto& ps = reg.Get<C_D_PlayerState>(entity);
         ps.colliderRadius = 1.0f;
         ps.colliderHalfHeight = 1.0f;
+    }
+
+    return entity;
+}
+
+EntityID PrefabFactory::CreateGhostPlayer(
+    Registry&   reg,
+    MeshHandle  cubeMesh,
+    Vector3     spawnPos)
+{
+    EntityID entity = CreatePlayer(reg, cubeMesh, spawnPos);
+    if (entity == Entity::NULL_ENTITY) {
+        return entity;
+    }
+
+    if (reg.Has<C_T_Player>(entity)) {
+        reg.Remove<C_T_Player>(entity);
+    }
+    if (reg.Has<C_D_Input>(entity)) {
+        reg.Remove<C_D_Input>(entity);
+    }
+    if (reg.Has<C_D_PlayerState>(entity)) {
+        reg.Remove<C_D_PlayerState>(entity);
+    }
+    if (reg.Has<C_D_CQCState>(entity)) {
+        reg.Remove<C_D_CQCState>(entity);
+    }
+    if (reg.Has<C_D_Health>(entity)) {
+        reg.Remove<C_D_Health>(entity);
+    }
+    if (reg.Has<C_T_NavTarget>(entity)) {
+        reg.Remove<C_T_NavTarget>(entity);
+    }
+    if (reg.Has<C_D_RigidBody>(entity)) {
+        reg.Remove<C_D_RigidBody>(entity);
+    }
+    if (reg.Has<C_D_Collider>(entity)) {
+        reg.Remove<C_D_Collider>(entity);
+    }
+
+    if (!reg.Has<C_D_InterpBuffer>(entity)) {
+        reg.Emplace<C_D_InterpBuffer>(entity);
+    }
+
+    if (!reg.Has<C_D_Material>(entity)) {
+        reg.Emplace<C_D_Material>(entity);
+    }
+    auto& material = reg.Get<C_D_Material>(entity);
+    material.alphaMode = AlphaMode::Blend;
+    material.baseColour = Vector4(0.25f, 0.85f, 1.0f, 0.35f);
+    material.emissiveColor = Vector3(0.2f, 0.8f, 1.0f);
+    material.emissiveStrength = 0.35f;
+    material.rimColour = Vector3(0.6f, 0.95f, 1.0f);
+    material.rimPower = 2.5f;
+    material.rimStrength = 0.85f;
+
+    if (reg.Has<C_D_DebugName>(entity)) {
+        auto& dn = reg.Get<C_D_DebugName>(entity);
+        std::snprintf(dn.name, sizeof(dn.name), "ENTITY_Ghost_Player");
     }
 
     return entity;

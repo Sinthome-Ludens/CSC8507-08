@@ -37,6 +37,7 @@
 #include "Game/Systems/Sys_Navigation.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Network.h"
+#include "Game/Systems/Sys_Interpolation.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
@@ -121,12 +122,20 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
     }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
+    if (isMultiplayer && registry.has_ctx<ECS::Res_Network>()) {
+        auto& resNet = registry.ctx<ECS::Res_Network>();
+        if (resNet.multiplayerMode == ECS::MultiplayerMode::SameMapGhostRace) {
+            resNet.localPlayerEntity = mapResult.playerEntity;
+            resNet.remoteGhostEntity = ECS::Entity::NULL_ENTITY;
+        }
+    }
 
     // ── 4. System registration (priority ascending) ─────────────────────
     systems.Register<ECS::Sys_Input>           ( 10);
     systems.Register<ECS::Sys_Animation>       ( 50);
     if (isMultiplayer) {
         systems.Register<ECS::Sys_Network>     ( 54);
+        systems.Register<ECS::Sys_Interpolation>( 56);
     }
     systems.Register<ECS::Sys_InputDispatch>   ( 55);
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);

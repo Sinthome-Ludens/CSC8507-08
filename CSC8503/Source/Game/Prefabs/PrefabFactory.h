@@ -268,6 +268,23 @@ public:
         NCL::Maths::Vector3 spawnPos
     );
 
+    /**
+     * @brief 创建纯视觉幽灵玩家实体。
+     *
+     * @details
+     * 基于玩家 Prefab 创建，但会移除所有玩法/物理相关组件，仅保留渲染与插值所需数据。
+     *
+     * @param reg       ECS Registry
+     * @param cubeMesh  玩家显示用网格
+     * @param spawnPos  初始位置
+     * @return 幽灵实体 ID
+     */
+    static ECS::EntityID CreateGhostPlayer(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     cubeMesh,
+        NCL::Maths::Vector3 spawnPos
+    );
+
     // ============================================================
     // 隐形碰撞墙
     // ============================================================

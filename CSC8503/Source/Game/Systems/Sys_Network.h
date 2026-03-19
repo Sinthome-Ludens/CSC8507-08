@@ -112,6 +112,12 @@ private:
      */
     void HandleLocalInput(Registry& reg, Res_Network& resNet);
     /**
+     * @brief 同步本地玩家位姿到远端幽灵显示通道。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     */
+    void SyncGhostTransforms(Registry& reg, Res_Network& resNet);
+    /**
      * @brief 将服务端权威世界状态广播给客户端。
      * @param reg ECS 注册表
      * @param resNet 网络资源对象
@@ -162,6 +168,13 @@ private:
      */
     void HandleClientInput(Registry& reg, Res_Network& resNet, const ENetEvent& event);
     /**
+     * @brief 处理客户端上报的幽灵位姿。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
+    void HandleClientGhostTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
      * @brief 处理客户端上报的三阶段比赛进度与终局状态。
      * @param reg ECS 注册表
      * @param resNet 网络资源对象
@@ -182,6 +195,13 @@ private:
      * @param event 底层 ENet 接收事件
      */
     void HandleGameAction(Registry& reg, Res_Network& resNet, const ENetEvent& event);
+    /**
+     * @brief 处理服务端广播的远端幽灵位姿。
+     * @param reg ECS 注册表
+     * @param resNet 网络资源对象
+     * @param event 底层 ENet 接收事件
+     */
+    void HandleSyncGhostTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event);
 
     /**
      * @brief 清空仅在单帧内有效的比赛状态边沿标记。
@@ -296,6 +316,7 @@ private:
     static void ApplyAuthoritativeMapSequence(Registry& reg,
                                               const uint8_t* mapSequence,
                                               uint8_t roundIndex);
+    static EntityID EnsureRemoteGhostEntity(Registry& reg, Res_Network& resNet);
 
     // ── 数据包解包与物理驱动辅助方法 ──
     template<typename T>
@@ -353,6 +374,7 @@ private:
     uint32_t m_NextClientID = 1; ///< 服务端分配给下一个连接客户端的 ID
     uint32_t m_LastInputMask = 0; ///< 记录客户端上一帧的输入，用于判断状态变化
     float m_InputTimer = 0.0f;    ///< 客户端输入发送计时器
+    float m_GhostTransformTimer = 0.0f; ///< 幽灵位姿同步计时器
     uint8_t m_LastReportedLocalStageProgress = 0xFF;
     uint8_t m_LastReportedLocalGameOverReason = 0xFF;
     uint8_t m_LastBroadcastPhase = 0xFF;

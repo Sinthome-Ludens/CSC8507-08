@@ -31,6 +31,9 @@
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_PlayerInput.h"
+#include "Core/Bridge/AssetManager.h"
+#include "Game/Prefabs/PrefabFactory.h"
+#include "Assets.h"
 #include "Keyboard.h"
 #include <algorithm>
 #include <random>
@@ -67,7 +70,9 @@ void Sys_Network::RegisterHandlers() {
     m_PacketHandlers[SYNC_MATCH_STATE] = &Sys_Network::HandleMatchState;
     m_PacketHandlers[SYNC_MATCH_RESTART] = &Sys_Network::HandleMatchRestart;
     m_PacketHandlers[SYNC_MULTIPLAYER_SETUP] = &Sys_Network::HandleMultiplayerSetup;
+    m_PacketHandlers[SYNC_GHOST_TRANSFORM] = &Sys_Network::HandleSyncGhostTransform;
     m_PacketHandlers[CLIENT_INPUT]   = &Sys_Network::HandleClientInput;
+    m_PacketHandlers[CLIENT_GHOST_TRANSFORM] = &Sys_Network::HandleClientGhostTransform;
     m_PacketHandlers[CLIENT_MATCH_PROGRESS] = &Sys_Network::HandleClientMatchProgress;
     m_PacketHandlers[CLIENT_MATCH_RESTART_REQUEST] = &Sys_Network::HandleClientMatchRestartRequest;
     m_PacketHandlers[GAME_EVENT]     = &Sys_Network::HandleGameAction;
@@ -87,6 +92,7 @@ void Sys_Network::OnAwake(Registry& reg) {
         ResetSceneLocalState(resNet);
         m_TimeSinceLastSend = 0.0f;
         m_InputTimer = 0.0f;
+        m_GhostTransformTimer = 0.0f;
         m_LastInputMask = 0u;
         m_LastReportedLocalStageProgress = 0xFF;
         m_LastReportedLocalGameOverReason = 0xFF;
@@ -133,6 +139,7 @@ void Sys_Network::OnAwake(Registry& reg) {
     else if (resNet.mode == PeerType::CLIENT) {
         InitializeClient(resNet);
     }
+    m_GhostTransformTimer = 0.0f;
 }
 
 /**
@@ -245,6 +252,7 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
     if (resNet.mode == PeerType::CLIENT) {
         UpdateClientMatchProgress(reg, resNet);
     }
+    SyncGhostTransforms(reg, resNet);
 
     ProcessMatchRestartRequest(reg, resNet);
 
@@ -532,6 +540,39 @@ void Sys_Network::HandleClientInput(Registry& reg, Res_Network& resNet, const EN
 }
 
 /**
+ * @brief 处理客户端上报的幽灵位姿，并在 Host 本地更新远端幽灵。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
+void Sys_Network::HandleClientGhostTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (resNet.mode != PeerType::SERVER || resNet.multiplayerMode != MultiplayerMode::SameMapGhostRace) {
+        return;
+    }
+
+    auto* pkt = GetPacketData<Net_Packet_GhostTransform>(event);
+    if (!pkt) return;
+    if (reg.has_ctx<Res_GameState>()
+        && pkt->currentRoundIndex != reg.ctx<Res_GameState>().currentRoundIndex) {
+        return;
+    }
+
+    EntityID ghost = EnsureRemoteGhostEntity(reg, resNet);
+    if (!Entity::IsValid(ghost) || !reg.Valid(ghost) || !reg.Has<C_D_InterpBuffer>(ghost)) {
+        return;
+    }
+
+    auto& buffer = reg.Get<C_D_InterpBuffer>(ghost);
+    const float localReceiveTimeMs = reg.has_ctx<Res_Time>()
+        ? reg.ctx<Res_Time>().totalTime * 1000.0f
+        : 0.0f;
+    InterpBuffer_AddSnapshot(buffer,
+        NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]),
+        NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]),
+        localReceiveTimeMs);
+}
+
+/**
  * @brief 处理客户端上报的阶段推进和终局状态。
  * @details 服务端收到后会收口权威比赛结果，并在状态变化后广播最新快照。
  * @param reg ECS 注册表
@@ -671,6 +712,47 @@ void Sys_Network::HandleLocalInput(Registry& reg, Res_Network& resNet) {
     // --- 2. Server：处理主机本地玩家的输入 ---
     if (resNet.mode == PeerType::SERVER) {
         UpdatePlayerInput(reg, resNet.localClientID, currentMask);
+    }
+}
+
+/**
+ * @brief 同步本地玩家位姿到远端幽灵显示通道。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ */
+void Sys_Network::SyncGhostTransforms(Registry& reg, Res_Network& resNet) {
+    if (resNet.multiplayerMode != MultiplayerMode::SameMapGhostRace
+        || !reg.has_ctx<Res_GameState>()
+        || !reg.has_ctx<Res_Time>()
+        || resNet.bootstrapSceneActive
+        || !Entity::IsValid(resNet.localPlayerEntity)
+        || !reg.Valid(resNet.localPlayerEntity)
+        || !reg.Has<C_D_Transform>(resNet.localPlayerEntity)) {
+        return;
+    }
+
+    m_GhostTransformTimer += reg.ctx<Res_Time>().deltaTime;
+    if (m_GhostTransformTimer < m_SendRate) {
+        return;
+    }
+    m_GhostTransformTimer -= m_SendRate;
+    if (m_GhostTransformTimer > m_SendRate) {
+        m_GhostTransformTimer = 0.0f;
+    }
+
+    const auto& tf = reg.Get<C_D_Transform>(resNet.localPlayerEntity);
+    Net_Packet_GhostTransform pkt;
+    pkt.timestamp = static_cast<uint32_t>(reg.ctx<Res_Time>().totalTime * 1000.0f);
+    pkt.pos[0] = tf.position.x; pkt.pos[1] = tf.position.y; pkt.pos[2] = tf.position.z;
+    pkt.rot[0] = tf.rotation.x; pkt.rot[1] = tf.rotation.y; pkt.rot[2] = tf.rotation.z; pkt.rot[3] = tf.rotation.w;
+    pkt.currentRoundIndex = reg.ctx<Res_GameState>().currentRoundIndex;
+
+    if (resNet.mode == PeerType::SERVER) {
+        pkt.type = SYNC_GHOST_TRANSFORM;
+        SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Unreliable);
+    } else if (resNet.mode == PeerType::CLIENT && resNet.peer != nullptr) {
+        pkt.type = CLIENT_GHOST_TRANSFORM;
+        SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Unreliable);
     }
 }
 
@@ -840,6 +922,39 @@ void Sys_Network::BroadcastMatchStateIfDirty(Registry& reg, Res_Network& resNet,
 }
 
 /**
+ * @brief 处理服务端广播的远端幽灵位姿。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @param event ENet 事件对象
+ */
+void Sys_Network::HandleSyncGhostTransform(Registry& reg, Res_Network& resNet, const ENetEvent& event) {
+    if (resNet.mode != PeerType::CLIENT || resNet.multiplayerMode != MultiplayerMode::SameMapGhostRace) {
+        return;
+    }
+
+    auto* pkt = GetPacketData<Net_Packet_GhostTransform>(event);
+    if (!pkt) return;
+    if (reg.has_ctx<Res_GameState>()
+        && pkt->currentRoundIndex != reg.ctx<Res_GameState>().currentRoundIndex) {
+        return;
+    }
+
+    EntityID ghost = EnsureRemoteGhostEntity(reg, resNet);
+    if (!Entity::IsValid(ghost) || !reg.Valid(ghost) || !reg.Has<C_D_InterpBuffer>(ghost)) {
+        return;
+    }
+
+    auto& buffer = reg.Get<C_D_InterpBuffer>(ghost);
+    const float localReceiveTimeMs = reg.has_ctx<Res_Time>()
+        ? reg.ctx<Res_Time>().totalTime * 1000.0f
+        : 0.0f;
+    InterpBuffer_AddSnapshot(buffer,
+        NCL::Maths::Vector3(pkt->pos[0], pkt->pos[1], pkt->pos[2]),
+        NCL::Maths::Quaternion(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]),
+        localReceiveTimeMs);
+}
+
+/**
  * @brief 由服务端向目标对端广播同图模式配置与权威地图序列。
  * @param reg ECS 注册表
  * @param resNet 网络资源对象
@@ -965,6 +1080,32 @@ void Sys_Network::ApplyAuthoritativeMapSequence(Registry& reg,
     }
     ui.mapSequenceGenerated = true;
     ui.mapSequenceIndex = std::min<uint8_t>(roundIndex, Res_UIState::MAP_SEQUENCE_LENGTH - 1);
+}
+
+/**
+ * @brief 确保当前场景存在远端幽灵显示实体。
+ * @param reg ECS 注册表
+ * @param resNet 网络资源对象
+ * @return 幽灵实体 ID；失败时返回 NULL_ENTITY
+ */
+EntityID Sys_Network::EnsureRemoteGhostEntity(Registry& reg, Res_Network& resNet) {
+    if (Entity::IsValid(resNet.remoteGhostEntity)
+        && reg.Valid(resNet.remoteGhostEntity)
+        && reg.Has<C_D_Transform>(resNet.remoteGhostEntity)
+        && reg.Has<C_D_InterpBuffer>(resNet.remoteGhostEntity)) {
+        return resNet.remoteGhostEntity;
+    }
+
+    ECS::AssetManager::Instance().Init();
+    ECS::MeshHandle cubeMesh = ECS::AssetManager::Instance().LoadMesh(NCL::Assets::MESHDIR + "cube.obj");
+    const EntityID ghost = PrefabFactory::CreateGhostPlayer(
+        reg, cubeMesh, NCL::Maths::Vector3(0.0f, 1.5f, 0.0f));
+    if (!Entity::IsValid(ghost)) {
+        return Entity::NULL_ENTITY;
+    }
+
+    resNet.remoteGhostEntity = ghost;
+    return ghost;
 }
 
 /**
@@ -1214,6 +1355,8 @@ bool Sys_Network::CanReuseSession(const Res_Network& resNet) {
 void Sys_Network::ResetSceneLocalState(Res_Network& resNet) {
     resNet.netIdMap.clear();
     resNet.nextNetID = 1u;
+    resNet.localPlayerEntity = Entity::NULL_ENTITY;
+    resNet.remoteGhostEntity = Entity::NULL_ENTITY;
 }
 
 /**
@@ -1238,6 +1381,8 @@ void Sys_Network::ResetNetworkRuntimeState(Res_Network& resNet, bool keepConfigu
     resNet.preserveSessionOnSceneExit = false;
     resNet.nextNetID = 1u;
     resNet.netIdMap.clear();
+    resNet.localPlayerEntity = Entity::NULL_ENTITY;
+    resNet.remoteGhostEntity = Entity::NULL_ENTITY;
     resNet.packetsSent = 0u;
     resNet.packetsReceived = 0u;
     resNet.bytesSent = 0u;

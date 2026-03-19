@@ -64,6 +64,9 @@ struct Res_Network {
     ///< @brief 网络 ID 到本地实体 ID 的映射表
     std::unordered_map<uint32_t, ECS::EntityID> netIdMap;
 
+    EntityID localPlayerEntity = Entity::NULL_ENTITY; ///< 当前场景本地可控玩家实体
+    EntityID remoteGhostEntity = Entity::NULL_ENTITY; ///< 当前场景远端幽灵显示实体
+
     // 网络流量统计（供 ImGui 调试面板读取）
     uint64_t packetsSent     = 0;      ///< 累计发送包数
     uint64_t packetsReceived = 0;      ///< 累计接收包数
