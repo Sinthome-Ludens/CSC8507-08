@@ -478,8 +478,33 @@ bool NavMeshPathfinderUtil::SnapToNavMesh(
         outSnapped.x = worldPos.x;
         outSnapped.z = worldPos.z;
     } else {
-        outSnapped.x = tri.centroid.x;
-        outSnapped.z = tri.centroid.z;
+        // XZ 平面上 worldPos 到三角形三条边的最近点投影（比 centroid 更接近原始坐标且不深入墙体）
+        auto closestOnSegXZ = [](float px, float pz,
+                                 float ax, float az,
+                                 float bx, float bz,
+                                 float& ox, float& oz) {
+            float dx = bx - ax, dz = bz - az;
+            float lenSq = dx * dx + dz * dz;
+            if (lenSq < 1e-8f) { ox = ax; oz = az; return; }
+            float t = ((px - ax) * dx + (pz - az) * dz) / lenSq;
+            if (t < 0.0f) t = 0.0f;
+            if (t > 1.0f) t = 1.0f;
+            ox = ax + t * dx;
+            oz = az + t * dz;
+        };
+
+        float ex0, ez0, ex1, ez1, ex2, ez2;
+        closestOnSegXZ(worldPos.x, worldPos.z, a.x, a.z, b.x, b.z, ex0, ez0);
+        closestOnSegXZ(worldPos.x, worldPos.z, b.x, b.z, c.x, c.z, ex1, ez1);
+        closestOnSegXZ(worldPos.x, worldPos.z, c.x, c.z, a.x, a.z, ex2, ez2);
+
+        float d0 = (worldPos.x-ex0)*(worldPos.x-ex0) + (worldPos.z-ez0)*(worldPos.z-ez0);
+        float d1 = (worldPos.x-ex1)*(worldPos.x-ex1) + (worldPos.z-ez1)*(worldPos.z-ez1);
+        float d2 = (worldPos.x-ex2)*(worldPos.x-ex2) + (worldPos.z-ez2)*(worldPos.z-ez2);
+
+        if (d0 <= d1 && d0 <= d2)      { outSnapped.x = ex0; outSnapped.z = ez0; }
+        else if (d1 <= d2)             { outSnapped.x = ex1; outSnapped.z = ez1; }
+        else                           { outSnapped.x = ex2; outSnapped.z = ez2; }
     }
     // Y: use triangle centroid Y (ground surface height)
     outSnapped.y = tri.centroid.y;
