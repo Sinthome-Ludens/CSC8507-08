@@ -57,6 +57,12 @@ struct Res_DataOcean {
     int   noiseUpdateInterval = 4;  ///< 每 N 帧更新一次噪波（降低 CPU 开销）
     int   noiseFrameCounter   = 0;  ///< 噪波帧计数器（Sys_DataOcean 内部管理）
 
+    // ── GPU 驱动噪波时间（由 Sys_DataOcean 每帧写入，渲染器读取）──
+    float gpuTime         = 0.0f;   ///< 传递给 vertex shader 的 oceanTime uniform
+
+    // ── 加载状态（由 Sys_Render 写入，Sys_UI 读取判断 loading screen 是否可关闭）──
+    bool  allProxiesCreated = false; ///< 所有柱子 proxy 已创建完毕
+
     // ── 分帧创建参数 ─────────────────────────────────────
     int   spawnBatchSize  = 500;    ///< 每帧创建实体数
 

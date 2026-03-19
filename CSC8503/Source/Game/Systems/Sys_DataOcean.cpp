@@ -8,7 +8,7 @@
  * OnUpdate：
  *   - spawning 阶段：每帧从 pendingSpawns 消费 spawnBatchSize 个实体，
  *     使用 CreateFromCache 零查表创建，创建后设置 pillar 参数。
- *   - 正常阶段：遍历所有 DataOceanPillar 实体，噪波更新 Y 位置。
+ *   - 正常阶段：仅更新 gpuTime（噪波计算已移至 GPU vertex shader）。
  */
 #include "Sys_DataOcean.h"
 
@@ -157,13 +157,14 @@ void Sys_DataOcean::OnAwake(Registry& registry) {
 }
 
 /**
- * @brief 分帧创建或噪波动画更新。
+ * @brief 分帧创建或噪波插值动画更新。
  *
  * spawning 阶段：每帧从 pendingSpawns[spawnCursor] 开始创建 spawnBatchSize 个实体，
  * 使用 CreateFromCache 零查表创建，创建后设置 pillar 的 baseY/sizeXZ/phaseShift。
  * 全部完成后清除 pending 状态，释放内存。
  *
- * 正常阶段：遍历所有 DataOceanPillar 实体，噪波采样更新 Y 位置。
+ * 正常阶段：仅更新 Res_DataOcean::gpuTime = totalTime，
+ * 噪波计算已完全移至 GPU vertex shader（scene.vert / shadow.vert）。
  */
 void Sys_DataOcean::OnUpdate(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_DataOcean>())
@@ -206,23 +207,8 @@ void Sys_DataOcean::OnUpdate(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_Time>())
         return;
 
-    cfg.noiseFrameCounter++;
-    if (cfg.noiseFrameCounter < cfg.noiseUpdateInterval)
-        return;
-    cfg.noiseFrameCounter = 0;
-
     const auto& time = registry.ctx<Res_Time>();
-
-    registry.view<C_D_DataOceanPillar, C_D_Transform>().each(
-        [&](EntityID /*id*/, C_D_DataOceanPillar& pillar, C_D_Transform& tf) {
-            float n = NoiseUtil::Noise3D(
-                tf.position.x * cfg.noiseScale,
-                tf.position.z * cfg.noiseScale,
-                time.totalTime * cfg.noiseSpeed + pillar.phaseShift
-            );
-            tf.position.y = pillar.baseY + n * pillar.amplitude * cfg.baseAmplitude;
-        }
-    );
+    cfg.gpuTime = time.totalTime;
 }
 
 /**

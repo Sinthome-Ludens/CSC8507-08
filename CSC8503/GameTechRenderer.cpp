@@ -342,6 +342,10 @@ GameTechRenderer::GameTechRenderer(GameWorld& world)
     // ── Instanced Rendering SSBO ─────────────────────────
     glGenBuffers(1, &m_instanceSSBO);
     m_instanceSSBOSize = 0;
+
+    // ── Ocean SSBO（binding point 1）─────────────────────
+    glGenBuffers(1, &m_oceanSSBO);
+    m_oceanSSBOSize = 0;
 }
 
 GameTechRenderer::~GameTechRenderer() {
@@ -371,6 +375,7 @@ GameTechRenderer::~GameTechRenderer() {
     glDeleteTextures(1, &m_fallbackBlackTex);
     glDeleteVertexArrays(1, &m_fullscreenVAO);
     if (m_instanceSSBO) glDeleteBuffers(1, &m_instanceSSBO);
+    if (m_oceanSSBO) glDeleteBuffers(1, &m_oceanSSBO);
 }
 
 void GameTechRenderer::LoadSkybox() {
@@ -631,6 +636,183 @@ void GameTechRenderer::ComputeCascadeMatrices(const Matrix4& viewMatrix, const M
 }
 
 // ============================================================
+// Ocean SSBO — 数据海洋 GPU 驱动噪波
+// ============================================================
+
+void GameTechRenderer::SetOceanPillarProxies(const std::vector<GameObject*>* proxies) {
+    m_oceanPillarProxiesPtr = proxies;
+    m_oceanSSBOReady = false;
+}
+
+void GameTechRenderer::SetOceanTime(float time) {
+    m_oceanTime = time;
+}
+
+void GameTechRenderer::SetOceanNoiseParams(float scale, float speed, float amplitude) {
+    m_oceanNoiseScale = scale;
+    m_oceanNoiseSpeed = speed;
+    m_oceanBaseAmplitude = amplitude;
+}
+
+/**
+ * @brief 一次性上传柱子静态数据到 ocean SSBO（binding point 1）。
+ * @details OceanInstanceData 布局：mat4 modelMatrix + vec4 objectColour + vec4 pillarParams。
+ *          后续帧只需 bind + 更新 oceanTime uniform，无需重新上传。
+ */
+void GameTechRenderer::UploadOceanSSBO() {
+    if (!m_oceanPillarProxiesPtr || m_oceanPillarProxiesPtr->empty()) return;
+
+    struct OceanInstanceData {
+        Matrix4 modelMatrix;
+        Vector4 objectColour;
+        Vector4 pillarParams;
+    };
+
+    int count = (int)m_oceanPillarProxiesPtr->size();
+    size_t requiredSize = sizeof(OceanInstanceData) * count;
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_oceanSSBO);
+    if (requiredSize > m_oceanSSBOSize) {
+        glBufferData(GL_SHADER_STORAGE_BUFFER, requiredSize, nullptr, GL_STATIC_DRAW);
+        m_oceanSSBOSize = requiredSize;
+    }
+
+    OceanInstanceData* ptr = (OceanInstanceData*)glMapBufferRange(
+        GL_SHADER_STORAGE_BUFFER, 0, requiredSize,
+        GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+
+    if (ptr) {
+        for (int i = 0; i < count; ++i) {
+            auto* proxy = (*m_oceanPillarProxiesPtr)[i];
+            const auto* ro = proxy->GetRenderObject();
+            ptr[i].modelMatrix  = proxy->GetTransform().GetMatrix();
+            ptr[i].objectColour = ro ? ro->GetColour() : Vector4(1, 1, 1, 1);
+            ptr[i].pillarParams = Vector4(
+                ro ? ro->pillarBaseY : 0.0f,
+                ro ? ro->pillarAmplitude : 2.0f,
+                ro ? ro->pillarPhaseShift : 0.0f,
+                0.0f
+            );
+        }
+        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+    }
+
+    m_oceanPillarCount = count;
+    m_oceanSSBOReady = true;
+}
+
+/**
+ * @brief 使用 ocean SSBO + GPU 噪波绘制柱子（forward pass）。
+ */
+void GameTechRenderer::DrawOceanBatch(OGLShader* shader,
+                                       const Matrix4& viewMatrix, const Matrix4& projMatrix)
+{
+    if (!m_oceanSSBOReady || m_oceanPillarCount == 0 || !m_oceanPillarProxiesPtr) return;
+
+    GLuint pid = shader->GetProgramID();
+    auto ul = [&](const char* n) { return glGetUniformLocation(pid, n); };
+
+    glUniformMatrix4fv(ul("viewMatrix"), 1, false, (float*)&viewMatrix);
+    glUniformMatrix4fv(ul("projMatrix"), 1, false, (float*)&projMatrix);
+    glUniform1i(ul("useSkinning"), 0);
+    glUniform1i(ul("useInstancing"), 0);
+    glUniform1i(ul("useOceanNoise"), 1);
+    glUniform1f(ul("oceanTime"), m_oceanTime);
+    glUniform1f(ul("oceanNoiseScale"), m_oceanNoiseScale);
+    glUniform1f(ul("oceanNoiseSpeed"), m_oceanNoiseSpeed);
+    glUniform1f(ul("oceanBaseAmplitude"), m_oceanBaseAmplitude);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_oceanSSBO);
+
+    auto* firstProxy = (*m_oceanPillarProxiesPtr)[0];
+    const auto* ro = firstProxy->GetRenderObject();
+    if (!ro) return;
+
+    const GameTechMaterial& mat = ro->GetMaterial();
+
+    auto bindTex = [&](Texture* tex, const char* samplerName, int unit, GLuint fallbackID) {
+        glActiveTexture(GL_TEXTURE0 + unit);
+        if (tex) {
+            OGLTexture* t = (OGLTexture*)tex;
+            glBindTexture(GL_TEXTURE_2D, t->GetObjectID());
+        } else {
+            glBindTexture(GL_TEXTURE_2D, fallbackID);
+        }
+        glUniform1i(ul(samplerName), unit);
+    };
+
+    bindTex(mat.diffuseTex,  "albedoTex",   0, m_fallbackWhiteTex);
+    bindTex(mat.bumpTex,     "normalTex",   1, m_fallbackNormalTex);
+    bindTex(mat.ormTex,      "ormTex",      2, m_fallbackOrmTex);
+    bindTex(mat.emissiveTex, "emissiveTex", 3, m_fallbackBlackTex);
+
+    glUniform1i(ul("hasTexture"),     mat.diffuseTex  ? 1 : 0);
+    glUniform1i(ul("hasBumpTex"),     mat.bumpTex     ? 1 : 0);
+    glUniform1i(ul("hasOrmTex"),      mat.ormTex      ? 1 : 0);
+    glUniform1i(ul("hasEmissiveTex"), mat.emissiveTex ? 1 : 0);
+    glUniform1i(ul("hasVertexColours"), 0);
+
+    glUniform1f(ul("metallic"),          mat.metallic);
+    glUniform1f(ul("roughness"),         mat.roughness);
+    glUniform1f(ul("ao"),                mat.ao);
+    glUniform3fv(ul("emissiveColor"),    1, (float*)&mat.emissiveColor);
+    glUniform1f(ul("emissiveStrength"),  mat.emissiveStrength);
+    glUniform3fv(ul("rimColour"),        1, (float*)&mat.rimColour);
+    glUniform1f(ul("rimPower"),          mat.rimPower);
+    glUniform1f(ul("rimStrength"),       mat.rimStrength);
+    glUniform1i(ul("alphaMode"),    0);
+    glUniform1f(ul("alphaCutoff"),  0.5f);
+    glUniform1i(ul("doubleSided"),  0);
+
+    OGLMesh* mesh = (OGLMesh*)ro->GetMesh();
+    BindMesh(*mesh);
+    size_t layerCount = mesh->GetSubMeshCount();
+    if (layerCount == 0) DrawBoundMesh(0, m_oceanPillarCount);
+    else for (size_t i = 0; i < layerCount; i++) DrawBoundMesh((uint32_t)i, m_oceanPillarCount);
+
+    glUniform1i(ul("useOceanNoise"), 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+}
+
+/**
+ * @brief 使用 ocean SSBO + GPU 噪波绘制柱子阴影。
+ */
+void GameTechRenderer::DrawOceanShadowBatch(OGLShader* shader,
+                                             const Matrix4& lightVP, float normalOffsetBias)
+{
+    if (!m_oceanSSBOReady || m_oceanPillarCount == 0 || !m_oceanPillarProxiesPtr) return;
+
+    auto* firstProxy = (*m_oceanPillarProxiesPtr)[0];
+    const auto* ro = firstProxy->GetRenderObject();
+    if (!ro) return;
+
+    UseShader(*shader);
+    GLuint pid = shader->GetProgramID();
+
+    glUniform1i(glGetUniformLocation(pid, "useModelMatrix"), 0);
+    glUniform1i(glGetUniformLocation(pid, "useInstancing"), 0);
+    glUniform1i(glGetUniformLocation(pid, "useOceanNoise"), 1);
+    glUniformMatrix4fv(glGetUniformLocation(pid, "lightVPMatrix"), 1, false, (float*)&lightVP);
+    glUniform1f(glGetUniformLocation(pid, "normalOffsetBias"), normalOffsetBias);
+    glUniform1i(glGetUniformLocation(pid, "useSkinning"), 0);
+    glUniform1f(glGetUniformLocation(pid, "oceanTime"), m_oceanTime);
+    glUniform1f(glGetUniformLocation(pid, "oceanNoiseScale"), m_oceanNoiseScale);
+    glUniform1f(glGetUniformLocation(pid, "oceanNoiseSpeed"), m_oceanNoiseSpeed);
+    glUniform1f(glGetUniformLocation(pid, "oceanBaseAmplitude"), m_oceanBaseAmplitude);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, m_oceanSSBO);
+
+    OGLMesh* mesh = (OGLMesh*)ro->GetMesh();
+    BindMesh(*mesh);
+    size_t layerCount = mesh->GetSubMeshCount();
+    if (layerCount == 0) DrawBoundMesh(0, m_oceanPillarCount);
+    else for (size_t j = 0; j < layerCount; j++) DrawBoundMesh((uint32_t)j, m_oceanPillarCount);
+
+    glUniform1i(glGetUniformLocation(pid, "useOceanNoise"), 0);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, 0);
+}
+
+// ============================================================
 // RenderFrame
 // ============================================================
 
@@ -639,6 +821,10 @@ void GameTechRenderer::RenderFrame() {
     glCullFace(GL_BACK);
 
     BuildObjectLists();
+
+    if (!m_oceanSSBOReady && m_oceanPillarProxiesPtr && !m_oceanPillarProxiesPtr->empty()) {
+        UploadOceanSSBO();
+    }
 
     if (!m_iblGenerated) GenerateIBL();
 
@@ -755,6 +941,12 @@ void GameTechRenderer::BuildObjectLists() {
         }
     }
 
+    for (auto& batch : m_instancedBatches) {
+        if (!batch.objects.empty()) {
+            batch.shadowCascadeMask = batch.objects[0]->shadowCascadeMask;
+        }
+    }
+
     opaqueObjects.erase(
         std::remove_if(opaqueObjects.begin(), opaqueObjects.end(),
             [](const ObjectSortState& s) { return s.object->instanced; }),
@@ -789,6 +981,7 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
     // ── 预上传 instanced batch SSBO（cascade 间矩阵不变，只需上传一次）──
     for (const auto& batch : m_instancedBatches) {
         if ((int)batch.objects.size() < INSTANCE_THRESHOLD) continue;
+        if (batch.shadowCascadeMask == 0) continue;
 
         int count = (int)batch.objects.size();
         size_t requiredSize = sizeof(ShadowInstanceData) * count;
@@ -820,6 +1013,7 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
         // ── Instanced shadow draw（SSBO 已在循环外上传）──
         for (const auto& batch : m_instancedBatches) {
             if ((int)batch.objects.size() < INSTANCE_THRESHOLD) continue;
+            if (!(batch.shadowCascadeMask & (1 << c))) continue;
 
             UseShader(*shadowShader);
             GLuint pid = shadowShader->GetProgramID();
@@ -839,6 +1033,11 @@ void GameTechRenderer::RenderShadowMapPass(std::vector<ObjectSortState>& list) {
 
             glUniform1i(glGetUniformLocation(pid, "useInstancing"), 0);
             glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, 0);
+        }
+
+        // ── Ocean pillar shadow draw（仅 cascade 2）──
+        if ((0x04 & (1 << c)) && m_oceanSSBOReady) {
+            DrawOceanShadowBatch(shadowShader, lvp, m_shadowNormalOffset[c]);
         }
 
         // ── Per-object shadow draw (small batches + non-instanced) ──
@@ -1207,6 +1406,18 @@ void GameTechRenderer::RenderOpaquePass(std::vector<ObjectSortState>& list) {
                                     m_shadowBiasSlope, m_shadowBiasConstant);
             DrawInstancedBatch(batch.shader, batch, viewMatrix, projMatrix);
         }
+    }
+
+    // ── Ocean pillar batch（GPU 噪波驱动）──
+    if (m_oceanSSBOReady && m_oceanPillarCount > 0) {
+        UseShader(*defaultShader);
+        BindCommonSceneUniforms(defaultShader, viewMatrix, projMatrix, camPos, sunPos, sunCol,
+                                m_shadowTex[0], m_shadowTex[1], m_shadowTex[2],
+                                m_shadowMatrix[0], m_shadowMatrix[1], m_shadowMatrix[2],
+                                m_cascadeSplits, m_pcssLightSize,
+                                m_irradianceMap, m_prefilterMap, m_brdfLUT, m_iblIntensity,
+                                m_shadowBiasSlope, m_shadowBiasConstant);
+        DrawOceanBatch(defaultShader, viewMatrix, projMatrix);
     }
 
     // ── 逐个绘制（小批次 + 非 instanced 对象）──

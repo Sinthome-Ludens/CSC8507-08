@@ -20,6 +20,7 @@
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_DataOcean.h"
 #include "Game/Components/Res_ActionNotifyState.h"
 #include "Game/Components/C_D_Interactable.h"
 #include "Game/UI/UITheme.h"
@@ -441,24 +442,41 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         LOG_INFO("[Sys_UI] FadeOut done -- entering Loading screen");
     }
 
-    // Loading 画面计时完成 → 交还场景请求给 Main.cpp
+    // Loading 画面计时完成 → 交还场景请求给 Main.cpp，但保持 Loading 画面直到新场景 spawning 完成
     if (ui.activeScreen == UIScreen::Loading
     && ui.loadingTimer >= ui.loadingMinDuration
     && ui.transitionSceneRequest != SceneRequest::None
     && !ui.sceneRequestDispatched) {
-/*
-        LOG_INFO("[Sys_UI] DEBUG activeScreen="
-            + std::to_string((int)ui.activeScreen)
-            + " loadingTimer=" + std::to_string(ui.loadingTimer)
-            + " transitionReq=" + std::to_string((int)ui.transitionSceneRequest));
-*/
 
         ui.pendingSceneRequest    = ui.transitionSceneRequest;
         ui.transitionSceneRequest = SceneRequest::None;
-        ui.activeScreen           = UIScreen::None;
-        ui.loadingTimer           = 0.0f;
+        // 不清除 activeScreen — 保持 Loading 画面，等待新场景 spawning 完成
+        ui.loadingWaitForSpawn    = true;
         ui.sceneRequestDispatched = true;  // ← 锁住，防止重入
-        LOG_INFO("[Sys_UI] Loading complete -- handing SceneRequest to Main.cpp");
+        LOG_INFO("[Sys_UI] Loading min duration met -- handing SceneRequest to Main.cpp, waiting for spawn");
+    }
+
+    // 新场景 OnEnter 后：如果 spawning/proxy创建 仍在进行，强制保持 Loading 画面
+    if (ui.loadingWaitForSpawn) {
+        bool spawnDone = true;
+        if (registry.has_ctx<ECS::Res_DataOcean>()) {
+            const auto& cfg = registry.ctx<ECS::Res_DataOcean>();
+            // 需要 spawning 完成 且 所有 proxy 创建完毕
+            spawnDone = !cfg.spawning && cfg.allProxiesCreated;
+        }
+        if (spawnDone) {
+            ui.loadingWaitForSpawn = false;
+            // spawning + proxy 全部完成 → 触发 FadeIn 过渡到 HUD
+            ui.activeScreen       = UIScreen::HUD;
+            ui.transitionActive   = true;
+            ui.transitionTimer    = 0.0f;
+            ui.transitionDuration = 0.5f;
+            ui.transitionType     = 0;  // FadeIn
+            LOG_INFO("[Sys_UI] Spawn + proxy complete -- transitioning to HUD");
+        } else {
+            // 强制保持 Loading 画面（覆盖 OnEnter 中设置的 HUD）
+            ui.activeScreen = UIScreen::Loading;
+        }
     }
 
     // Toast 通知渲染（覆盖所有屏幕）
