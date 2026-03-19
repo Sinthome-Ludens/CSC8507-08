@@ -37,6 +37,9 @@ void NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, float displayH, f
 /// Bottom-center dual equipment panels (Q gadget + E weapon).
 void ItemSlots(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH);
 
+/// Center crosshair (only when cursor is locked).
+void Crosshair(ImDrawList* draw, float displayW, float displayH);
+
 /// Full-screen degradation overlay (noise dots + scan lines).
 void Degradation(ImDrawList* draw, const Res_GameState& gs, float displayW, float displayH, float globalTime);
 

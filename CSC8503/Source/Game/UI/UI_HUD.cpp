@@ -55,6 +55,11 @@ void RenderHUD(Registry& registry, float dt) {
     HUD::Degradation(draw, gs, displaySize.x, displayH, ui.globalTime);
     HUD::Minimap(draw, registry, displayH);
 
+    // ── Crosshair (only when cursor is locked to center) ──
+    if (ui.cursorLocked) {
+        HUD::Crosshair(draw, gameW, displayH);
+    }
+
     // ── Multiplayer-only panels ──
     if (gs.isMultiplayer) {
         HUD::MatchBanner(draw, gs, gameW, ui.globalTime, dt);

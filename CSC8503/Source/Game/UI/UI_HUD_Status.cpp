@@ -114,6 +114,25 @@ void Countdown(ImDrawList* draw, const Res_GameState& gs, float gameW, float glo
     if (titleFont) ImGui::PopFont();
 }
 
+void Crosshair(ImDrawList* draw, float displayW, float displayH) {
+    float cx = displayW * 0.5f;
+    float cy = displayH * 0.5f;
+
+    constexpr float kGap  = 4.0f;   // gap from center
+    constexpr float kLen  = 10.0f;  // line length
+    constexpr float kThick = 1.5f;
+    ImU32 col = Col32_Accent(160);
+
+    // 4 crosshair segments
+    draw->AddLine(ImVec2(cx - kGap - kLen, cy), ImVec2(cx - kGap, cy), col, kThick);  // left
+    draw->AddLine(ImVec2(cx + kGap, cy), ImVec2(cx + kGap + kLen, cy), col, kThick);  // right
+    draw->AddLine(ImVec2(cx, cy - kGap - kLen), ImVec2(cx, cy - kGap), col, kThick);  // top
+    draw->AddLine(ImVec2(cx, cy + kGap), ImVec2(cx, cy + kGap + kLen), col, kThick);  // bottom
+
+    // Center dot
+    draw->AddCircleFilled(ImVec2(cx, cy), 1.5f, col, 8);
+}
+
 } // namespace ECS::UI::HUD
 
 #endif // USE_IMGUI
