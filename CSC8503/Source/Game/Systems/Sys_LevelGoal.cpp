@@ -32,8 +32,12 @@ void Sys_LevelGoal::OnAwake(Registry& /*registry*/) {
 
 /**
  * @brief 每帧检测玩家与所有 C_T_FinishZone 实体的 XZ 距离。
- * @details 当距离 < 4m 时设置 Res_GameState::gameOverReason = 3（任务成功），
- *          并切换 UI 到 GameOver 画面、推送 Toast 通知。仅触发一次。
+ * @details 单人模式下，当距离 < 4m 且高度差在阈值内时，设置
+ *          Res_GameState::gameOverReason = 3（任务成功），切换 UI 到
+ *          GameOver 画面并推送 Toast 通知，仅触发一次。
+ *          多人模式下，每次到达终点会推进关卡进度；到达最终关卡终点时：
+ *          - 若分数达标，则设置 gameOverReason = 3（战役成功结束）；
+ *          - 若分数过低，则设置 gameOverReason = 2（分数不足导致的失败）。
  * @param registry ECS 注册表
  * @param dt       帧时间（未使用）
  */
