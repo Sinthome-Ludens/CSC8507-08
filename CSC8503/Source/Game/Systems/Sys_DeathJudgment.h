@@ -45,7 +45,8 @@ public:
     void OnDestroy(Registry& registry) override;
 
 private:
-    SubscriptionID m_TriggerSubId = 0;
+    SubscriptionID m_TriggerSubId   = 0;
+    SubscriptionID m_CollisionSubId = 0;
 };
 
 } // namespace ECS

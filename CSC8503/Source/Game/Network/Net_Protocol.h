@@ -35,7 +35,10 @@ enum Net_PacketType : uint8_t {
     GAME_EVENT = 6,                ///< 游戏事件数据包（客户端或服务端在发生攻击、交互、技能释放等游戏行为时发送）
     CLIENT_INPUT = 7,              ///< 客户端输入数据包（用于服务器权威架构）
     CLIENT_MATCH_PROGRESS = 8,     ///< 客户端上报当前比赛进度
-    CLIENT_MATCH_RESTART_REQUEST = 9 ///< 客户端请求服务端执行多人重开
+    CLIENT_MATCH_RESTART_REQUEST = 9, ///< 客户端请求服务端执行多人重开
+    SYNC_MULTIPLAYER_SETUP = 10,   ///< 服务端下发同图联机模式与地图序列
+    SYNC_GHOST_TRANSFORM = 11,     ///< 服务端广播远端玩家幽灵位姿
+    CLIENT_GHOST_TRANSFORM = 12    ///< 客户端向服务端上报自己的幽灵位姿
 };
 
 // 传输可靠性
@@ -117,7 +120,15 @@ struct Net_Packet_MatchState : public Net_PacketHeader {
 };
 
 struct Net_Packet_MatchRestart : public Net_PacketHeader {
-    uint8_t reserved = 0;
+    uint8_t multiplayerMode = 0;
+    uint8_t mapSequence[3] = {};
+    uint8_t currentRoundIndex = 0;
+};
+
+struct Net_Packet_MultiplayerSetup : public Net_PacketHeader {
+    uint8_t multiplayerMode = 0;
+    uint8_t mapSequence[3] = {};
+    uint8_t currentRoundIndex = 0;
 };
 
 /**
@@ -156,7 +167,26 @@ struct Net_Packet_ClientMatchProgress : public Net_PacketHeader {
     uint8_t stageProgress;
     uint8_t currentRoundIndex;
     uint8_t reportedFinished;
-    uint8_t gameOverReason;
+    uint8_t terminalState;
+    uint8_t terminalReason;
+};
+
+/**
+ * @struct Net_Packet_GhostTransform
+ * @brief 幽灵玩家 Transform 同步数据包。
+ *
+ * 用于在同图联机中同步远端玩家的“幽灵”位姿信息，
+ * 以便本地客户端在回放或追赶显示时进行插值与对齐。
+ *
+ * 字段语义：
+ * - pos  : 世界空间下的玩家位置 (x, y, z)。
+ * - rot  : 世界空间下的玩家朝向四元数 (x, y, z, w)，需保持单位长度。
+ * - currentRoundIndex : 幽灵所属的比赛回合索引，用于与本地进度对齐。
+ */
+struct Net_Packet_GhostTransform : public Net_PacketHeader {
+    float   pos[3];              ///< 世界空间位置向量 (x, y, z)
+    float   rot[4];              ///< 世界空间旋转四元数 (x, y, z, w)
+    uint8_t currentRoundIndex = 0; ///< 幽灵所属的当前比赛回合索引
 };
 
 #pragma pack(pop)
@@ -172,9 +202,11 @@ static_assert(sizeof(Net_Packet_Handshake) == 9, "Net_Packet_Handshake size mism
 static_assert(sizeof(Net_Packet_Welcome) == 25, "Net_Packet_Welcome size mismatch");
 static_assert(sizeof(Net_Packet_Transform) == 49, "Net_Packet_Transform size mismatch");
 static_assert(sizeof(Net_Packet_MatchState) == 11, "Net_Packet_MatchState size mismatch");
-static_assert(sizeof(Net_Packet_MatchRestart) == 6, "Net_Packet_MatchRestart size mismatch");
+static_assert(sizeof(Net_Packet_MatchRestart) == 10, "Net_Packet_MatchRestart size mismatch");
+static_assert(sizeof(Net_Packet_MultiplayerSetup) == 10, "Net_Packet_MultiplayerSetup size mismatch");
 static_assert(sizeof(Net_Packet_GameAction) == 18, "Net_Packet_GameAction size mismatch");
 static_assert(sizeof(Net_Packet_ClientInput) == 9, "Net_Packet_ClientInput size mismatch");
-static_assert(sizeof(Net_Packet_ClientMatchProgress) == 9, "Net_Packet_ClientMatchProgress size mismatch");
+static_assert(sizeof(Net_Packet_ClientMatchProgress) == 10, "Net_Packet_ClientMatchProgress size mismatch");
+static_assert(sizeof(Net_Packet_GhostTransform) == 34, "Net_Packet_GhostTransform size mismatch");
 
 }

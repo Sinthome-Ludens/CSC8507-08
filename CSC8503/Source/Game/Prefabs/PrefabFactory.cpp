@@ -21,15 +21,24 @@
  */
 #include "PrefabFactory.h"
 #include "ComponentRegistry.h"
+#include "Game/Components/Res_DataOcean.h"
 
 #include "Assets.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_D_Camera.h"
+#include "Game/Components/C_D_Collider.h"
 #include "Game/Components/C_D_DebugName.h"
+#include "Game/Components/C_D_Health.h"
+#include "Game/Components/C_D_Input.h"
+#include "Game/Components/C_D_InterpBuffer.h"
 #include "Game/Components/C_D_MeshRenderer.h"
 #include "Game/Components/C_D_Material.h"
 #include "Game/Components/C_D_PlayerState.h"
+#include "Game/Components/C_D_CQCState.h"
+#include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_T_ItemPickup.h"
+#include "Game/Components/C_T_Player.h"
+#include "Game/Components/C_T_NavTarget.h"
 #include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Components/C_D_HoloBaitState.h"
 #include "Game/Components/C_T_RoamAI.h"
@@ -111,6 +120,99 @@ EntityID PrefabFactory::Create(
     if (!comps) return Entity::NULL_ENTITY;
 
     return EmplaceFromJson(reg, *comps, overrides);
+}
+
+/**
+ * @brief 预解析 JSON 蓝图并缓存组件 Emplace 函数指针。
+ *
+ * 执行一次 JSON 加载 + ComponentRegistry::Find 查表，
+ * 将结果缓存到 outCache，供后续 CreateFromCache 零查表调用。
+ *
+ * @param prefabJsonFile  JSON 蓝图文件名
+ * @param outCache        输出缓存列表
+ * @return true 成功，false JSON 加载失败或无 Components
+ */
+bool PrefabFactory::ResolveBlueprintCache(
+    const std::string&              prefabJsonFile,
+    std::vector<CachedEmplaceEntry>& outCache)
+{
+    ComponentRegistry::RegisterAll();
+
+    const json* doc = PrefabLoader::LoadBlueprint(prefabJsonFile);
+    if (!doc) return false;
+
+    const json* comps = GetComponents(*doc);
+    if (!comps) return false;
+
+    outCache.clear();
+    outCache.reserve(comps->size());
+    for (auto it = comps->begin(); it != comps->end(); ++it) {
+        const EmplaceFn* fn = ComponentRegistry::Find(it.key());
+        if (!fn) {
+            LOG_WARN("[PrefabFactory] ResolveBlueprintCache: unknown component: " << it.key());
+            continue;
+        }
+        CachedEmplaceEntry entry;
+        entry.fn       = *fn;
+        entry.jsonData = &it.value();
+        outCache.push_back(std::move(entry));
+    }
+    return true;
+}
+
+/**
+ * @brief 使用预缓存的函数指针创建单个实体，无查表开销。
+ *
+ * 直接遍历缓存的 {fn, jsonData} 列表调用 Emplace，
+ * 跳过 JSON 解析和 ComponentRegistry::Find。
+ *
+ * @param reg       ECS Registry
+ * @param cache     ResolveBlueprintCache 输出的缓存
+ * @param overrides 运行时覆盖参数
+ * @return 创建的实体 ID
+ */
+EntityID PrefabFactory::CreateFromCache(
+    Registry&                              reg,
+    const std::vector<CachedEmplaceEntry>& cache,
+    const RuntimeOverrides&                overrides)
+{
+    EntityID entity = reg.Create();
+    for (const auto& entry : cache) {
+        entry.fn(reg, entity, *entry.jsonData, overrides);
+    }
+    return entity;
+}
+
+/**
+ * @brief Resolve-Once 批量创建：JSON 解析和查表只做一次，循环内直接调用缓存。
+ *
+ * 1. ComponentRegistry::RegisterAll()（幂等）
+ * 2. PrefabLoader::LoadBlueprint（1 次 JSON 加载）
+ * 3. 遍历 Components key → ComponentRegistry::Find → 缓存到 vector
+ * 4. 循环 overridesList：reg.Create() + 遍历缓存直接调用 fn
+ *
+ * @param reg             ECS Registry
+ * @param prefabJsonFile  JSON 蓝图文件名
+ * @param overridesList   每个实体的运行时覆盖参数
+ * @return 创建的实体 ID 列表
+ */
+std::vector<EntityID> PrefabFactory::CreateBatch(
+    Registry&                            reg,
+    const std::string&                   prefabJsonFile,
+    const std::vector<RuntimeOverrides>& overridesList)
+{
+    std::vector<CachedEmplaceEntry> cache;
+    if (!ResolveBlueprintCache(prefabJsonFile, cache)) {
+        LOG_WARN("[PrefabFactory] CreateBatch: failed to resolve " << prefabJsonFile);
+        return {};
+    }
+
+    std::vector<EntityID> result;
+    result.reserve(overridesList.size());
+    for (const auto& ovr : overridesList) {
+        result.push_back(CreateFromCache(reg, cache, ovr));
+    }
+    return result;
 }
 
 /**
@@ -309,6 +411,77 @@ EntityID PrefabFactory::CreatePlayer(
         auto& ps = reg.Get<C_D_PlayerState>(entity);
         ps.colliderRadius = 1.0f;
         ps.colliderHalfHeight = 1.0f;
+    }
+
+    return entity;
+}
+
+/**
+ * @brief 通过玩家预制体创建“幽灵玩家”可视实体。
+ * @details 先调用 CreatePlayer 复用完整的玩家预制体搭建（模型、层级、调试名等），
+ *          保留 Transform / MeshRenderer 等渲染与层级信息，使幽灵与真实玩家在外观与
+ *          变换上完全一致。随后在同一函数调用内立即移除一组会参与输入、物理或玩法
+ *          逻辑的组件：C_T_Player、C_D_Input、C_D_PlayerState、C_D_CQCState、
+ *          C_D_Health、C_T_NavTarget、C_D_RigidBody、C_D_Collider，确保在任意系统
+ *          Tick 间隙都不会被当作可驾驶玩家或物理实体参与处理。之后保证存在
+ *          C_D_InterpBuffer，用于网络或回放数据驱动的平滑插值。最后覆盖（或补充）
+ *          C_D_Material，将材质配置为半透明混合模式、冷色调高亮轮廓与适度自发光，以
+ *          视觉上明显区分幽灵与本地实体，同时保持其严格为“只读”的纯可视 ghost 表示。
+ */
+EntityID PrefabFactory::CreateGhostPlayer(
+    Registry&   reg,
+    MeshHandle  cubeMesh,
+    Vector3     spawnPos)
+{
+    EntityID entity = CreatePlayer(reg, cubeMesh, spawnPos);
+    if (entity == Entity::NULL_ENTITY) {
+        return entity;
+    }
+
+    if (reg.Has<C_T_Player>(entity)) {
+        reg.Remove<C_T_Player>(entity);
+    }
+    if (reg.Has<C_D_Input>(entity)) {
+        reg.Remove<C_D_Input>(entity);
+    }
+    if (reg.Has<C_D_PlayerState>(entity)) {
+        reg.Remove<C_D_PlayerState>(entity);
+    }
+    if (reg.Has<C_D_CQCState>(entity)) {
+        reg.Remove<C_D_CQCState>(entity);
+    }
+    if (reg.Has<C_D_Health>(entity)) {
+        reg.Remove<C_D_Health>(entity);
+    }
+    if (reg.Has<C_T_NavTarget>(entity)) {
+        reg.Remove<C_T_NavTarget>(entity);
+    }
+    if (reg.Has<C_D_RigidBody>(entity)) {
+        reg.Remove<C_D_RigidBody>(entity);
+    }
+    if (reg.Has<C_D_Collider>(entity)) {
+        reg.Remove<C_D_Collider>(entity);
+    }
+
+    if (!reg.Has<C_D_InterpBuffer>(entity)) {
+        reg.Emplace<C_D_InterpBuffer>(entity);
+    }
+
+    if (!reg.Has<C_D_Material>(entity)) {
+        reg.Emplace<C_D_Material>(entity);
+    }
+    auto& material = reg.Get<C_D_Material>(entity);
+    material.alphaMode = AlphaMode::Blend;
+    material.baseColour = Vector4(0.25f, 0.85f, 1.0f, 0.35f);
+    material.emissiveColor = Vector3(0.2f, 0.8f, 1.0f);
+    material.emissiveStrength = 0.35f;
+    material.rimColour = Vector3(0.6f, 0.95f, 1.0f);
+    material.rimPower = 2.5f;
+    material.rimStrength = 0.85f;
+
+    if (reg.Has<C_D_DebugName>(entity)) {
+        auto& dn = reg.Get<C_D_DebugName>(entity);
+        std::snprintf(dn.name, sizeof(dn.name), "ENTITY_Ghost_Player");
     }
 
     return entity;

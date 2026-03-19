@@ -30,6 +30,7 @@
 #include "Game/Components/Res_InventoryState.h"
 #include "Core/ECS/EventBus.h"
 #include "Core/ECS/EntityID.h"
+#include "Game/Events/Evt_Audio.h"
 
 #ifdef USE_IMGUI
 #include "Game/UI/UI_ActionNotify.h"
@@ -94,7 +95,7 @@ void Sys_Item::OnDestroy(Registry& registry) {
     if (registry.has_ctx<Res_ItemInventory2>()) {
         bool isVictory = false;
         if (registry.has_ctx<Res_GameState>()) {
-            isVictory = (registry.ctx<Res_GameState>().gameOverReason == 3);
+            isVictory = (registry.ctx<Res_GameState>().gameOverReason == GameOverReason::Success);
         }
         registry.ctx<Res_ItemInventory2>().OnRoundEnd(isVictory);
         LOG_INFO("[Sys_Item] OnDestroy: round end (victory=" << isVictory << ").");
@@ -177,6 +178,10 @@ void Sys_Item::OnPickup(Registry& registry, const Evt_Item_Pickup& evt) {
     pickup.quantity -= picked;
 
     if (picked > 0) {
+        if (registry.has_ctx<EventBus*>()) {
+            auto* bus = registry.ctx<EventBus*>();
+            if (bus) bus->publish_deferred<Evt_Audio_PlaySFX>(Evt_Audio_PlaySFX{SfxId::ItemPickup});
+        }
         LOG_INFO("[Sys_Item] Player " << evt.pickerEntity
                  << " picked up " << picked << "x item " << static_cast<int>(evt.itemId)
                  << " -> carried=" << (int)slot.carriedCount);

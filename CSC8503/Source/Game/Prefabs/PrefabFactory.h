@@ -16,6 +16,11 @@
 #include "Quaternion.h"
 #include <vector>
 #include <string>
+#include <functional>
+
+namespace ECS {
+struct CachedEmplaceEntry;
+} // namespace ECS
 
 /**
  * @brief 实体预制体工厂（JSON 数据驱动 + 硬编码回退）
@@ -70,6 +75,52 @@ public:
         ECS::Registry&          reg,
         const std::string&      prefabJsonFile,
         const ECS::RuntimeOverrides& overrides = {}
+    );
+
+    /**
+     * @brief Resolve-Once 批量创建入口（高性能）
+     *
+     * 将 JSON 解析和 ComponentRegistry::Find 提前到循环外只做一次，
+     * 循环内直接调用缓存好的函数指针，避免数千次重复查表。
+     *
+     * @param reg             ECS Registry
+     * @param prefabJsonFile  JSON 蓝图文件名
+     * @param overridesList   每个实体的运行时覆盖参数列表
+     * @return 创建的实体 ID 列表（与 overridesList 一一对应）
+     */
+    static std::vector<ECS::EntityID> CreateBatch(
+        ECS::Registry&                              reg,
+        const std::string&                          prefabJsonFile,
+        const std::vector<ECS::RuntimeOverrides>&   overridesList
+    );
+
+    /**
+     * @brief 预解析 JSON 蓝图并缓存组件 Emplace 函数指针（Resolve 阶段）
+     *
+     * 供分帧创建使用：OnAwake 调用此方法缓存函数指针，
+     * OnUpdate 每帧调用 CreateFromCache 消费缓存。
+     *
+     * @param prefabJsonFile  JSON 蓝图文件名
+     * @param outCache        输出：缓存的 {EmplaceFn, json*} 列表
+     * @return true 解析成功，false 失败
+     */
+    static bool ResolveBlueprintCache(
+        const std::string&                          prefabJsonFile,
+        std::vector<struct ECS::CachedEmplaceEntry>& outCache
+    );
+
+    /**
+     * @brief 使用预缓存的函数指针创建单个实体（无查表开销）
+     *
+     * @param reg       ECS Registry
+     * @param cache     ResolveBlueprintCache 输出的缓存
+     * @param overrides 运行时覆盖参数
+     * @return 创建的实体 ID
+     */
+    static ECS::EntityID CreateFromCache(
+        ECS::Registry&                                    reg,
+        const std::vector<struct ECS::CachedEmplaceEntry>& cache,
+        const ECS::RuntimeOverrides&                       overrides
     );
 
     /**
@@ -263,6 +314,23 @@ public:
      * @return 玩家实体 ID
      */
     static ECS::EntityID CreatePlayer(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     cubeMesh,
+        NCL::Maths::Vector3 spawnPos
+    );
+
+    /**
+     * @brief 创建纯视觉幽灵玩家实体。
+     *
+     * @details
+     * 基于玩家 Prefab 创建，但会移除所有玩法/物理相关组件，仅保留渲染与插值所需数据。
+     *
+     * @param reg       ECS Registry
+     * @param cubeMesh  玩家显示用网格
+     * @param spawnPos  初始位置
+     * @return 幽灵实体 ID
+     */
+    static ECS::EntityID CreateGhostPlayer(
         ECS::Registry&      reg,
         ECS::MeshHandle     cubeMesh,
         NCL::Maths::Vector3 spawnPos

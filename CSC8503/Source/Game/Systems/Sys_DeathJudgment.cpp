@@ -25,12 +25,16 @@
 #include "Game/Components/Res_DeathConfig.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_ScoreConfig.h"
+#include "Game/Components/Res_AudioConfig.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #ifdef USE_IMGUI
 #include "Game/UI/UI_ActionNotify.h"
 #endif
 #include "Game/Events/Evt_Phys_Trigger.h"
+#include "Game/Events/Evt_Phys_Collision.h"
 #include "Game/Events/Evt_Death.h"
+#include "Game/Components/C_D_CQCState.h"
 #include "Game/Utils/Log.h"
 
 #include <algorithm>
@@ -75,6 +79,59 @@ void Sys_DeathJudgment::OnAwake(Registry& registry) {
                                      << " entered death zone " << (int)deathZone);
                         }
                     }
+                }
+            );
+
+            // 订阅刚体碰撞事件（敌人-玩家碰撞即死）
+            m_CollisionSubId = bus->subscribe<Evt_Phys_Collision>(
+                [&registry](const Evt_Phys_Collision& e) {
+                    // 判断碰撞双方哪个是玩家、哪个是敌人
+                    EntityID playerId = 0;
+                    EntityID enemyId  = 0;
+
+                    bool aIsPlayer = registry.Has<C_T_Player>(e.entity_a);
+                    bool bIsPlayer = registry.Has<C_T_Player>(e.entity_b);
+                    bool aIsEnemy  = registry.Has<C_T_Enemy>(e.entity_a);
+                    bool bIsEnemy  = registry.Has<C_T_Enemy>(e.entity_b);
+
+                    if (aIsPlayer && bIsEnemy) {
+                        playerId = e.entity_a;
+                        enemyId  = e.entity_b;
+                    } else if (bIsPlayer && aIsEnemy) {
+                        playerId = e.entity_b;
+                        enemyId  = e.entity_a;
+                    } else {
+                        return; // 不是玩家-敌人碰撞
+                    }
+
+                    // 休眠敌人跳过
+                    if (registry.Has<C_D_EnemyDormant>(enemyId)) {
+                        const auto& dormant = registry.Get<C_D_EnemyDormant>(enemyId);
+                        if (dormant.isDormant) return;
+                    }
+
+                    // 游戏已结束跳过
+                    if (registry.has_ctx<Res_GameState>() &&
+                        registry.ctx<Res_GameState>().isGameOver) return;
+
+                    if (!registry.Has<C_D_Health>(playerId)) return;
+                    auto& health = registry.Get<C_D_Health>(playerId);
+
+                    // 玩家已死或无敌跳过
+                    if (health.hp <= 0.0f) return;
+                    if (health.invTimer > 0.0f) return;
+
+                    // CQC 期间：仅免疫正在处决的目标敌人，其他敌人碰撞仍致死
+                    if (registry.Has<C_D_CQCState>(playerId)) {
+                        const auto& cqc = registry.Get<C_D_CQCState>(playerId);
+                        if (cqc.phase != CQCPhase::None && enemyId == cqc.targetEnemy) return;
+                    }
+
+                    // 碰撞即死
+                    health.hp = 0.0f;
+                    health.deathCause = DeathType::PlayerCaptured;
+                    LOG_INFO("[DeathJudgment] Player " << (int)playerId
+                             << " killed by collision with enemy " << (int)enemyId);
                 }
             );
         }
@@ -161,8 +218,14 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
 
     // ── 3. 死亡检查 ──
     // 已 GameOver 则跳过，避免每帧重复发布 Evt_Death
-    if (registry.has_ctx<Res_GameState>() && registry.ctx<Res_GameState>().isGameOver) {
-        return;
+    if (registry.has_ctx<Res_GameState>()) {
+        const auto& gs = registry.ctx<Res_GameState>();
+        if (gs.isGameOver
+            || (gs.isMultiplayer
+                && (gs.matchPhase != MatchPhase::Running
+                    || gs.localTerminalState != MultiplayerTerminalState::None))) {
+            return;
+        }
     }
     // Registry::Destroy 是延迟销毁（加入 m_PendingDestroy），
     // 帧末 ProcessPendingDestroy 才真正移除实体，不会在 view.each()
@@ -192,19 +255,31 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                     if (registry.has_ctx<Res_GameState>() && registry.has_ctx<Res_UIState>()) {
                         auto& gs = registry.ctx<Res_GameState>();
                         auto& ui = registry.ctx<Res_UIState>();
-                        gs.isGameOver       = true;
-                        gs.gameOverReason   = 2;   // OPERATOR DETECTED
-                        gs.gameOverTime     = gs.playTime;
-                        ui.activeScreen          = UIScreen::GameOver;
-                        ui.gameOverSelectedIndex  = 0;
-                        // 失败惩罚 -500（仅单人）
-                        if (!gs.isMultiplayer && !ui.failureScorePenaltyApplied) {
+                        if (gs.isMultiplayer) {
+                            gs.localTerminalState = MultiplayerTerminalState::Death;
+                            gs.localTerminalReason = ToU8(GameOverReason::Detected);
+                        } else {
+                            gs.isGameOver       = true;
+                            gs.gameOverReason   = GameOverReason::Detected;
+                            gs.gameOverTime     = gs.playTime;
+                            ui.activeScreen = UIScreen::GameOver;
+                            ui.gameOverSelectedIndex = 0;
+                        }
+                        if (registry.has_ctx<Res_AudioState>()) {
+                            auto& audio = registry.ctx<Res_AudioState>();
+                            audio.requestedBgm = BgmId::Defeat;
+                            audio.bgmOverride  = false;
+                        }
+                        // 失败惩罚 -500（挑战模式全局规则）
+                        Res_ScoreConfig defaultScoreCfg;
+                        const auto& scoreCfg = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
+                        if (!ui.failureScorePenaltyApplied) {
                             ui.failureScorePenaltyApplied = true;
-                            ui.scoreLost_failure += 500;
-                            ui.campaignScore = std::max(0, ui.campaignScore - 500);
+                            ui.scoreLost_failure += scoreCfg.penaltyCapture;
+                            ui.campaignScore = std::max(0, ui.campaignScore - scoreCfg.penaltyCapture);
 #ifdef USE_IMGUI
                             ECS::UI::PushActionNotify(registry, "MISSION", "FAILED",
-                                                      -500, ActionNotifyType::Alert);
+                                                      -scoreCfg.penaltyCapture, ActionNotifyType::Alert);
 #endif
                         }
                     }
@@ -227,17 +302,18 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
                 registry.Emplace<C_D_Dying>(entity);
                 registry.Emplace<C_D_DeathVisual>(entity);
 
-                // 击杀扣分通知 -10（仅单人）
+                // 击杀扣分通知 -10（挑战模式全局规则）
                 if (registry.has_ctx<Res_UIState>()
-                    && registry.has_ctx<Res_GameState>()
-                    && !registry.ctx<Res_GameState>().isMultiplayer) {
+                    && registry.has_ctx<Res_GameState>()) {
+                    Res_ScoreConfig defaultScoreCfg2;
+                    const auto& sc = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg2;
                     auto& uiS = registry.ctx<Res_UIState>();
-                    uiS.campaignScore = std::max(0, uiS.campaignScore - 10);
-                    uiS.scoreLost_kills += 10;
+                    uiS.campaignScore = std::max(0, uiS.campaignScore - sc.penaltyKill);
+                    uiS.scoreLost_kills += sc.penaltyKill;
                     uiS.scoreKillCount++;
 #ifdef USE_IMGUI
                     ECS::UI::PushActionNotify(registry, "KILL PENALTY", "ENEMY",
-                                              -10, ActionNotifyType::Kill);
+                                              -sc.penaltyKill, ActionNotifyType::Kill);
 #endif
                 }
             }
@@ -250,13 +326,17 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
  * @param registry ECS 注册表
  */
 void Sys_DeathJudgment::OnDestroy(Registry& registry) {
-    if (m_TriggerSubId != 0 && registry.has_ctx<EventBus*>()) {
+    if (registry.has_ctx<EventBus*>()) {
         auto* bus = registry.ctx<EventBus*>();
         if (bus) {
-            bus->unsubscribe<Evt_Phys_TriggerEnter>(m_TriggerSubId);
+            if (m_TriggerSubId != 0)
+                bus->unsubscribe<Evt_Phys_TriggerEnter>(m_TriggerSubId);
+            if (m_CollisionSubId != 0)
+                bus->unsubscribe<Evt_Phys_Collision>(m_CollisionSubId);
         }
     }
-    m_TriggerSubId = 0;
+    m_TriggerSubId   = 0;
+    m_CollisionSubId = 0;
 
     LOG_INFO("[Sys_DeathJudgment] OnDestroy");
 }

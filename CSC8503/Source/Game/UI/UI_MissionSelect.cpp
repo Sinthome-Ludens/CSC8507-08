@@ -1,6 +1,6 @@
 /**
  * @file UI_MissionSelect.cpp
- * @brief 关卡选择界面实现：两列布局（道具/武器）、键鼠导航、装备选择、DEPLOY 触发。
+ * @brief 关卡选择界面实现：三列布局（关卡/道具/武器）、键鼠导航、装备选择、DEPLOY 触发。
  *
  * @details
  * 菜单阶段 Res_ItemInventory2 不存在时，使用临时默认实例并从存档缓存
@@ -17,7 +17,8 @@
 #include <cstdio>
 #include <cstring>
 #include <iterator>
-#include "Window.h"
+#include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_ItemInventory2.h"
 #include "Game/Components/Res_ToastState.h"
@@ -30,12 +31,23 @@ using namespace NCL;
 namespace ECS::UI {
 
 // ============================================================
+// 关卡描述（顺序匹配 Res_UIState.h 的 kMapDisplayNames: 0=HangerA,1=HangerB,2=Helipad,3=Lab,4=Dock）
+// ============================================================
+static const char* kMapDescs[] = {
+    "Hanger A",
+    "Hanger B",
+    "Helipad",
+    "Underground Lab",
+    "Dock Area",
+};
+
+// ============================================================
 // RenderMissionSelect
 // ============================================================
 
 /**
- * @brief 渲染关卡选择界面（两列布局：道具 / 武器）并处理导航输入。
- * @param registry ECS 注册表（读写 Res_UIState 的 Tab/Cursor/EquippedItems/Weapons；
+ * @brief 渲染关卡选择界面（三列布局：关卡 / 道具 / 武器）并处理导航输入。
+ * @param registry ECS 注册表（读写 Res_UIState 的 missionSelectedMap/Tab/Cursor/EquippedItems/Weapons；
  *                 读 Res_ItemInventory2 库存数据，菜单阶段使用 fallback + savedStoreCount）
  * @details 键盘 A/D 切 Tab、W/S 导航、Enter 装备/选择、C 触发 DEPLOY（设置 pendingSceneRequest=StartGame）。
  *          鼠标悬浮自动高亮条目，左键点击可直接选择/装备。
@@ -43,6 +55,8 @@ namespace ECS::UI {
 void RenderMissionSelect(Registry& registry, float /*dt*/) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
+    const auto& input = registry.ctx<Res_Input>();
+    const auto& uiCfg = registry.ctx<Res_UIKeyConfig>();
 
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
@@ -127,16 +141,15 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     }
 
     // ── Keyboard navigation ────────────────────────────────
-    const Keyboard* kb = Window::GetKeyboard();
-    constexpr int kTabCount = 2;
-    int tabItemCounts[kTabCount] = { gadgetCount, weaponCount };
+    constexpr int kTabCount = 3;
+    int tabItemCounts[kTabCount] = { kMapCount, gadgetCount, weaponCount };
 
-    if (kb) {
+    {
         // A/D: switch tab
-        if (kb->KeyPressed(KeyCodes::A) || kb->KeyPressed(KeyCodes::LEFT)) {
+        if (input.keyPressed[uiCfg.keyMenuLeft] || input.keyPressed[uiCfg.keyMenuLeftAlt]) {
             ui.missionSelectedTab = (ui.missionSelectedTab - 1 + kTabCount) % kTabCount;
         }
-        if (kb->KeyPressed(KeyCodes::D) || kb->KeyPressed(KeyCodes::RIGHT)) {
+        if (input.keyPressed[uiCfg.keyMenuRight] || input.keyPressed[uiCfg.keyMenuRightAlt]) {
             ui.missionSelectedTab = (ui.missionSelectedTab + 1) % kTabCount;
         }
 
@@ -144,34 +157,33 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
         int maxIdx = tabItemCounts[curTab];
         if (maxIdx > 0) {
             // W/S: navigate within tab
-            if (kb->KeyPressed(KeyCodes::W) || kb->KeyPressed(KeyCodes::UP)) {
+            if (input.keyPressed[uiCfg.keyMenuUp] || input.keyPressed[uiCfg.keyMenuUpAlt]) {
                 ui.missionCursorPerTab[curTab] =
                     (ui.missionCursorPerTab[curTab] - 1 + maxIdx) % maxIdx;
             }
-            if (kb->KeyPressed(KeyCodes::S) || kb->KeyPressed(KeyCodes::DOWN)) {
+            if (input.keyPressed[uiCfg.keyMenuDown] || input.keyPressed[uiCfg.keyMenuDownAlt]) {
                 ui.missionCursorPerTab[curTab] =
                     (ui.missionCursorPerTab[curTab] + 1) % maxIdx;
             }
         }
     }
 
-    // ── Layout: two columns ───────────────────────────────
+    // ── Layout: three columns ──────────────────────────────
     float padX   = 40.0f;
     float gapX   = 20.0f;
-    float usableW = vpSize.x - padX * 2 - gapX * 1;
-    float colW   = usableW / 2.0f;
+    float usableW = vpSize.x - padX * 2 - gapX * 2;
+    float colW   = usableW / 3.0f;
     float col0X  = vpPos.x + padX;
     float col1X  = col0X + colW + gapX;
+    float col2X  = col1X + colW + gapX;
     float startY = headerLineY + 15.0f;
     float entryH = 50.0f;
 
     ImFont* termFont  = UITheme::GetFont_Terminal();
     ImFont* smallFont = UITheme::GetFont_Small();
-    const Mouse* mouse = Window::GetMouse();
-
     // ── Tab headers ────────────────────────────────────────
-    const char* tabLabels[] = { "ITEMS (MAX 2)", "WEAPONS (MAX 2)" };
-    float tabXs[] = { col0X, col1X };
+    const char* tabLabels[] = { "MAP", "ITEMS (MAX 2)", "WEAPONS (MAX 2)" };
+    float tabXs[] = { col0X, col1X, col2X };
 
     if (termFont) ImGui::PushFont(termFont);
     for (int t = 0; t < kTabCount; ++t) {
@@ -212,10 +224,13 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
         return c;
     };
 
-    // ── Column divider ─────────────────────────────────────
+    // ── Column dividers ────────────────────────────────────
     float divH = entryStartY + 5 * entryH;
     draw->AddLine(ImVec2(col1X - gapX * 0.5f, startY),
                   ImVec2(col1X - gapX * 0.5f, divH),
+                  IM_COL32(200, 200, 200, 80), 1.0f);
+    draw->AddLine(ImVec2(col2X - gapX * 0.5f, startY),
+                  ImVec2(col2X - gapX * 0.5f, divH),
                   IM_COL32(200, 200, 200, 80), 1.0f);
 
     // ── Draw column entries ────────────────────────────────
@@ -232,12 +247,13 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             bool equipped = false;
             if (isGadgetCol)  equipped = isItemEquipped(i);
             if (isWeaponCol)  equipped = isWeaponEquipped(i);
+            if (tabIdx == 0)  equipped = (i == ui.missionSelectedMap);
 
             ImVec2 itemMin(colX - 5.0f, itemY - 4.0f);
             ImVec2 itemMax(colX + colW, itemY + entryH - 8.0f);
 
             // Mouse hover
-            if (mouse) {
+            {
                 ImVec2 mp = ImGui::GetMousePos();
                 if (mp.x >= itemMin.x && mp.x <= itemMax.x &&
                     mp.y >= itemMin.y && mp.y <= itemMax.y) {
@@ -265,8 +281,10 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             if (termFont) ImGui::PushFont(termFont);
             const char* displayName = names ? names[i] : (slots ? slots[i].name : "");
             char nameBuf[64];
-            if (equipped) {
+            if (equipped && tabIdx != 0) {
                 snprintf(nameBuf, sizeof(nameBuf), "> %s [EQUIPPED]", displayName);
+            } else if (equipped && tabIdx == 0) {
+                snprintf(nameBuf, sizeof(nameBuf), "> %s [SELECTED]", displayName);
             } else {
                 snprintf(nameBuf, sizeof(nameBuf), isCursor ? "> %s" : "  %s", displayName);
             }
@@ -286,7 +304,10 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
         }
     };
 
-    // Col 0: Gadgets
+    // Col 0: Maps (use kMapDisplayNames from Res_UIState.h)
+    drawEntries(0, col0X, kMapCount, kMapDisplayNames, kMapDescs, false, false, nullptr);
+
+    // Col 1: Gadgets
     {
         const char* gNames[Res_ItemInventory2::kItemCount] = {};
         const char* gDescs[Res_ItemInventory2::kItemCount] = {};
@@ -294,10 +315,10 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             gNames[i] = gadgets[i].name;
             gDescs[i] = gadgets[i].desc;
         }
-        drawEntries(0, col0X, gadgetCount, gNames, gDescs, true, false, gadgets);
+        drawEntries(1, col1X, gadgetCount, gNames, gDescs, true, false, gadgets);
     }
 
-    // Col 1: Weapons
+    // Col 2: Weapons
     if (weaponCount > 0) {
         const char* wNames[Res_ItemInventory2::kItemCount] = {};
         const char* wDescs[Res_ItemInventory2::kItemCount] = {};
@@ -305,26 +326,26 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             wNames[i] = weapons[i].name;
             wDescs[i] = weapons[i].desc;
         }
-        drawEntries(1, col1X, weaponCount, wNames, wDescs, false, true, weapons);
+        drawEntries(2, col2X, weaponCount, wNames, wDescs, false, true, weapons);
     } else {
         if (smallFont) ImGui::PushFont(smallFont);
-        draw->AddText(ImVec2(col1X, entryStartY + 10.0f),
+        draw->AddText(ImVec2(col2X, entryStartY + 10.0f),
             IM_COL32(16, 13, 10, 120),
             "FIND WEAPONS ON THE MAP TO UNLOCK");
         if (smallFont) ImGui::PopFont();
     }
 
     // ── Enter key: equip/unequip or select map ─────────────
-    bool enterPressed = kb && (kb->KeyPressed(KeyCodes::RETURN) || kb->KeyPressed(KeyCodes::SPACE));
-    bool mouseClicked = mouse && mouse->ButtonPressed(NCL::MouseButtons::Left);
+    bool enterPressed = input.keyPressed[uiCfg.keyConfirm] || input.keyPressed[uiCfg.keyConfirmAlt];
+    bool mouseClicked = input.mouseButtonPressed[uiCfg.mouseConfirm];
 
     // Determine clicked tab/index from mouse
     int clickedTab = -1;
     int clickedIdx = -1;
     if (mouseClicked) {
         ImVec2 mp = ImGui::GetMousePos();
-        float tabColXs[] = { col0X, col1X };
-        int   tabCounts[] = { gadgetCount, weaponCount };
+        float tabColXs[] = { col0X, col1X, col2X };
+        int   tabCounts[] = { kMapCount, gadgetCount, weaponCount };
         for (int t = 0; t < kTabCount; ++t) {
             for (int i = 0; i < tabCounts[t]; ++i) {
                 float itemY = entryStartY + i * entryH;
@@ -344,6 +365,9 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     // Process selection
     auto processSelect = [&](int tab, int idx) {
         if (tab == 0) {
+            // Map select
+            ui.missionSelectedMap = static_cast<int8_t>(idx);
+        } else if (tab == 1) {
             // Gadget equip/unequip
             if (isItemEquipped(idx)) {
                 if (ui.missionEquippedItems[0] == idx) ui.missionEquippedItems[0] = -1;
@@ -354,7 +378,7 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
             } else {
                 PushToast(registry, "MAX 2 ITEMS", ToastType::Warning);
             }
-        } else if (tab == 1) {
+        } else if (tab == 2) {
             // Weapon equip/unequip
             if (isWeaponEquipped(idx)) {
                 if (ui.missionEquippedWeapons[0] == idx) ui.missionEquippedWeapons[0] = -1;
@@ -388,7 +412,7 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     ImVec2 btnMax(btnX + btnW, btnY + btnH);
 
     bool btnHovered = false;
-    if (mouse) {
+    {
         ImVec2 mp = ImGui::GetMousePos();
         btnHovered = (mp.x >= btnMin.x && mp.x <= btnMax.x &&
                       mp.y >= btnMin.y && mp.y <= btnMax.y);
@@ -408,17 +432,18 @@ void RenderMissionSelect(Registry& registry, float /*dt*/) {
     if (termFont) ImGui::PopFont();
 
     bool btnClicked = false;
-    if (mouse && mouse->ButtonPressed(NCL::MouseButtons::Left) && btnHovered) {
+    if (input.mouseButtonPressed[uiCfg.mouseConfirm] && btnHovered) {
         btnClicked = true;
     }
-    if (kb && kb->KeyPressed(KeyCodes::C)) {
+    if (input.keyPressed[uiCfg.keyDeploy]) {
         btnClicked = true;
     }
 
     if (btnClicked) {
         // 装备同步在 Scene_PhysicsTest::OnEnter 中执行（菜单阶段无 Res_GameState）
         ui.pendingSceneRequest = SceneRequest::StartGame;
-        LOG_INFO("[UI_MissionSelect] DEPLOY -> StartGame");
+        LOG_INFO("[UI_MissionSelect] DEPLOY -> StartGame (map="
+                 << (int)ui.missionSelectedMap << ")");
     }
 
     // ── Bottom hint ────────────────────────────────────────

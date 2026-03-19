@@ -8,6 +8,7 @@
 #include "Sys_Movement.h"
 #include "Game/Utils/PauseGuard.h"
 
+#include "Game/Components/Res_MovementConfig.h"
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_RigidBody.h"
 #include "Game/Components/C_D_PlayerState.h"
@@ -33,6 +34,9 @@ void Sys_Movement::OnUpdate(Registry& registry, float /*dt*/) {
     auto* physics = registry.ctx<Sys_Physics*>();
     if (!physics) return;
 
+    Res_MovementConfig defaultMovCfg;
+    const auto& movCfg = registry.has_ctx<Res_MovementConfig>() ? registry.ctx<Res_MovementConfig>() : defaultMovCfg;
+
     registry.view<C_D_Input, C_D_RigidBody, C_T_Player, C_D_PlayerState, C_D_CQCState>().each(
         [&](EntityID id, C_D_Input& input, C_D_RigidBody& rb,
             C_T_Player&, C_D_PlayerState& ps, C_D_CQCState& cqc) {
@@ -48,12 +52,12 @@ void Sys_Movement::OnUpdate(Registry& registry, float /*dt*/) {
             Vector3 vel = physics->GetLinearVelocity(id);
 
             // 从 Sys_StealthMetrics / Sys_PlayerStance 已计算好的 PlayerState 读取
-            float maxSpeed = BASE_SPEED;
-            float force    = BASE_FORCE;
+            float maxSpeed = movCfg.baseSpeed;
+            float force    = movCfg.baseForce;
 
             if (ps.isSprinting) {
-                maxSpeed *= RUN_SPEED_MUL;
-                force    *= RUN_SPEED_MUL;
+                maxSpeed *= movCfg.runSpeedMul;
+                force    *= movCfg.runSpeedMul;
             }
 
             maxSpeed *= ps.moveSpeedMul;

@@ -1,0 +1,11 @@
+{
+  "asset":{"version":"2.0","generator":"Unity MultiObjectMapAndNavMeshExporter"},
+  "scene":0,
+  "scenes":[{"name":"Scene","nodes":[0]}],
+  "nodes":[{"name":"Lab","children":[1]},{"name":"map","mesh":0}],
+  "meshes":[{"name":"map","primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3,"material":0}]}],
+  "accessors":[{"bufferView":0,"componentType":5126,"count":696,"type":"VEC3","min":[-31.0000381,-0.5,-31.0000381],"max":[31.0000362,8,31.0000381]},{"bufferView":1,"componentType":5126,"count":696,"type":"VEC3"},{"bufferView":2,"componentType":5126,"count":696,"type":"VEC2"},{"bufferView":3,"componentType":5125,"count":1044,"type":"SCALAR"}],
+  "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":8352,"target":34962},{"buffer":0,"byteOffset":8352,"byteLength":8352,"target":34962},{"buffer":0,"byteOffset":16704,"byteLength":5568,"target":34962},{"buffer":0,"byteOffset":22272,"byteLength":4176,"target":34963}],
+  "buffers":[{"uri":"Lab.bin","byteLength":26448}],
+  "materials":[{"name":"map_mat","pbrMetallicRoughness":{"baseColorFactor":[1.0000,1.0000,1.0000,1.0000],"metallicFactor":0,"roughnessFactor":1}}]
+}

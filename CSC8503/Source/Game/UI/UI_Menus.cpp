@@ -14,6 +14,7 @@
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 
 using namespace NCL;
 
@@ -250,9 +251,8 @@ void RenderSplashScreen(Registry& registry, float dt) {
         }
 
         if (!anyInput) {
-            if (input.mouseButtonPressed[NCL::MouseButtons::Left] ||
-                input.mouseButtonPressed[NCL::MouseButtons::Right]) {
-                anyInput = true;
+            for (size_t m = 0; m < std::size(input.mouseButtonPressed); ++m) {
+                if (input.mouseButtonPressed[m]) { anyInput = true; break; }
             }
         }
 
@@ -345,11 +345,13 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
 
     // Keyboard navigation
     const auto& input = registry.ctx<Res_Input>();
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
     {
-        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP]) {
+        if (input.keyPressed[uiCfg.keyMenuUp] || input.keyPressed[uiCfg.keyMenuUpAlt]) {
             ui.menuSelectedIndex = (ui.menuSelectedIndex - 1 + kMenuItemCount) % kMenuItemCount;
         }
-        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN]) {
+        if (input.keyPressed[uiCfg.keyMenuDown] || input.keyPressed[uiCfg.keyMenuDownAlt]) {
             ui.menuSelectedIndex = (ui.menuSelectedIndex + 1) % kMenuItemCount;
         }
     }
@@ -369,10 +371,10 @@ void RenderMainMenu(Registry& registry, float /*dt*/) {
 
     // Confirm detection
     int8_t confirmedIndex = -1;
-    if (input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE]) {
+    if (input.keyPressed[uiCfg.keyConfirm] || input.keyPressed[uiCfg.keyConfirmAlt]) {
         confirmedIndex = ui.menuSelectedIndex;
     }
-    if (input.mouseButtonPressed[NCL::MouseButtons::Left]) {
+    if (input.mouseButtonPressed[uiCfg.mouseConfirm]) {
         ImVec2 mousePos = ImGui::GetMousePos();
         for (int i = 0; i < kMenuItemCount; ++i) {
             ImVec2 itemMin(vpPos.x + panelPadX - 5.0f, menuStartY + i * menuItemH - 2.0f);
@@ -717,11 +719,13 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
 
     // Keyboard navigation
     const auto& input = registry.ctx<Res_Input>();
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
     {
-        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP]) {
+        if (input.keyPressed[uiCfg.keyMenuUp] || input.keyPressed[uiCfg.keyMenuUpAlt]) {
             ui.pauseSelectedIndex = (ui.pauseSelectedIndex - 1 + kPauseItemCount) % kPauseItemCount;
         }
-        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN]) {
+        if (input.keyPressed[uiCfg.keyMenuDown] || input.keyPressed[uiCfg.keyMenuDownAlt]) {
             ui.pauseSelectedIndex = (ui.pauseSelectedIndex + 1) % kPauseItemCount;
         }
     }
@@ -741,10 +745,10 @@ void RenderPauseMenu(Registry& registry, float /*dt*/) {
 
     // Confirm detection
     int8_t confirmedIndex = -1;
-    if (input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE]) {
+    if (input.keyPressed[uiCfg.keyConfirm] || input.keyPressed[uiCfg.keyConfirmAlt]) {
         confirmedIndex = ui.pauseSelectedIndex;
     }
-    if (input.mouseButtonPressed[NCL::MouseButtons::Left]) {
+    if (input.mouseButtonPressed[uiCfg.mouseConfirm]) {
         ImVec2 mousePos = ImGui::GetMousePos();
         for (int i = 0; i < kPauseItemCount; ++i) {
             ImVec2 itemMin(panelX + 30.0f, menuStartY + i * menuItemH - 2.0f);

@@ -9,7 +9,7 @@
  *
  * **Handle** 是资源的唯一标识符（`uint32_t`），组件只存储 Handle 而非裸指针：
  *
- * - **MeshHandle**：指向 `OGLMesh*`
+ * - **MeshHandle**：指向 `Mesh*`（渲染后端无关的基类指针）
  * - **TextureHandle**：指向 `OGLTexture*`
  * - **ShaderHandle**：指向 `OGLShader*`
  *
@@ -54,7 +54,7 @@
  * | 方法 | 作用 |
  * |------|------|
  * | `LoadMesh(path)` | 加载网格，返回 Handle |
- * | `GetMesh(handle)` | 解析 Handle 为 OGLMesh* |
+ * | `GetMesh(handle)` | 解析 Handle 为 Mesh* |
  * | `ReleaseMesh(handle)` | 减少引用计数 |
  * | `UnloadUnused()` | 卸载所有引用计数为 0 的资源 |
  * | `Clear()` | 清空所有缓存（场景切换时调用） |
@@ -68,7 +68,7 @@
  * registry.Emplace<C_D_MeshRenderer>(entity, orcMesh, 0);
  *
  * // 在 Sys_Render 中解析 Handle
- * OGLMesh* mesh = assetMgr.GetMesh(orcMesh); // 快速 O(1) 查找
+ * Mesh* mesh = assetMgr.GetMesh(orcMesh); // 快速 O(1) 查找
  * renderer->DrawMesh(mesh, transform);
  * @endcode
  *
@@ -95,12 +95,15 @@
 #include <unordered_map>
 #include <string>
 #include <memory>
+#include <functional>
+#include <vector>
+#include "Vector.h"
 
 // 前向声明 NCL 类型（避免头文件循环依赖）
 namespace NCL {
     class MeshGeometry;
     namespace Rendering {
-        class OGLMesh;
+        class Mesh;
         class OGLTexture;
         class OGLShader;
         class MeshAnimation;
@@ -157,11 +160,22 @@ public:
     MeshHandle LoadMesh(const std::string& path);
 
     /**
-     * @brief 解析 MeshHandle 为实际的 OGLMesh 指针。
-     * @param handle 目标 Handle，若为 0 则返回默认立方体
-     * @return OGLMesh 指针（非空，失败时返回默认资源）
+     * @brief 加载碰撞几何体（统一入口，内部按格式自动分派）。
+     * @param path 文件路径（支持 .gltf/.glb/.obj/.fbx 等格式）
+     * @param outVerts 输出顶点
+     * @param outIndices 输出索引
+     * @return true 如果成功加载且顶点非空
      */
-    NCL::Rendering::OGLMesh* GetMesh(MeshHandle handle);
+    bool LoadCollisionGeometry(const std::string& path,
+                               std::vector<NCL::Maths::Vector3>& outVerts,
+                               std::vector<int>& outIndices);
+
+    /**
+     * @brief 解析 MeshHandle 为实际的 Mesh 基类指针（渲染后端无关）。
+     * @param handle 目标 Handle，若为 0 则返回默认立方体
+     * @return Mesh 指针（非空，失败时返回默认资源）
+     */
+    NCL::Rendering::Mesh* GetMesh(MeshHandle handle);
 
     /**
      * @brief 减少网格资源的引用计数。
@@ -228,7 +242,7 @@ public:
      * @return AnimHandle，若加载失败则返回 0（无效）
      */
     AnimHandle LoadAnimation(const std::string& path,
-                             NCL::Rendering::OGLMesh* meshToFill = nullptr);
+                             NCL::Rendering::Mesh* meshToFill = nullptr);
 
     /**
      * @brief 解析 AnimHandle 为实际的 MeshAnimation 指针。
@@ -241,13 +255,31 @@ private:
     AssetManager() = default;
     ~AssetManager();
 
+    // ── Mesh 工厂注入（渲染后端解耦）────────────────────────
+public:
+    /// @brief Mesh 工厂函数类型：返回具体渲染后端的 Mesh 子类实例
+    using MeshFactory = std::function<NCL::Rendering::Mesh*()>;
+
     /**
-     * @brief 检查文件扩展名是否为 Assimp 支持的格式
-     * @param path 文件路径
-     * @return true 如果是 Assimp 格式（.obj, .fbx, .gltf, .dae, .blend 等）
+     * @brief 注入 Mesh 工厂函数，决定运行时创建哪种 Mesh 子类。
+     * @param factory 工厂函数，如 `[]() -> Mesh* { return new OGLMesh(); }`
+     * @details 必须在 Init() 之前调用。未设置时 Init() 将断言失败。
+     */
+    void SetMeshFactory(MeshFactory factory);
+
+private:
+    /**
+     * @brief 检查文件扩展名是否为 Assimp 支持的格式（.obj, .fbx, .dae, .blend 等）
+     * @note .gltf/.glb 不在此列表中 — 它们由 GLTFLoader 处理
      */
     static bool IsAssimpFormat(const std::string& path);
-
+    static bool IsGltfFormat(const std::string& path);
+    NCL::Rendering::Mesh* LoadMeshViaGLTF(const std::string& fullPath);
+    bool LoadCollisionFromGLTF(const std::string& fullPath,
+                               std::vector<NCL::Maths::Vector3>& outVerts,
+                               std::vector<int>& outIndices);
+    static bool s_GLTFInitialized;
+    void EnsureGLTFInitialized();
     /// @brief 资源条目，包含资源指针和引用计数
     template<typename T>
     struct ResourceEntry {
@@ -255,7 +287,8 @@ private:
         uint32_t refCount = 0;
     };
 
-    std::unordered_map<MeshHandle, ResourceEntry<NCL::Rendering::OGLMesh>>    m_MeshCache;
+    MeshFactory m_MeshFactory; ///< 渲染后端 Mesh 工厂（由 SetMeshFactory 注入）
+    std::unordered_map<MeshHandle, ResourceEntry<NCL::Rendering::Mesh>>    m_MeshCache;
     std::unordered_map<TextureHandle, ResourceEntry<NCL::Rendering::OGLTexture>> m_TextureCache;
     std::unordered_map<std::string, MeshHandle>    m_PathToMeshHandle;    // 路径 -> Handle 映射
     std::unordered_map<std::string, TextureHandle> m_PathToTextureHandle; // 路径 -> Handle 映射
@@ -276,9 +309,9 @@ private:
 
     /**
      * @brief 创建默认立方体网格。
-     * @return OGLMesh 指针（1x1x1 单位立方体）
+     * @return Mesh 指针（1x1x1 单位立方体，通过 MeshFactory 创建）
      */
-    NCL::Rendering::OGLMesh* CreateDefaultMesh();
+    NCL::Rendering::Mesh* CreateDefaultMesh();
 
     /**
      * @brief 创建 1×1 单色 RGBA8 纹理。

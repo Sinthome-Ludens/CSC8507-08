@@ -14,6 +14,7 @@
 #include "Game/UI/UITheme.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_UIKeyConfig.h"
 #include "Keyboard.h"
 #include "Mouse.h"
 
@@ -43,6 +44,9 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     auto& ui = registry.ctx<Res_UIState>();
     const auto& input = registry.ctx<Res_Input>();
 
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
+
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     const ImVec2 vpPos  = viewport->Pos;
     const ImVec2 vpSize = viewport->Size;
@@ -64,7 +68,7 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float cx = vpPos.x + vpSize.x * 0.5f;
 
     // Get game data
-    uint8_t reason = 0;
+    GameOverReason reason = GameOverReason::None;
     float alertLevel = 0.0f;
     float alertMax = 150.0f;
     float playTime = 0.0f;
@@ -122,17 +126,17 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
         }
     } else {
         switch (reason) {
-            case 1: // Countdown expired
+            case GameOverReason::Countdown:
                 resultTitle    = "MISSION FAILED";
                 resultSubtitle = "COUNTDOWN EXPIRED";
                 titleColor     = IM_COL32(220, 60, 40, 255);
                 break;
-            case 2: // Detected
+            case GameOverReason::Detected:
                 resultTitle    = "MISSION FAILED";
                 resultSubtitle = "OPERATOR DETECTED";
                 titleColor     = IM_COL32(220, 60, 40, 255);
                 break;
-            case 3: // Success
+            case GameOverReason::Success:
                 resultTitle    = "MISSION COMPLETE";
                 resultSubtitle = "ALL OBJECTIVES ACHIEVED";
                 titleColor     = IM_COL32(252, 111, 41, 255);
@@ -310,10 +314,10 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     float menuItemH  = 38.0f;
 
     {
-        if (input.keyPressed[KeyCodes::W] || input.keyPressed[KeyCodes::UP]) {
+        if (input.keyPressed[uiCfg.keyMenuUp] || input.keyPressed[uiCfg.keyMenuUpAlt]) {
             ui.gameOverSelectedIndex = (ui.gameOverSelectedIndex - 1 + kGameOverItemCount) % kGameOverItemCount;
         }
-        if (input.keyPressed[KeyCodes::S] || input.keyPressed[KeyCodes::DOWN]) {
+        if (input.keyPressed[uiCfg.keyMenuDown] || input.keyPressed[uiCfg.keyMenuDownAlt]) {
             ui.gameOverSelectedIndex = (ui.gameOverSelectedIndex + 1) % kGameOverItemCount;
         }
     }
@@ -334,10 +338,10 @@ void RenderGameOverScreen(Registry& registry, float /*dt*/) {
     }
 
     int8_t confirmedIndex = -1;
-    if (input.keyPressed[KeyCodes::RETURN] || input.keyPressed[KeyCodes::SPACE]) {
+    if (input.keyPressed[uiCfg.keyConfirm] || input.keyPressed[uiCfg.keyConfirmAlt]) {
         confirmedIndex = ui.gameOverSelectedIndex;
     }
-    if (input.mouseButtonPressed[NCL::MouseButtons::Left]) {
+    if (input.mouseButtonPressed[uiCfg.mouseConfirm]) {
         ImVec2 mousePos = ImGui::GetMousePos();
         for (int i = 0; i < kGameOverItemCount; ++i) {
             ImVec2 itemMin(itemStartX, menuStartY + i * menuItemH - 2.0f);

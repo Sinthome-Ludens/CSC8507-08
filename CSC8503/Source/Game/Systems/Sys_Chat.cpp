@@ -16,6 +16,7 @@
 #include "Window.h"
 #include "Assets.h"
 #include "Game/Components/Res_Input.h"
+#include "Game/Components/Res_InputConfig.h"
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/StratagemTable.h"
@@ -23,6 +24,8 @@
 #include "Game/Components/Res_DialogueData.h"
 #include "Game/Utils/DialogueLoader.h"
 #include "Game/Utils/Log.h"
+#include "Game/Events/Evt_Audio.h"
+#include "Core/ECS/EventBus.h"
 
 #include <algorithm>
 #include <cstring>
@@ -359,14 +362,23 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
     const auto& input = registry.ctx<Res_Input>();
     int8_t confirmedReply = -1;
 
+    Res_InputConfig defaultCfg;
+    const auto& cfg = registry.has_ctx<Res_InputConfig>() ? registry.ctx<Res_InputConfig>() : defaultCfg;
+
     if (chat.replyCount > 0 && chat.dirInputActive) {
         DirKey pressed = DirKey::Up;
         bool hasPress = false;
-        if      (input.keyPressed[KeyCodes::UP])    { pressed = DirKey::Up;    hasPress = true; }
-        else if (input.keyPressed[KeyCodes::DOWN])  { pressed = DirKey::Down;  hasPress = true; }
-        else if (input.keyPressed[KeyCodes::LEFT])  { pressed = DirKey::Left;  hasPress = true; }
-        else if (input.keyPressed[KeyCodes::RIGHT]) { pressed = DirKey::Right; hasPress = true; }
+        if      (input.keyPressed[cfg.keyChatUp])    { pressed = DirKey::Up;    hasPress = true; }
+        else if (input.keyPressed[cfg.keyChatDown])  { pressed = DirKey::Down;  hasPress = true; }
+        else if (input.keyPressed[cfg.keyChatLeft])  { pressed = DirKey::Left;  hasPress = true; }
+        else if (input.keyPressed[cfg.keyChatRight]) { pressed = DirKey::Right; hasPress = true; }
 
+        if (hasPress) {
+            if (registry.has_ctx<EventBus*>()) {
+                auto* bus = registry.ctx<EventBus*>();
+                if (bus) bus->publish_deferred<Evt_Audio_PlaySFX>(Evt_Audio_PlaySFX{SfxId::UIClick});
+            }
+        }
         if (hasPress && chat.inputBufferLen < Res_ChatState::kInputBufferSize) {
             chat.inputBuffer[chat.inputBufferLen++] = pressed;
 
@@ -438,6 +450,10 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
         chat.replyTimer -= dt;
         if (chat.replyTimer <= 0.0f) {
             ChatState_PushMessage(chat, "SYSTEM", "Response timeout — alert increased", 0, true);
+            if (registry.has_ctx<EventBus*>()) {
+                auto* bus = registry.ctx<EventBus*>();
+                if (bus) bus->publish_deferred<Evt_Audio_PlaySFX>(Evt_Audio_PlaySFX{SfxId::DialogueTimeout});
+            }
             if (registry.has_ctx<Res_GameState>()) {
                 auto& gs = registry.ctx<Res_GameState>();
                 gs.alertLevel = std::min(gs.alertMax, gs.alertLevel + 15.0f);
@@ -484,6 +500,10 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
                 bool isPlayerLine = (std::strcmp(speaker, "YOU") == 0);
                 ChatState_PushMessage(chat, speaker, node->npcMessage,
                                       isPlayerLine ? 1 : 2, false);
+                if (registry.has_ctx<EventBus*>()) {
+                    auto* bus = registry.ctx<EventBus*>();
+                    if (bus) bus->publish_deferred<Evt_Audio_PlaySFX>(Evt_Audio_PlaySFX{SfxId::DialoguePopup});
+                }
 
                 // Apply node-level alertDelta when displayed
                 if (registry.has_ctx<Res_GameState>() && node->alertDelta != 0.0f) {

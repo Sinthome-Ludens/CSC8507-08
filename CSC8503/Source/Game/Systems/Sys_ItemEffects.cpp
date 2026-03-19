@@ -33,6 +33,9 @@
 #include "Game/Components/Res_RadarState.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #include "Game/Events/Evt_Item_Use.h"
+#include "Game/Events/Evt_Audio.h"
+#include "Game/Events/Evt_Death.h"
+#include "Game/Components/Res_ItemInventory2.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
@@ -47,6 +50,7 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_MinimapState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_ScoreConfig.h"
 #ifdef USE_IMGUI
 #include "Game/UI/UI_ActionNotify.h"
 #endif
@@ -83,17 +87,27 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
                         };
                         const char* usedName = (static_cast<uint8_t>(evt.itemId) < static_cast<uint8_t>(ItemID::Count))
                             ? kItemNames[static_cast<uint8_t>(evt.itemId)] : "ITEM";
+                        Res_ScoreConfig defaultScoreCfg;
+                        const auto& sc = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
 #ifdef USE_IMGUI
                         ECS::UI::PushActionNotify(registry, "USED", usedName,
-                                                  -5, ActionNotifyType::Alert);
+                                                  -sc.penaltyItemUse, ActionNotifyType::Alert);
 #endif
                         if (registry.has_ctx<Res_UIState>()
-                            && registry.has_ctx<Res_GameState>()
-                            && !registry.ctx<Res_GameState>().isMultiplayer) {
+                            && registry.has_ctx<Res_GameState>()) {
                             auto& uiS = registry.ctx<Res_UIState>();
-                            uiS.campaignScore = std::max(0, uiS.campaignScore - 5);
-                            uiS.scoreLost_items += 5;
+                            uiS.campaignScore = std::max(0, uiS.campaignScore - sc.penaltyItemUse);
+                            uiS.scoreLost_items += sc.penaltyItemUse;
                             uiS.scoreItemUseCount++;
+                        }
+                    }
+                    // SFX: 道具使用（通过 ItemType 判断，不硬编码 ItemID）
+                    if (registry.has_ctx<EventBus*>() && registry.has_ctx<Res_ItemInventory2>()) {
+                        auto* audioBus = registry.ctx<EventBus*>();
+                        if (audioBus) {
+                            bool isWeapon = registry.ctx<Res_ItemInventory2>().Get(evt.itemId).itemType == ItemType::Weapon;
+                            SfxId sfx = isWeapon ? SfxId::WeaponUse : SfxId::ItemUse;
+                            audioBus->publish_deferred<Evt_Audio_PlaySFX>(Evt_Audio_PlaySFX{sfx});
                         }
                     }
                     switch (evt.itemId) {
@@ -297,10 +311,16 @@ void Sys_ItemEffects::EffectTargetStrike(Registry& registry, const Evt_Item_Use&
         if (!registry.Has<C_D_Dying>(target)) {
             registry.Emplace<C_D_Dying>(target);
             registry.Emplace<C_D_DeathVisual>(target);
+            if (registry.has_ctx<EventBus*>()) {
+                auto* deathBus = registry.ctx<EventBus*>();
+                if (deathBus) { Evt_Death de{}; de.entity = target; de.deathType = DeathType::EnemyHpZero; deathBus->publish_deferred(de); }
+            }
             if (registry.has_ctx<Res_UIState>()) {
+                Res_ScoreConfig defaultScoreCfg2;
+                const auto& sc2 = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg2;
                 auto& uiS = registry.ctx<Res_UIState>();
-                uiS.campaignScore = std::max(0, uiS.campaignScore - 10);
-                uiS.scoreLost_kills += 10;
+                uiS.campaignScore = std::max(0, uiS.campaignScore - sc2.penaltyKill);
+                uiS.scoreLost_kills += sc2.penaltyKill;
                 uiS.scoreKillCount++;
             }
         }
@@ -415,17 +435,23 @@ void Sys_ItemEffects::UpdateRoamAI(Registry& registry, float dt) {
                             }
                             registry.Emplace<C_D_Dying>(eid);
                             registry.Emplace<C_D_DeathVisual>(eid);
+                            if (registry.has_ctx<EventBus*>()) {
+                                auto* deathBus = registry.ctx<EventBus*>();
+                                if (deathBus) { Evt_Death de{}; de.entity = eid; de.deathType = DeathType::EnemyHpZero; deathBus->publish_deferred(de); }
+                            }
 
                             if (registry.has_ctx<Res_UIState>()) {
+                                Res_ScoreConfig defaultScoreCfg3;
+                                const auto& sc3 = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg3;
                                 auto& uiS = registry.ctx<Res_UIState>();
-                                uiS.campaignScore = std::max(0, uiS.campaignScore - 10);
-                                uiS.scoreLost_kills += 10;
+                                uiS.campaignScore = std::max(0, uiS.campaignScore - sc3.penaltyKill);
+                                uiS.scoreLost_kills += sc3.penaltyKill;
                                 uiS.scoreKillCount++;
-                            }
 #ifdef USE_IMGUI
-                            ECS::UI::PushActionNotify(registry, "KILL PENALTY", "ROAM AI",
-                                                      -10, ActionNotifyType::Kill);
+                                ECS::UI::PushActionNotify(registry, "KILL PENALTY", "ROAM AI",
+                                                          -sc3.penaltyKill, ActionNotifyType::Kill);
 #endif
+                            }
                         }
                         LOG_INFO("[Sys_ItemEffects] RoamAI " << roamId
                                  << " killed enemy " << eid);

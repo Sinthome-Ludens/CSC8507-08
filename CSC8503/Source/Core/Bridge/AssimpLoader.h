@@ -4,16 +4,16 @@
  *
  * @details
  * `AssimpLoader` 是 Bridge 层的核心组件，负责使用 Assimp 库加载各种 3D 模型格式，
- * 并将数据转换为 NCL 的 `OGLMesh` 格式。
+ * 并将数据转换为 NCL 的 `Mesh` 格式（具体子类由注入的 MeshFactory 决定）。
  *
- * ## 支持的格式
+ * ## 支持的格式（Assimp 路径）
  *
  * - **OBJ** (.obj) - Wavefront Object
  * - **FBX** (.fbx) - Autodesk FBX
- * - **GLTF** (.gltf, .glb) - GL Transmission Format
  * - **Collada** (.dae) - COLLADA
  * - **Blender** (.blend) - Blender 3D
- * - **3DS** (.3ds) - 3D Studio
+ *
+ * GLTF (.gltf/.glb) 由 AssetManager 路由到 GLTFLoader，不经过 AssimpLoader。
  *
  * ## 数据流
  *
@@ -26,7 +26,7 @@
  *   ↓
  * AssimpLoader::ConvertMesh()
  *   ↓
- * OGLMesh (NCL 数据结构)
+ * Mesh* (由 MeshFactory 创建的具体子类)
  *   ↓
  * UploadToGPU()
  * ```
@@ -55,13 +55,13 @@
  *
  * @code
  * // 加载单个网格
- * OGLMesh* mesh = AssimpLoader::LoadMesh("Assets/Models/cube.obj");
+ * Mesh* mesh = AssimpLoader::LoadMesh("Assets/Models/cube.obj");
  * if (mesh) {
  *     // 网格已上传到 GPU，可以直接渲染
  * }
  *
  * // 加载场景中的所有网格
- * std::vector<OGLMesh*> meshes = AssimpLoader::LoadScene("Assets/Models/scene.fbx");
+ * std::vector<Mesh*> meshes = AssimpLoader::LoadScene("Assets/Models/scene.fbx");
  * @endcode
  *
  * ## 错误处理
@@ -73,7 +73,7 @@
  * @note 当前实现仅支持静态网格，骨骼动画支持将在后续版本添加。
  *
  * @see AssetManager (调用 LoadMesh)
- * @see OGLMesh (目标数据结构)
+ * @see Mesh (目标数据结构基类)
  */
 
 #pragma once
@@ -81,12 +81,13 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <functional>
 
 // 包含 NCL 类型（用于返回值和参数）
 #include "Vector.h"
 
 namespace NCL::Rendering {
-    class OGLMesh;
+    class Mesh;
     class MeshAnimation;
 }
 
@@ -100,27 +101,28 @@ namespace ECS {
  */
 class AssimpLoader {
 public:
+    /// @brief Mesh 工厂函数类型（由 AssetManager 注入）
+    using MeshFactory = std::function<NCL::Rendering::Mesh*()>;
+
+    /**
+     * @brief 注入 Mesh 工厂函数，决定运行时创建哪种 Mesh 子类。
+     * @details 由 AssetManager::SetMeshFactory() 自动调用。
+     */
+    static void SetMeshFactory(MeshFactory factory);
+
     /**
      * @brief 加载模型文件的第一个网格
      * @param path 模型文件路径（相对于 Assets/ 或绝对路径）
-     * @return OGLMesh* 成功返回网格指针（已上传到 GPU），失败返回 nullptr
-     *
-     * @details
-     * 使用 Assimp 加载模型文件，提取第一个网格并转换为 NCL 格式。
-     * 适用于只包含单个网格的模型（如简单的 OBJ 文件）。
+     * @return Mesh* 成功返回网格指针（已上传到 GPU），失败返回 nullptr
      */
-    static NCL::Rendering::OGLMesh* LoadMesh(const std::string& path);
+    static NCL::Rendering::Mesh* LoadMesh(const std::string& path);
 
     /**
      * @brief 加载模型文件中的所有网格
      * @param path 模型文件路径
-     * @return std::vector<OGLMesh*> 网格指针数组（可能为空）
-     *
-     * @details
-     * 适用于包含多个子网格的复杂模型（如 FBX 场景）。
-     * 每个网格都已上传到 GPU，可以独立渲染。
+     * @return std::vector<Mesh*> 网格指针数组（可能为空）
      */
-    static std::vector<NCL::Rendering::OGLMesh*> LoadScene(const std::string& path);
+    static std::vector<NCL::Rendering::Mesh*> LoadScene(const std::string& path);
 
     /**
      * @brief 从模型文件提取碰撞用三角网格数据（不上传 GPU）
@@ -151,7 +153,9 @@ public:
      * 若 meshToFill 不为 nullptr，同时填充骨骼绑定信息（bindPose、inverseBindPose 等）。
      */
     static NCL::Rendering::MeshAnimation* LoadAnimation(const std::string& path,
-                                                         NCL::Rendering::OGLMesh* meshToFill = nullptr);
+                                                         NCL::Rendering::Mesh* meshToFill = nullptr);
+
+    static MeshFactory s_MeshFactory; ///< 由 SetMeshFactory 注入
 
 private:
     AssimpLoader() = delete; // 禁止实例化

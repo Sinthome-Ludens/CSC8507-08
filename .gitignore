@@ -88,6 +88,12 @@ CMakeFiles/**/*.obj
 # External Libraries (需要手动下载，见 README.md)
 ################################################################################
 External/*
+# FMOD Core API 直接提交到仓库（~5MB），队友 clone 后零额外步骤
+!External/fmod/
+!External/fmod/**
+# 覆盖全局 *.dll / *.lib 忽略规则，允许 FMOD 二进制入库
+!External/fmod/lib/**/*.dll
+!External/fmod/lib/**/*.lib
 
 ################################################################################
 # Assets — 确保全部内容被追踪

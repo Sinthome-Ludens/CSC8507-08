@@ -27,6 +27,11 @@
 
 namespace ECS {
 
+static constexpr float kNavDirThresholdSq   = 0.0001f;  ///< 方向向量最小长度²
+static constexpr float kNavRotMinDistSq     = 0.04f;    ///< 旋转更新最小距离²
+static constexpr float kNavNormalThreshold  = 0.001f;   ///< 法线归一化阈值
+static constexpr float kRadToDeg            = 57.29577f; ///< 180/π
+
 /**
  * @brief 将实体平滑旋转朝向 targetPos（Search 与路径跟随共用）。
  * @details 该辅助函数被 Search 朝向修正与路径跟随逻辑共用，并在需要时把旋转同步回物理系统。
@@ -45,13 +50,13 @@ static void ApplyRotationToward(EntityID entity, C_D_NavAgent& agent, C_D_Transf
     NCL::Maths::Vector3 dir = targetPos - tf.position;
     dir.y = 0.0f;
     float distSq = dir.x * dir.x + dir.z * dir.z;
-    if (distSq < 0.0001f) return;
+    if (distSq < kNavDirThresholdSq) return;
 
     float dist = sqrtf(distSq);
     dir.x /= dist;
     dir.z /= dist;
 
-    float targetYaw = atan2f(-dir.x, -dir.z) * 57.29577f;
+    float targetYaw = atan2f(-dir.x, -dir.z) * kRadToDeg;
     NCL::Maths::Quaternion targetRot =
         NCL::Maths::Quaternion::EulerAnglesToQuaternion(0, targetYaw, 0);
     tf.rotation = NCL::Maths::Quaternion::Slerp(
@@ -109,7 +114,7 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
     float xzDistSq = dir.x * dir.x + dir.z * dir.z;
     float arrivalSq = isLastWaypoint
         ? (agent.stopping_distance * agent.stopping_distance)
-        : 0.36f;
+        : agent.waypoint_arrival_sq;
 
     if (xzDistSq < arrivalSq) {
         if (!isLastWaypoint) {
@@ -133,8 +138,8 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
     dir.z /= dist;
 
     // 旋转：仅当距离足够大（>0.2m）才更新方向，防止抖动导致自转
-    if (agent.smooth_rotation && distSq > 0.04f) {
-        float targetYaw = atan2f(-dir.x, -dir.z) * 57.29577f;
+    if (agent.smooth_rotation && distSq > kNavRotMinDistSq) {
+        float targetYaw = atan2f(-dir.x, -dir.z) * kRadToDeg;
         NCL::Maths::Quaternion targetRot =
             NCL::Maths::Quaternion::EulerAnglesToQuaternion(0, targetYaw, 0);
         tf.rotation = NCL::Maths::Quaternion::Slerp(
@@ -151,16 +156,16 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
      * "停止-重规划"死循环。仅在完全正对墙面无法滑移时才清零速度。
      * 使用 Sys_Physics::CastRayIgnoring（Jolt），不走 NCLGL。
      */
-    if (physics && rb.body_created && dist > 0.5f) {
+    if (physics && rb.body_created && dist > agent.obstacle_check_min_dist) {
         auto fwdHit = physics->CastRayIgnoring(
-            tf.position.x, tf.position.y + 0.5f, tf.position.z,
+            tf.position.x, tf.position.y + agent.obstacle_ray_height, tf.position.z,
             dir.x, 0.0f, dir.z,
-            1.5f, entity);
+            agent.obstacle_ray_range, entity);
         if (fwdHit.hit && fwdHit.entity != entity) {
             float nx = fwdHit.normalX;
             float nz = fwdHit.normalZ;
             float nLen = sqrtf(nx * nx + nz * nz);
-            if (nLen > 0.001f) {
+            if (nLen > kNavNormalThreshold) {
                 nx /= nLen;
                 nz /= nLen;
                 float dot = dir.x * nx + dir.z * nz;
@@ -168,7 +173,7 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
                     dir.x -= dot * nx;
                     dir.z -= dot * nz;
                     float newLen = sqrtf(dir.x * dir.x + dir.z * dir.z);
-                    if (newLen > 0.001f) {
+                    if (newLen > kNavNormalThreshold) {
                         dir.x /= newLen;
                         dir.z /= newLen;
                     } else {
@@ -183,11 +188,11 @@ static void FollowPath(EntityID entity, C_D_NavAgent& agent, C_D_Transform& tf,
 
     float speed = agent.speed;
     if (!isLastWaypoint && agent.corner_decel_range > 0.001f && dist < agent.corner_decel_range) {
-        speed *= std::max(0.4f, dist / agent.corner_decel_range);
+        speed *= std::max(agent.corner_decel_floor, dist / agent.corner_decel_range);
     }
 
     if (physics && rb.body_created) {
-        float vy = std::clamp(dir.y * speed, -8.0f, 8.0f);
+        float vy = std::clamp(dir.y * speed, -agent.max_vertical_speed, agent.max_vertical_speed);
         physics->SetLinearVelocity(entity,
             dir.x * speed, vy, dir.z * speed);
     }
@@ -225,7 +230,7 @@ static void SkipReachedWaypoints(C_D_NavAgent& agent, const C_D_Transform& tf)
             agent.path_waypoints[agent.current_waypoint_index];
         float dx = wp.x - tf.position.x;
         float dz = wp.z - tf.position.z;
-        if (dx*dx + dz*dz < 0.36f) {
+        if (dx*dx + dz*dz < agent.waypoint_arrival_sq) {
             agent.current_waypoint_index++;
         } else {
             break;

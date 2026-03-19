@@ -11,6 +11,8 @@
 
 #include "Game/Components/Res_GameState.h"
 #include "Game/Components/Res_UIState.h"
+#include "Game/Components/Res_ScoreConfig.h"
+#include "Game/Components/Res_AudioConfig.h"
 #include "Game/Utils/Log.h"
 
 #include <algorithm>
@@ -34,26 +36,36 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
 
     auto& gs = registry.ctx<Res_GameState>();
     auto& ui = registry.ctx<Res_UIState>();
+    Res_ScoreConfig defaultScoreCfg;
+    const auto& scoreCfg = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
+    if (gs.isMultiplayer && gs.matchPhase != MatchPhase::Running) return;
 
     // Only run during HUD or None screen (gameplay)
     if (ui.activeScreen != UIScreen::HUD && ui.activeScreen != UIScreen::None) return;
 
     // Already game over — do nothing
-    if (gs.isGameOver) return;
+    if (gs.isGameOver
+        || (gs.isMultiplayer && gs.localTerminalState != MultiplayerTerminalState::None)) return;
 
     // Trigger: alertLevel reaches max and countdown not yet active
     if (gs.alertLevel >= gs.alertMax && !gs.countdownActive) {
         gs.countdownActive = true;
         gs.countdownTimer  = gs.countdownMax;
+        if (registry.has_ctx<Res_AudioState>()) {
+            auto& audio = registry.ctx<Res_AudioState>();
+            audio.preBgm       = audio.currentBgm;
+            audio.requestedBgm = BgmId::Countdown;
+            audio.bgmOverride  = true;
+        }
         LOG_INFO("[Sys_Countdown] Alert maxed — countdown started: " << gs.countdownMax << "s");
-        // 倒计时积分惩罚 -200（仅单人）
-        if (!gs.isMultiplayer && !ui.countdownScorePenaltyApplied) {
+        // 倒计时积分惩罚 -200（挑战模式全局规则）
+        if (!ui.countdownScorePenaltyApplied) {
             ui.countdownScorePenaltyApplied = true;
-            ui.scoreLost_countdown += 200;
-            ui.campaignScore = std::max(0, ui.campaignScore - 200);
+            ui.scoreLost_countdown += scoreCfg.penaltyCountdownSurge;
+            ui.campaignScore = std::max(0, ui.campaignScore - scoreCfg.penaltyCountdownSurge);
 #ifdef USE_IMGUI
             ECS::UI::PushActionNotify(registry, "ALERT SURGE", "COUNTDOWN",
-                                      -200, ActionNotifyType::Alert);
+                                      -scoreCfg.penaltyCountdownSurge, ActionNotifyType::Alert);
 #endif
         }
     }
@@ -66,21 +78,33 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
         if (gs.countdownTimer <= 0.0f) {
             gs.countdownTimer  = 0.0f;
             gs.countdownActive = false;
-            gs.isGameOver      = true;
-            gs.gameOverReason  = 1;  // countdown expired
-            gs.gameOverTime    = gs.playTime;
+            if (gs.isMultiplayer) {
+                gs.localTerminalState = MultiplayerTerminalState::Timeout;
+                gs.localTerminalReason = ToU8(GameOverReason::Countdown);
+            } else {
+                gs.isGameOver      = true;
+                gs.gameOverReason  = GameOverReason::Countdown;
+                gs.gameOverTime    = gs.playTime;
+            }
+            if (registry.has_ctx<Res_AudioState>()) {
+                auto& audio = registry.ctx<Res_AudioState>();
+                audio.requestedBgm = BgmId::Defeat;
+                audio.bgmOverride  = false;
+            }
 
-            ui.activeScreen         = UIScreen::GameOver;
-            ui.gameOverSelectedIndex = 0;
+            if (!gs.isMultiplayer) {
+                ui.activeScreen = UIScreen::GameOver;
+                ui.gameOverSelectedIndex = 0;
+            }
 
-            // 失败惩罚 -500（仅单人）
-            if (!gs.isMultiplayer && !ui.failureScorePenaltyApplied) {
+            // 失败惩罚 -500（挑战模式全局规则）
+            if (!ui.failureScorePenaltyApplied) {
                 ui.failureScorePenaltyApplied = true;
-                ui.scoreLost_failure += 500;
-                ui.campaignScore = std::max(0, ui.campaignScore - 500);
+                ui.scoreLost_failure += scoreCfg.penaltyCountdownExpire;
+                ui.campaignScore = std::max(0, ui.campaignScore - scoreCfg.penaltyCountdownExpire);
 #ifdef USE_IMGUI
                 ECS::UI::PushActionNotify(registry, "MISSION", "FAILED",
-                                          -500, ActionNotifyType::Alert);
+                                          -scoreCfg.penaltyCountdownExpire, ActionNotifyType::Alert);
 #endif
             }
 

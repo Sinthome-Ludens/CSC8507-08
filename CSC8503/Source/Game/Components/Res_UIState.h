@@ -58,6 +58,7 @@ enum class SceneRequest : uint8_t {
     HostGame,
     JoinGame,
     NextLevel,          ///< 关卡序列：前进到下一张地图
+    LaunchMultiplayerMatch, ///< 同图联机：收到服务端权威选图后进入首关
     StartTutorial,      ///< 教程关卡入口
 };
 
@@ -95,8 +96,9 @@ struct Res_UIState {
     float     teamStartTime        = 0.0f;
 
     // Mission Select
-    int8_t    missionSelectedTab        = 0;      ///< 0=道具, 1=武器
-    int8_t    missionCursorPerTab[2]    = {};     ///< 每个 tab 内的光标位置
+    int8_t    missionSelectedMap        = 0;      ///< 选中的关卡索引
+    int8_t    missionSelectedTab        = 0;      ///< 0=关卡, 1=道具, 2=武器
+    int8_t    missionCursorPerTab[3]    = {};     ///< 每个 tab 内的光标位置
     int8_t    missionEquippedItems[2]   = { -1, -1 };
     int8_t    missionEquippedWeapons[2] = { -1, -1 };
 
@@ -120,6 +122,7 @@ struct Res_UIState {
     float     loadingMinDuration   = 1.5f;  // 最少显示时长（秒）
     uint8_t   loadingMsgIndex      = 0;     // 当前显示到的系统消息索引
     float     loadingMsgTimer      = 0.0f;  // 消息轮播计时器
+    bool      loadingWaitForSpawn  = false;  ///< true = 场景请求已派发，等待新场景 spawning 完成后再关闭 Loading 画面
 
     // Cursor management
     // gameCursorFree: Sys_Camera 写入（Alt 键状态），Sys_UI 读取用于 HUD 模式光标决策
@@ -164,35 +167,19 @@ struct Res_UIState {
     int16_t scoreItemUseCount   = 0;   ///< 道具使用次数
 };
 
+} // namespace ECS
+
 // ── Campaign score utility functions ────────────────────────
+// 权威实现已迁移到 Res_ScoreConfig.h，此处提供兼容旧调用的包装。
+#include "Res_ScoreConfig.h"
 
-/// @brief 评级名称数组（按 tier 索引：0=F, 1=D, ..., 7=SSS）。
-inline constexpr const char* const kScoreRatingNames[] = {"F","D","C","B","A","S","SS","SSS"};
-
-/// @brief 根据积分返回评级字符串（F/D/C/B/A/S/SS/SSS）。
-/// @pre score >= 0
+namespace ECS {
 inline const char* GetScoreRating(int32_t score) {
-    if (score <= 500) return "F";
-    if (score <= 599) return "D";
-    if (score <= 699) return "C";
-    if (score <= 799) return "B";
-    if (score <= 899) return "A";
-    if (score <= 949) return "S";
-    if (score <= 969) return "SS";
-    return "SSS";
+    static const Res_ScoreConfig kDefault{};
+    return GetScoreRating(score, kDefault);
 }
-
-/// @brief 返回评级数值档位（0=F, 1=D, ..., 7=SSS），用于降级检测。
-/// @pre score >= 0
 inline int8_t GetScoreRatingTier(int32_t score) {
-    if (score <= 500) return 0;
-    if (score <= 599) return 1;
-    if (score <= 699) return 2;
-    if (score <= 799) return 3;
-    if (score <= 899) return 4;
-    if (score <= 949) return 5;
-    if (score <= 969) return 6;
-    return 7;
+    static const Res_ScoreConfig kDefault{};
+    return GetScoreRatingTier(score, kDefault);
 }
-
 } // namespace ECS

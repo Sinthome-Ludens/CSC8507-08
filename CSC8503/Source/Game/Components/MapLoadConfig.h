@@ -23,4 +23,9 @@ struct MapLoadConfig {
     float mapScale         = 1.0f; ///< Map scale factor
     float yOffset          = -6.0f;///< Y offset (multiplied by mapScale before use)
     bool  flipWinding      = true; ///< Whether to flip collision mesh winding order
+
+    // GLTF overrides (preferred over OBJ when available)
+    char renderMeshGltf[64]    = {};   ///< GLTF render mesh ("TutorialMap.gltf"), empty = skip
+    char collisionMeshGltf[64] = {};   ///< GLTF collision mesh ("TutorialMap_collision.gltf")
+    char finishMeshGltf[64]    = {};   ///< GLTF finish zone mesh ("TutorialMap_finish.gltf")
 };

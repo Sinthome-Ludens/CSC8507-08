@@ -15,7 +15,6 @@
 #include <assimp/color4.h>
 
 // NCL 头文件
-#include "OGLMesh.h"
 #include "MeshAnimation.h"
 #include "Vector.h"
 #include "Mesh.h"
@@ -28,6 +27,12 @@ using namespace NCL::Rendering;
 using namespace NCL::Maths;
 
 namespace ECS {
+
+AssimpLoader::MeshFactory AssimpLoader::s_MeshFactory = nullptr;
+
+void AssimpLoader::SetMeshFactory(MeshFactory factory) {
+    s_MeshFactory = std::move(factory);
+}
 
 // =============================================================================
 // 内部辅助函数（文件作用域）
@@ -55,9 +60,9 @@ static Vector4 ToVector4(const aiColor4D& c) {
 }
 
 /**
- * @brief 转换单个 aiMesh 到 OGLMesh
+ * @brief 转换单个 aiMesh 到 Mesh
  */
-static OGLMesh* ConvertMesh(const aiMesh* aiMesh);
+static Mesh* ConvertMesh(const aiMesh* aiMesh);
 
 /**
  * @brief 判断 aiMesh 是否为数据标记网格（不应渲染）
@@ -74,15 +79,16 @@ static bool IsMarkerMesh(const aiMesh* m) {
 }
 
 /**
- * @brief 合并多个 aiMesh 到一个 OGLMesh（跳过标记网格）
+ * @brief 合并多个 aiMesh 到一个 Mesh（跳过标记网格）
  */
-static OGLMesh* MergeMeshes(const aiScene* scene);
+static Mesh* MergeMeshes(const aiScene* scene);
 
 // =============================================================================
 // 公共接口
 // =============================================================================
 
-OGLMesh* AssimpLoader::LoadMesh(const std::string& path) {
+Mesh* AssimpLoader::LoadMesh(const std::string& path) {
+    GAME_ASSERT(s_MeshFactory, "[AssimpLoader] MeshFactory not set! Call SetMeshFactory() first.");
     LOG_INFO("[AssimpLoader] Loading mesh: " << path);
 
     // 创建 Assimp 导入器
@@ -115,7 +121,7 @@ OGLMesh* AssimpLoader::LoadMesh(const std::string& path) {
     }
 
     // 合并所有非标记网格
-    OGLMesh* mesh = MergeMeshes(scene);
+    Mesh* mesh = MergeMeshes(scene);
 
     if (mesh) {
         LOG_INFO("[AssimpLoader] Successfully loaded mesh: " << path
@@ -126,10 +132,11 @@ OGLMesh* AssimpLoader::LoadMesh(const std::string& path) {
     return mesh;
 }
 
-std::vector<OGLMesh*> AssimpLoader::LoadScene(const std::string& path) {
+std::vector<Mesh*> AssimpLoader::LoadScene(const std::string& path) {
+    GAME_ASSERT(s_MeshFactory, "[AssimpLoader] LoadScene: MeshFactory not set. Call SetMeshFactory() first.");
     LOG_INFO("[AssimpLoader] Loading scene: " << path);
 
-    std::vector<OGLMesh*> meshes;
+    std::vector<Mesh*> meshes;
 
     // 创建 Assimp 导入器
     Assimp::Importer importer;
@@ -155,7 +162,7 @@ std::vector<OGLMesh*> AssimpLoader::LoadScene(const std::string& path) {
 
     // 转换所有网格
     for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
-        OGLMesh* mesh = ConvertMesh(scene->mMeshes[i]);
+        Mesh* mesh = ConvertMesh(scene->mMeshes[i]);
         if (mesh) {
             meshes.push_back(mesh);
         }
@@ -231,7 +238,7 @@ bool AssimpLoader::LoadCollisionGeometry(
 // MergeMeshes — 合并所有非标记 aiMesh 到单个 OGLMesh
 // =============================================================================
 
-static OGLMesh* MergeMeshes(const aiScene* scene) {
+static Mesh* MergeMeshes(const aiScene* scene) {
     std::vector<Vector3>       positions;
     std::vector<Vector3>       normals;
     std::vector<Vector2>       texCoords;
@@ -317,7 +324,7 @@ static OGLMesh* MergeMeshes(const aiScene* scene) {
         LOG_INFO("[AssimpLoader] Filtered " << skipped << " marker mesh(es)");
     }
 
-    OGLMesh* mesh = new OGLMesh();
+    Mesh* mesh = AssimpLoader::s_MeshFactory();
     mesh->SetVertexPositions(positions);
     if (hasNormals)   mesh->SetVertexNormals(normals);
     if (hasTexCoords) mesh->SetVertexTextureCoords(texCoords);
@@ -333,13 +340,13 @@ static OGLMesh* MergeMeshes(const aiScene* scene) {
 // 私有辅助函数实现
 // =============================================================================
 
-static OGLMesh* ConvertMesh(const aiMesh* aiMesh) {
+static Mesh* ConvertMesh(const aiMesh* aiMesh) {
     if (!aiMesh) {
         return nullptr;
     }
 
     // 创建 NCL 网格
-    OGLMesh* mesh = new OGLMesh();
+    Mesh* mesh = AssimpLoader::s_MeshFactory();
 
     // 1. 转换顶点位置（必需）
     std::vector<Vector3> positions;
@@ -422,7 +429,7 @@ static OGLMesh* ConvertMesh(const aiMesh* aiMesh) {
 // 遍历 aiAnimation，将每帧关节世界矩阵（inverseBindPose × localToWorld）
 // 存入 MeshAnimation::allJoints 中，帧步长 = 1/ticksPerSecond。
 // 若 meshToFill != nullptr，同时填充骨骼绑定信息。
-MeshAnimation* AssimpLoader::LoadAnimation(const std::string& path, OGLMesh* meshToFill) {
+MeshAnimation* AssimpLoader::LoadAnimation(const std::string& path, Mesh* meshToFill) {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path,
         aiProcess_Triangulate | aiProcess_LimitBoneWeights);

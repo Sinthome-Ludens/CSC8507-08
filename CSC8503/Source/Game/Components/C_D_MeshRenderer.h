@@ -10,9 +10,9 @@
  *
  * **Handle** 是一个 `uint32_t` 的强类型别名，作为资源在 `AssetManager` 中的索引 ID：
  *
- * - **MeshHandle**：指向 `OGLMesh*` 的唯一 ID
+ * - **MeshHandle**：指向 `Mesh*` 的唯一 ID
  * - **MaterialHandle**：指向材质数据结构的唯一 ID（可包含 Texture + Shader）
- * - **TextureHandle**：指向 `OGLTexture*` 的唯一 ID
+ * - **TextureHandle**：指向 `Texture*` 的唯一 ID
  *
  * **优点**：
  * 1. **解耦资源生命周期**：Handle 失效时无悬空指针问题（AssetManager 返回默认资源）
@@ -46,7 +46,7 @@
  * 2. **渲染阶段（Sys_Render）**：
  *    ```cpp
  *    for (auto&& [id, tf, mr] : registry.view<C_D_Transform, C_D_MeshRenderer>()) {
- *        OGLMesh* mesh = assetManager.GetMesh(mr.meshHandle);
+ *        Mesh* mesh = assetManager.GetMesh(mr.meshHandle);
  *        // 构造 ModelMatrix，提交渲染
  *    }
  *    ```
@@ -73,16 +73,16 @@
 
 namespace ECS {
 
-/// @brief 网格资源 Handle，指向 AssetManager 中的 OGLMesh*（0 = 无效）
+/// @brief 网格资源 Handle，指向 AssetManager 中的 Mesh*（0 = 无效）
 using MeshHandle = uint32_t;
 
 /// @brief 材质资源 Handle，指向材质数据结构（0 = 无效）
 using MaterialHandle = uint32_t;
 
-/// @brief 纹理资源 Handle，指向 OGLTexture*（0 = 无效）
+/// @brief 纹理资源 Handle，指向 Texture*（0 = 无效）
 using TextureHandle = uint32_t;
 
-/// @brief 着色器资源 Handle，指向 OGLShader*（0 = 无效）
+/// @brief 着色器资源 Handle，指向 Shader*（0 = 无效）
 using ShaderHandle = uint32_t;
 
 /// @brief 骨骼动画剪辑 Handle，指向 AssetManager 中的 MeshAnimation*（0 = 无效）

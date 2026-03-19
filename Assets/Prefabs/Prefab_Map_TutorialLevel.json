@@ -9,7 +9,7 @@
       "scale":    [2.0, 2.0, 2.0]
     },
     "C_D_MeshRenderer": {
-      "meshHandle": "TutorialMap.obj",
+      "meshHandle": "TutorialMap.gltf",
       "materialHandle": 0
     },
     "C_D_Material": { "shadingModel": "BlinnPhong" },
@@ -20,17 +20,21 @@
       "_note": "triVerts/triIndices populated by MapLoader from collisionMesh"
     },
     "C_D_MapConfig": {
-      "renderMesh":    "TutorialMap.obj",
-      "collisionMesh": "TutorialMap_collision.obj",
-      "navmesh":       "TutorialMap.navmesh",
-      "finishMesh":    "TutorialMap_finish.obj",
-      "startPoints":   "TutorialMap.startpoints",
-      "enemySpawns":   "TutorialMap.enemyspawns",
-      "doorKeys":      "TutorialMap.doors",
-      "itemSpawns":    "TutorialMap.itemspawns",
-      "mapScale":      2.0,
-      "yOffset":       -6.0,
-      "flipWinding":   true
+      "renderMesh":         "TutorialMap.obj",
+      "collisionMesh":      "TutorialMap_collision.obj",
+      "navmesh":            "TutorialMap.navmesh",
+      "finishMesh":         "TutorialMap_finish.obj",
+      "startPoints":        "TutorialMap.startpoints",
+      "enemySpawns":        "TutorialMap.enemyspawns",
+      "doorKeys":           "TutorialMap.doors",
+      "itemSpawns":         "TutorialMap.itemspawns",
+      "mapScale":           2.0,
+      "yOffset":            -6.0,
+      "flipWinding":        true,
+
+      "renderMeshGltf":     "TutorialMap.gltf",
+      "collisionMeshGltf":  "TutorialMap_collision.gltf",
+      "finishMeshGltf":     "TutorialMap_finish.gltf"
     },
     "C_D_DebugName": { "name": "ENTITY_Env_StaticMap" }
   }

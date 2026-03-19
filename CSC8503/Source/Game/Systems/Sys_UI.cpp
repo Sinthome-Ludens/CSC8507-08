@@ -20,6 +20,7 @@
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_DataOcean.h"
 #include "Game/Components/Res_ActionNotifyState.h"
 #include "Game/Components/C_D_Interactable.h"
 #include "Game/UI/UITheme.h"
@@ -39,6 +40,11 @@
 #include "Game/UI/UI_MissionSelect.h"
 #include "Game/UI/UI_Victory.h"
 #include "Game/UI/UI_ActionNotify.h"
+#include "Game/Components/Res_InputConfig.h"
+#include "Game/Components/Res_UIKeyConfig.h"
+#include "Game/Components/Res_AudioConfig.h"
+#include "Game/Events/Evt_Audio.h"
+#include "Core/ECS/EventBus.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/SaveManager.h"
 
@@ -84,6 +90,14 @@ void Sys_UI::OnAwake(Registry& registry) {
         registry.ctx_emplace<Res_ActionNotifyState>();
     }
 
+    if (!registry.has_ctx<Res_InputConfig>()) {
+        registry.ctx_emplace<Res_InputConfig>();
+    }
+
+    if (!registry.has_ctx<Res_UIKeyConfig>()) {
+        registry.ctx_emplace<Res_UIKeyConfig>();
+    }
+
     // 加载存档到 UIState 缓存（菜单阶段只有 UIState 存在）
     if (ECS::HasSaveFile()) {
         ECS::LoadGame(registry);
@@ -112,7 +126,9 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     // F1: toggle devMode
     const auto& input = registry.ctx<Res_Input>();
-    if (input.keyPressed[KeyCodes::F1]) {
+    Res_UIKeyConfig defaultUiCfg;
+    const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
+    if (input.keyPressed[uiCfg.keyDevMode]) {
         ui.devMode = !ui.devMode;
         LOG_INFO("[Sys_UI] DevMode: " << (ui.devMode ? "ON" : "OFF"));
     }
@@ -122,7 +138,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         auto& gs = registry.ctx<Res_GameState>();
 
         // F2: Cycle alertLevel (0/25/50/75/100) — derive next from current value
-        if (input.keyPressed[KeyCodes::F2]) {
+        if (input.keyPressed[uiCfg.keyDebugAlertCycle]) {
             static const float kAlertCycle[] = { 0.0f, 25.0f, 50.0f, 75.0f, 100.0f };
             float next = kAlertCycle[0];
             for (int i = 0; i < 5; ++i) {
@@ -133,24 +149,24 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F3: Toggle countdownActive
-        if (input.keyPressed[KeyCodes::F3]) {
+        if (input.keyPressed[uiCfg.keyDebugCountdown]) {
             gs.countdownActive = !gs.countdownActive;
             if (gs.countdownActive) gs.countdownTimer = gs.countdownMax;
             LOG_INFO("[DevMode] F3 countdownActive=" << gs.countdownActive);
         }
 
         // F5: Preview GameOver (cycle reason 1/2/3) — derive from current
-        if (input.keyPressed[KeyCodes::F5]) {
-            gs.gameOverReason = (gs.gameOverReason % 3) + 1;
+        if (input.keyPressed[uiCfg.keyDebugGameOver]) {
+            gs.gameOverReason = ToGameOverReason((ToU8(gs.gameOverReason) % 3) + 1);
             gs.isGameOver = true;
             gs.gameOverTime = gs.playTime;
             ui.activeScreen = UIScreen::GameOver;
             ui.gameOverSelectedIndex = 0;
-            LOG_INFO("[DevMode] F5 GameOver reason=" << (int)gs.gameOverReason);
+            LOG_INFO("[DevMode] F5 GameOver reason=" << (int)ToU8(gs.gameOverReason));
         }
 
         // F6: Cycle noiseLevel (0/0.3/0.6/1.0) — derive from current value
-        if (input.keyPressed[KeyCodes::F6]) {
+        if (input.keyPressed[uiCfg.keyDebugNoiseCycle]) {
             static const float kNoiseCycle[] = { 0.0f, 0.3f, 0.6f, 1.0f };
             float next = kNoiseCycle[0];
             for (int i = 0; i < 4; ++i) {
@@ -161,7 +177,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F7: Trigger CRT transition
-        if (input.keyPressed[KeyCodes::F7]) {
+        if (input.keyPressed[uiCfg.keyDebugCRT]) {
             ui.transitionActive   = true;
             ui.transitionTimer    = 0.0f;
             ui.transitionDuration = 0.5f;
@@ -170,7 +186,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F8: Push test Toast (Info/Warning/Danger/Success cycle)
-        if (input.keyPressed[KeyCodes::F8]) {
+        if (input.keyPressed[uiCfg.keyDebugToast]) {
             const char* toastTexts[] = { "TEST INFO", "TEST WARNING", "TEST DANGER", "TEST SUCCESS" };
             ToastType toastTypes[] = { ToastType::Info, ToastType::Warning, ToastType::Danger, ToastType::Success };
             UI::PushToast(registry, toastTexts[ui.devToastCycle], toastTypes[ui.devToastCycle]);
@@ -179,7 +195,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
 
         // F9: Toggle all C_D_Interactable.isEnabled — read first entity's value, then invert
-        if (input.keyPressed[KeyCodes::F9]) {
+        if (input.keyPressed[uiCfg.keyDebugInteractables]) {
             bool newVal = true;
             auto view = registry.view<C_D_Interactable>();
             bool first = true;
@@ -191,8 +207,26 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         }
     }
 
+    // ── UI 点击音效（仅在菜单画面触发，游玩 HUD 状态不触发）──
+    auto* audioBus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;
+    bool isMenuScreen = (ui.activeScreen != UIScreen::HUD
+                      && ui.activeScreen != UIScreen::None);
+    if (isMenuScreen && audioBus) {
+        bool anyUiInput = input.keyPressed[uiCfg.keyMenuBack]
+                       || input.keyPressed[uiCfg.keyConfirm]
+                       || input.keyPressed[uiCfg.keyConfirmAlt]
+                       || input.keyPressed[uiCfg.keyMenuUp]
+                       || input.keyPressed[uiCfg.keyMenuDown]
+                       || input.keyPressed[uiCfg.keyMenuUpAlt]
+                       || input.keyPressed[uiCfg.keyMenuDownAlt]
+                       || input.mouseButtonPressed[uiCfg.mouseConfirm];
+        if (anyUiInput) {
+            audioBus->publish_deferred<Evt_Audio_PlaySFX>(Evt_Audio_PlaySFX{SfxId::UIClick});
+        }
+    }
+
     // ESC navigation
-    if (input.keyPressed[KeyCodes::ESCAPE]) {
+    if (input.keyPressed[uiCfg.keyMenuBack]) {
         switch (ui.activeScreen) {
             case UIScreen::Settings:
                 UI::NavigateBackFromSettings(ui);
@@ -267,7 +301,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
     }
 
     // I key: toggle HUD <-> Inventory (only when in HUD or Inventory)
-    if (input.keyPressed[KeyCodes::I]) {
+    if (input.keyPressed[uiCfg.keyInventory]) {
         if (ui.activeScreen == UIScreen::HUD) {
             ui.activeScreen = UIScreen::Inventory;
             ui.inventorySelectedSlot = 0;
@@ -280,7 +314,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     // TAB key: hold mode for ItemWheel (only when in HUD)
     if (ui.activeScreen == UIScreen::HUD) {
-        bool tabDown = input.keyStates[KeyCodes::TAB];
+        bool tabDown = input.keyStates[uiCfg.keyItemWheel];
         if (tabDown && !ui.itemWheelOpen) {
             // TAB pressed — open wheel
             ui.itemWheelOpen = true;
@@ -328,33 +362,30 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         auto& gs = registry.ctx<Res_GameState>();
         gs.playTime += dt;
 
-        // ── 积分系统（仅单人） ──
-        if (!gs.isMultiplayer) {
-            // 时间衰减：每秒 -1（静默）
-            if (ui.campaignScore > 0) {
-                ui.scoreDecayAccum += dt;
-                if (ui.scoreDecayAccum >= 1.0f) {
-                    int ticks = static_cast<int>(ui.scoreDecayAccum);
-                    ui.campaignScore = std::max(0, ui.campaignScore - ticks);
-                    ui.scoreLost_time += ticks;
-                    ui.scoreDecayAccum -= static_cast<float>(ticks);
-                }
+        // 挑战积分系统：单人/多人都按同一规则持续衰减并触发评级提示。
+        if (ui.campaignScore > 0) {
+            ui.scoreDecayAccum += dt;
+            if (ui.scoreDecayAccum >= 1.0f) {
+                int ticks = static_cast<int>(ui.scoreDecayAccum);
+                ui.campaignScore = std::max(0, ui.campaignScore - ticks);
+                ui.scoreLost_time += ticks;
+                ui.scoreDecayAccum -= static_cast<float>(ticks);
             }
-
-            // 评级降级检测
-            int8_t curTier = GetScoreRatingTier(ui.campaignScore);
-            if (curTier < ui.lastScoreRatingTier
-                && ui.lastScoreRatingTier >= 0
-                && ui.lastScoreRatingTier < 8) {
-                const char* oldRating = kScoreRatingNames[ui.lastScoreRatingTier];
-                const char* newRating = GetScoreRating(ui.campaignScore);
-                char dropBuf[32];
-                snprintf(dropBuf, sizeof(dropBuf), "%s > %s", oldRating, newRating);
-                ECS::UI::PushActionNotify(registry, "RATING DROP", dropBuf,
-                                          0, ActionNotifyType::Alert, 3.0f);
-            }
-            ui.lastScoreRatingTier = curTier;
         }
+
+        // 评级降级检测
+        int8_t curTier = GetScoreRatingTier(ui.campaignScore);
+        if (curTier < ui.lastScoreRatingTier
+            && ui.lastScoreRatingTier >= 0
+            && ui.lastScoreRatingTier < 8) {
+            const char* oldRating = kScoreRatingNames[ui.lastScoreRatingTier];
+            const char* newRating = GetScoreRating(ui.campaignScore);
+            char dropBuf[32];
+            snprintf(dropBuf, sizeof(dropBuf), "%s > %s", oldRating, newRating);
+            ECS::UI::PushActionNotify(registry, "RATING DROP", dropBuf,
+                                      0, ActionNotifyType::Alert, 3.0f);
+        }
+        ui.lastScoreRatingTier = curTier;
     }
 
     // Dispatch to render functions
@@ -432,24 +463,41 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
         LOG_INFO("[Sys_UI] FadeOut done -- entering Loading screen");
     }
 
-    // Loading 画面计时完成 → 交还场景请求给 Main.cpp
+    // Loading 画面计时完成 → 交还场景请求给 Main.cpp，但保持 Loading 画面直到新场景 spawning 完成
     if (ui.activeScreen == UIScreen::Loading
     && ui.loadingTimer >= ui.loadingMinDuration
     && ui.transitionSceneRequest != SceneRequest::None
     && !ui.sceneRequestDispatched) {
-/*
-        LOG_INFO("[Sys_UI] DEBUG activeScreen="
-            + std::to_string((int)ui.activeScreen)
-            + " loadingTimer=" + std::to_string(ui.loadingTimer)
-            + " transitionReq=" + std::to_string((int)ui.transitionSceneRequest));
-*/
 
         ui.pendingSceneRequest    = ui.transitionSceneRequest;
         ui.transitionSceneRequest = SceneRequest::None;
-        ui.activeScreen           = UIScreen::None;
-        ui.loadingTimer           = 0.0f;
+        // 不清除 activeScreen — 保持 Loading 画面，等待新场景 spawning 完成
+        ui.loadingWaitForSpawn    = true;
         ui.sceneRequestDispatched = true;  // ← 锁住，防止重入
-        LOG_INFO("[Sys_UI] Loading complete -- handing SceneRequest to Main.cpp");
+        LOG_INFO("[Sys_UI] Loading min duration met -- handing SceneRequest to Main.cpp, waiting for spawn");
+    }
+
+    // 新场景 OnEnter 后：如果 spawning/proxy创建 仍在进行，强制保持 Loading 画面
+    if (ui.loadingWaitForSpawn) {
+        bool spawnDone = true;
+        if (registry.has_ctx<ECS::Res_DataOcean>()) {
+            const auto& cfg = registry.ctx<ECS::Res_DataOcean>();
+            // 需要 spawning 完成 且 所有 proxy 创建完毕
+            spawnDone = !cfg.spawning && cfg.allProxiesCreated;
+        }
+        if (spawnDone) {
+            ui.loadingWaitForSpawn = false;
+            // spawning + proxy 全部完成 → 触发 FadeIn 过渡到 HUD
+            ui.activeScreen       = UIScreen::HUD;
+            ui.transitionActive   = true;
+            ui.transitionTimer    = 0.0f;
+            ui.transitionDuration = 0.5f;
+            ui.transitionType     = 0;  // FadeIn
+            LOG_INFO("[Sys_UI] Spawn + proxy complete -- transitioning to HUD");
+        } else {
+            // 强制保持 Loading 画面（覆盖 OnEnter 中设置的 HUD）
+            ui.activeScreen = UIScreen::Loading;
+        }
     }
 
     // Toast 通知渲染（覆盖所有屏幕）

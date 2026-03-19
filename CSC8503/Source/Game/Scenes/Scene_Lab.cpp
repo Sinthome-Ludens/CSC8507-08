@@ -22,9 +22,11 @@
 #include "Game/Components/Res_AIConfig.h"
 #include "Game/Components/Res_MinimapState.h"
 #include "Game/Components/C_D_Transform.h"
+#include "Game/Components/Res_DataOcean.h"
 #include "Game/Prefabs/PrefabFactory.h"
 #include "Game/Systems/Sys_Camera.h"
 #include "Game/Systems/Sys_Countdown.h"
+#include "Game/Systems/Sys_DataOcean.h"
 #include "Game/Systems/Sys_DeathJudgment.h"
 #include "Game/Systems/Sys_DeathEffect.h"
 #include "Game/Systems/Sys_Input.h"
@@ -40,12 +42,15 @@
 #include "Game/Systems/Sys_EnemyVision.h"
 #include "Game/Systems/Sys_Navigation.h"
 #include "Game/Systems/Sys_Network.h"
+#include "Game/Systems/Sys_Interpolation.h"
 #include "Game/Systems/Sys_Physics.h"
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
 #include "Game/Systems/Sys_Door.h"
 #include "Game/Systems/Sys_LevelGoal.h"
+#include "Game/Systems/Sys_Audio.h"
+#include "Game/Components/Res_AudioConfig.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/MapLoader.h"
 #include "Game/Utils/PrefabLoader.h"
@@ -80,7 +85,7 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
         && registry.ctx<ECS::Res_Network>().mode != ECS::PeerType::OFFLINE;
     const bool hasActiveNetworkSession = isMultiplayer
         && registry.ctx<ECS::Res_Network>().host != nullptr
-        && registry.ctx<ECS::Res_Network>().connected;
+        && registry.ctx<ECS::Res_Network>().remotePeerConnected;
 
     ECS::AssetManager::Instance().Init();
 
@@ -112,6 +117,8 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
         registry.ctx_emplace<Res_NavTestState>(std::move(navState));
     }
 
+    registry.ctx_emplace<ECS::Res_DataOcean>();
+
     MapLoadConfig mapConfig{};
     if (!ECS::PrefabLoader::LoadMapConfig("Prefab_Map_Lab.json", mapConfig)) {
         LOG_ERROR("[Scene_Lab] Failed to load map config from Prefab_Map_Lab.json");
@@ -119,11 +126,19 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
     }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
+    if (isMultiplayer && registry.has_ctx<ECS::Res_Network>()) {
+        auto& resNet = registry.ctx<ECS::Res_Network>();
+        if (resNet.multiplayerMode == ECS::MultiplayerMode::SameMapGhostRace) {
+            resNet.localPlayerEntity = mapResult.playerEntity;
+            resNet.remoteGhostEntity = ECS::Entity::NULL_ENTITY;
+        }
+    }
 
     systems.Register<ECS::Sys_Input>           ( 10);
     systems.Register<ECS::Sys_Animation>       ( 50);
     if (isMultiplayer) {
         systems.Register<ECS::Sys_Network>     ( 54);
+        systems.Register<ECS::Sys_Interpolation>( 56);
     }
     systems.Register<ECS::Sys_InputDispatch>   ( 55);
     systems.Register<ECS::Sys_PlayerDisguise>  ( 59);
@@ -190,10 +205,12 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
 
     systems.Register<ECS::Sys_PlayerCamera>    (150);
     systems.Register<ECS::Sys_Camera>          (155);
+    systems.Register<ECS::Sys_DataOcean>       (195);
     systems.Register<ECS::Sys_Render>          (200);
     systems.Register<ECS::Sys_Item>            (250);
     systems.Register<ECS::Sys_ItemEffects>     (260);
     systems.Register<ECS::Sys_Door>            (270);
+    systems.Register<ECS::Sys_Audio>           (275);
 
 #ifdef USE_IMGUI
     systems.Register<ECS::Sys_ImGui>             (300);
@@ -235,6 +252,13 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
 
     systems.AwakeAll(registry);
 
+    // ── Audio state (must be AFTER AwakeAll — Res_AudioState created in Sys_Audio::OnAwake) ──
+    if (registry.has_ctx<ECS::Res_AudioState>()) {
+        auto& audio = registry.ctx<ECS::Res_AudioState>();
+        audio.isGameplay   = true;
+        audio.requestedBgm = ECS::BgmId::GameplayNormal;
+        audio.bgmOverride  = false;
+    }
 
 #ifdef USE_IMGUI
     if (registry.has_ctx<ECS::Res_UIState>()) {
@@ -243,6 +267,8 @@ void Scene_Lab::OnEnter(ECS::Registry&          registry,
         ui.activeScreen         = ECS::UIScreen::HUD;
         ui.pendingSceneRequest  = ECS::SceneRequest::None;
         ui.sceneRequestDispatched = false;
+        ui.loadingWaitForSpawn    = false;
+        ui.transitionSceneRequest = ECS::SceneRequest::None;
         ui.transitionActive     = true;
         ui.transitionTimer      = 0.0f;
         ui.transitionDuration   = 0.5f;
@@ -290,6 +316,7 @@ void Scene_Lab::OnExit(ECS::Registry&      registry,
     if (registry.has_ctx<ECS::Res_DeathConfig>())     registry.ctx_erase<ECS::Res_DeathConfig>();
     if (registry.has_ctx<ECS::Res_VisionConfig>())    registry.ctx_erase<ECS::Res_VisionConfig>();
     if (registry.has_ctx<ECS::Res_AIConfig>())        registry.ctx_erase<ECS::Res_AIConfig>();
+    if (registry.has_ctx<ECS::Res_DataOcean>())       registry.ctx_erase<ECS::Res_DataOcean>();
     if (registry.has_ctx<ECS::Res_ItemInventory2>())  registry.ctx_erase<ECS::Res_ItemInventory2>();
     if (registry.has_ctx<ECS::Res_RadarState>())      registry.ctx_erase<ECS::Res_RadarState>();
     if (registry.has_ctx<ECS::Res_MinimapState>())   registry.ctx_erase<ECS::Res_MinimapState>();

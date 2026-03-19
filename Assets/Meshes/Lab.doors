@@ -5,8 +5,8 @@ keyCount 1
 
 door 0
 name Door
-position 12.666670 1.840000 -18.286670
-scale 0.666667 2.666667 3.466667
+position 12.520000 2.220000 -18.278670
+scale 0.666667 3.333333 3.333333
 keyId 3
 
 key 0
