@@ -32,6 +32,8 @@
     #include <mutex>
     #include <chrono>
     #include <iomanip>
+    #include <string>
+    #include <ctime>
 
     namespace ECS::DebugLog {
         inline std::mutex& MultiplayerLogMutex() {
