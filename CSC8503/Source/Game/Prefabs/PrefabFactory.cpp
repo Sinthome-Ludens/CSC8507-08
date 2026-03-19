@@ -519,11 +519,11 @@ EntityID PrefabFactory::CreateItemPickup(
     // Weapons use capsule mesh, gadgets use cube mesh
     bool isWeapon = (itemId == ItemID::RoamAI || itemId == ItemID::TargetStrike);
     ECS::MeshHandle actualMesh = cubeMesh;
-    Vector3 pickupScale(0.5f, 0.5f, 0.5f);
+    Vector3 pickupScale(0.7f, 0.7f, 0.7f);
     if (isWeapon) {
         actualMesh = ECS::AssetManager::Instance().LoadMesh(
             NCL::Assets::MESHDIR + "Capsule.obj");
-        pickupScale = Vector3(0.3f, 0.3f, 0.3f);
+        pickupScale = Vector3(0.5f, 0.5f, 0.5f);
     }
 
     reg.Emplace<C_D_Transform>(entity,

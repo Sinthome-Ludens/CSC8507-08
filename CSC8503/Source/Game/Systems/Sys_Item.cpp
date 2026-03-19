@@ -75,6 +75,7 @@ void Sys_Item::OnUpdate(Registry& registry, float dt) {
     ProcessItemUseInput(registry);
     SyncDisplaySlots(registry, dt);
     SyncInventoryState(registry);
+    AnimatePickups(registry, dt);
 }
 
 // ============================================================
@@ -392,6 +393,21 @@ void Sys_Item::SyncInventoryState(Registry& registry) {
     for (int i = Res_ItemInventory2::kItemCount; i < Res_InventoryState::kSlotCount; ++i) {
         invState.slots[i] = {};
     }
+}
+
+// ============================================================
+// AnimatePickups — 每帧旋转地图上的道具实体（视觉效果）
+// ============================================================
+void Sys_Item::AnimatePickups(Registry& registry, float dt) {
+    m_PickupAnimTime += dt;
+    float yawDeg = m_PickupAnimTime * 90.0f; // 90°/s rotation speed
+
+    auto rot = Quaternion::EulerAnglesToQuaternion(0.0f, yawDeg, 0.0f);
+
+    registry.view<C_T_ItemPickup, C_D_Transform>().each(
+        [&](EntityID, C_T_ItemPickup&, C_D_Transform& tf) {
+            tf.rotation = rot;
+        });
 }
 
 } // namespace ECS
