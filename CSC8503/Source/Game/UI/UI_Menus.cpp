@@ -653,15 +653,21 @@ void RenderSettingsScreen(Registry& registry, float /*dt*/) {
     float panelX = vpPos.x + (vpSize.x - panelW) * 0.5f + slideX;
     float panelY = vpPos.y + (vpSize.y - panelH) * 0.5f;
 
+    // Panel drop shadow
+    draw->AddRectFilled(
+        ImVec2(panelX + 4.0f, panelY + 4.0f),
+        ImVec2(panelX + panelW + 4.0f, panelY + panelH + 4.0f),
+        IM_COL32(0, 0, 0, 25), Layout::kCardRounding);
+
     // Panel background
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        Col32_Bg(), Layout::kPanelRounding);
+        Col32_Bg(), Layout::kCardRounding);
     draw->AddRect(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        Col32_Gray(120), Layout::kPanelRounding, 0, Layout::kBorderWidth);
+        Col32_Gray(120), Layout::kCardRounding, 0, Layout::kBorderWidth);
 
     float contentX = panelX + 30.0f;
     float contentY = panelY + 25.0f;
@@ -913,15 +919,21 @@ void RenderPauseMenu(Registry& registry, float dt) {
     float panelX = vpPos.x + (vpSize.x - panelW) * 0.5f;
     float panelY = vpPos.y + (vpSize.y - panelH) * 0.5f;
 
+    // Panel drop shadow
+    draw->AddRectFilled(
+        ImVec2(panelX + 4.0f, panelY + 4.0f),
+        ImVec2(panelX + panelW + 4.0f, panelY + panelH + 4.0f),
+        IM_COL32(0, 0, 0, 30), Layout::kCardRounding);
+
     // Panel background
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        Col32_Bg(), Layout::kPanelRounding);
+        Col32_Bg(), Layout::kCardRounding);
     draw->AddRect(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        Col32_Gray(120), Layout::kPanelRounding, 0, Layout::kBorderWidth);
+        Col32_Gray(120), Layout::kCardRounding, 0, Layout::kBorderWidth);
 
     // Title
     ImFont* titleFont = GetFont_TerminalLarge();
