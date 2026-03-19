@@ -1210,6 +1210,17 @@ EntityID Sys_Network::EnsureRemoteGhostEntity(Registry& reg, Res_Network& resNet
     return ghost;
 }
 
+/**
+ * @brief 将最新的远端幽灵状态快照写入网络资源缓存。
+ *
+ * @details
+ * - 标记 `remoteGhostSnapshotValid` 为 true，并记录收到快照时的轮次索引。
+ * - 把包体中的位置与旋转数组拷贝到 `Res_Network` 的缓存字段中，覆盖之前的快照。
+ * - 不做额外合法性检查，调用方应只在收到权威幽灵同步包时调用。
+ *
+ * @param resNet 全局网络资源，内部持有远端幽灵的缓存状态。
+ * @param pkt    来自网络的幽灵变换同步包。
+ */
 void Sys_Network::CacheRemoteGhostSnapshot(Res_Network& resNet, const Net_Packet_GhostTransform& pkt) {
     resNet.remoteGhostSnapshotValid = true;
     resNet.remoteGhostSnapshotRoundIndex = pkt.currentRoundIndex;
@@ -1217,6 +1228,17 @@ void Sys_Network::CacheRemoteGhostSnapshot(Res_Network& resNet, const Net_Packet
     std::copy(std::begin(pkt.rot), std::end(pkt.rot), std::begin(resNet.remoteGhostSnapshotRot));
 }
 
+/**
+ * @brief 将缓存的远端幽灵快照应用到当前场景中的幽灵实体。
+ *
+ * @details
+ * - 若 `Res_Network` 中不存在有效快照，或无法确保/创建幽灵实体，则直接返回。
+ * - 使用缓存的位姿数据更新幽灵实体的变换/插值缓冲组件，用于在本地场景中可视化远端玩家轨迹。
+ * - 典型在每帧网络更新或回合切换时被调用，以驱动“幽灵回放”表现。
+ *
+ * @param reg   ECS 注册表，用于访问或创建幽灵实体及其组件。
+ * @param resNet 全局网络资源，提供缓存的幽灵快照数据。
+ */
 void Sys_Network::ApplyCachedRemoteGhostSnapshot(Registry& reg,
                                                  Res_Network& resNet,
                                                  bool resetInterpolationBuffer) {
