@@ -36,17 +36,20 @@
     #include <ctime>
 
     namespace ECS::DebugLog {
+        /// @brief Gets the shared mutex used to synchronize multiplayer debug log writes.
         inline std::mutex& MultiplayerLogMutex() {
             static std::mutex m;
             return m;
         }
 
+        /// @brief Gets the filesystem path of the multiplayer debug log file.
         inline std::filesystem::path MultiplayerLogPath() {
             static const std::filesystem::path p =
                 std::filesystem::current_path() / "multiplayer_debug.log";
             return p;
         }
 
+        /// @brief Appends a timestamped line to the multiplayer debug log file in a thread-safe way.
         inline void AppendMultiplayerLogLine(const std::string& line) {
             std::lock_guard<std::mutex> lock(MultiplayerLogMutex());
 
