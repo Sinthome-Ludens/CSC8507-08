@@ -38,12 +38,14 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
     auto& ui = registry.ctx<Res_UIState>();
     Res_ScoreConfig defaultScoreCfg;
     const auto& scoreCfg = registry.has_ctx<Res_ScoreConfig>() ? registry.ctx<Res_ScoreConfig>() : defaultScoreCfg;
+    if (gs.isMultiplayer && gs.matchPhase != MatchPhase::Running) return;
 
     // Only run during HUD or None screen (gameplay)
     if (ui.activeScreen != UIScreen::HUD && ui.activeScreen != UIScreen::None) return;
 
     // Already game over — do nothing
-    if (gs.isGameOver) return;
+    if (gs.isGameOver
+        || (gs.isMultiplayer && gs.localTerminalState != MultiplayerTerminalState::None)) return;
 
     // Trigger: alertLevel reaches max and countdown not yet active
     if (gs.alertLevel >= gs.alertMax && !gs.countdownActive) {
@@ -76,17 +78,24 @@ void Sys_Countdown::OnUpdate(Registry& registry, float dt) {
         if (gs.countdownTimer <= 0.0f) {
             gs.countdownTimer  = 0.0f;
             gs.countdownActive = false;
-            gs.isGameOver      = true;
-            gs.gameOverReason  = GameOverReason::Countdown;
-            gs.gameOverTime    = gs.playTime;
+            if (gs.isMultiplayer) {
+                gs.localTerminalState = MultiplayerTerminalState::Timeout;
+                gs.localTerminalReason = ToU8(GameOverReason::Countdown);
+            } else {
+                gs.isGameOver      = true;
+                gs.gameOverReason  = GameOverReason::Countdown;
+                gs.gameOverTime    = gs.playTime;
+            }
             if (registry.has_ctx<Res_AudioState>()) {
                 auto& audio = registry.ctx<Res_AudioState>();
                 audio.requestedBgm = BgmId::Defeat;
                 audio.bgmOverride  = false;
             }
 
-            ui.activeScreen         = UIScreen::GameOver;
-            ui.gameOverSelectedIndex = 0;
+            if (!gs.isMultiplayer) {
+                ui.activeScreen = UIScreen::GameOver;
+                ui.gameOverSelectedIndex = 0;
+            }
 
             // 失败惩罚 -500（挑战模式全局规则）
             if (!ui.failureScorePenaltyApplied) {

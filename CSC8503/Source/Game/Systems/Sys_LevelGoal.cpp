@@ -63,6 +63,13 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
     constexpr float kFinishHeightMax = 3.0f;   // Y 最大高度差（防止上下层误触发）
     const bool isMultiplayer = registry.has_ctx<Res_GameState>()
         && registry.ctx<Res_GameState>().isMultiplayer;
+    if (isMultiplayer) {
+        const auto& gs = registry.ctx<Res_GameState>();
+        if (gs.matchPhase != MatchPhase::Running
+            || gs.localTerminalState != MultiplayerTerminalState::None) {
+            return;
+        }
+    }
     if (!isMultiplayer && m_FinishTriggered) return;
 
     registry.view<C_T_FinishZone, C_D_Transform>().each(
@@ -107,10 +114,13 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                     gs.localProgress = gs.localStageProgress;
                     gs.roundJustAdvanced = true;
                     if (gs.localStageProgress >= kMultiplayerStageCount) {
-                        gs.isGameOver = true;
                         const bool scorePassed = campaignScore > scoreCfg.passThreshold;
-                        gs.gameOverReason = scorePassed ? GameOverReason::Success : GameOverReason::Detected;
-                        gs.gameOverTime = gs.playTime;
+                        gs.localTerminalState = scorePassed
+                            ? MultiplayerTerminalState::FinishedVictory
+                            : MultiplayerTerminalState::FinishedScoreFail;
+                        gs.localTerminalReason = scorePassed
+                            ? ToU8(GameOverReason::Success)
+                            : ToU8(GameOverReason::Detected);
                         if (registry.has_ctx<Res_AudioState>()) {
                             registry.ctx<Res_AudioState>().requestedBgm = scorePassed ? BgmId::Victory : BgmId::Defeat;
                             registry.ctx<Res_AudioState>().bgmOverride  = false;
@@ -121,6 +131,8 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                     if (uiState != nullptr) {
                         auto& ui = *uiState;
                         if (gs.localStageProgress < kMultiplayerStageCount) {
+                            gs.localTerminalState = MultiplayerTerminalState::StageCleared;
+                            gs.localTerminalReason = 0u;
                             ui.totalPlayTime += gs.playTime;
                             ui.pendingSceneRequest = SceneRequest::NextLevel;
                             UI::PushToast(registry, "AREA CLEAR - MOVING OUT", ToastType::Success, 2.0f);
@@ -131,10 +143,6 @@ void Sys_LevelGoal::OnUpdate(Registry& registry, float /*dt*/) {
                                           scorePassed ? ToastType::Success : ToastType::Warning,
                                           2.0f);
                         }
-                    }
-#else
-                    if (gs.localStageProgress >= kMultiplayerStageCount) {
-                        gs.isGameOver = true;
                     }
 #endif
                     return;

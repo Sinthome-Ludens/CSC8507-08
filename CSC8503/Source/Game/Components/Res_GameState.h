@@ -95,6 +95,15 @@ enum class MatchResult : uint8_t {
     Disconnected = 4,
 };
 
+enum class MultiplayerTerminalState : uint8_t {
+    None               = 0,
+    StageCleared       = 1,
+    Death              = 2,
+    Timeout            = 3,
+    FinishedVictory    = 4,
+    FinishedScoreFail  = 5,
+};
+
 /// @brief 多人比赛固定为三关，用于三段式进度条和比赛结束判定。
 static constexpr uint8_t kMultiplayerStageCount = 3;
 
@@ -165,11 +174,16 @@ struct Res_GameState {
     bool       roundJustAdvanced     = false;  ///< 本帧是否刚推进一关
     bool       matchJustStarted      = false;  ///< 本帧是否刚开始比赛
     bool       matchJustFinished     = false;  ///< 本帧是否刚结束比赛
+    bool       authoritativeMatchFinished = false; ///< 是否已由服务端权威收口比赛
     char       opponentName[16]      = "RIVAL";///< 对手显示名称
     uint8_t    disruptionType        = 0;      ///< 受到的干扰类型: 0=无 1=视觉干扰 2=减速 3=信号扰乱
     float      disruptionTimer       = 0.0f;   ///< 干扰剩余时长
     float      disruptionDuration    = 0.0f;   ///< 干扰总时长
     uint32_t   networkPing           = 0;      ///< 网络延迟 RTT (ms)
+    MultiplayerTerminalState localTerminalState = MultiplayerTerminalState::None; ///< 本地多人局内终局状态
+    MultiplayerTerminalState remoteTerminalState = MultiplayerTerminalState::None; ///< 对手多人局内终局状态
+    uint8_t    localTerminalReason   = 0;      ///< 本地多人终局原因码
+    uint8_t    remoteTerminalReason  = 0;      ///< 对手多人终局原因码
 
     // 兼容旧 HUD 逻辑：Phase 0 仅新增三阶段状态，不在本阶段移除旧百分比字段。
     uint8_t  localProgress       = 0;      ///< Deprecated: 旧多人 HUD 进度 (0-100%)
