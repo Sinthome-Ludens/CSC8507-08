@@ -171,10 +171,22 @@ struct Net_Packet_ClientMatchProgress : public Net_PacketHeader {
     uint8_t terminalReason;
 };
 
+/**
+ * @struct Net_Packet_GhostTransform
+ * @brief 幽灵玩家 Transform 同步数据包。
+ *
+ * 用于在同图联机中同步远端玩家的“幽灵”位姿信息，
+ * 以便本地客户端在回放或追赶显示时进行插值与对齐。
+ *
+ * 字段语义：
+ * - pos  : 世界空间下的玩家位置 (x, y, z)。
+ * - rot  : 世界空间下的玩家朝向四元数 (x, y, z, w)，需保持单位长度。
+ * - currentRoundIndex : 幽灵所属的比赛回合索引，用于与本地进度对齐。
+ */
 struct Net_Packet_GhostTransform : public Net_PacketHeader {
-    float pos[3];
-    float rot[4];
-    uint8_t currentRoundIndex = 0;
+    float   pos[3];              ///< 世界空间位置向量 (x, y, z)
+    float   rot[4];              ///< 世界空间旋转四元数 (x, y, z, w)
+    uint8_t currentRoundIndex = 0; ///< 幽灵所属的当前比赛回合索引
 };
 
 #pragma pack(pop)
