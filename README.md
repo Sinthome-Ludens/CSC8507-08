@@ -56,23 +56,11 @@
 ### 6) FMOD Core API（音频引擎）
 
 - 目录：`External/fmod`
-- 建议版本：FMOD Engine 2.02.x（Core API 即可，不需要 Studio API）
-- **获取方式**：FMOD 不能通过 git clone 获取，需要从官网下载安装后复制
-  1. 访问 https://www.fmod.com/download#fmodengine 下载 **FMOD Engine → Windows**
-  2. 安装到默认路径 `C:\Program Files (x86)\FMOD SoundSystem\`
-  3. 运行 `setup_dependencies.ps1`，脚本会自动从系统安装路径复制到 `External/fmod/`
-  4. 或手动复制：
-     ```
-     从: C:\Program Files (x86)\FMOD SoundSystem\FMOD Studio API Windows\api\core\
-     到: External/fmod/
-
-     External/fmod/
-     ├── inc/          ← api/core/inc/ 中的所有 .h 文件
-     └── lib/x64/      ← api/core/lib/x64/ 中的 fmod.dll, fmod_vc.lib, fmodL.dll, fmodL_vc.lib
-     ```
+- 版本：FMOD Engine 2.02.x（Core API）
+- **已提交到仓库**，clone 后直接可用，无需额外下载或安装
 - 项目集成方式：`CSC8503/CMakeLists.txt` 直接 include + link，Debug 用 `fmodL`，Release 用 `fmod`
 - DLL 自动拷贝：CMake POST_BUILD 命令将对应 DLL 复制到可执行文件输出目录
-- 许可证：FMOD 免费用于教育/非商业项目（需注册账号下载）
+- 许可证：FMOD 免费用于教育/非商业项目（https://www.fmod.com/legal）
 
 ## 首次部署 External（必做）
 
@@ -93,8 +81,7 @@ git clone --depth 1 --branch $JOLT_VERSION   https://github.com/jrouwe/JoltPhysi
 git clone --depth 1 --branch $JSON_VERSION   https://github.com/nlohmann/json.git External/nlohmann_json
 git clone --depth 1 --branch $IMGUI_VERSION  https://github.com/ocornut/imgui.git External/imgui
 
-# FMOD: 需先从 https://www.fmod.com/download#fmodengine 安装，然后运行 setup_dependencies.ps1 自动复制
-# 或手动复制 api/core/inc/*.h -> External/fmod/inc/ 和 api/core/lib/x64/* -> External/fmod/lib/x64/
+# FMOD: 已提交到仓库（External/fmod/），无需额外操作
 ```
 
 ## 使用 CMake 编译本项目
@@ -168,7 +155,7 @@ A1: 检查以下目录是否存在：
 - `External/JoltPhysics`
 - `External/nlohmann_json`
 - `External/imgui`
-- `External/fmod`（需手动安装 FMOD Engine 后运行 `setup_dependencies.ps1`）
+- `External/fmod`（已提交到仓库，clone 后直接可用）
 
 如果缺失，按上面的”首次部署 External（必做）”拉取后重新执行 CMake 配置。
 
