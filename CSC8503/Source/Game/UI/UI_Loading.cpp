@@ -62,6 +62,28 @@ void RenderLoadingScreen(Registry& registry, float dt) {
     float cx = vpPos.x + vpSize.x * 0.5f;
     float cy = vpPos.y + vpSize.y * 0.5f;
 
+    // ── Background geometric pattern (subtle hex grid) ────────
+    {
+        constexpr float hexSpacing = 60.0f;
+        constexpr float hexR = 20.0f;
+        ImU32 hexCol = Col32_Bg(8);
+        for (float hx = vpPos.x; hx < vpPos.x + vpSize.x + hexSpacing; hx += hexSpacing) {
+            for (float hy = vpPos.y; hy < vpPos.y + vpSize.y + hexSpacing; hy += hexSpacing * 0.866f) {
+                float ox = (int(hy / (hexSpacing * 0.866f)) % 2 == 0) ? 0.0f : hexSpacing * 0.5f;
+                float px = hx + ox;
+                // Draw hexagon outline
+                for (int s = 0; s < 6; ++s) {
+                    float a0 = (float)s * 1.0472f;       // pi/3
+                    float a1 = (float)(s + 1) * 1.0472f;
+                    draw->AddLine(
+                        ImVec2(px + cosf(a0) * hexR, hy + sinf(a0) * hexR),
+                        ImVec2(px + cosf(a1) * hexR, hy + sinf(a1) * hexR),
+                        hexCol, 1.0f);
+                }
+            }
+        }
+    }
+
     // ── Decorative rotating ring ──────────────────────────────
     float ringR = 40.0f;
     float ringCY = cy - 60.0f;
@@ -85,6 +107,12 @@ void RenderLoadingScreen(Registry& registry, float dt) {
                 Col32_Accent(200), 2.0f);
         }
     }
+
+    // Outer pulsing ring (breathe scale)
+    float breathe = (sinf(ui.loadingTimer * 1.5f) + 1.0f) * 0.5f;
+    float pulseR = ringR * (1.05f + breathe * 0.08f);
+    draw->AddCircle(ImVec2(cx, ringCY), pulseR,
+        Col32_Accent((uint8_t)(20 + breathe * 30)), 48, 1.0f);
 
     // Inner dot (pulsing)
     float pulse = (sinf(ui.loadingTimer * kPI * 2.0f) + 1.0f) * 0.5f;
@@ -167,6 +195,14 @@ void RenderLoadingScreen(Registry& registry, float dt) {
         else if (distance == 2) alpha = 50;
         else if (distance >= 3) alpha = 25;
 
+        // Slide-up: newest message slides in from below
+        float slideY = 0.0f;
+        if (i == (int)ui.loadingMsgIndex && ui.loadingMsgTimer < kMsgInterval) {
+            float t = ui.loadingMsgTimer / kMsgInterval;
+            slideY = (1.0f - t) * 10.0f;
+            alpha = (uint8_t)(alpha * t);
+        }
+
         // Prefix "> "
         char msgBuf[64];
         msgBuf[0] = '>';
@@ -177,7 +213,7 @@ void RenderLoadingScreen(Registry& registry, float dt) {
         msgBuf[mi + 2] = '\0';
 
         draw->AddText(
-            ImVec2(barX, msgY + (float)i * 18.0f),
+            ImVec2(barX, msgY + (float)i * 18.0f + slideY),
             Col32_Bg(alpha), msgBuf);
     }
 
