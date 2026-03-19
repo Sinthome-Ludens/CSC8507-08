@@ -111,6 +111,10 @@ void Sys_Render::OnDestroy(Registry& registry) {
         delete p;
     }
     m_PillarProxies.clear();
+    m_LastPillarProxyCount = 0;
+    if (m_Renderer) {
+        m_Renderer->SetOceanPillarProxies(nullptr);
+    }
 
     LOG_INFO("[Sys_Render] OnDestroy - all proxies removed");
 }
