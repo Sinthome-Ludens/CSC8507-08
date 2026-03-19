@@ -121,6 +121,7 @@ struct Res_UIState {
     float     loadingMinDuration   = 1.5f;  // 最少显示时长（秒）
     uint8_t   loadingMsgIndex      = 0;     // 当前显示到的系统消息索引
     float     loadingMsgTimer      = 0.0f;  // 消息轮播计时器
+    bool      loadingWaitForSpawn  = false;  ///< true = 场景请求已派发，等待新场景 spawning 完成后再关闭 Loading 画面
 
     // Cursor management
     // gameCursorFree: Sys_Camera 写入（Alt 键状态），Sys_UI 读取用于 HUD 模式光标决策

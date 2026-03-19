@@ -171,7 +171,7 @@ namespace NCL {
             // ── Shadow Buffer & Normal Offset ─────────────────
             float m_shadowNearBuffer = 50.0f;
             float m_shadowFarBuffer  = 20.0f;
-            float m_shadowNormalOffsetScale = 0.5f;
+            float m_shadowNormalOffsetScale = 0.01f;
 
             // ── Debug flags ──────────────────────────────────
             bool  m_debugCascades   = false;
@@ -236,6 +236,58 @@ namespace NCL {
 
             // ── 辅助绘制方法 ─────────────────────────────────
             void DrawObject(OGLShader* shader, const RenderObject* o);
+
+            // ── Instanced Rendering ──────────────────────────
+            /// @brief 同 mesh+shader 批次的 instanced draw 最小阈值
+            static constexpr int INSTANCE_THRESHOLD = 16;
+
+            /**
+             * @brief Instanced batch 数据：同 mesh 的 RenderObject 列表。
+             *
+             * BuildObjectLists 阶段按 (mesh, shader) 分组，
+             * RenderOpaquePass 对 instanceCount >= INSTANCE_THRESHOLD 的批次
+             * 使用 SSBO + glDrawElementsInstanced 一次绘制。
+             *
+             * PS5 移植注意：SSBO 对应 PS5 的 RW_Buffer / Structured Buffer，
+             * 需替换为 AGC 的 Buffer::allocate + setBuffers。
+             */
+            struct InstancedBatch {
+                OGLMesh*  mesh   = nullptr;
+                OGLShader* shader = nullptr;
+                std::vector<const RenderObject*> objects;
+                uint8_t shadowCascadeMask = 0x07; ///< batch 级联掩码（取首个对象的值）
+            };
+
+            std::vector<InstancedBatch> m_instancedBatches;
+
+            GLuint m_instanceSSBO       = 0; ///< SSBO: mat4 modelMatrix[] + vec4 objectColour[]
+            size_t m_instanceSSBOSize   = 0; ///< 当前 SSBO 已分配字节数
+
+            // ── 数据海洋 Ocean SSBO（binding point 1）──────────
+            GLuint m_oceanSSBO       = 0;  ///< SSBO: OceanInstanceData[]（静态，一次性上传）
+            size_t m_oceanSSBOSize   = 0;
+            bool   m_oceanSSBOReady  = false;
+            int    m_oceanPillarCount = 0;
+            float  m_oceanTime       = 0.0f;
+            float  m_oceanNoiseScale = 0.05f;
+            float  m_oceanNoiseSpeed = 0.3f;
+            float  m_oceanBaseAmplitude = 3.0f;
+            const std::vector<GameObject*>* m_oceanPillarProxiesPtr = nullptr;
+
+            void UploadOceanSSBO();
+            void DrawOceanBatch(OGLShader* shader, const Matrix4& viewMatrix, const Matrix4& projMatrix);
+            void DrawOceanShadowBatch(OGLShader* shader, const Matrix4& lightVP, float normalOffsetBias);
+
+            /// @brief 设置数据海洋柱子代理列表指针
+            void SetOceanPillarProxies(const std::vector<GameObject*>* proxies) override;
+            /// @brief 设置数据海洋 GPU 噪波时间
+            void SetOceanTime(float time) override;
+            /// @brief 设置数据海洋噪波参数
+            void SetOceanNoiseParams(float scale, float speed, float amplitude) override;
+
+            /// @brief 上传 instanced batch 数据到 SSBO 并执行 instanced draw。
+            void DrawInstancedBatch(OGLShader* shader, const InstancedBatch& batch,
+                                    const Matrix4& viewMatrix, const Matrix4& projMatrix);
         };
     }
 }
