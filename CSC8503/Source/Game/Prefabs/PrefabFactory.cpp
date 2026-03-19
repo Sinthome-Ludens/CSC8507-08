@@ -682,7 +682,7 @@ EntityID PrefabFactory::CreateLockedDoor(
     reg.Emplace<C_D_Transform>(entity,
         position,
         Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
-        Vector3(halfExtents.x * 2.0f, halfExtents.y * 2.0f, halfExtents.z * 2.0f)
+        Vector3(halfExtents.x, halfExtents.y, halfExtents.z)
     );
 
     reg.Emplace<C_D_MeshRenderer>(entity,
