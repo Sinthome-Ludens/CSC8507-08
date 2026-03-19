@@ -36,6 +36,7 @@
 #include "Game/Components/Res_ActionNotifyState.h"
 #endif
 
+#include <cmath>
 #include <cstring>
 #include <vector>
 
@@ -398,9 +399,10 @@ void Sys_Item::SyncInventoryState(Registry& registry) {
 // ============================================================
 // AnimatePickups — 每帧旋转地图上的道具实体（视觉效果）
 // ============================================================
+/// @brief 每帧以 90°/s 旋转所有 C_T_ItemPickup 实体（yaw 轴视觉动画）。
 void Sys_Item::AnimatePickups(Registry& registry, float dt) {
     m_PickupAnimTime += dt;
-    float yawDeg = m_PickupAnimTime * 90.0f; // 90°/s rotation speed
+    float yawDeg = std::fmod(m_PickupAnimTime * 90.0f, 360.0f); // 90°/s rotation speed
 
     auto rot = Quaternion::EulerAnglesToQuaternion(0.0f, yawDeg, 0.0f);
 

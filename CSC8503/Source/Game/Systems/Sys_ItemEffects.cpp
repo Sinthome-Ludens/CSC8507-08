@@ -475,6 +475,7 @@ void Sys_ItemEffects::UpdateRadar(Registry& registry, float dt) {
 // ============================================================
 // EffectGlobalMap — 激活小地图 + 联动雷达
 // ============================================================
+/// @brief 激活小地图（限时 kActiveDuration 秒）并联动开启雷达扫描。
 void Sys_ItemEffects::EffectGlobalMap(Registry& registry, const Evt_Item_Use& /*evt*/) {
     if (!registry.has_ctx<Res_MinimapState>()) return;
     auto& minimap = registry.ctx<Res_MinimapState>();
@@ -501,6 +502,7 @@ void Sys_ItemEffects::EffectGlobalMap(Registry& registry, const Evt_Item_Use& /*
 // ============================================================
 // UpdateMinimap — 每帧递减小地图激活计时器，到期自动关闭
 // ============================================================
+/// @brief 每帧递减小地图计时器，到期自动关闭 minimap.isActive。
 void Sys_ItemEffects::UpdateMinimap(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_MinimapState>()) return;
     auto& minimap = registry.ctx<Res_MinimapState>();

@@ -79,6 +79,7 @@ void SyncEquipmentToGameState(Registry& registry) {
              << (int)ui.missionEquippedWeapons[1] << "]");
 }
 
+/// @brief 自动填充 HUD 装备槽（仅当所有槽位为空时触发，作为无 MissionSelect 场景的 fallback）。
 void AutoFillHUDSlots(Registry& registry) {
     if (!registry.has_ctx<Res_GameState>()
      || !registry.has_ctx<Res_ItemInventory2>()) return;

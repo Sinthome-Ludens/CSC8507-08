@@ -218,7 +218,7 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
     if (gsPtr) {
         bool confirmPressed = input.keyPressed[KeyCodes::RETURN]
                            || input.keyPressed[KeyCodes::SPACE]
-                           || (input.mouseButtonPressed[0] && hoveredCard >= 0);
+                           || (input.mouseButtonPressed[NCL::MouseButtons::Left] && hoveredCard >= 0);
 
         int selIdx = ui.inventorySelectedSlot;
         if (confirmPressed && selIdx >= 0 && selIdx < Res_InventoryState::kSlotCount) {

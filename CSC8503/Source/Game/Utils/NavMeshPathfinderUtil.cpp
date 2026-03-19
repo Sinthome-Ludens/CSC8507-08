@@ -460,6 +460,7 @@ void NavMeshPathfinderUtil::BuildAdjacency()
 // ============================================================
 // SnapToNavMesh — 将世界坐标吸附到最近可行走三角形表面
 // ============================================================
+/// @brief 将世界坐标吸附到最近 NavMesh 三角形表面（XZ 最近边投影 + Y 地面高度）。
 bool NavMeshPathfinderUtil::SnapToNavMesh(
     const NCL::Maths::Vector3& worldPos,
     NCL::Maths::Vector3& outSnapped) const
@@ -506,7 +507,7 @@ bool NavMeshPathfinderUtil::SnapToNavMesh(
         else if (d1 <= d2)             { outSnapped.x = ex1; outSnapped.z = ez1; }
         else                           { outSnapped.x = ex2; outSnapped.z = ez2; }
     }
-    // Y: use triangle centroid Y (ground surface height)
+    // Y: use triangle centroid Y as ground surface height approximation
     outSnapped.y = tri.centroid.y;
     return true;
 }
