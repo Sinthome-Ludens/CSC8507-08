@@ -317,6 +317,11 @@ private:
                                               const uint8_t* mapSequence,
                                               uint8_t roundIndex);
     static EntityID EnsureRemoteGhostEntity(Registry& reg, Res_Network& resNet);
+    static void CacheRemoteGhostSnapshot(Res_Network& resNet, const Net_Packet_GhostTransform& pkt);
+    static void ApplyCachedRemoteGhostSnapshot(Registry& reg,
+                                               Res_Network& resNet,
+                                               bool resetInterpolationBuffer);
+    static void RefreshRemoteGhostEntity(Registry& reg, Res_Network& resNet);
 
     // ── 数据包解包与物理驱动辅助方法 ──
     template<typename T>
@@ -375,6 +380,8 @@ private:
     uint32_t m_LastInputMask = 0; ///< 记录客户端上一帧的输入，用于判断状态变化
     float m_InputTimer = 0.0f;    ///< 客户端输入发送计时器
     float m_GhostTransformTimer = 0.0f; ///< 幽灵位姿同步计时器
+    EntityID m_LastGhostSourceEntity = Entity::NULL_ENTITY;
+    uint8_t m_LastGhostSentRoundIndex = 0xFF;
     uint8_t m_LastReportedLocalStageProgress = 0xFF;
     uint8_t m_LastReportedLocalGameOverReason = 0xFF;
     uint8_t m_LastBroadcastPhase = 0xFF;

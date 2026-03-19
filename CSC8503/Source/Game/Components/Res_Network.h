@@ -67,6 +67,10 @@ struct Res_Network {
 
     EntityID localPlayerEntity = Entity::NULL_ENTITY; ///< 当前场景本地可控玩家实体
     EntityID remoteGhostEntity = Entity::NULL_ENTITY; ///< 当前场景远端幽灵显示实体
+    bool     remoteGhostSnapshotValid = false; ///< 是否缓存了最新一帧远端幽灵位姿
+    uint8_t  remoteGhostSnapshotRoundIndex = 0; ///< 最近缓存的幽灵位姿所属轮次
+    float    remoteGhostSnapshotPos[3] = { 0.0f, 0.0f, 0.0f }; ///< 最近缓存的幽灵位置
+    float    remoteGhostSnapshotRot[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; ///< 最近缓存的幽灵旋转
 
     // 网络流量统计（供 ImGui 调试面板读取）
     uint64_t packetsSent     = 0;      ///< 累计发送包数

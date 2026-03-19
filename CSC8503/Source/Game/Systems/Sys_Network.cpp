@@ -114,6 +114,8 @@ void Sys_Network::OnAwake(Registry& reg) {
         m_InputTimer = 0.0f;
         m_GhostTransformTimer = 0.0f;
         m_LastInputMask = 0u;
+        m_LastGhostSourceEntity = Entity::NULL_ENTITY;
+        m_LastGhostSentRoundIndex = 0xFF;
         m_LastReportedLocalStageProgress = 0xFF;
         m_LastReportedLocalGameOverReason = 0xFF;
         m_LastBroadcastPhase = 0xFF;
@@ -160,6 +162,8 @@ void Sys_Network::OnAwake(Registry& reg) {
         InitializeClient(resNet);
     }
     m_GhostTransformTimer = 0.0f;
+    m_LastGhostSourceEntity = Entity::NULL_ENTITY;
+    m_LastGhostSentRoundIndex = 0xFF;
 }
 
 /**
@@ -269,6 +273,8 @@ void Sys_Network::OnUpdate(Registry& reg, float dt) {
     }
 
     if (!resNet.connected) return;
+
+    RefreshRemoteGhostEntity(reg, resNet);
 
     // 2. 处理本地输入（客户端发包，服务端直接驱动物理）
     HandleLocalInput(reg, resNet);
@@ -581,31 +587,10 @@ void Sys_Network::HandleClientGhostTransform(Registry& reg, Res_Network& resNet,
 
     auto* pkt = GetPacketData<Net_Packet_GhostTransform>(event);
     if (!pkt) return;
-    if (reg.has_ctx<Res_GameState>()
-        && pkt->currentRoundIndex != reg.ctx<Res_GameState>().currentRoundIndex) {
-        return;
-    }
-
-    EntityID ghost = EnsureRemoteGhostEntity(reg, resNet);
-    if (!Entity::IsValid(ghost) || !reg.Valid(ghost) || !reg.Has<C_D_InterpBuffer>(ghost)) {
-        return;
-    }
-
-    auto& buffer = reg.Get<C_D_InterpBuffer>(ghost);
-    const float localReceiveTimeMs = reg.has_ctx<Res_Time>()
-        ? reg.ctx<Res_Time>().totalTime * 1000.0f
-        : 0.0f;
-    const NCL::Maths::Vector3 ghostPos(pkt->pos[0], pkt->pos[1], pkt->pos[2]);
-    const NCL::Maths::Quaternion ghostRot(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]);
-    InterpBuffer_AddSnapshot(buffer,
-        ghostPos,
-        ghostRot,
-        localReceiveTimeMs);
-    if (reg.Has<C_D_Transform>(ghost)) {
-        auto& tf = reg.Get<C_D_Transform>(ghost);
-        tf.position = ghostPos;
-        tf.rotation = ghostRot;
-    }
+    const bool roundChanged = !resNet.remoteGhostSnapshotValid
+        || resNet.remoteGhostSnapshotRoundIndex != pkt->currentRoundIndex;
+    CacheRemoteGhostSnapshot(resNet, *pkt);
+    ApplyCachedRemoteGhostSnapshot(reg, resNet, roundChanged);
 }
 
 /**
@@ -782,13 +767,23 @@ void Sys_Network::SyncGhostTransforms(Registry& reg, Res_Network& resNet) {
     pkt.pos[0] = tf.position.x; pkt.pos[1] = tf.position.y; pkt.pos[2] = tf.position.z;
     pkt.rot[0] = tf.rotation.x; pkt.rot[1] = tf.rotation.y; pkt.rot[2] = tf.rotation.z; pkt.rot[3] = tf.rotation.w;
     pkt.currentRoundIndex = reg.ctx<Res_GameState>().currentRoundIndex;
+    const bool forceReliableSeed = (m_LastGhostSourceEntity != resNet.localPlayerEntity)
+        || (m_LastGhostSentRoundIndex != pkt.currentRoundIndex);
+    m_LastGhostSourceEntity = resNet.localPlayerEntity;
+    m_LastGhostSentRoundIndex = pkt.currentRoundIndex;
 
     if (resNet.mode == PeerType::SERVER) {
         pkt.type = SYNC_GHOST_TRANSFORM;
-        SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Unreliable);
+        SendPacket(resNet,
+            pkt,
+            NetTarget::Broadcast,
+            forceReliableSeed ? NetDelivery::Reliable : NetDelivery::Unreliable);
     } else if (resNet.mode == PeerType::CLIENT && resNet.peer != nullptr) {
         pkt.type = CLIENT_GHOST_TRANSFORM;
-        SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Unreliable);
+        SendPacket(resNet,
+            pkt,
+            NetTarget::Single,
+            forceReliableSeed ? NetDelivery::Reliable : NetDelivery::Unreliable);
     }
 }
 
@@ -970,31 +965,10 @@ void Sys_Network::HandleSyncGhostTransform(Registry& reg, Res_Network& resNet, c
 
     auto* pkt = GetPacketData<Net_Packet_GhostTransform>(event);
     if (!pkt) return;
-    if (reg.has_ctx<Res_GameState>()
-        && pkt->currentRoundIndex != reg.ctx<Res_GameState>().currentRoundIndex) {
-        return;
-    }
-
-    EntityID ghost = EnsureRemoteGhostEntity(reg, resNet);
-    if (!Entity::IsValid(ghost) || !reg.Valid(ghost) || !reg.Has<C_D_InterpBuffer>(ghost)) {
-        return;
-    }
-
-    auto& buffer = reg.Get<C_D_InterpBuffer>(ghost);
-    const float localReceiveTimeMs = reg.has_ctx<Res_Time>()
-        ? reg.ctx<Res_Time>().totalTime * 1000.0f
-        : 0.0f;
-    const NCL::Maths::Vector3 ghostPos(pkt->pos[0], pkt->pos[1], pkt->pos[2]);
-    const NCL::Maths::Quaternion ghostRot(pkt->rot[0], pkt->rot[1], pkt->rot[2], pkt->rot[3]);
-    InterpBuffer_AddSnapshot(buffer,
-        ghostPos,
-        ghostRot,
-        localReceiveTimeMs);
-    if (reg.Has<C_D_Transform>(ghost)) {
-        auto& tf = reg.Get<C_D_Transform>(ghost);
-        tf.position = ghostPos;
-        tf.rotation = ghostRot;
-    }
+    const bool roundChanged = !resNet.remoteGhostSnapshotValid
+        || resNet.remoteGhostSnapshotRoundIndex != pkt->currentRoundIndex;
+    CacheRemoteGhostSnapshot(resNet, *pkt);
+    ApplyCachedRemoteGhostSnapshot(reg, resNet, roundChanged);
 }
 
 /**
@@ -1149,6 +1123,65 @@ EntityID Sys_Network::EnsureRemoteGhostEntity(Registry& reg, Res_Network& resNet
 
     resNet.remoteGhostEntity = ghost;
     return ghost;
+}
+
+void Sys_Network::CacheRemoteGhostSnapshot(Res_Network& resNet, const Net_Packet_GhostTransform& pkt) {
+    resNet.remoteGhostSnapshotValid = true;
+    resNet.remoteGhostSnapshotRoundIndex = pkt.currentRoundIndex;
+    std::copy(std::begin(pkt.pos), std::end(pkt.pos), std::begin(resNet.remoteGhostSnapshotPos));
+    std::copy(std::begin(pkt.rot), std::end(pkt.rot), std::begin(resNet.remoteGhostSnapshotRot));
+}
+
+void Sys_Network::ApplyCachedRemoteGhostSnapshot(Registry& reg,
+                                                 Res_Network& resNet,
+                                                 bool resetInterpolationBuffer) {
+    if (resNet.multiplayerMode != MultiplayerMode::SameMapGhostRace
+        || !resNet.remoteGhostSnapshotValid) {
+        return;
+    }
+
+    EntityID ghost = EnsureRemoteGhostEntity(reg, resNet);
+    if (!Entity::IsValid(ghost) || !reg.Valid(ghost) || !reg.Has<C_D_Transform>(ghost)) {
+        return;
+    }
+
+    const NCL::Maths::Vector3 ghostPos(
+        resNet.remoteGhostSnapshotPos[0],
+        resNet.remoteGhostSnapshotPos[1],
+        resNet.remoteGhostSnapshotPos[2]);
+    const NCL::Maths::Quaternion ghostRot(
+        resNet.remoteGhostSnapshotRot[0],
+        resNet.remoteGhostSnapshotRot[1],
+        resNet.remoteGhostSnapshotRot[2],
+        resNet.remoteGhostSnapshotRot[3]);
+
+    if (reg.Has<C_D_InterpBuffer>(ghost)) {
+        auto& buffer = reg.Get<C_D_InterpBuffer>(ghost);
+        if (resetInterpolationBuffer) {
+            buffer = C_D_InterpBuffer{};
+        }
+
+        const float localReceiveTimeMs = reg.has_ctx<Res_Time>()
+            ? reg.ctx<Res_Time>().totalTime * 1000.0f
+            : 0.0f;
+        InterpBuffer_AddSnapshot(buffer, ghostPos, ghostRot, localReceiveTimeMs);
+    }
+
+    auto& tf = reg.Get<C_D_Transform>(ghost);
+    tf.position = ghostPos;
+    tf.rotation = ghostRot;
+}
+
+void Sys_Network::RefreshRemoteGhostEntity(Registry& reg, Res_Network& resNet) {
+    if (!resNet.connected
+        || resNet.multiplayerMode != MultiplayerMode::SameMapGhostRace
+        || !resNet.remotePeerConnected
+        || !resNet.remoteGhostSnapshotValid
+        || resNet.bootstrapSceneActive) {
+        return;
+    }
+
+    ApplyCachedRemoteGhostSnapshot(reg, resNet, false);
 }
 
 /**
@@ -1427,6 +1460,15 @@ void Sys_Network::ResetNetworkRuntimeState(Res_Network& resNet, bool keepConfigu
     resNet.netIdMap.clear();
     resNet.localPlayerEntity = Entity::NULL_ENTITY;
     resNet.remoteGhostEntity = Entity::NULL_ENTITY;
+    resNet.remoteGhostSnapshotValid = false;
+    resNet.remoteGhostSnapshotRoundIndex = 0u;
+    resNet.remoteGhostSnapshotPos[0] = 0.0f;
+    resNet.remoteGhostSnapshotPos[1] = 0.0f;
+    resNet.remoteGhostSnapshotPos[2] = 0.0f;
+    resNet.remoteGhostSnapshotRot[0] = 0.0f;
+    resNet.remoteGhostSnapshotRot[1] = 0.0f;
+    resNet.remoteGhostSnapshotRot[2] = 0.0f;
+    resNet.remoteGhostSnapshotRot[3] = 1.0f;
     resNet.packetsSent = 0u;
     resNet.packetsReceived = 0u;
     resNet.bytesSent = 0u;
