@@ -425,8 +425,8 @@ EntityID PrefabFactory::CreatePlayer(
  *          C_D_Health、C_T_NavTarget、C_D_RigidBody、C_D_Collider，确保在任意系统
  *          Tick 间隙都不会被当作可驾驶玩家或物理实体参与处理。之后保证存在
  *          C_D_InterpBuffer，用于网络或回放数据驱动的平滑插值。最后覆盖（或补充）
-         C_D_Material，将材质配置为半透明混合模式、冷色调高亮轮廓与适度自发光，以
-         视觉上明显区分幽灵与本地实体，同时保持其严格为“只读”的纯可视 ghost 表示。
+ *          C_D_Material，将材质配置为半透明混合模式、冷色调高亮轮廓与适度自发光，以
+ *          视觉上明显区分幽灵与本地实体，同时保持其严格为“只读”的纯可视 ghost 表示。
  */
 EntityID PrefabFactory::CreateGhostPlayer(
     Registry&   reg,
