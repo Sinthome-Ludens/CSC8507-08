@@ -34,7 +34,7 @@ Clone-If-Missing $IMGUI_VERSION  "https://github.com/ocornut/imgui.git" "Externa
 $FMOD_PATH = "External/fmod"
 $FMOD_INSTALL = "C:\Program Files (x86)\FMOD SoundSystem\FMOD Studio API Windows\api\core"
 
-if (Test-Path "$FMOD_PATH/inc/fmod.h") {
+if ((Test-Path "$FMOD_PATH/inc/fmod.h") -and (Test-Path "$FMOD_PATH/lib/x64/fmod_vc.lib") -and (Test-Path "$FMOD_PATH/lib/x64/fmod.dll")) {
     Write-Host "[skip] $FMOD_PATH already exists"
 }
 elseif (Test-Path "$FMOD_INSTALL/inc/fmod.h") {

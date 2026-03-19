@@ -17,7 +17,7 @@
 #include <fmod.hpp>
 #include <fmod_errors.h>
 #include <cstdlib>
-#include <ctime>
+#include <random>
 #include <string>
 
 #include "Assets.h"
@@ -36,7 +36,7 @@ namespace ECS {
 // OnAwake
 // ============================================================
 void Sys_Audio::OnAwake(Registry& registry) {
-    std::srand(static_cast<unsigned>(std::time(nullptr)));
+    m_Rng.seed(std::random_device{}());
 
     FMOD_RESULT result = FMOD::System_Create(&m_FmodSystem);
     if (result != FMOD_OK) {
@@ -45,8 +45,11 @@ void Sys_Audio::OnAwake(Registry& registry) {
         return;
     }
 
-    Res_AudioConfig tempCfg;
-    result = m_FmodSystem->init(tempCfg.maxChannels, FMOD_INIT_NORMAL, nullptr);
+    if (!registry.has_ctx<Res_AudioConfig>()) {
+        registry.ctx_emplace<Res_AudioConfig>();
+    }
+    const auto& initCfg = registry.ctx<Res_AudioConfig>();
+    result = m_FmodSystem->init(initCfg.maxChannels, FMOD_INIT_NORMAL, nullptr);
     if (result != FMOD_OK) {
         LOG_ERROR("[Sys_Audio] FMOD init failed: " << FMOD_ErrorString(result));
         m_FmodSystem->release();
@@ -58,10 +61,7 @@ void Sys_Audio::OnAwake(Registry& registry) {
     m_FmodSystem->createChannelGroup("BGM", &m_BgmGroup);
     m_FmodSystem->createChannelGroup("SFX", &m_SfxGroup);
 
-    // ── 注册 ctx 资源 ──
-    if (!registry.has_ctx<Res_AudioConfig>()) {
-        registry.ctx_emplace<Res_AudioConfig>();
-    }
+    // ── 注册 ctx 资源（Res_AudioConfig 已在 init 前 emplace）──
     if (!registry.has_ctx<Res_AudioState>()) {
         registry.ctx_emplace<Res_AudioState>();
     }
@@ -99,7 +99,7 @@ void Sys_Audio::OnAwake(Registry& registry) {
                     if (!m_Initialized) return;
                     if (e.deathType == DeathType::EnemyHpZero) {
                         static const SfxId kEnemyKillVariants[] = { SfxId::EnemyKillA, SfxId::EnemyKillB, SfxId::EnemyKillC };
-                        PlaySfx(kEnemyKillVariants[std::rand() % 3]);
+                        PlaySfx(kEnemyKillVariants[m_Rng() % 3]);
                     }
                     if (e.deathType == DeathType::PlayerCaptured
                         || e.deathType == DeathType::PlayerTriggerDie) {
@@ -172,8 +172,9 @@ void Sys_Audio::OnUpdate(Registry& registry, float /*dt*/) {
     if (state.requestedBgm != BgmId::None
         && state.requestedBgm != state.currentBgm) {
         StopBgm();
-        PlayBgm(state.requestedBgm);
-        state.currentBgm   = state.requestedBgm;
+        if (PlayBgm(state.requestedBgm)) {
+            state.currentBgm = state.requestedBgm;
+        }
         state.requestedBgm = BgmId::None;
     }
 
@@ -266,22 +267,30 @@ void Sys_Audio::StopBgm() {
     }
 }
 
-void Sys_Audio::PlayBgm(BgmId id) {
+bool Sys_Audio::PlayBgm(BgmId id) {
     int idx = (int)id;
-    if (idx <= 0 || idx >= (int)BgmId::COUNT) return;
-    if (!m_BgmSounds[idx]) return;
+    if (idx <= 0 || idx >= (int)BgmId::COUNT) return false;
+    if (!m_BgmSounds[idx]) {
+        LOG_WARN("[Sys_Audio] PlayBgm skipped — no sound loaded for id=" << idx);
+        return false;
+    }
 
     FMOD_RESULT result = m_FmodSystem->playSound(m_BgmSounds[idx], m_BgmGroup, false, &m_BgmChannel);
     if (result != FMOD_OK) {
         LOG_WARN("[Sys_Audio] PlayBgm failed for id=" << idx << ": " << FMOD_ErrorString(result));
         m_BgmChannel = nullptr;
+        return false;
     }
+    return true;
 }
 
 void Sys_Audio::PlaySfx(SfxId id) {
     int idx = (int)id;
     if (idx <= 0 || idx >= (int)SfxId::COUNT) return;
-    if (!m_SfxSounds[idx]) return;
+    if (!m_SfxSounds[idx]) {
+        LOG_WARN("[Sys_Audio] PlaySfx skipped — no sound loaded for id=" << idx << " (path may be empty/reserved)");
+        return;
+    }
 
     FMOD::Channel* ch = nullptr;
     FMOD_RESULT result = m_FmodSystem->playSound(m_SfxSounds[idx], m_SfxGroup, false, &ch);

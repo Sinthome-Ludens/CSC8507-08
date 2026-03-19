@@ -82,7 +82,6 @@ struct Res_AudioConfig {
     };
 
     int   maxChannels           = 32;    ///< FMOD 最大同时播放通道数
-    float bgmCrossfadeDuration = 0.5f;   ///< BGM 交叉淡入时长（秒）
     float bgmVolumeMul         = 0.8f;   ///< BGM 音量乘数（相对于 masterVolume）
 
     /**

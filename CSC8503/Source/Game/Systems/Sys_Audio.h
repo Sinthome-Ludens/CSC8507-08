@@ -10,6 +10,7 @@
 #include "Core/ECS/BaseSystem.h"
 #include "Game/Components/Res_AudioConfig.h"
 #include <cstdint>
+#include <random>
 #include <vector>
 
 namespace FMOD { class System; class Sound; class Channel; class ChannelGroup; }
@@ -25,7 +26,7 @@ public:
 private:
     void LoadSound(const char* path, bool loop, int index, bool isBgm);
     void StopBgm();
-    void PlayBgm(BgmId id);
+    bool PlayBgm(BgmId id);  ///< 返回 false 表示播放失败（Sound 缺失或 FMOD 错误）
     void PlaySfx(SfxId id);
 
     bool m_Initialized = false;
@@ -39,6 +40,8 @@ private:
     FMOD::Sound* m_SfxSounds[(int)SfxId::COUNT] = {};
 
     std::vector<SfxId> m_PendingSfx;
+
+    std::mt19937 m_Rng;  ///< 音频专用随机引擎（不污染全局 std::rand）
 
     uint64_t m_DeathSubId = 0;
     uint64_t m_AlertSubId = 0;
