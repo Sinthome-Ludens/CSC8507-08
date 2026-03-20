@@ -1,0 +1,651 @@
+{
+  "delay": 3.0,
+  "nodes": [
+    {
+      "id": "nd_01",
+      "isRoot": true,
+      "treeId": "7",
+      "speaker": "TARGET",
+      "message": "hi is the pc you listed on the platform still for sale",
+      "replies": [
+        {
+          "text": "yeah its available",
+          "alertDelta": 0,
+          "next": "nd_price"
+        },
+        {
+          "text": "depends which config",
+          "alertDelta": 0,
+          "next": "nd_price"
+        },
+        {
+          "text": "yeah whats your budget",
+          "alertDelta": 0,
+          "next": "nd_price"
+        }
+      ]
+    },
+    {
+      "id": "nd_price",
+      "speaker": "TARGET",
+      "message": "i see you listed it at 600 can you go lower",
+      "replies": [
+        {
+          "text": "cant go lower thats the going rate",
+          "alertDelta": 0,
+          "next": "nd_cond"
+        },
+        {
+          "text": "what are you offering",
+          "alertDelta": 0,
+          "next": "nd_cond"
+        },
+        {
+          "text": "slight wiggle room throw me a number",
+          "alertDelta": 0,
+          "next": "nd_cond"
+        }
+      ]
+    },
+    {
+      "id": "nd_cond",
+      "speaker": "TARGET",
+      "message": "ive noticed the psu was swapped and the cooling was modded",
+      "waitReply": false,
+      "next": "nd_cond2"
+    },
+    {
+      "id": "nd_cond2",
+      "speaker": "TARGET",
+      "message": "warranty is definitely void",
+      "replies": [
+        {
+          "text": "so? brand new is 1500 this is less than half",
+          "alertDelta": 0,
+          "next": "nd_student"
+        },
+        {
+          "text": "the modded cooling is way better than stock",
+          "alertDelta": 0,
+          "next": "nd_student"
+        },
+        {
+          "text": "warranty expired ages ago nothing to do with the mods",
+          "alertDelta": 0,
+          "next": "nd_student"
+        },
+        {
+          "text": "if you dont like it dont buy it",
+          "alertDelta": 2,
+          "next": "nd_student"
+        }
+      ]
+    },
+    {
+      "id": "nd_student",
+      "speaker": "TARGET",
+      "message": "look ill be honest with you",
+      "waitReply": false,
+      "next": "nd_student2"
+    },
+    {
+      "id": "nd_student2",
+      "speaker": "TARGET",
+      "message": "im a student and i only have 400 to spare",
+      "waitReply": false,
+      "next": "nd_student3"
+    },
+    {
+      "id": "nd_student3",
+      "speaker": "TARGET",
+      "message": "can you just give me a deal",
+      "replies": [
+        {
+          "text": "is this mr li age 38",
+          "alertDelta": 0,
+          "next": "nd_expose"
+        },
+        {
+          "text": "being a student is tough i get it",
+          "alertDelta": -2,
+          "next": "nd_sympathy"
+        },
+        {
+          "text": "400 is really too low",
+          "alertDelta": 0,
+          "next": "nd_sympathy"
+        },
+        {
+          "text": "mate 400 doesnt even cover the parts",
+          "alertDelta": 0,
+          "next": "nd_sympathy"
+        }
+      ]
+    },
+    {
+      "id": "nd_expose",
+      "speaker": "TARGET",
+      "message": "how do you know my age???",
+      "replies": [
+        {
+          "text": "your profile page on the platform",
+          "alertDelta": 0,
+          "next": "nd_react"
+        },
+        {
+          "text": "you wrote it yourself",
+          "alertDelta": 0,
+          "next": "nd_react"
+        },
+        {
+          "text": "student at 38 huh",
+          "alertDelta": 2,
+          "next": "nd_react"
+        }
+      ]
+    },
+    {
+      "id": "nd_react",
+      "speaker": "TARGET",
+      "message": "oh well you see uh",
+      "replies": [
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": "nd_excuse"
+        },
+        {
+          "text": "so youre not a student then",
+          "alertDelta": 0,
+          "next": "nd_excuse"
+        },
+        {
+          "text": "its fine keep talking",
+          "alertDelta": 0,
+          "next": "nd_excuse"
+        }
+      ]
+    },
+    {
+      "id": "nd_excuse",
+      "speaker": "TARGET",
+      "message": "im actually enrolled in adult education",
+      "replies": [
+        {
+          "text": "ok that counts i guess",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        },
+        {
+          "text": "adult education budget is 400?",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        },
+        {
+          "text": "got it so what do you need this machine for",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        }
+      ]
+    },
+    {
+      "id": "nd_sympathy",
+      "speaker": "TARGET",
+      "message": "its not easy working and studying at the same time",
+      "waitReply": false,
+      "next": "nd_sympathy2"
+    },
+    {
+      "id": "nd_sympathy2",
+      "speaker": "TARGET",
+      "message": "can you cut me some slack",
+      "replies": [
+        {
+          "text": "i understand but 600 is already low",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        },
+        {
+          "text": "what do you do for work",
+          "alertDelta": 0,
+          "next": "nd_job"
+        },
+        {
+          "text": "500 lowest i can go",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        },
+        {
+          "text": "what are you using it for",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        }
+      ]
+    },
+    {
+      "id": "nd_job",
+      "speaker": "TARGET",
+      "message": "some tech stuff network related",
+      "replies": [
+        {
+          "text": "network engineering?",
+          "alertDelta": 0,
+          "next": "nd_netdetail"
+        },
+        {
+          "text": "this machine should be plenty for that",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        },
+        {
+          "text": "what area specifically",
+          "alertDelta": 0,
+          "next": "nd_netdetail"
+        }
+      ]
+    },
+    {
+      "id": "nd_netdetail",
+      "speaker": "TARGET",
+      "message": "server maintenance stuff like that",
+      "replies": [
+        {
+          "text": "what are you running currently",
+          "alertDelta": 0,
+          "next": "nd_oldpc"
+        },
+        {
+          "text": "this config is overkill for server maintenance",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        },
+        {
+          "text": "working from home or at a company",
+          "alertDelta": 0,
+          "next": "nd_wfh"
+        }
+      ]
+    },
+    {
+      "id": "nd_oldpc",
+      "speaker": "TARGET",
+      "message": "my current one is too old cant handle it anymore",
+      "replies": [
+        {
+          "text": "what model",
+          "alertDelta": 0,
+          "next": "nd_oldmodel"
+        },
+        {
+          "text": "yeah time for an upgrade then",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        }
+      ]
+    },
+    {
+      "id": "nd_oldmodel",
+      "speaker": "TARGET",
+      "message": "an ML-2060 had it for almost 7 years",
+      "replies": [
+        {
+          "text": "2060 yeah definitely time to upgrade",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        },
+        {
+          "text": "7 years and still running thats durable",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        },
+        {
+          "text": "selling the old one i could take it",
+          "alertDelta": 0,
+          "next": "nd_tradein"
+        }
+      ]
+    },
+    {
+      "id": "nd_wfh",
+      "speaker": "TARGET",
+      "message": "from home freelance",
+      "replies": [
+        {
+          "text": "freelance nice so your budget is probably more than 400 right",
+          "alertDelta": 0,
+          "next": "nd_network"
+        },
+        {
+          "text": "hows your network setup at home",
+          "alertDelta": 0,
+          "next": "nd_network"
+        },
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        }
+      ]
+    },
+    {
+      "id": "nd_network",
+      "speaker": "TARGET",
+      "message": "its alright the buildings shared network",
+      "replies": [
+        {
+          "text": "shared building network is the bandwidth enough",
+          "alertDelta": 0,
+          "next": "nd_bw"
+        },
+        {
+          "text": "server maintenance on a shared building network?",
+          "alertDelta": 1,
+          "next": "nd_bw"
+        },
+        {
+          "text": "ok",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        }
+      ]
+    },
+    {
+      "id": "nd_bw",
+      "speaker": "TARGET",
+      "message": "its enough im not running heavy traffic",
+      "replies": [
+        {
+          "text": "fair enough",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        },
+        {
+          "text": "which building are you in maybe we can do a local handoff",
+          "alertDelta": 0,
+          "next": "nd_loc"
+        }
+      ]
+    },
+    {
+      "id": "nd_loc",
+      "speaker": "TARGET",
+      "message": "mega tower block B4",
+      "replies": [
+        {
+          "text": "B4 i know the area thats close",
+          "alertDelta": 0,
+          "next": "nd_floor"
+        },
+        {
+          "text": "which floor in B4",
+          "alertDelta": 0,
+          "next": "nd_floor"
+        },
+        {
+          "text": "sure well sort it out later",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        }
+      ]
+    },
+    {
+      "id": "nd_floor",
+      "speaker": "TARGET",
+      "message": "mezzanine 62 bit hard to find",
+      "replies": [
+        {
+          "text": "mezzanines are tricky youll have to guide me there",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        },
+        {
+          "text": "i can drop it off at the entrance and you come down",
+          "alertDelta": 0,
+          "next": "nd_usage"
+        }
+      ]
+    },
+    {
+      "id": "nd_usage",
+      "speaker": "TARGET",
+      "message": "so after all that can we talk price again",
+      "replies": [
+        {
+          "text": "550 lowest cant go lower",
+          "alertDelta": 0,
+          "next": "nd_last"
+        },
+        {
+          "text": "600 i said its firm",
+          "alertDelta": 0,
+          "next": "nd_last"
+        },
+        {
+          "text": "trade in your old one and ill knock some off",
+          "alertDelta": 0,
+          "next": "nd_tradein"
+        },
+        {
+          "text": "fine 500 call it a friendly deal",
+          "alertDelta": 0,
+          "next": "nd_deal"
+        }
+      ]
+    },
+    {
+      "id": "nd_tradein",
+      "speaker": "TARGET",
+      "message": "trade in? can that old 2060 even be worth anything",
+      "replies": [
+        {
+          "text": "depends can it still boot up",
+          "alertDelta": 0,
+          "next": "nd_last"
+        },
+        {
+          "text": "the parts are still worth something",
+          "alertDelta": 0,
+          "next": "nd_last"
+        },
+        {
+          "text": "ill give you 100 credit for it so 500 deal",
+          "alertDelta": 0,
+          "next": "nd_deal"
+        }
+      ]
+    },
+    {
+      "id": "nd_last",
+      "speaker": "TARGET",
+      "message": "come on mate the machine is old",
+      "waitReply": false,
+      "next": "nd_last2"
+    },
+    {
+      "id": "nd_last2",
+      "speaker": "TARGET",
+      "message": "just sell it to me for 400",
+      "waitReply": false,
+      "next": "nd_last3"
+    },
+    {
+      "id": "nd_last3",
+      "speaker": "TARGET",
+      "message": "its not like anyone else is buying it",
+      "replies": [
+        {
+          "text": "?",
+          "alertDelta": 0,
+          "next": "nd_deal"
+        },
+        {
+          "text": "keep dreaming",
+          "alertDelta": 0,
+          "next": "nd_deal"
+        },
+        {
+          "text": "listed for two days already got three enquiries",
+          "alertDelta": 0,
+          "next": "nd_deal"
+        },
+        {
+          "text": "last offer 500",
+          "alertDelta": 0,
+          "next": "nd_deal"
+        }
+      ]
+    },
+    {
+      "id": "nd_deal",
+      "speaker": "TARGET",
+      "message": "fine fine 500 it is",
+      "replies": [
+        {
+          "text": "deal when works for you",
+          "alertDelta": 0,
+          "next": "nd_arrange"
+        },
+        {
+          "text": "ok ill be in touch",
+          "alertDelta": 0,
+          "next": "nd_loop"
+        }
+      ]
+    },
+    {
+      "id": "nd_arrange",
+      "speaker": "TARGET",
+      "message": "weekend work? im home during the day",
+      "replies": [
+        {
+          "text": "sure how about saturday afternoon",
+          "alertDelta": 0,
+          "next": "nd_addr"
+        },
+        {
+          "text": "sure send me your address ill come over",
+          "alertDelta": 0,
+          "next": "nd_addr"
+        },
+        {
+          "text": "you could come pick it up too",
+          "alertDelta": 0,
+          "next": "nd_loop"
+        }
+      ]
+    },
+    {
+      "id": "nd_addr",
+      "speaker": "TARGET",
+      "message": "mega tower B4 mezzanine 62 unit 191 message me if you cant find it",
+      "replies": [
+        {
+          "text": "sounds good see you then",
+          "alertDelta": 0,
+          "next": "nd_loop"
+        },
+        {
+          "text": "unit 191 got it ill message you when i arrive",
+          "alertDelta": 0,
+          "next": "nd_loop"
+        }
+      ]
+    },
+    {
+      "id": "nd_loop",
+      "speaker": "TARGET",
+      "message": "so were settled then?",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "settled",
+          "alertDelta": 0,
+          "next": "nd_la"
+        },
+        {
+          "text": "yep",
+          "alertDelta": 0,
+          "next": "nd_la"
+        },
+        {
+          "text": "btw are you paying cash or transfer",
+          "alertDelta": 0,
+          "next": "nd_lb"
+        },
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": "nd_ld"
+        }
+      ]
+    },
+    {
+      "id": "nd_la",
+      "speaker": "TARGET",
+      "message": "mate think about it one more time how about 450",
+      "replies": [
+        {
+          "text": "we agreed on 500",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "we already agreed dont go back on it",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nd_lb",
+      "speaker": "TARGET",
+      "message": "transfer ok?",
+      "replies": [
+        {
+          "text": "sure face to face transfer",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "cash would be better",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nd_lc",
+      "speaker": "TARGET",
+      "message": "btw how much ram does it have again",
+      "replies": [
+        {
+          "text": "32G plenty for your VMs",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "its in the listing read it yourself",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nd_ld",
+      "speaker": "TARGET",
+      "message": "...",
+      "replies": [
+        {
+          "text": "anything else",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    }
+  ]
+}

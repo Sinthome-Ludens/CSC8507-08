@@ -190,7 +190,7 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_StealthMetrics>  ( 62);   // 奔跑、速度乘数、噪音、可见度
     systems.Register<ECS::Sys_PlayerCQC>       ( 63);   // CQC 近身制服 + 目标选择
     systems.Register<ECS::Sys_Movement>        ( 65);   // 物理移动
-    systems.Register<ECS::Sys_OrbitTriangle>   ( 67);   // 环绕三角形 + 弹射制导
+    systems.Register<ECS::Sys_OrbitTriangle>   (101);   // 环绕三角形 + 弹射制导
     systems.Register<ECS::Sys_Physics>         (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
     systems.Register<ECS::Sys_EnemyVision>    (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
     systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Search/Alert/Hunt）

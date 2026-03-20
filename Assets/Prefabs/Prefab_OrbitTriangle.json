@@ -14,22 +14,6 @@
     "C_D_Material": {
       "baseColour": [0.0, 0.9, 1.0, 1.0]
     },
-    "C_D_RigidBody": {
-      "mass": 0.1,
-      "linear_damping": 0.0,
-      "angular_damping": 0.0,
-      "gravity_factor": 0.0,
-      "is_static": false,
-      "is_kinematic": true,
-      "lock_rotation_x": false,
-      "lock_rotation_y": false,
-      "lock_rotation_z": false
-    },
-    "C_D_Collider": {
-      "type": "Sphere",
-      "half_x": 0.3,
-      "is_trigger": false
-    },
     "C_D_DebugName": { "name": "ENTITY_OrbitTriangle_XX" }
   }
 }

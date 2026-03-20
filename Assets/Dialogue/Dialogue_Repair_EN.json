@@ -1,0 +1,929 @@
+{
+  "delay": 3.0,
+  "nodes": [
+    {
+      "id": "nb_01",
+      "isRoot": true,
+      "treeId": "5",
+      "speaker": "TARGET",
+      "message": "hi i submitted a repair ticket last friday and nobody has come",
+      "waitReply": false,
+      "next": "nb_02",
+      "comment": "repair tree start"
+    },
+    {
+      "id": "nb_02",
+      "speaker": "TARGET",
+      "message": "when are you sending someone",
+      "replies": [
+        {
+          "text": "hello valued customer please provide your ticket number",
+          "alertDelta": 0,
+          "next": "nb_ticket"
+        },
+        {
+          "text": "hi let me look into that for you",
+          "alertDelta": 0,
+          "next": "nb_ticket"
+        },
+        {
+          "text": "hi our system shows your ticket as completed",
+          "alertDelta": 3,
+          "next": "nb_done01"
+        },
+        {
+          "text": "high volume of enquiries please hold",
+          "alertDelta": 0,
+          "next": "nb_queue01"
+        }
+      ]
+    },
+    {
+      "id": "nb_ticket",
+      "speaker": "TARGET",
+      "message": "RQ-20890721-9521G",
+      "replies": [
+        {
+          "text": "one moment please checking now",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        },
+        {
+          "text": "for verification please provide your registered email",
+          "alertDelta": 0,
+          "next": "nb_email"
+        },
+        {
+          "text": "please confirm your device model",
+          "alertDelta": 0,
+          "next": "nb_device"
+        }
+      ]
+    },
+    {
+      "id": "nb_email",
+      "speaker": "TARGET",
+      "message": "z***n@m*****k.net",
+      "replies": [
+        {
+          "text": "verified checking your ticket now",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        },
+        {
+          "text": "email doesnt match can you double check",
+          "alertDelta": 1,
+          "next": "nb_email_mis"
+        }
+      ]
+    },
+    {
+      "id": "nb_email_mis",
+      "speaker": "TARGET",
+      "message": "thats the one ive always used this email",
+      "replies": [
+        {
+          "text": "ok let me re-verify please provide your address",
+          "alertDelta": 0,
+          "next": "nb_addr"
+        },
+        {
+          "text": "might be a system delay let me check anyway",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        }
+      ]
+    },
+    {
+      "id": "nb_addr",
+      "speaker": "TARGET",
+      "message": "mega tower block B4 mezzanine 62 unit 191",
+      "replies": [
+        {
+          "text": "noted checking now",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        },
+        {
+          "text": "which sector is B4 in i need to confirm the zone",
+          "alertDelta": 0,
+          "next": "nb_sector"
+        }
+      ]
+    },
+    {
+      "id": "nb_sector",
+      "speaker": "TARGET",
+      "message": "east sector it should be in your system",
+      "replies": [
+        {
+          "text": "east sector noted whats your device model",
+          "alertDelta": 0,
+          "next": "nb_device"
+        },
+        {
+          "text": "ok i found it",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        }
+      ]
+    },
+    {
+      "id": "nb_device",
+      "speaker": "TARGET",
+      "message": "ML-4090 Pro the one you guys sell",
+      "replies": [
+        {
+          "text": "ML-4090 Pro noted what system version are you running",
+          "alertDelta": 0,
+          "next": "nb_sysver"
+        },
+        {
+          "text": "noted ive found your ticket",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        }
+      ]
+    },
+    {
+      "id": "nb_sysver",
+      "speaker": "TARGET",
+      "message": "whatever you guys installed last time NexOS 12.3 or 12.4 something like that",
+      "waitReply": false,
+      "next": "nb_sysver2"
+    },
+    {
+      "id": "nb_sysver2",
+      "speaker": "TARGET",
+      "message": "i dont really remember",
+      "replies": [
+        {
+          "text": "no worries i can look it up on my end",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        },
+        {
+          "text": "go to settings then about device and tell me the version",
+          "alertDelta": 0,
+          "next": "nb_vercheck"
+        }
+      ]
+    },
+    {
+      "id": "nb_vercheck",
+      "speaker": "TARGET",
+      "message": "hang on",
+      "waitReply": false,
+      "next": "nb_vercheck2"
+    },
+    {
+      "id": "nb_vercheck2",
+      "speaker": "TARGET",
+      "message": "NexOS 12.4.1",
+      "replies": [
+        {
+          "text": "noted processing on my end",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        },
+        {
+          "text": "12.4.1 ok are you connected to a network",
+          "alertDelta": 0,
+          "next": "nb_net"
+        }
+      ]
+    },
+    {
+      "id": "nb_net",
+      "speaker": "TARGET",
+      "message": "yeah always connected",
+      "replies": [
+        {
+          "text": "wired or wireless",
+          "alertDelta": 0,
+          "next": "nb_wireless"
+        },
+        {
+          "text": "ok thats enough info let me check your ticket",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        }
+      ]
+    },
+    {
+      "id": "nb_wireless",
+      "speaker": "TARGET",
+      "message": "wireless theres only one signal on the whole mezzanine",
+      "replies": [
+        {
+          "text": "understood please hold",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        },
+        {
+          "text": "whats the network name",
+          "alertDelta": 1,
+          "next": "nb_ssid"
+        }
+      ]
+    },
+    {
+      "id": "nb_ssid",
+      "speaker": "TARGET",
+      "message": "MB-B4-MESH its the buildings shared network",
+      "replies": [
+        {
+          "text": "noted please hold",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        }
+      ]
+    },
+    {
+      "id": "nb_ai_query",
+      "speaker": "YOU",
+      "message": "ticket RQ-20890721-9521G status: completed",
+      "waitReply": false,
+      "next": "nb_ai_thanks"
+    },
+    {
+      "id": "nb_ai_thanks",
+      "speaker": "YOU",
+      "message": "thank you for using our products",
+      "waitReply": false,
+      "next": "nb_ai_wtf"
+    },
+    {
+      "id": "nb_ai_wtf",
+      "speaker": "TARGET",
+      "message": "?",
+      "waitReply": false,
+      "next": "nb_ai_wtf2"
+    },
+    {
+      "id": "nb_ai_wtf2",
+      "speaker": "TARGET",
+      "message": "are you serious",
+      "waitReply": false,
+      "next": "nb_transfer"
+    },
+    {
+      "id": "nb_transfer",
+      "speaker": "TARGET",
+      "message": "transfer to a human",
+      "replies": [
+        {
+          "text": "transferring you to a human agent now",
+          "alertDelta": 0,
+          "next": "nb_human"
+        },
+        {
+          "text": "all human agents are busy please hold",
+          "alertDelta": 0,
+          "next": "nb_queue01"
+        },
+        {
+          "text": "i am the human agent",
+          "alertDelta": 0,
+          "next": "nb_human"
+        }
+      ]
+    },
+    {
+      "id": "nb_done01",
+      "speaker": "TARGET",
+      "message": "what do you mean completed?",
+      "waitReply": false,
+      "next": "nb_done02"
+    },
+    {
+      "id": "nb_done02",
+      "speaker": "TARGET",
+      "message": "nobody came",
+      "replies": [
+        {
+          "text": "our system shows a technician visited",
+          "alertDelta": 2,
+          "next": "nb_done_lie"
+        },
+        {
+          "text": "might be a system error let me recheck",
+          "alertDelta": 0,
+          "next": "nb_ai_query"
+        }
+      ]
+    },
+    {
+      "id": "nb_done_lie",
+      "speaker": "TARGET",
+      "message": "nobody came im home every day",
+      "replies": [
+        {
+          "text": "perhaps you were out when they visited",
+          "alertDelta": 3,
+          "next": "nb_done_lie2"
+        },
+        {
+          "text": "ok let me reschedule for you",
+          "alertDelta": 0,
+          "next": "nb_human"
+        },
+        {
+          "text": "could you please submit a new ticket",
+          "alertDelta": 5,
+          "next": "nb_resubmit"
+        }
+      ]
+    },
+    {
+      "id": "nb_done_lie2",
+      "speaker": "TARGET",
+      "message": "i told you im home every day",
+      "waitReply": false,
+      "next": "nb_done_lie3"
+    },
+    {
+      "id": "nb_done_lie3",
+      "speaker": "TARGET",
+      "message": "are you even listening to me",
+      "replies": [
+        {
+          "text": "sorry let me reschedule",
+          "alertDelta": -2,
+          "next": "nb_human"
+        },
+        {
+          "text": "could you please submit a new ticket",
+          "alertDelta": 5,
+          "next": "nb_resubmit"
+        }
+      ]
+    },
+    {
+      "id": "nb_resubmit",
+      "speaker": "TARGET",
+      "message": "youre joking right",
+      "waitReply": false,
+      "next": "nb_resubmit2"
+    },
+    {
+      "id": "nb_resubmit2",
+      "speaker": "TARGET",
+      "message": "its your mistake why should i resubmit",
+      "replies": [
+        {
+          "text": "very sorry let me handle it for you",
+          "alertDelta": -2,
+          "next": "nb_human"
+        },
+        {
+          "text": "its standard procedure",
+          "alertDelta": 3,
+          "next": "nb_canned"
+        },
+        {
+          "text": "thank you for your support have a nice day",
+          "alertDelta": 5,
+          "next": "nb_canned"
+        }
+      ]
+    },
+    {
+      "id": "nb_canned",
+      "speaker": "TARGET",
+      "message": "?",
+      "waitReply": false,
+      "next": "nb_canned2"
+    },
+    {
+      "id": "nb_canned2",
+      "speaker": "TARGET",
+      "message": "are you a bot",
+      "replies": [
+        {
+          "text": "i am a smart service assistant here to help",
+          "alertDelta": 0,
+          "next": "nb_transfer"
+        },
+        {
+          "text": "im a human agent",
+          "alertDelta": 0,
+          "next": "nb_human"
+        },
+        {
+          "text": "...",
+          "alertDelta": 1,
+          "next": "nb_transfer"
+        }
+      ]
+    },
+    {
+      "id": "nb_queue01",
+      "speaker": "TARGET",
+      "message": "how long",
+      "replies": [
+        {
+          "text": "estimated wait 3 to 5 minutes",
+          "alertDelta": 0,
+          "next": "nb_queue02"
+        },
+        {
+          "text": "there are 2 customers ahead of you",
+          "alertDelta": 0,
+          "next": "nb_queue02"
+        }
+      ]
+    },
+    {
+      "id": "nb_queue02",
+      "speaker": "TARGET",
+      "message": "fine ill wait",
+      "replies": [
+        {
+          "text": "thank you for your patience",
+          "alertDelta": 0,
+          "next": "nb_human"
+        }
+      ]
+    },
+    {
+      "id": "nb_human",
+      "speaker": "YOU",
+      "message": "hi human agent connected how can i help you",
+      "waitReply": false,
+      "next": "nb_human02"
+    },
+    {
+      "id": "nb_human02",
+      "speaker": "TARGET",
+      "message": "i submitted a repair ticket last week and nobody came",
+      "waitReply": false,
+      "next": "nb_human03"
+    },
+    {
+      "id": "nb_human03",
+      "speaker": "TARGET",
+      "message": "your bot even said the ticket was completed",
+      "replies": [
+        {
+          "text": "sorry about that let me take a look",
+          "alertDelta": -2,
+          "next": "nb_h_result"
+        },
+        {
+          "text": "the bot gets it wrong sometimes ill handle this",
+          "alertDelta": -2,
+          "next": "nb_h_result"
+        },
+        {
+          "text": "can i get your ticket number",
+          "alertDelta": 1,
+          "next": "nb_h_reask"
+        }
+      ]
+    },
+    {
+      "id": "nb_h_reask",
+      "speaker": "TARGET",
+      "message": "RQ-20890721-9521G i already gave it",
+      "replies": [
+        {
+          "text": "sorry system didnt sync let me check",
+          "alertDelta": 0,
+          "next": "nb_h_result"
+        },
+        {
+          "text": "ok found it",
+          "alertDelta": 0,
+          "next": "nb_h_result"
+        }
+      ]
+    },
+    {
+      "id": "nb_h_result",
+      "speaker": "YOU",
+      "message": "i can see it shows completed but theres no service record in the notes",
+      "waitReply": false,
+      "next": "nb_h_result2"
+    },
+    {
+      "id": "nb_h_result2",
+      "speaker": "TARGET",
+      "message": "so that means nobody actually came right",
+      "replies": [
+        {
+          "text": "looks like it let me reschedule",
+          "alertDelta": -2,
+          "next": "nb_schedule"
+        },
+        {
+          "text": "i need to confirm some details before i can redispatch",
+          "alertDelta": 0,
+          "next": "nb_h_reinfo"
+        },
+        {
+          "text": "i need to escalate this please hold",
+          "alertDelta": 0,
+          "next": "nb_escalate"
+        }
+      ]
+    },
+    {
+      "id": "nb_h_reinfo",
+      "speaker": "TARGET",
+      "message": "what details i already told the bot everything",
+      "replies": [
+        {
+          "text": "the records didnt transfer sorry can you repeat",
+          "alertDelta": 1,
+          "next": "nb_h_addr2"
+        },
+        {
+          "text": "just your address will do",
+          "alertDelta": 0,
+          "next": "nb_h_addr2"
+        },
+        {
+          "text": "its fine i can pull it up on my end",
+          "alertDelta": 0,
+          "next": "nb_h_fault"
+        }
+      ]
+    },
+    {
+      "id": "nb_h_addr2",
+      "speaker": "TARGET",
+      "message": "mega tower B4 mezzanine 62 unit 191 second time now",
+      "replies": [
+        {
+          "text": "thanks im working on it",
+          "alertDelta": 0,
+          "next": "nb_h_fault"
+        },
+        {
+          "text": "what model is the device",
+          "alertDelta": 0,
+          "next": "nb_h_dev2"
+        }
+      ]
+    },
+    {
+      "id": "nb_h_dev2",
+      "speaker": "TARGET",
+      "message": "ML-4090 Pro also the second time",
+      "replies": [
+        {
+          "text": "ok please hold",
+          "alertDelta": 0,
+          "next": "nb_h_fault"
+        },
+        {
+          "text": "whats the actual issue with it",
+          "alertDelta": 0,
+          "next": "nb_h_faultdet"
+        }
+      ]
+    },
+    {
+      "id": "nb_h_fault",
+      "speaker": "YOU",
+      "message": "ok im working on it",
+      "waitReply": false,
+      "next": "nb_schedule"
+    },
+    {
+      "id": "nb_h_faultdet",
+      "speaker": "TARGET",
+      "message": "wont turn on press the power button and nothing happens",
+      "replies": [
+        {
+          "text": "have you tried holding the power button",
+          "alertDelta": 0,
+          "next": "nb_h_tried"
+        },
+        {
+          "text": "does the power indicator light up",
+          "alertDelta": 0,
+          "next": "nb_h_tried"
+        },
+        {
+          "text": "ok ive noted that down",
+          "alertDelta": 0,
+          "next": "nb_schedule"
+        }
+      ]
+    },
+    {
+      "id": "nb_h_tried",
+      "speaker": "TARGET",
+      "message": "tried it doesnt work",
+      "replies": [
+        {
+          "text": "can you confirm the power cable is plugged in",
+          "alertDelta": 1,
+          "next": "nb_h_plugged"
+        },
+        {
+          "text": "ok let me schedule an on-site repair",
+          "alertDelta": 0,
+          "next": "nb_schedule"
+        }
+      ]
+    },
+    {
+      "id": "nb_h_plugged",
+      "speaker": "TARGET",
+      "message": "yes its plugged in im not an idiot",
+      "replies": [
+        {
+          "text": "sorry routine question im scheduling the repair now",
+          "alertDelta": -2,
+          "next": "nb_schedule"
+        },
+        {
+          "text": "could be a motherboard issue then",
+          "alertDelta": 0,
+          "next": "nb_schedule"
+        }
+      ]
+    },
+    {
+      "id": "nb_escalate",
+      "speaker": "YOU",
+      "message": "ive escalated your case to my supervisor",
+      "waitReply": false,
+      "next": "nb_escalate2"
+    },
+    {
+      "id": "nb_escalate2",
+      "speaker": "TARGET",
+      "message": "when will your supervisor get back to me",
+      "replies": [
+        {
+          "text": "usually within 24 hours",
+          "alertDelta": 0,
+          "next": "nb_loop"
+        },
+        {
+          "text": "ill chase them up",
+          "alertDelta": -2,
+          "next": "nb_loop"
+        },
+        {
+          "text": "hard to say",
+          "alertDelta": 2,
+          "next": "nb_loop"
+        }
+      ]
+    },
+    {
+      "id": "nb_schedule",
+      "speaker": "YOU",
+      "message": "im scheduling a technician for you now",
+      "waitReply": false,
+      "next": "nb_schedule2"
+    },
+    {
+      "id": "nb_schedule2",
+      "speaker": "TARGET",
+      "message": "will they actually show up this time",
+      "replies": [
+        {
+          "text": "they will ill personally follow up",
+          "alertDelta": -2,
+          "next": "nb_when"
+        },
+        {
+          "text": "the system has dispatched the order",
+          "alertDelta": 0,
+          "next": "nb_when"
+        },
+        {
+          "text": "estimated arrival tomorrow morning",
+          "alertDelta": 0,
+          "next": "nb_when"
+        }
+      ]
+    },
+    {
+      "id": "nb_when",
+      "speaker": "TARGET",
+      "message": "what time exactly",
+      "replies": [
+        {
+          "text": "still scheduling ill notify you once confirmed",
+          "alertDelta": 0,
+          "next": "nb_frust"
+        },
+        {
+          "text": "between 9am and noon",
+          "alertDelta": 0,
+          "next": "nb_frust"
+        },
+        {
+          "text": "cant confirm exactly depends on dispatch",
+          "alertDelta": 1,
+          "next": "nb_frust"
+        }
+      ]
+    },
+    {
+      "id": "nb_frust",
+      "speaker": "TARGET",
+      "message": "you guys always do this",
+      "waitReply": false,
+      "next": "nb_frust2"
+    },
+    {
+      "id": "nb_frust2",
+      "speaker": "TARGET",
+      "message": "say youve scheduled it then nobody shows up",
+      "replies": [
+        {
+          "text": "not this time ill make sure of it",
+          "alertDelta": -2,
+          "next": "nb_loop"
+        },
+        {
+          "text": "very sorry for the inconvenience",
+          "alertDelta": 0,
+          "next": "nb_loop"
+        },
+        {
+          "text": "would you like to file a complaint i can transfer you",
+          "alertDelta": 0,
+          "next": "nb_complain"
+        }
+      ]
+    },
+    {
+      "id": "nb_complain",
+      "speaker": "TARGET",
+      "message": "does complaining even do anything",
+      "replies": [
+        {
+          "text": "complaints get escalated faster",
+          "alertDelta": -2,
+          "next": "nb_comp_end"
+        },
+        {
+          "text": "honestly im not sure",
+          "alertDelta": 0,
+          "next": "nb_comp_end"
+        },
+        {
+          "text": "your feedback is very important to us",
+          "alertDelta": 3,
+          "next": "nb_comp_canned"
+        }
+      ]
+    },
+    {
+      "id": "nb_comp_canned",
+      "speaker": "TARGET",
+      "message": "there you go again with the script",
+      "replies": [
+        {
+          "text": "sorry thats my bad",
+          "alertDelta": -2,
+          "next": "nb_comp_end"
+        },
+        {
+          "text": "im actually working on it",
+          "alertDelta": 0,
+          "next": "nb_comp_end"
+        },
+        {
+          "text": "...",
+          "alertDelta": 1,
+          "next": "nb_comp_end"
+        }
+      ]
+    },
+    {
+      "id": "nb_comp_end",
+      "speaker": "YOU",
+      "message": "ive escalated your case to my supervisor",
+      "waitReply": false,
+      "next": "nb_comp_end2"
+    },
+    {
+      "id": "nb_comp_end2",
+      "speaker": "TARGET",
+      "message": "when will your supervisor get back to me",
+      "replies": [
+        {
+          "text": "usually within 24 hours",
+          "alertDelta": 0,
+          "next": "nb_loop"
+        },
+        {
+          "text": "ill chase them up",
+          "alertDelta": -2,
+          "next": "nb_loop"
+        },
+        {
+          "text": "hard to say",
+          "alertDelta": 2,
+          "next": "nb_loop"
+        }
+      ]
+    },
+    {
+      "id": "nb_loop",
+      "speaker": "TARGET",
+      "message": "so i just wait?",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "im following up for you",
+          "alertDelta": 0,
+          "next": "nb_la"
+        },
+        {
+          "text": "please hold",
+          "alertDelta": 0,
+          "next": "nb_lb"
+        },
+        {
+          "text": "the system is processing",
+          "alertDelta": 0,
+          "next": "nb_lc"
+        },
+        {
+          "text": "...",
+          "alertDelta": 1,
+          "next": "nb_ld"
+        }
+      ]
+    },
+    {
+      "id": "nb_la",
+      "speaker": "TARGET",
+      "message": "any update",
+      "replies": [
+        {
+          "text": "still waiting for a response",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "almost",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nb_lb",
+      "speaker": "TARGET",
+      "message": "your efficiency is honestly terrible",
+      "replies": [
+        {
+          "text": "very sorry about that",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "well work on improving",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nb_lc",
+      "speaker": "TARGET",
+      "message": "forget it im done waiting",
+      "replies": [
+        {
+          "text": "hold on results are coming soon",
+          "alertDelta": -2,
+          "next": ""
+        },
+        {
+          "text": "ok thank you for contacting us",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nb_ld",
+      "speaker": "TARGET",
+      "message": "...",
+      "replies": [
+        {
+          "text": "are you still there",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    }
+  ]
+}

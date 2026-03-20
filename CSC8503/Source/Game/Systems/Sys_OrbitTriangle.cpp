@@ -71,9 +71,9 @@ void Sys_OrbitTriangle::OnDestroy(Registry& /*registry*/) {
 }
 
 // ============================================================
-// OnUpdate
+// OnFixedUpdate — Physics(100) 同步 Transform 后执行，读到最新玩家位置
 // ============================================================
-void Sys_OrbitTriangle::OnUpdate(Registry& registry, float dt) {
+void Sys_OrbitTriangle::OnFixedUpdate(Registry& registry, float dt) {
     PAUSE_GUARD(registry);
 
     m_GlobalTime += dt;

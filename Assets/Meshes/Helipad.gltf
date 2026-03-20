@@ -1,0 +1,11 @@
+{
+  "asset":{"version":"2.0","generator":"Unity MultiObjectMapAndNavMeshExporter"},
+  "scene":0,
+  "scenes":[{"name":"Scene","nodes":[0]}],
+  "nodes":[{"name":"Helipad","children":[1]},{"name":"map","mesh":0}],
+  "meshes":[{"name":"map","primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3,"material":0}]}],
+  "accessors":[{"bufferView":0,"componentType":5126,"count":600,"type":"VEC3","min":[-29.5,-0.904800415,-30.5],"max":[41,20.5,30]},{"bufferView":1,"componentType":5126,"count":600,"type":"VEC3"},{"bufferView":2,"componentType":5126,"count":600,"type":"VEC2"},{"bufferView":3,"componentType":5125,"count":900,"type":"SCALAR"}],
+  "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":7200,"target":34962},{"buffer":0,"byteOffset":7200,"byteLength":7200,"target":34962},{"buffer":0,"byteOffset":14400,"byteLength":4800,"target":34962},{"buffer":0,"byteOffset":19200,"byteLength":3600,"target":34963}],
+  "buffers":[{"uri":"Helipad.bin","byteLength":22800}],
+  "materials":[{"name":"map_mat","pbrMetallicRoughness":{"baseColorFactor":[1.0000,1.0000,1.0000,1.0000],"metallicFactor":0,"roughnessFactor":1}}]
+}

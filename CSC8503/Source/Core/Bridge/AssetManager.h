@@ -113,6 +113,28 @@ namespace NCL {
 
 namespace ECS {
 
+enum class ImportedAlphaMode : uint8_t {
+    Opaque = 0,
+    Mask   = 1,
+    Blend  = 2,
+};
+
+struct ImportedMaterialDefaults {
+    bool valid = false;
+
+    NCL::Maths::Vector4 baseColour = {1.0f, 1.0f, 1.0f, 1.0f};
+    TextureHandle albedoHandle   = INVALID_HANDLE;
+    TextureHandle normalHandle   = INVALID_HANDLE;
+    TextureHandle ormHandle      = INVALID_HANDLE;
+    TextureHandle emissiveHandle = INVALID_HANDLE;
+    float metallic  = 0.0f;
+    float roughness = 0.5f;
+    float ao        = 1.0f;
+    float alphaCutoff = 0.5f;
+    bool doubleSided = false;
+    ImportedAlphaMode alphaMode = ImportedAlphaMode::Opaque;
+};
+
 /**
  * @brief 资源管理器：Handle 体系、引用计数、默认资源回退。
  *
@@ -176,6 +198,12 @@ public:
      * @return Mesh 指针（非空，失败时返回默认资源）
      */
     NCL::Rendering::Mesh* GetMesh(MeshHandle handle);
+
+    /**
+     * @brief 查询某个 MeshHandle 的导入材质默认值。
+     * @details 由资源层在网格首次加载时解析并缓存；若网格不带可用材质，则返回 false。
+     */
+    bool GetImportedMaterialDefaults(MeshHandle handle, ImportedMaterialDefaults& outDefaults) const;
 
     /**
      * @brief 减少网格资源的引用计数。
@@ -290,6 +318,7 @@ private:
     MeshFactory m_MeshFactory; ///< 渲染后端 Mesh 工厂（由 SetMeshFactory 注入）
     std::unordered_map<MeshHandle, ResourceEntry<NCL::Rendering::Mesh>>    m_MeshCache;
     std::unordered_map<TextureHandle, ResourceEntry<NCL::Rendering::OGLTexture>> m_TextureCache;
+    std::unordered_map<MeshHandle, ImportedMaterialDefaults> m_ImportedMaterialDefaultsCache;
     std::unordered_map<std::string, MeshHandle>    m_PathToMeshHandle;    // 路径 -> Handle 映射
     std::unordered_map<std::string, TextureHandle> m_PathToTextureHandle; // 路径 -> Handle 映射
 

@@ -270,9 +270,9 @@ void Sys_Chat::OnAwake(Registry& registry) {
     if (!dialogueData.loaded) {
         const std::string dir = NCL::Assets::ASSETROOT + "Dialogue/";
         bool ok = true;
-        ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Normal.json",  dialogueData.proactive);
-        ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Alert.json",   dialogueData.mixed);
-        ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Exposed.json", dialogueData.passive);
+        ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Normal_EN.json",  dialogueData.proactive);
+        ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Alert_EN.json",   dialogueData.mixed);
+        ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Exposed_EN.json", dialogueData.passive);
 
         if (ok) {
             dialogueData.loaded = true;
