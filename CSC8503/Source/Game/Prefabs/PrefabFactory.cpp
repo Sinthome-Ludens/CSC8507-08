@@ -60,6 +60,9 @@ using json = nlohmann::json;
 using namespace NCL::Maths;
 using namespace ECS;
 
+/// 武器拾取物 fallback 模型（无专用 GLTF 视觉时使用）
+static const char* kWeaponFallbackMesh = "Capsule.obj";
+
 static AlphaMode ToECSAlphaMode(ImportedAlphaMode mode) {
     switch (mode) {
         case ImportedAlphaMode::Mask:  return AlphaMode::Mask;
@@ -798,7 +801,7 @@ EntityID PrefabFactory::CreateItemPickup(
     }
     if (actualMesh == INVALID_HANDLE) {
         ECS::MeshHandle fallbackMesh = isWeapon
-            ? ECS::AssetManager::Instance().LoadMesh(NCL::Assets::MESHDIR + "Capsule.obj")
+            ? ECS::AssetManager::Instance().LoadMesh(NCL::Assets::MESHDIR + kWeaponFallbackMesh)
             : cubeMesh;
         actualMesh = ResolveItemVisualMesh(itemId, fallbackMesh);
     }

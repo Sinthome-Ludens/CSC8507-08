@@ -267,9 +267,11 @@ bool LoadMapConfig(const std::string& prefabName, MapLoadConfig& out) {
         std::string v = mc["itemSpawns"].get<std::string>();
         strncpy_s(out.itemSpawns, sizeof(out.itemSpawns), v.c_str(), sizeof(out.itemSpawns) - 1);
     }
-    if (mc.contains("mapScale"))     out.mapScale     = mc["mapScale"].get<float>();
-    if (mc.contains("yOffset"))      out.yOffset      = mc["yOffset"].get<float>();
-    if (mc.contains("flipWinding"))  out.flipWinding  = mc["flipWinding"].get<bool>();
+    if (mc.contains("mapScale"))          out.mapScale          = mc["mapScale"].get<float>();
+    if (mc.contains("yOffset"))           out.yOffset           = mc["yOffset"].get<float>();
+    if (mc.contains("flipWinding"))       out.flipWinding       = mc["flipWinding"].get<bool>();
+    if (mc.contains("spawnYOffset"))      out.spawnYOffset      = mc["spawnYOffset"].get<float>();
+    if (mc.contains("pickupSnapYOffset")) out.pickupSnapYOffset = mc["pickupSnapYOffset"].get<float>();
 
     // GLTF overrides (preferred over OBJ when available)
     if (mc.contains("renderMeshGltf")) {

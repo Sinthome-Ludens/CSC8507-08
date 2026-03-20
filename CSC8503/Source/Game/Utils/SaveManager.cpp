@@ -41,12 +41,15 @@ static constexpr int kSaveVersion = 3;
 static constexpr int kV2IdRemap[] = { 0, -1, 1, 2, 3, 4 };
 static constexpr int kV2IdRemapSize = 6;
 
+/// 存档相对路径（相对于 ASSETROOT）
+static constexpr const char* kSaveRelativePath = "Saves/autosave.save";
+
 /**
  * @brief 返回存档文件的完整路径。
  * @return Assets/Saves/autosave.save 的绝对路径字符串
  */
 std::string GetSavePath() {
-    return NCL::Assets::ASSETROOT + "Saves/autosave.save";
+    return NCL::Assets::ASSETROOT + kSaveRelativePath;
 }
 
 /**

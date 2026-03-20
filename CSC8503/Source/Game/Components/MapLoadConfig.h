@@ -23,6 +23,8 @@ struct MapLoadConfig {
     float mapScale         = 1.0f; ///< Map scale factor
     float yOffset          = -6.0f;///< Y offset (multiplied by mapScale before use)
     bool  flipWinding      = true; ///< Whether to flip collision mesh winding order
+    float spawnYOffset     = 1.5f; ///< Player/enemy/item spawn Y offset above ground
+    float pickupSnapYOffset = 0.8f;///< Item pickup NavMesh snap Y offset
 
     // GLTF overrides (preferred over OBJ when available)
     char renderMeshGltf[64]    = {};   ///< GLTF render mesh ("TutorialMap.gltf"), empty = skip

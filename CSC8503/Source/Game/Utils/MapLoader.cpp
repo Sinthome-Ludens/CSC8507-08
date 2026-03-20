@@ -296,7 +296,7 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
             const auto& sp = points.startPoints[0];
             Vector3 spawnPos(
                 sp.x * scale,
-                sp.y * scale + worldY + 1.5f,
+                sp.y * scale + worldY + config.spawnYOffset,
                 sp.z * scale);
             result.playerEntity = PrefabFactory::CreatePlayer(reg, cubeMesh, spawnPos);
             EnsureGameplayPlayerComponents(reg, result.playerEntity);
@@ -314,7 +314,7 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
 
                 Vector3 enemyPos(
                     spawn.position.x * scale,
-                    spawn.position.y * scale + worldY + 1.5f,
+                    spawn.position.y * scale + worldY + config.spawnYOffset,
                     spawn.position.z * scale);
 
                 EntityID enemy = PrefabFactory::CreateNavEnemy(reg, cubeMesh, i, enemyPos);
@@ -329,7 +329,7 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
                         const auto& pt = spawn.patrolPoints[p];
                         waypoints[p] = Vector3(
                             pt.x * scale,
-                            pt.y * scale + worldY + 1.5f,
+                            pt.y * scale + worldY + config.spawnYOffset,
                             pt.z * scale);
                     }
                     PrefabFactory::AttachPatrolRoute(reg, enemy, waypoints, count, enemyPos);
@@ -388,7 +388,7 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
 
                 Vector3 itemPos(
                     spawn.position.x * scale,
-                    spawn.position.y * scale + worldY + 1.5f,
+                    spawn.position.y * scale + worldY + config.spawnYOffset,
                     spawn.position.z * scale);
                 EntityID pickup = PrefabFactory::CreateItemPickup(
                     reg, cubeMesh, spawn.itemId, spawn.quantity, i, itemPos);

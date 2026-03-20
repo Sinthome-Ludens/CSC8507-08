@@ -22,6 +22,7 @@
 #include "Game/Components/StratagemTable.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_DialogueData.h"
+#include "Game/Components/Res_DialogueConfig.h"
 #include "Game/Utils/DialogueLoader.h"
 #include "Game/Utils/Log.h"
 #include "Game/Events/Evt_Audio.h"
@@ -268,11 +269,14 @@ void Sys_Chat::OnAwake(Registry& registry) {
     auto& dialogueData = registry.ctx<Res_DialogueData>();
 
     if (!dialogueData.loaded) {
-        const std::string dir = NCL::Assets::ASSETROOT + "Dialogue/";
+        if (!registry.has_ctx<Res_DialogueConfig>())
+            registry.ctx_emplace<Res_DialogueConfig>();
+        const auto& dlgCfg = registry.ctx<Res_DialogueConfig>();
+        const std::string root = NCL::Assets::ASSETROOT;
         bool ok = true;
-        ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Normal_EN.json",  dialogueData.proactive);
-        ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Alert_EN.json",   dialogueData.mixed);
-        ok &= LoadDialogueSequenceFromJSON(dir + "Dialogue_Exposed_EN.json", dialogueData.passive);
+        ok &= LoadDialogueSequenceFromJSON(root + dlgCfg.proactiveFile, dialogueData.proactive);
+        ok &= LoadDialogueSequenceFromJSON(root + dlgCfg.mixedFile,     dialogueData.mixed);
+        ok &= LoadDialogueSequenceFromJSON(root + dlgCfg.passiveFile,   dialogueData.passive);
 
         if (ok) {
             dialogueData.loaded = true;
