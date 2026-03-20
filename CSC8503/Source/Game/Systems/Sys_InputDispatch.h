@@ -25,13 +25,6 @@ private:
     bool m_FWasPressed = false;
     bool m_QWasPressed = false;
     bool m_GWasPressed = false;
-
-    // ── 道具使用键 1-5 上升沿检测状态 ──
-    bool m_Key1WasPressed = false; ///< 数字键 1（全息诱饵炸弹）
-    bool m_Key2WasPressed = false; ///< 数字键 2（光子雷达）
-    bool m_Key3WasPressed = false; ///< 数字键 3（DDoS）
-    bool m_Key4WasPressed = false; ///< 数字键 4（流窜 AI）
-    bool m_Key5WasPressed = false; ///< 数字键 5（靶向打击）
 };
 
 } // namespace ECS
