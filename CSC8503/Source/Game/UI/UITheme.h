@@ -141,39 +141,38 @@ namespace Layout {
     constexpr float kHUDPanelAlpha  = 180;
 
     namespace Chat {
-        constexpr float kHeaderH        = 36.0f;
-        constexpr float kHeaderPadX     = 12.0f;
-        constexpr float kHeaderTextY    = 8.0f;
-        constexpr float kModeTagPadX    = 6.0f;
-        constexpr float kModeTagPadY    = 2.0f;
-        constexpr float kModeTagY       = 10.0f;
-        constexpr float kTimerBarH      = 4.0f;
-        constexpr float kTimerBarGap    = 2.0f;
-        constexpr float kMsgTopPad      = 6.0f;
-        constexpr float kMsgPadX        = 10.0f;
-        constexpr float kSenderLineH   = 18.0f;   ///< sender tag 行高
-        constexpr float kSenderMsgGap  = 4.0f;    ///< sender 与 message 间距
-        constexpr float kMsgBottomPad  = 10.0f;   ///< 消息之间间距
-        constexpr float kMsgMinTextH   = 16.0f;   ///< 文本最小高度（单行兜底）
-        constexpr float kReplyPad       = 8.0f;
-        constexpr float kCountdownH     = 36.0f;
-        constexpr float kInputBoxH      = 28.0f;
-        constexpr float kReplySpacing   = 4.0f;
+        constexpr float kHeaderH        = 36.0f;   ///< 顶部标题栏高度
+        constexpr float kHeaderPadX     = 12.0f;   ///< 标题栏水平内边距
+        constexpr float kHeaderTextY    = 8.0f;    ///< 标题文字 Y 偏移
+        constexpr float kModeTagPadX    = 6.0f;    ///< 模式标签水平内边距
+        constexpr float kModeTagPadY    = 2.0f;    ///< 模式标签垂直内边距
+        constexpr float kModeTagY       = 10.0f;   ///< 模式标签 Y 偏移
+        constexpr float kTimerBarH      = 4.0f;    ///< 计时进度条高度
+        constexpr float kTimerBarGap    = 2.0f;    ///< 计时条与内容区间距
+        constexpr float kMsgTopPad      = 6.0f;    ///< 内容区顶部留白
+        constexpr float kMsgPadX        = 10.0f;   ///< 消息/回复水平内边距
+        constexpr float kSenderLineH    = 18.0f;   ///< sender 标签行高
+        constexpr float kSenderMsgGap   = 4.0f;    ///< sender 与消息正文间距
+        constexpr float kMsgBottomPad   = 10.0f;   ///< 消息之间间距
+        constexpr float kMsgMinTextH    = 16.0f;   ///< 消息文本最小高度（单行兜底）
+        constexpr float kReplyPad       = 8.0f;    ///< 回复区顶部内边距
+        constexpr float kCountdownH     = 36.0f;   ///< 倒计时数字区高度
+        constexpr float kInputBoxH      = 28.0f;   ///< 方向键输入槽区高度
+        constexpr float kReplySpacing   = 4.0f;    ///< 输入槽与回复列表间距
         constexpr float kReplyTextMinH  = 16.0f;   ///< 回复文本最小高度
         constexpr float kReplyArrowH    = 16.0f;   ///< 箭头序列行高
         constexpr float kReplyItemPadY  = 6.0f;    ///< 回复项内上下边距
         constexpr float kReplyGap       = 4.0f;    ///< 回复项之间间距
-        constexpr float kHintLineH      = 24.0f;
-        constexpr float kHintBottomY    = 18.0f;
-        constexpr float kSlotSize       = 20.0f;
-        constexpr float kSlotGap        = 4.0f;
-        constexpr float kArrowCellW     = 18.0f;
-        constexpr float kArrowX0        = 14.0f;
-        constexpr float kArrowSize      = 5.0f;
-        constexpr float kArrowYOffset   = 22.0f;
-        constexpr float kArrowCenterY   = 7.0f;
-        constexpr float kSepInset       = 8.0f;
-        constexpr float kHighlightInset = 6.0f;
+        constexpr float kHintLineH      = 24.0f;   ///< 底部提示行高度
+        constexpr float kHintBottomY    = 18.0f;   ///< 底部提示距面板底边距离
+        constexpr float kSlotSize       = 20.0f;   ///< 方向键输入槽边长
+        constexpr float kSlotGap        = 4.0f;    ///< 输入槽之间间距
+        constexpr float kArrowCellW     = 18.0f;   ///< 箭头符号单元宽度
+        constexpr float kArrowX0        = 14.0f;   ///< 箭头序列起始 X 偏移
+        constexpr float kArrowSize      = 5.0f;    ///< 箭头三角形半径
+        constexpr float kArrowCenterY   = 7.0f;    ///< 箭头中心 Y 偏移
+        constexpr float kSepInset       = 8.0f;    ///< 分隔线两端缩进
+        constexpr float kHighlightInset = 6.0f;    ///< 高亮背景两端缩进
     }
 }
 

@@ -74,6 +74,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     // ── Header ────────────────────────────────────────────
     ImFont* termFont  = GetFont_Terminal();
     ImFont* smallFont = GetFont_Small();
+    if (!smallFont) smallFont = ImGui::GetFont();
 
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
@@ -114,8 +115,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
 
     // ── Messages area ─────────────────────────────────────
     ImFont* bodyFont = GetFont_Body();
-    if (!bodyFont)  bodyFont  = ImGui::GetFont();
-    if (!smallFont) smallFont = ImGui::GetFont();
+    if (!bodyFont) bodyFont = ImGui::GetFont();
     if (bodyFont) ImGui::PushFont(bodyFont);
 
     const float bodyFontSz  = bodyFont->LegacySize;
@@ -241,7 +241,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
         // ── Helper: draw direction arrow triangle ────────
         // dir: 0=Up, 1=Down, 2=Left, 3=Right
         // cx,cy = center of the arrow cell, sz = half-size
-        auto DrawArrow = [&](float cx, float cy, int dir, ImU32 color, float sz = 6.0f) {
+        auto DrawArrow = [&](float cx, float cy, int dir, ImU32 color, float sz = Layout::Chat::kArrowSize) {
             switch (dir) {
                 case 0: // Up
                     draw->AddTriangleFilled(
