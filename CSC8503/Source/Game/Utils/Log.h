@@ -36,20 +36,47 @@
     #include <ctime>
 
     namespace ECS::DebugLog {
-        /// @brief Gets the shared mutex used to synchronize multiplayer debug log writes.
+        /**
+         * @brief Returns the shared mutex used to synchronize multiplayer debug log writes.
+         *
+         * This mutex is only available in debug builds (guarded by @c _DEBUG) and is used by
+         * all multiplayer logging helpers to serialize access to the underlying log file.
+         *
+         * @return Reference to a process-wide mutex dedicated to multiplayer debug logging.
+         */
         inline std::mutex& MultiplayerLogMutex() {
             static std::mutex m;
             return m;
         }
 
-        /// @brief Gets the filesystem path of the multiplayer debug log file.
+        /**
+         * @brief Returns the filesystem path of the multiplayer debug log file.
+         *
+         * The path is resolved once per process (on first call) and then reused. It is only
+         * intended for use by debug-only logging utilities such as LOG_MPDBG and should not
+         * be relied upon by gameplay logic or shipping builds.
+         *
+         * @return Absolute or working-directory-relative path to @c multiplayer_debug.log .
+         */
         inline std::filesystem::path MultiplayerLogPath() {
             static const std::filesystem::path p =
                 std::filesystem::current_path() / "multiplayer_debug.log";
             return p;
         }
 
-        /// @brief Appends a timestamped line to the multiplayer debug log file in a thread-safe way.
+        /**
+         * @brief Appends a timestamped line to the multiplayer debug log file.
+         *
+         * This helper is only compiled in debug builds and is intended for low-frequency
+         * diagnostic logging of multiplayer behavior. It acquires the shared
+         * MultiplayerLogMutex() to ensure that concurrent calls from multiple threads
+         * write complete lines without interleaving.
+         *
+         * @param line Text to append as a single log entry; a timestamp and newline are added.
+         *
+         * @note This function performs filesystem and I/O operations on each call and should
+         *       not be used in performance-critical gameplay paths or in release builds.
+         */
         inline void AppendMultiplayerLogLine(const std::string& line) {
             std::lock_guard<std::mutex> lock(MultiplayerLogMutex());
 

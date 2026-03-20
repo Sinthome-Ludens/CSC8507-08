@@ -47,6 +47,9 @@ public:
 private:
     SubscriptionID m_TriggerSubId   = 0;
     SubscriptionID m_CollisionSubId = 0;
+    /**
+     * @brief 标记是否已记录一次启动时的死亡判定状态快照，避免重复输出启动日志。
+     */
     bool m_DidLogStartupState = false;
 };
 

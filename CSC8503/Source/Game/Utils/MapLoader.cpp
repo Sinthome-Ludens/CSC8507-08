@@ -41,6 +41,24 @@ static bool FileExists(const std::string& path) {
     return f.good();
 }
 
+/**
+ * Post-spawn patch-up to enforce the single-player gameplay contract on a player entity.
+ *
+ * Map / scene transitions (including multiplayer hand-off) may spawn or carry over an
+ * entity that has physics / render state but is missing mandatory gameplay components.
+ * This helper is called after the player entity is known to exist in the registry and
+ * guarantees that it has the full set of components expected by gameplay systems:
+ *   - C_T_Player: tag marking the entity as the local player.
+ *   - C_D_PlayerState: high-level player state (movement mode, stance, etc.).
+ *   - C_D_Input: input data consumed by player control systems.
+ *   - C_D_CQCState: close-quarters-combat state required by melee systems.
+ *   - C_D_Health: health data used by damage / death handling.
+ *   - C_T_NavTarget: tag so AI / navigation systems can target / track the player.
+ *
+ * If the entity is invalid or no longer registered, the function is a no-op. Otherwise,
+ * it conditionally emplaces any missing components and logs the resulting contract so
+ * gameplay systems can rely on a consistent, fully-initialised player entity.
+ */
 void EnsureGameplayPlayerComponents(Registry& reg, EntityID playerEntity) {
     if (!Entity::IsValid(playerEntity) || !reg.Valid(playerEntity)) {
         return;
