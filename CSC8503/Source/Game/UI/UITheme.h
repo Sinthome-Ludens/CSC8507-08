@@ -70,6 +70,29 @@ inline const ImVec4 kScrollbarBg      = {0.961f, 0.933f, 0.910f, 1.00f};
 inline const ImVec4 kScrollbarGrab    = {0.78f,  0.76f,  0.74f,  0.60f};
 
 // ============================================================
+// ImU32 draw-list colors (for ImDrawList direct usage)
+// ============================================================
+
+/// @brief Warm cream background (#F5EEE8) as ImU32 with adjustable alpha.
+inline ImU32 Col32_Bg(uint8_t a = 255)         { return IM_COL32(245,238,232,a); }
+/// @brief Near-black warm dark (#100D0A) as ImU32 with adjustable alpha.
+inline ImU32 Col32_BgDark(uint8_t a = 255)      { return IM_COL32(16,13,10,a); }
+/// @brief Orange accent (#FC6F29) as ImU32 with adjustable alpha.
+inline ImU32 Col32_Accent(uint8_t a = 255)      { return IM_COL32(252,111,41,a); }
+/// @brief Lighter orange hover (#FF8747) as ImU32 with adjustable alpha.
+inline ImU32 Col32_AccentHover(uint8_t a = 255) { return IM_COL32(255,135,71,a); }
+/// @brief Primary text color (#100D0A) as ImU32 with adjustable alpha.
+inline ImU32 Col32_Text(uint8_t a = 255)        { return IM_COL32(16,13,10,a); }
+/// @brief Neutral gray (#C8C8C8) as ImU32 with adjustable alpha.
+inline ImU32 Col32_Gray(uint8_t a = 255)        { return IM_COL32(200,200,200,a); }
+/// @brief Status green (#50C878) as ImU32 with adjustable alpha.
+inline ImU32 Col32_Green(uint8_t a = 220)       { return IM_COL32(80,200,120,a); }
+/// @brief Status yellow (#DCC800) as ImU32 with adjustable alpha.
+inline ImU32 Col32_Yellow(uint8_t a = 220)      { return IM_COL32(220,200,0,a); }
+/// @brief Status red (#DC3C28) as ImU32 with adjustable alpha.
+inline ImU32 Col32_Red(uint8_t a = 220)         { return IM_COL32(220,60,40,a); }
+
+// ============================================================
 // Math constants
 // ============================================================
 
@@ -94,6 +117,24 @@ inline const ImVec2 kItemSpacing       = {8.0f, 6.0f};
 inline const ImVec2 kItemInnerSpacing  = {6.0f, 4.0f};
 
 // ============================================================
+// Layout constants
+// ============================================================
+
+namespace Layout {
+    constexpr float kPagePadX       = 40.0f;
+    constexpr float kPagePadTop     = 30.0f;
+    constexpr float kMenuItemH      = 34.0f;
+    constexpr float kPauseItemH     = 38.0f;
+    constexpr float kSeparatorGap   = 20.0f;
+    constexpr float kBottomHintY    = 35.0f;
+    constexpr float kPanelRounding  = 3.0f;
+    constexpr float kCardRounding   = 4.0f;
+    constexpr float kBorderWidth    = 1.0f;
+    constexpr float kSelectedBorderW = 2.0f;
+    constexpr float kHUDPanelAlpha  = 180;
+}
+
+// ============================================================
 // Score rating color (shared across HUD / GameOver / Victory)
 // ============================================================
 
@@ -110,12 +151,12 @@ inline ImU32 GetScoreRatingColor(int8_t tier, uint8_t alpha = 255) {
 // ============================================================
 
 void ApplyTheme();
-void LoadFonts();
+void LoadFonts(float dpiScale = 1.0f);
 
-ImFont* GetFont_Terminal();       // ZLabsRoundPix 16px
-ImFont* GetFont_TerminalLarge();  // ZLabsRoundPix 32px
-ImFont* GetFont_Body();           // ZLabsRoundPix 16px
-ImFont* GetFont_Small();          // ZLabsRoundPix 13px
+ImFont* GetFont_Terminal();       // ZLabsRoundPix 16px * dpiScale
+ImFont* GetFont_TerminalLarge();  // ZLabsRoundPix 32px * dpiScale
+ImFont* GetFont_Body();           // ZLabsRoundPix 16px * dpiScale
+ImFont* GetFont_Small();          // ZLabsRoundPix 13px * dpiScale
 
 } // namespace ECS::UITheme
 

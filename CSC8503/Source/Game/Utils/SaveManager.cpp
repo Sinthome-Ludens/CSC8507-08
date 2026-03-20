@@ -32,7 +32,14 @@ static_assert(std::size(Res_UIState{}.savedStoreCount) >= Res_ItemInventory2::kI
 static_assert(std::size(Res_UIState{}.savedUnlocked) >= Res_ItemInventory2::kItemCount,
               "savedUnlocked array must cover all ItemIDs");
 
-static constexpr int kSaveVersion = 2;
+static constexpr int kSaveVersion = 3;
+
+/**
+ * @brief v2 → v3 道具 ID 重映射表（删除 PhotonRadar，后续 ID 前移）。
+ * 旧 0→新 0, 旧 1→跳过(-1), 旧 2→新 1, 旧 3→新 2, 旧 4→新 3, 旧 5→新 4
+ */
+static constexpr int kV2IdRemap[] = { 0, -1, 1, 2, 3, 4 };
+static constexpr int kV2IdRemapSize = 6;
 
 /**
  * @brief 返回存档文件的完整路径。
@@ -145,7 +152,7 @@ bool LoadGame(Registry& registry, bool restoreMission) {
         nlohmann::json root = nlohmann::json::parse(file);
 
         int version = root.value("version", 0);
-        if (version != kSaveVersion && version != 1) {
+        if (version != kSaveVersion && version != 2 && version != 1) {
             LOG_WARN("[SaveManager] Unsupported save version: " << version);
             return false;
         }
@@ -163,12 +170,18 @@ bool LoadGame(Registry& registry, bool restoreMission) {
         // Restore inventory storeCount
         if (root.contains("inventory")) {
             auto& arr = root["inventory"];
+            const bool needsRemap = (version <= 2); // v1/v2 存档需要 ID 重映射
 
             // If Res_ItemInventory2 exists (in-game), restore by itemId
             if (registry.has_ctx<Res_ItemInventory2>()) {
                 auto& inv = registry.ctx<Res_ItemInventory2>();
                 for (auto& entry : arr) {
                     int id = entry.value("itemId", -1);
+                    if (needsRemap) {
+                        if (id < 0 || id >= kV2IdRemapSize) continue;
+                        id = kV2IdRemap[id];
+                        if (id < 0) continue; // PhotonRadar → skip
+                    }
                     if (id < 0 || id >= inv.kItemCount) continue;
                     inv.slots[id].storeCount = entry.value("storeCount", static_cast<uint8_t>(0));
                     inv.slots[id].unlocked   = entry.value("unlocked", false);
@@ -180,6 +193,11 @@ bool LoadGame(Registry& registry, bool restoreMission) {
                 auto& ui = registry.ctx<Res_UIState>();
                 for (auto& entry : arr) {
                     int id = entry.value("itemId", -1);
+                    if (needsRemap) {
+                        if (id < 0 || id >= kV2IdRemapSize) continue;
+                        id = kV2IdRemap[id];
+                        if (id < 0) continue; // PhotonRadar → skip
+                    }
                     if (id < 0 || id >= static_cast<int>(std::size(ui.savedStoreCount))) continue;
                     ui.savedStoreCount[id] = entry.value("storeCount", static_cast<uint8_t>(0));
                     ui.savedUnlocked[id]   = entry.value("unlocked", false);

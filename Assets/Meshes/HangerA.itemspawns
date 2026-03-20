@@ -8,16 +8,16 @@ position -5.0 0.9 -5.0
 quantity 1
 
 item 1
-itemId 3
+itemId 2
 position 8.0 0.9 2.0
 quantity 1
 
 item 2
-itemId 2
+itemId 1
 position -3.0 0.9 3.0
 quantity 1
 
 item 3
-itemId 5
+itemId 4
 position 0.0 0.9 -2.0
 quantity 1

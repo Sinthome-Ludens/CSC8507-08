@@ -4,7 +4,7 @@
  *
  * @details
  * 场景级 ctx 资源，由 Scene OnEnter 写入边界缓存，
- * Sys_ItemEffects::EffectGlobalMap 激活，UI_HUD 读取渲染。
+ * Sys_ItemEffects::EffectRadarMap 激活，UI_HUD 读取渲染。
  *
  * @see Sys_ItemEffects.h
  * @see UI_HUD.cpp

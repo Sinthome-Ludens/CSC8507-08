@@ -10,11 +10,10 @@
  * | ItemID           | 名称         | 类型   |
  * |------------------|--------------|--------|
  * | HoloBait         | 全息诱饵炸弹 | Gadget |
- * | PhotonRadar      | 光子雷达     | Gadget |
  * | DDoS             | DDoS         | Gadget |
  * | RoamAI           | 流窜 AI      | Weapon |
  * | TargetStrike     | 靶向打击     | Weapon |
- * | GlobalMap        | 全局地图     | Gadget |
+ * | RadarMap         | 雷达地图     | Gadget |
  *
  * @see Res_ItemInventory2.h
  * @see Sys_Item.h
@@ -34,12 +33,11 @@ enum class ItemType : uint8_t {
 /// @brief 道具唯一 ID 枚举（对应需求文档 001~005）
 enum class ItemID : uint8_t {
     HoloBait     = 0, ///< 001 全息诱饵炸弹 — 使敌人移动到投掷位置
-    PhotonRadar  = 1, ///< 002 光子雷达     — 在 UI 上显示敌人位置
-    DDoS         = 2, ///< 003 DDoS         — 冻结目标 5 秒
-    RoamAI       = 3, ///< 004 流窜 AI      — 释放巡逻 AI，触碰敌人即消灭
-    TargetStrike = 4, ///< 005 靶向打击     — 击毙目标（直接死亡）
-    GlobalMap    = 5, ///< 006 全局地图     — 使用后显示持续小地图
-    Count        = 6, ///< 道具种类总数（用于数组索引）
+    DDoS         = 1, ///< 002 DDoS         — 冻结目标 5 秒
+    RoamAI       = 2, ///< 003 流窜 AI      — 释放巡逻 AI，触碰敌人即消灭
+    TargetStrike = 3, ///< 004 靶向打击     — 击毙目标（直接死亡）
+    RadarMap     = 4, ///< 005 雷达地图     — 使用后显示小地图 + 敌人位置
+    Count        = 5, ///< 道具种类总数（用于数组索引）
 };
 
 /**
@@ -64,7 +62,7 @@ struct C_D_Item {
     uint8_t  maxCarry     = 2;               ///< 最大携带数量（开局最多 2 个）
 
     uint8_t  storeCount   = 0;               ///< 玩家仓库存量（跨局持久化）
-    uint8_t  maxStore     = 99;              ///< 仓库最大存量（光子雷达无上限视为 99）
+    uint8_t  maxStore     = 99;              ///< 仓库最大存量
 };
 
 /// @brief 根据 ItemID 查询对应的 ItemType（集中维护，避免多处硬编码）。

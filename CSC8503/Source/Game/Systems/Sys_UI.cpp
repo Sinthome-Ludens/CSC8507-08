@@ -41,6 +41,7 @@
 #include "Game/UI/UI_MissionSelect.h"
 #include "Game/UI/UI_Victory.h"
 #include "Game/UI/UI_ActionNotify.h"
+#include "Game/UI/UI_Anim.h"
 #include "Game/Components/Res_InputConfig.h"
 #include "Game/Components/Res_UIKeyConfig.h"
 #include "Game/Components/Res_AudioConfig.h"
@@ -64,7 +65,15 @@ static constexpr float kGlobalTimeWrap = 6283.1853f;  // 2000 * PI
  * @param registry ECS 注册表
  */
 void Sys_UI::OnAwake(Registry& registry) {
-    UITheme::LoadFonts();
+    // DPI scale: baseline is 1080p; scale linearly with display height
+    float dpiScale = 1.0f;
+    const float displayH = ImGui::GetIO().DisplaySize.y;
+    if (displayH > 0.0f) {
+        dpiScale = displayH / 1080.0f;
+        if (dpiScale < 0.75f) dpiScale = 0.75f;
+        if (dpiScale > 2.0f)  dpiScale = 2.0f;
+    }
+    UITheme::LoadFonts(dpiScale);
     UITheme::ApplyTheme();
 
     if (!registry.has_ctx<Res_UIState>()) {
@@ -333,10 +342,10 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             if (ui.itemWheelSelected >= 0 && registry.has_ctx<Res_GameState>()) {
                 auto& gs = registry.ctx<Res_GameState>();
                 switch (ui.itemWheelSelected) {
-                    case 0: gs.activeItemSlot   = 0; break;
-                    case 1: gs.activeItemSlot   = 1; break;
-                    case 2: gs.activeWeaponSlot = 0; break;
-                    case 3: gs.activeWeaponSlot = 1; break;
+                    case 0: gs.activeWeaponSlot = 0; break;
+                    case 1: gs.activeWeaponSlot = 1; break;
+                    case 2: gs.activeItemSlot   = 0; break;
+                    case 3: gs.activeItemSlot   = 1; break;
                     default: break;
                 }
                 LOG_INFO("[Sys_UI] ItemWheel confirmed: sector " << (int)ui.itemWheelSelected);
@@ -390,6 +399,29 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
                                       0, ActionNotifyType::Alert, 3.0f);
         }
         ui.lastScoreRatingTier = curTier;
+    }
+
+    // ── Screen entry animation: detect changes & tick ──────
+    if (ui.activeScreen != ui._lastTickScreen) {
+        // Determine slide direction from depth comparison
+        int depthOld = UI::Anim::ScreenDepth(ui._lastTickScreen);
+        int depthNew = UI::Anim::ScreenDepth(ui.activeScreen);
+        ui.transDirection = (depthNew >= depthOld) ? (int8_t)1 : (int8_t)-1;
+
+        ui.screenEntryElapsed  = 0.0f;
+        ui.screenEntryDuration = 0.35f;
+        // Reset hover progress for the new menu
+        for (auto& p : ui.menuHoverProgress) p = 0.0f;
+        ui._lastTickScreen = ui.activeScreen;
+    }
+    if (ui.screenEntryDuration > 0.0f && ui.screenEntryElapsed < ui.screenEntryDuration) {
+        ui.screenEntryElapsed = std::min(ui.screenEntryElapsed + dt, ui.screenEntryDuration);
+    }
+
+    // Click flash decay
+    if (ui.menuClickFlashTimer > 0.0f) {
+        ui.menuClickFlashTimer = std::max(0.0f, ui.menuClickFlashTimer - dt);
+        if (ui.menuClickFlashTimer <= 0.0f) ui.menuClickFlashIndex = -1;
     }
 
     // Dispatch to render functions

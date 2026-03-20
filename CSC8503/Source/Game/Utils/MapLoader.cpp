@@ -20,6 +20,7 @@
 #include "Game/Components/C_D_Health.h"
 #include "Game/Components/C_D_Input.h"
 #include "Game/Components/C_D_PlayerState.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Components/C_T_NavTarget.h"
 #include "Game/Components/C_T_Player.h"
@@ -368,6 +369,15 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
         if (itemData.loaded) {
             for (int i = 0; i < static_cast<int>(itemData.spawns.size()); ++i) {
                 const auto& spawn = itemData.spawns[i];
+
+                // Skip already-unlocked weapons (no need to spawn on map)
+                bool isWeapon = (spawn.itemId == ItemID::RoamAI || spawn.itemId == ItemID::TargetStrike);
+                if (isWeapon && reg.has_ctx<Res_UIState>()) {
+                    if (reg.ctx<Res_UIState>().savedUnlocked[static_cast<int>(spawn.itemId)]) {
+                        continue;
+                    }
+                }
+
                 Vector3 itemPos(
                     spawn.position.x * scale,
                     spawn.position.y * scale + worldY + 1.5f,
