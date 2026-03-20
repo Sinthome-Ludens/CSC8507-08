@@ -20,6 +20,7 @@
 #include "Game/Components/C_T_Pathfinder.h"
 #include "Game/Components/C_T_NavTarget.h"
 #include "Game/Components/C_D_AIState.h"
+#include "Game/Components/C_D_DDoSFrozen.h"
 #include "Game/Components/C_D_PatrolRoute.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #include "Game/Systems/Sys_Physics.h"
@@ -269,6 +270,9 @@ void Sys_Navigation::OnUpdate(Registry& registry, float dt) {
     agents.each([&](EntityID entity, C_T_Pathfinder& /*tag*/,
                     C_D_NavAgent& agent, C_D_Transform& tf, C_D_RigidBody& rb)
     {
+        // DDoS 冻结：跳过导航更新，敌人原地停止
+        if (registry.Has<C_D_DDoSFrozen>(entity)) return;
+
         // ── Step 0: 读取可选 AI 状态 ─────────────────────────────────────
         auto* aiState = registry.TryGet<C_D_AIState>(entity);
 

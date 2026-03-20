@@ -75,9 +75,11 @@ void Sys_Audio::OnAwake(Registry& registry) {
 
     const auto& cfg = registry.ctx<Res_AudioConfig>();
 
-    // ── 预加载所有 BGM（loop 模式）──
+    // ── 预加载所有 BGM ──
     for (int i = 1; i < (int)BgmId::COUNT; ++i) {
-        LoadSound(cfg.bgmPaths[i], true, i, true);
+        // Victory / Defeat 只播一次，不循环；其余 BGM 循环
+        bool shouldLoop = (i != (int)BgmId::Victory && i != (int)BgmId::Defeat);
+        LoadSound(cfg.bgmPaths[i], shouldLoop, i, true);
     }
 
     // ── 预加载所有 SFX（one-shot 模式）──
