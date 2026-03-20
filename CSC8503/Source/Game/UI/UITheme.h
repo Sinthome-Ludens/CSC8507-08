@@ -159,7 +159,10 @@ namespace Layout {
         constexpr float kCountdownH     = 36.0f;
         constexpr float kInputBoxH      = 28.0f;
         constexpr float kReplySpacing   = 4.0f;
-        constexpr float kReplyItemH     = 42.0f;
+        constexpr float kReplyTextMinH  = 16.0f;   ///< 回复文本最小高度
+        constexpr float kReplyArrowH    = 16.0f;   ///< 箭头序列行高
+        constexpr float kReplyItemPadY  = 4.0f;    ///< 回复项内上下边距
+        constexpr float kReplyGap       = 2.0f;    ///< 回复项之间间距
         constexpr float kHintLineH      = 24.0f;
         constexpr float kHintBottomY    = 18.0f;
         constexpr float kSlotSize       = 20.0f;
@@ -171,7 +174,6 @@ namespace Layout {
         constexpr float kArrowCenterY   = 7.0f;
         constexpr float kSepInset       = 8.0f;
         constexpr float kHighlightInset = 6.0f;
-        constexpr float kHighlightH     = 40.0f;
     }
 }
 
