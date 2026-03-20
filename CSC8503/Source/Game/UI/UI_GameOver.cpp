@@ -88,8 +88,6 @@ void RenderGameOverScreen(Registry& registry, float dt) {
     float playTime = 0.0f;
     bool isMultiplayer = false;
     MatchResult matchResult = MatchResult::None;
-    uint8_t localStageProgress = 0;
-    uint8_t opponentStageProgress = 0;
     if (registry.has_ctx<Res_GameState>()) {
         auto& gs = registry.ctx<Res_GameState>();
         reason     = gs.gameOverReason;
@@ -98,8 +96,6 @@ void RenderGameOverScreen(Registry& registry, float dt) {
         playTime   = gs.playTime;
         isMultiplayer = gs.isMultiplayer;
         matchResult = gs.matchResult;
-        localStageProgress = gs.localStageProgress;
-        opponentStageProgress = gs.opponentStageProgress;
     }
 
     // ── Dynamic title based on reason ──────────────────────
@@ -108,58 +104,52 @@ void RenderGameOverScreen(Registry& registry, float dt) {
     ImU32 titleColor;
     bool isSuccess = false;
 
+    switch (reason) {
+        case GameOverReason::Countdown:
+            resultTitle    = "MISSION FAILED";
+            resultSubtitle = "COUNTDOWN EXPIRED";
+            titleColor     = IM_COL32(220, 60, 40, 255);
+            break;
+        case GameOverReason::Detected:
+            resultTitle    = "MISSION FAILED";
+            resultSubtitle = "OPERATOR DETECTED";
+            titleColor     = IM_COL32(220, 60, 40, 255);
+            break;
+        case GameOverReason::Success:
+            resultTitle    = "MISSION COMPLETE";
+            resultSubtitle = "ALL OBJECTIVES ACHIEVED";
+            titleColor     = Col32_Accent();
+            isSuccess      = true;
+            break;
+        default:
+            resultTitle    = "MISSION TERMINATED";
+            resultSubtitle = "";
+            titleColor     = Col32_Gray();
+            break;
+    }
+
     if (isMultiplayer) {
         switch (matchResult) {
             case MatchResult::LocalWin:
-                resultTitle    = "MATCH VICTORY";
-                resultSubtitle = "YOU CLEARED ALL THREE STAGES";
-                titleColor     = Col32_Accent();
-                isSuccess      = true;
+                resultSubtitle = "ALL OBJECTIVES ACHIEVED";
                 break;
             case MatchResult::OpponentWin:
-                resultTitle    = "MATCH DEFEAT";
                 resultSubtitle = "OPPONENT CLEARED THE FINAL STAGE";
-                titleColor     = IM_COL32(220, 60, 40, 255);
                 break;
             case MatchResult::Draw:
-                resultTitle    = "MATCH DRAW";
+                resultTitle    = "MISSION TERMINATED";
                 resultSubtitle = "BOTH OPERATIVES FINISHED";
                 titleColor     = IM_COL32(180, 140, 40, 255);
+                isSuccess      = false;
                 break;
             case MatchResult::Disconnected:
-                resultTitle    = "MATCH TERMINATED";
+                resultTitle    = "MISSION TERMINATED";
                 resultSubtitle = "PEER DISCONNECTED";
                 titleColor     = IM_COL32(120, 120, 120, 255);
+                isSuccess      = false;
                 break;
             case MatchResult::None:
             default:
-                resultTitle    = "MATCH COMPLETE";
-                resultSubtitle = "";
-                titleColor     = Col32_Gray();
-                break;
-        }
-    } else {
-        switch (reason) {
-            case GameOverReason::Countdown:
-                resultTitle    = "MISSION FAILED";
-                resultSubtitle = "COUNTDOWN EXPIRED";
-                titleColor     = IM_COL32(220, 60, 40, 255);
-                break;
-            case GameOverReason::Detected:
-                resultTitle    = "MISSION FAILED";
-                resultSubtitle = "OPERATOR DETECTED";
-                titleColor     = IM_COL32(220, 60, 40, 255);
-                break;
-            case GameOverReason::Success:
-                resultTitle    = "MISSION COMPLETE";
-                resultSubtitle = "ALL OBJECTIVES ACHIEVED";
-                titleColor     = Col32_Accent();
-                isSuccess      = true;
-                break;
-            default:
-                resultTitle    = "MISSION TERMINATED";
-                resultSubtitle = "";
-                titleColor     = Col32_Gray();
                 break;
         }
     }
@@ -175,18 +165,6 @@ void RenderGameOverScreen(Registry& registry, float dt) {
         resultSubtitle = "INSUFFICIENT SCORE";
         titleColor     = IM_COL32(220, 60, 40, 255);
         isSuccess      = false;
-    }
-
-    // Multiplayer: override rating with match result string
-    if (isMultiplayer) {
-        switch (matchResult) {
-            case MatchResult::LocalWin:    rating = "WIN"; break;
-            case MatchResult::OpponentWin: rating = "LOSS"; break;
-            case MatchResult::Draw:        rating = "DRAW"; break;
-            case MatchResult::Disconnected:rating = "DISCONNECTED"; break;
-            case MatchResult::None:
-            default:                       rating = "UNKNOWN"; break;
-        }
     }
 
     // Title (drop-in animation)
@@ -243,79 +221,67 @@ void RenderGameOverScreen(Registry& registry, float dt) {
     snprintf(buf, sizeof(buf), "TIME:        %02d:%02d", mm, ss);
     draw->AddText(ImVec2(statsX, statsY), labelCol, buf);
 
-    if (isMultiplayer) {
-        snprintf(buf, sizeof(buf), "LOCAL:     %d / %d",
-            (int)localStageProgress, (int)kMultiplayerStageCount);
-        draw->AddText(ImVec2(statsX, statsY + 28.0f),
-            Col32_Text(220), buf);
+    // INITIAL
+    draw->AddText(ImVec2(statsX, statsY + 28.0f), labelCol, "INITIAL:");
+    draw->AddText(ImVec2(valX, statsY + 28.0f), IM_COL32(80, 200, 120, 220), "1000");
 
-        snprintf(buf, sizeof(buf), "OPPONENT:  %d / %d",
-            (int)opponentStageProgress, (int)kMultiplayerStageCount);
-        draw->AddText(ImVec2(statsX, statsY + 56.0f),
-            Col32_Text(220), buf);
+    // TIME penalty
+    snprintf(buf, sizeof(buf), "TIME (-1/s):");
+    draw->AddText(ImVec2(statsX, statsY + 52.0f), labelCol, buf);
+    if (ui.scoreLost_time > 0) {
+        snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_time);
+        draw->AddText(ImVec2(valX, statsY + 52.0f), deductCol, buf);
     } else {
-        // INITIAL
-        draw->AddText(ImVec2(statsX, statsY + 28.0f), labelCol, "INITIAL:");
-        draw->AddText(ImVec2(valX, statsY + 28.0f), IM_COL32(80, 200, 120, 220), "1000");
-
-        // TIME penalty
-        snprintf(buf, sizeof(buf), "TIME (-1/s):");
-        draw->AddText(ImVec2(statsX, statsY + 52.0f), labelCol, buf);
-        if (ui.scoreLost_time > 0) {
-            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_time);
-            draw->AddText(ImVec2(valX, statsY + 52.0f), deductCol, buf);
-        } else {
-            draw->AddText(ImVec2(valX, statsY + 52.0f), labelCol, "0");
-        }
-
-        // KILLS
-        snprintf(buf, sizeof(buf), "KILLS (x%d):", ui.scoreKillCount);
-        draw->AddText(ImVec2(statsX, statsY + 76.0f), labelCol, buf);
-        if (ui.scoreLost_kills > 0) {
-            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_kills);
-            draw->AddText(ImVec2(valX, statsY + 76.0f), deductCol, buf);
-        } else {
-            draw->AddText(ImVec2(valX, statsY + 76.0f), labelCol, "0");
-        }
-
-        // ITEMS
-        snprintf(buf, sizeof(buf), "ITEMS (x%d):", ui.scoreItemUseCount);
-        draw->AddText(ImVec2(statsX, statsY + 100.0f), labelCol, buf);
-        if (ui.scoreLost_items > 0) {
-            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_items);
-            draw->AddText(ImVec2(valX, statsY + 100.0f), deductCol, buf);
-        } else {
-            draw->AddText(ImVec2(valX, statsY + 100.0f), labelCol, "0");
-        }
-
-        // COUNTDOWN
-        draw->AddText(ImVec2(statsX, statsY + 124.0f), labelCol, "COUNTDOWN:");
-        if (ui.scoreLost_countdown > 0) {
-            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_countdown);
-            draw->AddText(ImVec2(valX, statsY + 124.0f), deductCol, buf);
-        } else {
-            draw->AddText(ImVec2(valX, statsY + 124.0f), labelCol, "0");
-        }
-
-        // FAILURE
-        draw->AddText(ImVec2(statsX, statsY + 148.0f), labelCol, "FAILURE:");
-        if (ui.scoreLost_failure > 0) {
-            snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_failure);
-            draw->AddText(ImVec2(valX, statsY + 148.0f), deductCol, buf);
-        } else {
-            draw->AddText(ImVec2(valX, statsY + 148.0f), labelCol, "0");
-        }
-
-        // Separator line
-        draw->AddLine(ImVec2(statsX, statsY + 172.0f), ImVec2(valX + 60.0f, statsY + 172.0f),
-            Col32_Gray(120), 1.0f);
-
-        // FINAL SCORE
-        snprintf(buf, sizeof(buf), "FINAL SCORE:");
-        draw->AddText(ImVec2(statsX, statsY + 180.0f), labelCol, buf);
-        snprintf(buf, sizeof(buf), "%d  [%s]", std::max(0, finalScore), rating);
-        draw->AddText(ImVec2(valX, statsY + 180.0f), ratingCol, buf);
+        draw->AddText(ImVec2(valX, statsY + 52.0f), labelCol, "0");
     }
+
+    // KILLS
+    snprintf(buf, sizeof(buf), "KILLS (x%d):", ui.scoreKillCount);
+    draw->AddText(ImVec2(statsX, statsY + 76.0f), labelCol, buf);
+    if (ui.scoreLost_kills > 0) {
+        snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_kills);
+        draw->AddText(ImVec2(valX, statsY + 76.0f), deductCol, buf);
+    } else {
+        draw->AddText(ImVec2(valX, statsY + 76.0f), labelCol, "0");
+    }
+
+    // ITEMS
+    snprintf(buf, sizeof(buf), "ITEMS (x%d):", ui.scoreItemUseCount);
+    draw->AddText(ImVec2(statsX, statsY + 100.0f), labelCol, buf);
+    if (ui.scoreLost_items > 0) {
+        snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_items);
+        draw->AddText(ImVec2(valX, statsY + 100.0f), deductCol, buf);
+    } else {
+        draw->AddText(ImVec2(valX, statsY + 100.0f), labelCol, "0");
+    }
+
+    // COUNTDOWN
+    draw->AddText(ImVec2(statsX, statsY + 124.0f), labelCol, "COUNTDOWN:");
+    if (ui.scoreLost_countdown > 0) {
+        snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_countdown);
+        draw->AddText(ImVec2(valX, statsY + 124.0f), deductCol, buf);
+    } else {
+        draw->AddText(ImVec2(valX, statsY + 124.0f), labelCol, "0");
+    }
+
+    // FAILURE
+    draw->AddText(ImVec2(statsX, statsY + 148.0f), labelCol, "FAILURE:");
+    if (ui.scoreLost_failure > 0) {
+        snprintf(buf, sizeof(buf), "-%d", ui.scoreLost_failure);
+        draw->AddText(ImVec2(valX, statsY + 148.0f), deductCol, buf);
+    } else {
+        draw->AddText(ImVec2(valX, statsY + 148.0f), labelCol, "0");
+    }
+
+    // Separator line
+    draw->AddLine(ImVec2(statsX, statsY + 172.0f), ImVec2(valX + 60.0f, statsY + 172.0f),
+        Col32_Gray(120), 1.0f);
+
+    // FINAL SCORE
+    snprintf(buf, sizeof(buf), "FINAL SCORE:");
+    draw->AddText(ImVec2(statsX, statsY + 180.0f), labelCol, buf);
+    snprintf(buf, sizeof(buf), "%d  [%s]", std::max(0, finalScore), rating);
+    draw->AddText(ImVec2(valX, statsY + 180.0f), ratingCol, buf);
 
     if (termFont) ImGui::PopFont();
 
