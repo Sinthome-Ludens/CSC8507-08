@@ -59,9 +59,12 @@
          * @return Absolute or working-directory-relative path to @c multiplayer_debug.log .
          */
         inline std::filesystem::path MultiplayerLogPath() {
-            static const std::filesystem::path p =
-                std::filesystem::current_path() / "multiplayer_debug.log";
-            return p;
+            std::error_code ec;
+            const auto cwd = std::filesystem::current_path(ec);
+            if (ec) {
+                return std::filesystem::path("multiplayer_debug.log");
+            }
+            return cwd / "multiplayer_debug.log";
         }
 
         /**
