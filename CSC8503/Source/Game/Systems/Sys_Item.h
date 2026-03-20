@@ -57,6 +57,8 @@ public:
 private:
     /// 道具拾取事件订阅句柄
     SubscriptionID m_PickupSubId = 0;
+    /// 是否已输出一次道具系统的启动状态日志（仅记录一次快照，随 Sys_Item 重新构建 / 场景重载时重置为 false）。
+    bool m_DidLogStartupState = false;
 
     /// 拾取检测半径（玩家中心到道具实体中心）
     static constexpr float kPickupRadius = 2.0f;

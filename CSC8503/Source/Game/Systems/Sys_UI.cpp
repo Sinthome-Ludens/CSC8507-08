@@ -20,6 +20,7 @@
 #include "Game/Components/Res_ChatState.h"
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_Network.h"
 #include "Game/Components/Res_DataOcean.h"
 #include "Game/Components/Res_ActionNotifyState.h"
 #include "Game/Components/C_D_Interactable.h"
@@ -98,8 +99,11 @@ void Sys_UI::OnAwake(Registry& registry) {
         registry.ctx_emplace<Res_UIKeyConfig>();
     }
 
-    // 加载存档到 UIState 缓存（菜单阶段只有 UIState 存在）
-    if (ECS::HasSaveFile()) {
+    const bool isOnlineSession = registry.has_ctx<Res_Network>()
+        && registry.ctx<Res_Network>().mode != PeerType::OFFLINE;
+
+    // 仅离线/菜单流加载持久化存档；多人局内不应把 autosave 覆盖到当前会话状态。
+    if (!isOnlineSession && ECS::HasSaveFile()) {
         ECS::LoadGame(registry);
     }
 

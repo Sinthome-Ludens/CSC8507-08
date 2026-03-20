@@ -176,15 +176,22 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
         ui.transitionTimer      = 0.0f;
         ui.transitionDuration   = 0.5f;
         ui.transitionType       = 0;  // FadeIn
+        LOG_MPDBG("[Scene_NetworkGame] UI bootstrap state: activeScreen=" << (int)ui.activeScreen
+                  << " pendingSceneRequest=" << (int)ui.pendingSceneRequest
+                  << " mapSequenceGenerated=" << ui.mapSequenceGenerated
+                  << " mapSequenceIndex=" << (int)ui.mapSequenceIndex);
     }
     if (!isSameMapBootstrap) {
         ECS::UI::PushToast(registry, "MULTIPLAYER CONNECTED", ECS::ToastType::Success, 2.5f);
     }
 #endif
 
-    LOG_INFO("[Scene_NetworkGame] OnEnter complete. Mode="
-             << (m_Mode == ECS::PeerType::SERVER ? "SERVER" : "CLIENT")
-             << " target=" << resNet.serverIP << ":" << resNet.serverPort);
+    LOG_MPDBG("[Scene_NetworkGame] OnEnter complete. Mode="
+              << (m_Mode == ECS::PeerType::SERVER ? "SERVER" : "CLIENT")
+              << " target=" << resNet.serverIP << ":" << resNet.serverPort
+              << " bootstrapSceneActive=" << resNet.bootstrapSceneActive
+              << " matchSetupReceived=" << resNet.matchSetupReceived
+              << " sameMapBootstrap=" << isSameMapBootstrap);
 }
 
 /**

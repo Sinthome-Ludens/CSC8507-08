@@ -180,18 +180,42 @@ void Sys_DeathJudgment::OnUpdate(Registry& registry, float dt) {
         }
     );
 
+    if (!m_DidLogStartupState) {
+        int enemyCount = 0;
+        int healthCount = 0;
+        registry.view<C_T_Enemy>().each([&](EntityID, C_T_Enemy&) { ++enemyCount; });
+        registry.view<C_D_Health>().each([&](EntityID, C_D_Health&) { ++healthCount; });
+
+        int matchPhase = -1;
+        bool isMultiplayer = false;
+        if (registry.has_ctx<Res_GameState>()) {
+            const auto& gs = registry.ctx<Res_GameState>();
+            matchPhase = static_cast<int>(gs.matchPhase);
+            isMultiplayer = gs.isMultiplayer;
+        }
+
+        LOG_MPDBG("[Sys_DeathJudgment] Startup snapshot: players=" << playerCount
+                  << " enemies=" << enemyCount
+                  << " healthEntities=" << healthCount
+                  << " isMultiplayer=" << isMultiplayer
+                  << " matchPhase=" << matchPhase);
+        m_DidLogStartupState = true;
+    }
+
     const float captureDistSq = config.captureDistance * config.captureDistance;
 
     if (playerCount > 0) {
         registry.view<C_T_Enemy, C_D_AIState, C_D_Transform>().each(
             [&](EntityID enemyId, C_T_Enemy&, C_D_AIState& state, C_D_Transform& enemyTf) {
-                // 只有 Hunt 状态的敌人才抓捕
-                if (state.current_state != EnemyState::Hunt) return;
-
                 // 休眠敌人跳过
                 if (registry.Has<C_D_EnemyDormant>(enemyId)) {
                     const auto& dormant = registry.Get<C_D_EnemyDormant>(enemyId);
                     if (dormant.isDormant) return;
+                }
+
+                // Only enemies in Hunt state are allowed to capture players.
+                if (state.current_state != EnemyState::Hunt) {
+                    return;
                 }
 
                 for (int i = 0; i < playerCount; ++i) {
