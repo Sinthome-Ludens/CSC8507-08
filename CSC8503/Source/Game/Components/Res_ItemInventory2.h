@@ -1,6 +1,6 @@
 /**
  * @file Res_ItemInventory2.h
- * @brief 全局道具库存资源：存储玩家对六种道具的携带数量与仓库存量。
+ * @brief 全局道具库存资源：存储玩家对五种道具的携带数量与仓库存量。
  *
  * @details
  * 场景级 ctx 资源，由 Sys_Item 管理生命周期：
@@ -39,7 +39,7 @@ struct ItemSlot {
     uint8_t storeCount   = 0;  ///< 仓库持久存量（跨局）
     uint8_t maxStore     = 99; ///< 仓库最大存量
 
-    uint8_t mapPickupMax = 10; ///< 地图内最多出现数量（光子雷达 = 0）
+    uint8_t mapPickupMax = 10; ///< 地图内最多出现数量（0=不生成）
 
     float cooldownDuration = 0.0f; ///< 使用后冷却时长（秒），0=无冷却
 
@@ -81,7 +81,7 @@ struct ItemSlot {
 /**
  * @brief 全局道具库存资源（Scene ctx）
  *
- * 包含五种道具各自的 ItemSlot，通过 ItemID 下标访问。
+ * 包含 5 种道具各自的 ItemSlot，通过 ItemID 下标访问。
  */
 struct Res_ItemInventory2 {
     static constexpr int kItemCount = static_cast<int>(ItemID::Count);
@@ -104,65 +104,53 @@ struct Res_ItemInventory2 {
         snprintf(slots[0].desc, sizeof(slots[0].desc), "Lure Safe enemies to target");
         slots[0].cooldownDuration = 3.0f;
 
-        // 002 PhotonRadar (光子雷达) — Gadget, 始终可用
-        slots[1].itemId      = ItemID::PhotonRadar;
+        // 002 DDoS — Gadget, 始终可用
+        slots[1].itemId      = ItemID::DDoS;
         slots[1].itemType    = ItemType::Gadget;
         slots[1].maxCarry    = 2;
         slots[1].maxStore    = 99;
-        slots[1].mapPickupMax = 0;
+        slots[1].mapPickupMax = 99;
         slots[1].unlocked    = true;
-        slots[1].storeCount  = 3;
-        snprintf(slots[1].name, sizeof(slots[1].name), "Radar");
-        snprintf(slots[1].desc, sizeof(slots[1].desc), "Reveal enemies on map");
-        slots[1].cooldownDuration = 5.0f;
+        slots[1].storeCount  = 4;
+        snprintf(slots[1].name, sizeof(slots[1].name), "DDOS");
+        snprintf(slots[1].desc, sizeof(slots[1].desc), "Freeze nearest target 5s");
+        slots[1].cooldownDuration = 8.0f;
 
-        // 003 DDoS — Gadget, 始终可用
-        slots[2].itemId      = ItemID::DDoS;
-        slots[2].itemType    = ItemType::Gadget;
+        // 003 RoamAI (流窜 AI) — Weapon, 默认锁定
+        slots[2].itemId      = ItemID::RoamAI;
+        slots[2].itemType    = ItemType::Weapon;
         slots[2].maxCarry    = 2;
-        slots[2].maxStore    = 99;
+        slots[2].maxStore    = 0;
+        slots[2].storeCount  = 0;
         slots[2].mapPickupMax = 99;
-        slots[2].unlocked    = true;
-        slots[2].storeCount  = 4;
-        snprintf(slots[2].name, sizeof(slots[2].name), "DDOS");
-        snprintf(slots[2].desc, sizeof(slots[2].desc), "Freeze nearest target 5s");
-        slots[2].cooldownDuration = 8.0f;
+        slots[2].unlocked    = false;
+        snprintf(slots[2].name, sizeof(slots[2].name), "RoamAI");
+        snprintf(slots[2].desc, sizeof(slots[2].desc), "Patrol AI, kills on contact (AUTO x2)");
+        slots[2].cooldownDuration = 5.0f;
 
-        // 004 RoamAI (流窜 AI) — Weapon, 默认锁定
-        slots[3].itemId      = ItemID::RoamAI;
+        // 004 TargetStrike (靶向打击) — Weapon, 默认锁定
+        slots[3].itemId      = ItemID::TargetStrike;
         slots[3].itemType    = ItemType::Weapon;
         slots[3].maxCarry    = 2;
         slots[3].maxStore    = 0;
         slots[3].storeCount  = 0;
         slots[3].mapPickupMax = 99;
         slots[3].unlocked    = false;
-        snprintf(slots[3].name, sizeof(slots[3].name), "RoamAI");
-        snprintf(slots[3].desc, sizeof(slots[3].desc), "Patrol AI, kills on contact (AUTO x2)");
-        slots[3].cooldownDuration = 5.0f;
+        snprintf(slots[3].name, sizeof(slots[3].name), "Strike");
+        snprintf(slots[3].desc, sizeof(slots[3].desc), "Kill nearest enemy instantly (AUTO x2)");
+        slots[3].cooldownDuration = 10.0f;
 
-        // 005 TargetStrike (靶向打击) — Weapon, 默认锁定
-        slots[4].itemId      = ItemID::TargetStrike;
-        slots[4].itemType    = ItemType::Weapon;
-        slots[4].maxCarry    = 2;
-        slots[4].maxStore    = 0;
-        slots[4].storeCount  = 0;
+        // 005 RadarMap (雷达地图) — Gadget, 始终可用
+        slots[4].itemId      = ItemID::RadarMap;
+        slots[4].itemType    = ItemType::Gadget;
+        slots[4].maxCarry    = 1;
+        slots[4].maxStore    = 99;
         slots[4].mapPickupMax = 99;
-        slots[4].unlocked    = false;
-        snprintf(slots[4].name, sizeof(slots[4].name), "Strike");
-        snprintf(slots[4].desc, sizeof(slots[4].desc), "Kill nearest enemy instantly (AUTO x2)");
-        slots[4].cooldownDuration = 10.0f;
-
-        // 006 GlobalMap (全局地图) — Gadget, 始终可用
-        slots[5].itemId      = ItemID::GlobalMap;
-        slots[5].itemType    = ItemType::Gadget;
-        slots[5].maxCarry    = 1;
-        slots[5].maxStore    = 99;
-        slots[5].mapPickupMax = 99;
-        slots[5].unlocked    = true;
-        slots[5].storeCount  = 3;
-        snprintf(slots[5].name, sizeof(slots[5].name), "Map");
-        snprintf(slots[5].desc, sizeof(slots[5].desc), "Reveal map layout on HUD");
-        slots[5].cooldownDuration = Res_MinimapState::kActiveDuration;
+        slots[4].unlocked    = true;
+        slots[4].storeCount  = 3;
+        snprintf(slots[4].name, sizeof(slots[4].name), "Radar Map");
+        snprintf(slots[4].desc, sizeof(slots[4].desc), "Reveal map + enemies on HUD");
+        slots[4].cooldownDuration = Res_MinimapState::kActiveDuration;
     }
 
     /**
