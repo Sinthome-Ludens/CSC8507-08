@@ -57,7 +57,7 @@ void RenderHUD(Registry& registry, float dt) {
 
     // ── Multiplayer-only panels ──
     if (gs.isMultiplayer) {
-        HUD::MatchBanner(draw, gs, gameW, ui.globalTime, dt);
+        HUD::MatchBanner(draw, gs, ui, gameW, ui.globalTime, dt);
         HUD::OpponentBar(draw, gs, gameW);
         HUD::DisruptionEffect(draw, gs, displaySize.x, displayH, ui.globalTime);
         HUD::NetworkStatus(draw, gs, gameW, displayH);

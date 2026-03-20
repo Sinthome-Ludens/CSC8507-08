@@ -137,6 +137,10 @@ static ImFont* SafeLoadFont(ImGuiIO& io, const std::string& path, float size,
     return font;
 }
 
+/// @brief Load all UI fonts at the given DPI scale (call once during init).
+///
+/// Fonts are cached in static pointers; subsequent calls are no-ops.
+/// A dpiScale < 0.5 is clamped to 1.0 as a safety fallback.
 void LoadFonts(float dpiScale) {
     if (s_FontTerminal) return;
     if (dpiScale < 0.5f) dpiScale = 1.0f;

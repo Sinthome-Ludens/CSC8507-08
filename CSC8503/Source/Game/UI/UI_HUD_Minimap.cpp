@@ -18,6 +18,11 @@ using namespace ECS::UITheme;
 
 namespace ECS::UI::HUD {
 
+/// @brief Render left-side minimap overlay (active when RadarMap item is in use).
+///
+/// Maps world coordinates to a 160x160 screen panel via uniform scaling.
+/// Draws walkable triangles, boundary edges, 4x4 grid, enemy dots (red),
+/// player triangle (orange), compass labels, and remaining timer.
 void Minimap(ImDrawList* draw, Registry& registry, float /*displayH*/) {
     if (!registry.has_ctx<Res_MinimapState>()) return;
     const auto& minimap = registry.ctx<Res_MinimapState>();

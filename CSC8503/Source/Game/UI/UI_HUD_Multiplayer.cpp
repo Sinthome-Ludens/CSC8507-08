@@ -10,22 +10,26 @@
 #include <cstdio>
 #include <algorithm>
 #include "Game/Components/Res_GameState.h"
+#include "Game/Components/Res_UIState.h"
 #include "Game/UI/UITheme.h"
 
 using namespace ECS::UITheme;
 
 namespace ECS::UI::HUD {
 
-void MatchBanner(ImDrawList* draw, const Res_GameState& gs, float gameW, float globalTime, float dt) {
-    static float sMatchStartBannerTimer = 0.0f;
+/// @brief Render match banner ("WAITING FOR OPPONENT" or "MATCH START").
+///
+/// Banner timer is stored in Res_UIState::matchBannerTimer to avoid static state.
+/// Fades out over 2.2 seconds after match start.
+void MatchBanner(ImDrawList* draw, const Res_GameState& gs, Res_UIState& ui, float gameW, float globalTime, float dt) {
     if (gs.matchJustStarted) {
-        sMatchStartBannerTimer = 2.2f;
-    } else if (sMatchStartBannerTimer > 0.0f) {
-        sMatchStartBannerTimer = std::max(0.0f, sMatchStartBannerTimer - dt);
+        ui.matchBannerTimer = 2.2f;
+    } else if (ui.matchBannerTimer > 0.0f) {
+        ui.matchBannerTimer = std::max(0.0f, ui.matchBannerTimer - dt);
     }
 
     const bool showWaiting = gs.matchPhase == MatchPhase::WaitingForPeer;
-    const bool showStart = gs.matchPhase == MatchPhase::Running && sMatchStartBannerTimer > 0.0f;
+    const bool showStart = gs.matchPhase == MatchPhase::Running && ui.matchBannerTimer > 0.0f;
     if (!showWaiting && !showStart) return;
 
     const char* title = showWaiting ? "WAITING FOR OPPONENT" : "MATCH START";
@@ -52,8 +56,8 @@ void MatchBanner(ImDrawList* draw, const Res_GameState& gs, float gameW, float g
 
     float fade = 1.0f;
     if (showStart) {
-        fade = std::min(1.0f, sMatchStartBannerTimer / 0.35f);
-        fade = std::min(fade, sMatchStartBannerTimer / 2.2f + 0.25f);
+        fade = std::min(1.0f, ui.matchBannerTimer / 0.35f);
+        fade = std::min(fade, ui.matchBannerTimer / 2.2f + 0.25f);
     }
 
     const float pulse = showWaiting ? (sinf(globalTime * 2.8f) + 1.0f) * 0.5f : 1.0f;
@@ -79,6 +83,7 @@ void MatchBanner(ImDrawList* draw, const Res_GameState& gs, float gameW, float g
     if (smallFont) ImGui::PopFont();
 }
 
+/// @brief Render opponent progress bar (3-segment colored bar).
 void OpponentBar(ImDrawList* draw, const Res_GameState& gs, float gameW) {
     if (gs.matchPhase == MatchPhase::WaitingForPeer || gs.matchPhase == MatchPhase::Starting) {
         return;
@@ -123,6 +128,7 @@ void OpponentBar(ImDrawList* draw, const Res_GameState& gs, float gameW) {
     }
 }
 
+/// @brief Render full-screen disruption visual effect (type 1=vision, 2=speed, 3=signal).
 void DisruptionEffect(ImDrawList* draw, const Res_GameState& gs,
                        float displayW, float displayH, float globalTime) {
     if (gs.disruptionType == 0 || gs.disruptionTimer <= 0.0f) return;
@@ -196,6 +202,7 @@ void DisruptionEffect(ImDrawList* draw, const Res_GameState& gs,
     if (termFont) ImGui::PopFont();
 }
 
+/// @brief Render bottom-right network ping display (green/yellow/red by latency).
 void NetworkStatus(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
     ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);

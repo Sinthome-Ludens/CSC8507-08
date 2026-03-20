@@ -10,11 +10,15 @@
 
 namespace ECS::UI::Draw {
 
+/// @brief Fill the entire display area with a solid color.
 void FillBackground(ImDrawList* draw, ImU32 color) {
     const ImVec2 sz = ImGui::GetIO().DisplaySize;
     draw->AddRectFilled(ImVec2(0, 0), sz, color);
 }
 
+/// @brief Draw a rounded rectangle panel with optional border.
+///
+/// Border is skipped when borderColor alpha is zero.
 void Panel(ImDrawList* draw, ImVec2 min, ImVec2 max,
            ImU32 bgColor, ImU32 borderColor,
            float rounding, float borderWidth) {
@@ -24,16 +28,21 @@ void Panel(ImDrawList* draw, ImVec2 min, ImVec2 max,
     }
 }
 
+/// @brief Draw a horizontal separator line from x0 to x1 at height y.
 void Separator(ImDrawList* draw, float x0, float x1, float y,
                ImU32 color, float thickness) {
     draw->AddLine(ImVec2(x0, y), ImVec2(x1, y), color, thickness);
 }
 
+/// @brief Draw a filled rounded rect as a menu-item highlight backdrop.
 void MenuItemHighlight(ImDrawList* draw, ImVec2 min, ImVec2 max,
                        ImU32 color, float rounding) {
     draw->AddRectFilled(min, max, color, rounding);
 }
 
+/// @brief Draw a multi-layer drop shadow behind a rectangle.
+///
+/// Each layer is offset by (offset * i) and alpha is divided by layer index.
 void DropShadow(ImDrawList* draw, ImVec2 min, ImVec2 max,
                 float rounding, uint8_t baseAlpha,
                 int layers, float offset) {

@@ -12,6 +12,10 @@ using namespace ECS::UITheme;
 
 namespace ECS::UI::HUD {
 
+/// @brief Render top-left mission info panel (mission name + objective text).
+///
+/// Layout: 300x52 dark panel at (16,12) with drop shadow, accent border,
+/// mission name in terminal font, and objective text in small font.
 void MissionPanel(ImDrawList* draw, const Res_GameState& gs, float /*gameW*/) {
     ImFont* smallFont = GetFont_Small();
     ImFont* termFont  = GetFont_Terminal();

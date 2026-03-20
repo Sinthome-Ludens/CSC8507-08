@@ -10,6 +10,7 @@
 
 #include <cmath>
 #include <algorithm>
+#include "Game/Components/Res_UIState.h"
 
 namespace ECS::UI::Anim {
 

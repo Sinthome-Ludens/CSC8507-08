@@ -15,6 +15,7 @@ using namespace ECS::UITheme;
 
 namespace ECS::UI::HUD {
 
+/// @brief Render bottom-left player state tags ([CROUCH]/[SPRINT]/[STAND] + [DISGUISED]).
 void PlayerState(ImDrawList* draw, const Res_GameState& gs, float displayH) {
     ImFont* termFont = GetFont_Terminal();
     if (termFont) ImGui::PushFont(termFont);
@@ -40,6 +41,10 @@ void PlayerState(ImDrawList* draw, const Res_GameState& gs, float displayH) {
     if (termFont) ImGui::PopFont();
 }
 
+/// @brief Render noise indicator with pulsing concentric rings.
+///
+/// Color thresholds: <0.3 green, 0.3-0.6 yellow, >0.6 red.
+/// Ring expansion and alpha scale with noiseLevel.
 void NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, float displayH, float globalTime) {
     float cx = 180.0f;
     float cy = displayH - 36.0f;
@@ -88,6 +93,7 @@ void NoiseIndicator(ImDrawList* draw, const Res_GameState& gs, float displayH, f
     if (smallFont) ImGui::PopFont();
 }
 
+/// @brief Render center-top countdown timer with red pulsing text and stroke outline.
 void Countdown(ImDrawList* draw, const Res_GameState& gs, float gameW, float globalTime) {
     if (!gs.countdownActive) return;
 

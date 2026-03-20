@@ -13,6 +13,7 @@
 
 // Forward declarations — avoid pulling heavy headers into every sub-module
 struct Res_GameState;
+namespace ECS { struct Res_UIState; }
 
 namespace ECS::UI::HUD {
 
@@ -44,7 +45,7 @@ void Degradation(ImDrawList* draw, const Res_GameState& gs, float displayW, floa
 void Minimap(ImDrawList* draw, Registry& registry, float displayH);
 
 /// Multiplayer match banner (waiting / start).
-void MatchBanner(ImDrawList* draw, const Res_GameState& gs, float gameW, float globalTime, float dt);
+void MatchBanner(ImDrawList* draw, const Res_GameState& gs, Res_UIState& ui, float gameW, float globalTime, float dt);
 
 /// Multiplayer opponent progress bar.
 void OpponentBar(ImDrawList* draw, const Res_GameState& gs, float gameW);

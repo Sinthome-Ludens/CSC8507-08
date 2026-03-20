@@ -16,6 +16,11 @@ using namespace ECS::UITheme;
 
 namespace ECS::UI::HUD {
 
+/// @brief Render top-right alert gauge with 4-segment colored bar.
+///
+/// Segments: 0-25 green (Safe), 25-50 yellow (Search),
+/// 50-75 orange (Alert), 75-100 red (Hunt).
+/// Hidden when countdown is active. Includes tick marks and triangle indicator.
 void AlertGauge(ImDrawList* draw, const Res_GameState& gs, float gameW) {
     // Hide when countdown is active
     if (gs.countdownActive) return;
@@ -108,6 +113,9 @@ void AlertGauge(ImDrawList* draw, const Res_GameState& gs, float gameW) {
     }
 }
 
+/// @brief Render score display with letter rating below the alert gauge.
+///
+/// Shows "SCORE: N [RATING]" in a dark capsule, color-coded by tier.
 void Score(ImDrawList* draw, int32_t score, float gameW) {
     ImFont* termFont = GetFont_Terminal();
 

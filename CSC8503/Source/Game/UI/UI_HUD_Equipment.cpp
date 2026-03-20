@@ -15,6 +15,11 @@ using namespace ECS::UITheme;
 
 namespace ECS::UI::HUD {
 
+/// @brief Render bottom-center dual equipment panels ([Q] gadget + [E] weapon).
+///
+/// Each panel shows item icon, name, count, READY/WAIT status, and cooldown bar.
+/// Active slot selected by gs.activeItemSlot / gs.activeWeaponSlot.
+/// Flash border on item use (gs.itemUseFlashTimer > 0).
 void ItemSlots(ImDrawList* draw, const Res_GameState& gs, float gameW, float displayH) {
     ImFont* smallFont = GetFont_Small();
     ImFont* termFont  = GetFont_Terminal();

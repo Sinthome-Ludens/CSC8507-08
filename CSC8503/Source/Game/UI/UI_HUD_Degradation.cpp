@@ -14,6 +14,11 @@ using namespace ECS::UITheme;
 
 namespace ECS::UI::HUD {
 
+/// @brief Render full-screen degradation overlay based on alert ratio.
+///
+/// Phase 0 (0-0.3): no effect. Phase 1 (0.3-0.6): noise dots with
+/// LCG-based pseudo-random placement. Phase 2 (0.6-1.0): horizontal
+/// glitch lines + scan lines. Intensity scales linearly within each phase.
 void Degradation(ImDrawList* draw, const Res_GameState& gs,
                   float displayW, float displayH, float globalTime) {
     float alertMax = (gs.alertMax > 0.001f) ? gs.alertMax : 1.0f;
