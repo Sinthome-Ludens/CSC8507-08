@@ -15,6 +15,8 @@
 
 namespace ECS::UI {
 
+using namespace ECS::UITheme;
+
 /**
  * @brief 渲染常驻右侧聊天面板（320px 全高），包含消息列表与回复区域。
  * @param registry ECS 注册表
@@ -41,13 +43,13 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + panelH),
-        IM_COL32(245, 238, 232, 255));
+        Col32_Bg());
 
     // Left border line
     draw->AddLine(
         ImVec2(panelX, panelY),
         ImVec2(panelX, panelY + panelH),
-        IM_COL32(200, 200, 200, 180), 2.0f);
+        Col32_Gray(180), 2.0f);
 
     // ── Mode colors ───────────────────────────────────────
     ImU32 modeColor;
@@ -69,18 +71,18 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     }
 
     // ── Header ────────────────────────────────────────────
-    ImFont* termFont  = UITheme::GetFont_Terminal();
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* termFont  = GetFont_Terminal();
+    ImFont* smallFont = GetFont_Small();
 
     float headerH = 36.0f;
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
         ImVec2(panelX + panelW, panelY + headerH),
-        IM_COL32(16, 13, 10, 200));
+        Col32_BgDark(200));
 
     if (termFont) ImGui::PushFont(termFont);
     draw->AddText(ImVec2(panelX + 12.0f, panelY + 8.0f),
-        IM_COL32(245, 238, 232, 240), "COMMS TERMINAL");
+        Col32_Bg(240), "COMMS TERMINAL");
     if (termFont) ImGui::PopFont();
 
     // Mode tag (right side of header)
@@ -94,7 +96,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
         ImVec2(tagX + modeSize.x + 6.0f, tagY + modeSize.y + 2.0f),
         modeColor, 2.0f);
     draw->AddText(ImVec2(tagX, tagY),
-        IM_COL32(16, 13, 10, 255), modeLabel);
+        Col32_Text(), modeLabel);
     if (smallFont) ImGui::PopFont();
 
     // ── Reply timer bar ───────────────────────────────────
@@ -121,7 +123,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     }
 
     // ── Messages area ─────────────────────────────────────
-    ImFont* bodyFont = UITheme::GetFont_Body();
+    ImFont* bodyFont = GetFont_Body();
     if (bodyFont) ImGui::PushFont(bodyFont);
 
     float msgStartY = contentY + 6.0f;
@@ -161,7 +163,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
         ImU32 senderColor;
         switch (msg.senderType) {
             case 1:  // Player
-                senderColor = IM_COL32(252, 111, 41, 240);
+                senderColor = Col32_Accent(240);
                 break;
             case 2:  // NPC
                 senderColor = modeColor;
@@ -182,7 +184,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
 
         // Simple word-wrap: just truncate if too long for now
         draw->AddText(ImVec2(textX, msgY),
-            IM_COL32(16, 13, 10, 220), msg.text);
+            Col32_Text(220), msg.text);
         msgY += kMsgLineH;
     }
 
@@ -193,11 +195,11 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     draw->AddLine(
         ImVec2(panelX + 8.0f, replyTopY),
         ImVec2(panelX + panelW - 8.0f, replyTopY),
-        IM_COL32(200, 200, 200, 100), 1.0f);
+        Col32_Gray(100), 1.0f);
 
     if (chat.replyCount > 0) {
         float curY = replyTopY + 8.0f;
-        ImFont* largeFont = UITheme::GetFont_TerminalLarge();
+        ImFont* largeFont = GetFont_TerminalLarge();
 
         // ── Countdown number (centered, 32px) ────────────
         if (chat.replyTimerActive && chat.replyTimerMax > 0.0f) {
@@ -257,9 +259,9 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
             if (s < chat.inputBufferLen) {
                 // Filled slot — orange border + arrow
                 draw->AddRect(ImVec2(sx, sy), ImVec2(sx + kSlotSize, sy + kSlotSize),
-                    IM_COL32(252, 111, 41, 255), 2.0f, 0, 2.0f);
+                    Col32_Accent(), 2.0f, 0, 2.0f);
                 DrawArrow(sx + kSlotSize * 0.5f, sy + kSlotSize * 0.5f,
-                    static_cast<int>(chat.inputBuffer[s]), IM_COL32(252, 111, 41, 255), 5.0f);
+                    static_cast<int>(chat.inputBuffer[s]), Col32_Accent(), 5.0f);
             } else {
                 // Empty slot — gray dashed border
                 draw->AddRect(ImVec2(sx, sy), ImVec2(sx + kSlotSize, sy + kSlotSize),
@@ -293,12 +295,12 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
                 draw->AddRectFilled(
                     ImVec2(panelX + 6.0f, curY - 2.0f),
                     ImVec2(panelX + panelW - 6.0f, curY + 40.0f),
-                    IM_COL32(252, 111, 41, 30), 2.0f);
+                    Col32_Accent(30), 2.0f);
             }
 
             // Text line
-            ImU32 textColor = isMatch ? IM_COL32(252, 111, 41, 255)
-                                      : IM_COL32(16, 13, 10, 160);
+            ImU32 textColor = isMatch ? Col32_Accent()
+                                      : Col32_Text(160);
             draw->AddText(ImVec2(panelX + 10.0f, curY), textColor, chat.replies[i].text);
 
             // Direction sequence arrows (below text)
@@ -310,8 +312,8 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
             for (uint8_t k = 0; k < seq.length; ++k) {
                 // Bright if matched so far, dim otherwise
                 bool keyMatched = isMatch && (k < chat.inputBufferLen);
-                ImU32 arrowColor = keyMatched ? IM_COL32(252, 111, 41, 255)
-                                             : IM_COL32(16, 13, 10, 80);
+                ImU32 arrowColor = keyMatched ? Col32_Accent()
+                                             : Col32_Text(80);
                 DrawArrow(arrowX + kArrowCellW * 0.5f, arrowY + 7.0f,
                     static_cast<int>(seq.keys[k]), arrowColor, 5.0f);
                 arrowX += kArrowCellW;
@@ -327,7 +329,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
         ImVec2 hintSize = ImGui::CalcTextSize(hintText);
         float hintX = panelX + (panelW - hintSize.x) * 0.5f;
         draw->AddText(ImVec2(hintX, panelY + panelH - 18.0f),
-            IM_COL32(16, 13, 10, 100), hintText);
+            Col32_Text(100), hintText);
         if (smallFont) ImGui::PopFont();
     }
 }

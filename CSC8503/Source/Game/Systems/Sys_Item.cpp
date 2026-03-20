@@ -74,6 +74,41 @@ void Sys_Item::OnAwake(Registry& registry) {
 // ============================================================
 void Sys_Item::OnUpdate(Registry& registry, float dt) {
     PAUSE_GUARD(registry);
+    if (!m_DidLogStartupState) {
+        int playerCount = 0;
+        int pickupCount = 0;
+        registry.view<C_T_Player>().each([&](EntityID, C_T_Player&) { ++playerCount; });
+        registry.view<C_T_ItemPickup>().each([&](EntityID, C_T_ItemPickup&) { ++pickupCount; });
+
+        int matchPhase = -1;
+        bool isMultiplayer = false;
+        int carry0 = -1;
+        int carry1 = -1;
+        int carry2 = -1;
+        int carry3 = -1;
+        int carry4 = -1;
+        if (registry.has_ctx<Res_GameState>()) {
+            const auto& gs = registry.ctx<Res_GameState>();
+            matchPhase = static_cast<int>(gs.matchPhase);
+            isMultiplayer = gs.isMultiplayer;
+        }
+        if (registry.has_ctx<Res_ItemInventory2>()) {
+            const auto& inv = registry.ctx<Res_ItemInventory2>();
+            carry0 = inv.slots[0].carriedCount;
+            carry1 = inv.slots[1].carriedCount;
+            carry2 = inv.slots[2].carriedCount;
+            carry3 = inv.slots[3].carriedCount;
+            carry4 = inv.slots[4].carriedCount;
+        }
+
+        LOG_MPDBG("[Sys_Item] Startup snapshot: players=" << playerCount
+                  << " pickups=" << pickupCount
+                  << " isMultiplayer=" << isMultiplayer
+                  << " matchPhase=" << matchPhase
+                  << " carried=[" << carry0 << "," << carry1 << "," << carry2 << "," << carry3 << "," << carry4 << "]");
+        m_DidLogStartupState = true;
+    }
+
     DetectPickup(registry);
     ProcessItemUseInput(registry);
     SyncDisplaySlots(registry, dt);

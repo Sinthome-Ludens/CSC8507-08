@@ -377,6 +377,12 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                 {
                     const bool isMultiplayer = reg.has_ctx<ECS::Res_Network>()
                         && reg.ctx<ECS::Res_Network>().mode != ECS::PeerType::OFFLINE;
+                    LOG_MPDBG("[Main] Processing LaunchMultiplayerMatch: isMultiplayer=" << isMultiplayer
+                              << " mapSequenceGenerated=" << ui.mapSequenceGenerated
+                              << " mapSequenceIndex=" << (int)ui.mapSequenceIndex
+                              << " bootstrapSceneActive=" << (reg.has_ctx<ECS::Res_Network>()
+                                     ? reg.ctx<ECS::Res_Network>().bootstrapSceneActive
+                                     : false));
                     if (!isMultiplayer || !ui.mapSequenceGenerated) {
                         LOG_WARN("[Main] Ignored LaunchMultiplayerMatch without authoritative map sequence.");
                         break;
@@ -404,8 +410,11 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     ConfigureNetworkMode(reg, ECS::PeerType::SERVER, multiplayerMode, "127.0.0.1", port);
                     if (multiplayerMode == ECS::MultiplayerMode::SameMapGhostRace) {
                         InitializeMultiplayerUIState(ui, true);
-                        reg.ctx<ECS::Res_Network>().bootstrapSceneActive = false;
-                        sceneManager.RequestSceneChange(CreateMapScene(ui.mapSequence[0]));
+                        reg.ctx<ECS::Res_Network>().bootstrapSceneActive = true;
+                        LOG_MPDBG("[Main] HostGame same-map bootstrap: port=" << port
+                                  << " mapSequenceGenerated=" << ui.mapSequenceGenerated
+                                  << " mapSequenceIndex=" << (int)ui.mapSequenceIndex);
+                        sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::SERVER, "127.0.0.1", port));
                     } else {
                         InitializeMultiplayerMapSequence(ui);
                         sceneManager.RequestSceneChange(CreateMapScene(ui.mapSequence[0]));
@@ -425,6 +434,10 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     if (multiplayerMode == ECS::MultiplayerMode::SameMapGhostRace) {
                         InitializeMultiplayerUIState(ui, false);
                         reg.ctx<ECS::Res_Network>().bootstrapSceneActive = true;
+                        LOG_MPDBG("[Main] JoinGame same-map bootstrap: ip=" << ip
+                                  << " port=" << port
+                                  << " mapSequenceGenerated=" << ui.mapSequenceGenerated
+                                  << " mapSequenceIndex=" << (int)ui.mapSequenceIndex);
                         sceneManager.RequestSceneChange(new Scene_NetworkGame(ECS::PeerType::CLIENT, ip, port));
                     } else {
                         InitializeMultiplayerMapSequence(ui);

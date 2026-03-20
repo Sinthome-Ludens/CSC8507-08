@@ -7,9 +7,13 @@
 
 #include <imgui.h>
 #include <cstdio>
+#include <algorithm>
 #include "Game/Components/Res_ActionNotifyState.h"
+#include "Game/UI/UITheme.h"
 
 namespace ECS::UI {
+
+using namespace ECS::UITheme;
 
 static constexpr float kFadeOut = 0.4f;   ///< 淡出时长（秒）
 
@@ -102,40 +106,71 @@ void RenderActionNotify(Registry& registry, float dt) {
 
         uint8_t a = static_cast<uint8_t>(255.0f * alpha);
 
-        float boxX = displaySize.x - 16.0f - kBoxW + slideOff;
-        float boxY = curY;
+        // Entry scale animation (95%→100% during fade-in)
+        float scaleT = (e.elapsed < kFadeIn)
+            ? 0.95f + 0.05f * (e.elapsed / kFadeIn)
+            : 1.0f;
+
+        float rawBoxX = displaySize.x - 16.0f - kBoxW + slideOff;
+        float rawBoxY = curY;
+        // Apply scale from center
+        float midX = rawBoxX + kBoxW * 0.5f;
+        float midY = rawBoxY + kBoxH * 0.5f;
+        float scaledW = kBoxW * scaleT;
+        float scaledH = kBoxH * scaleT;
+        float boxX = midX - scaledW * 0.5f;
+        float boxY = midY - scaledH * 0.5f;
 
         // 卡片背景
         draw->AddRectFilled(
             ImVec2(boxX, boxY),
-            ImVec2(boxX + kBoxW, boxY + kBoxH),
-            IM_COL32(245, 238, 232, static_cast<uint8_t>(220.0f * alpha)),
+            ImVec2(boxX + scaledW, boxY + scaledH),
+            Col32_Bg(static_cast<uint8_t>(220.0f * alpha)),
             kRounding);
 
         // 卡片边框
         draw->AddRect(
             ImVec2(boxX, boxY),
-            ImVec2(boxX + kBoxW, boxY + kBoxH),
-            IM_COL32(200, 200, 200, static_cast<uint8_t>(180.0f * alpha)),
+            ImVec2(boxX + scaledW, boxY + scaledH),
+            Col32_Gray(static_cast<uint8_t>(180.0f * alpha)),
             kRounding, 0, 1.0f);
 
-        // 左侧彩色竖条
-        draw->AddRectFilled(
-            ImVec2(boxX, boxY + kRounding),
-            ImVec2(boxX + kBarW, boxY + kBoxH - kRounding),
-            TypeColor(e.type, a));
+        // 底部生命条（橙色，随剩余时间缩短）
+        {
+            float lifeRatio = 1.0f - std::min(e.elapsed / e.lifetime, 1.0f);
+            float barFullW = scaledW - 2.0f * kRounding;
+            float barW2 = barFullW * lifeRatio;
+            float barY = boxY + scaledH - 2.0f;
+            draw->AddRectFilled(
+                ImVec2(boxX + kRounding, barY),
+                ImVec2(boxX + kRounding + barW2, barY + 2.0f),
+                TypeColor(e.type, static_cast<uint8_t>(160.0f * alpha)));
+        }
+
+        // 左侧彩色竖条（从中心向上下生长）
+        {
+            float barMaxH = scaledH - 2.0f * kRounding;
+            float growT = (e.elapsed < kFadeIn)
+                ? e.elapsed / kFadeIn : 1.0f;
+            float barH = barMaxH * growT;
+            float barCY = boxY + scaledH * 0.5f;
+            draw->AddRectFilled(
+                ImVec2(boxX, barCY - barH * 0.5f),
+                ImVec2(boxX + kBarW, barCY + barH * 0.5f),
+                TypeColor(e.type, a));
+        }
 
         // 文字基线
         float textX = boxX + kBarW + kPadX;
         float textY = boxY + kPadY;
 
         // B3：裁剪至卡片内容区，防止超长文本溢出右边界
-        float clipMaxX = boxX + kBoxW - kPadX;
-        draw->PushClipRect(ImVec2(textX, boxY), ImVec2(clipMaxX, boxY + kBoxH), true);
+        float clipMaxX = boxX + scaledW - kPadX;
+        draw->PushClipRect(ImVec2(textX, boxY), ImVec2(clipMaxX, boxY + scaledH), true);
 
         // 动词（近黑）
         draw->AddText(ImVec2(textX, textY),
-            IM_COL32(16, 13, 10, a), e.verb);
+            Col32_Text(a), e.verb);
 
         // 目标名（类型色）— 紧跟动词后
         ImVec2 verbSize = ImGui::CalcTextSize(e.verb);
@@ -151,7 +186,7 @@ void RenderActionNotify(Registry& registry, float dt) {
             if (e.scoreDelta > 0) {
                 std::snprintf(scoreBuf, sizeof(scoreBuf), "+%d", e.scoreDelta);
                 draw->AddText(ImVec2(scoreX, textY),
-                    IM_COL32(252, 111, 41, a), scoreBuf);
+                    Col32_Accent(a), scoreBuf);
             } else {
                 std::snprintf(scoreBuf, sizeof(scoreBuf), "%d", e.scoreDelta);
                 draw->AddText(ImVec2(scoreX, textY),

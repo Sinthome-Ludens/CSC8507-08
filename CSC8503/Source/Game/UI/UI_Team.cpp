@@ -9,6 +9,8 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/UI/UITheme.h"
 
+using namespace ECS::UITheme;
+
 namespace ECS::UI {
 
 // ============================================================
@@ -52,29 +54,29 @@ void RenderTeamScreen(Registry& registry, float dt) {
     // Background — warm cream
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(245, 238, 232, 255));
+        Col32_Bg(255));
 
     float cx = vpPos.x + vpSize.x * 0.5f;
 
     // Title
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
 
     const char* title = "THE TEAM";
     ImVec2 titleSize = ImGui::CalcTextSize(title);
     draw->AddText(ImVec2(cx - titleSize.x * 0.5f, vpPos.y + 40.0f),
-        IM_COL32(16, 13, 10, 255), title);
+        Col32_Text(255), title);
 
     if (titleFont) ImGui::PopFont();
 
     // Decorative line
     float lineY = vpPos.y + 80.0f;
     draw->AddLine(ImVec2(cx - 100.0f, lineY), ImVec2(cx + 100.0f, lineY),
-        IM_COL32(200, 200, 200, 120), 1.0f);
+        Col32_Gray(120), 1.0f);
 
     // Team members with typewriter reveal
-    ImFont* termFont = UITheme::GetFont_Terminal();
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* termFont = GetFont_Terminal();
+    ImFont* smallFont = GetFont_Small();
 
     float memberStartY = lineY + 30.0f;
     float memberSpacing = 50.0f;
@@ -102,14 +104,14 @@ void RenderTeamScreen(Registry& registry, float dt) {
 
             ImVec2 nameSize = ImGui::CalcTextSize(nameBuf);
             draw->AddText(ImVec2(cx - nameSize.x * 0.5f, itemY),
-                IM_COL32(16, 13, 10, 255), nameBuf);
+                Col32_Text(255), nameBuf);
 
             // Blinking cursor at end
             if (visibleChars < nameLen) {
-                float cursorBlink = sinf(ui.teamStartTime * UITheme::kPI * 4.0f);
+                float cursorBlink = sinf(ui.teamStartTime * kPI * 4.0f);
                 if (cursorBlink > 0.0f) {
                     ImVec2 cursorPos(cx - nameSize.x * 0.5f + nameSize.x, itemY);
-                    draw->AddText(cursorPos, IM_COL32(252, 111, 41, 200), "_");
+                    draw->AddText(cursorPos, Col32_Accent(200), "_");
                 }
             }
         }
@@ -125,7 +127,7 @@ void RenderTeamScreen(Registry& registry, float dt) {
             const char* role = kTeamMembers[i].role;
             ImVec2 roleSize = ImGui::CalcTextSize(role);
             draw->AddText(ImVec2(cx - roleSize.x * 0.5f, itemY + 22.0f),
-                IM_COL32(16, 13, 10, ra), role);
+                Col32_Text(ra), role);
             if (smallFont) ImGui::PopFont();
         }
     }
@@ -134,7 +136,7 @@ void RenderTeamScreen(Registry& registry, float dt) {
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(
         ImVec2(vpPos.x + 30.0f, vpPos.y + vpSize.y - 30.0f),
-        IM_COL32(16, 13, 10, 160), "[ESC] BACK");
+        Col32_Text(160), "[ESC] BACK");
     if (smallFont) ImGui::PopFont();
 
     ImGui::End();

@@ -22,13 +22,6 @@ struct Res_InputConfig {
     NCL::KeyCodes::Type keyGadgetUse  = NCL::KeyCodes::Q;
     NCL::KeyCodes::Type keyDisguise   = NCL::KeyCodes::G;
 
-    // ── 道具使用键（数字键 1-5）──
-    NCL::KeyCodes::Type keyItem1      = NCL::KeyCodes::NUM1;
-    NCL::KeyCodes::Type keyItem2      = NCL::KeyCodes::NUM2;
-    NCL::KeyCodes::Type keyItem3      = NCL::KeyCodes::NUM3;
-    NCL::KeyCodes::Type keyItem4      = NCL::KeyCodes::NUM4;
-    NCL::KeyCodes::Type keyItem5      = NCL::KeyCodes::NUM5;
-
     // ── 对话方向键（Sys_Chat + Sys_Network 共用）──
     NCL::KeyCodes::Type keyChatUp     = NCL::KeyCodes::UP;
     NCL::KeyCodes::Type keyChatDown   = NCL::KeyCodes::DOWN;

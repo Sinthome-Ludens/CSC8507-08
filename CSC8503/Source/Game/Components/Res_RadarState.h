@@ -1,14 +1,14 @@
 /**
  * @file Res_RadarState.h
- * @brief 光子雷达全局状态资源（道具 002）。
+ * @brief 雷达状态资源（RadarMap 联动）。
  *
  * @details
- * 场景级 ctx 资源，由 Sys_ItemEffects 在玩家激活光子雷达时写入。
+ * 场景级 ctx 资源，由 Sys_ItemEffects 在玩家激活 RadarMap 时写入。
  * Sys_UI 读取此资源，在 HUD/小地图上绘制敌人位置点。
  *
  * ## 效果描述
  * 激活后在界面显示地图与敌人位置；敌人位置每 3 秒刷新一次。
- * 持续显示直到玩家手动关闭或场景卸载。
+ * 持续显示直到计时器到期或场景卸载。
  *
  * @see Sys_ItemEffects.h
  * @see Sys_UI.h
@@ -27,7 +27,7 @@ struct RadarContact {
 };
 
 /**
- * @brief 光子雷达全局状态资源（Scene ctx）
+ * @brief 雷达状态资源（Scene ctx）
  *
  * 由 Sys_ItemEffects 更新，由 Sys_UI 读取渲染。
  */

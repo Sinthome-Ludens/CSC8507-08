@@ -76,6 +76,7 @@ struct Res_UIState {
 
     int8_t    menuSelectedIndex      = 0;
     int8_t    settingsSelectedIndex  = 0;
+    int8_t    settingsTab            = 0;      ///< 0=Display, 1=Audio, 2=Controls
     int8_t    pauseSelectedIndex     = 0;
     int8_t    gameOverSelectedIndex  = 0;
     bool      multiplayerRetryRequested = false;
@@ -97,9 +98,8 @@ struct Res_UIState {
     float     teamStartTime        = 0.0f;
 
     // Mission Select
-    int8_t    missionSelectedMap        = 0;      ///< 选中的关卡索引
-    int8_t    missionSelectedTab        = 0;      ///< 0=关卡, 1=道具, 2=武器
-    int8_t    missionCursorPerTab[3]    = {};     ///< 每个 tab 内的光标位置
+    int8_t    missionSelectedTab        = 0;      ///< 0=道具, 1=武器
+    int8_t    missionCursorPerTab[2]    = {};     ///< 每个 tab 内的光标位置
     int8_t    missionEquippedItems[2]   = { -1, -1 };
     int8_t    missionEquippedWeapons[2] = { -1, -1 };
 
@@ -136,8 +136,8 @@ struct Res_UIState {
     uint8_t   devToastCycle        = 0;
 
     // Saved inventory cache (populated by SaveManager::LoadGame)
-    uint8_t   savedStoreCount[6]       = {};
-    bool      savedUnlocked[6]         = {};  ///< 武器解锁缓存
+    uint8_t   savedStoreCount[5]       = {};
+    bool      savedUnlocked[5]         = {};  ///< 武器解锁缓存
     bool      hasSavedInventory        = false;
 
     // ── Map sequence (campaign: random 5-pick-3, sorted by map ID) ──
@@ -150,6 +150,29 @@ struct Res_UIState {
 
     // ── Debug mode (bypass map sequence) ──
     int8_t    debugCurrentScene        = -1;  ///< >=0 表示当前为 debug 模式进入的场景 index，-1 表示正常流程
+
+    // ── Menu hover animation (shared across all menus) ─────────
+    float menuHoverProgress[8] = {};   ///< Per-item hover progress 0.0~1.0, driven by SmoothLerp
+
+    // ── Screen entry animation ───────────────────────────────
+    float screenEntryElapsed  = 0.0f;  ///< Time since screen change (seconds)
+    float screenEntryDuration = 0.0f;  ///< Entry animation duration (0 = no anim)
+    UIScreen _lastTickScreen  = UIScreen::None;  ///< Internal: previous frame's activeScreen
+
+    // ── Menu slide transition ───────────────────────────────
+    UIScreen transFromScreen   = UIScreen::None;  ///< 过渡起始画面
+    UIScreen transToScreen     = UIScreen::None;  ///< 过渡目标画面
+    float    transElapsed      = 0.0f;            ///< 过渡已过时间
+    float    transDuration     = 0.25f;           ///< 过渡总时长
+    bool     transActive       = false;           ///< 是否在过渡中
+    int8_t   transDirection    = 1;               ///< 1=前进(从右向左滑), -1=后退(从左向右滑)
+
+    // ── Click flash feedback ────────────────────────────────
+    float    menuClickFlashTimer = 0.0f;          ///< 点击闪光计时器
+    int8_t   menuClickFlashIndex = -1;            ///< 闪光的菜单项索引
+
+    // ── Multiplayer HUD ──────────────────────────────────────
+    float    matchBannerTimer    = 0.0f;          ///< "MATCH START" 横幅倒计时（秒）
 
     // ── Campaign score (跨场景持久化) ──────────────────────────
     int32_t campaignScore                 = 1000;  ///< 战役积分（初始1000, 纯扣减制）

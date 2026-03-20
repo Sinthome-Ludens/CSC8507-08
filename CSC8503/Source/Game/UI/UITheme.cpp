@@ -137,22 +137,27 @@ static ImFont* SafeLoadFont(ImGuiIO& io, const std::string& path, float size,
     return font;
 }
 
-void LoadFonts() {
+/// @brief Load all UI fonts at the given DPI scale (call once during init).
+///
+/// Fonts are cached in static pointers; subsequent calls are no-ops.
+/// A dpiScale < 0.5 is clamped to 1.0 as a safety fallback.
+void LoadFonts(float dpiScale) {
     if (s_FontTerminal) return;
+    if (dpiScale < 0.5f) dpiScale = 1.0f;
 
     ImGuiIO& io = ImGui::GetIO();
 
     const std::string pixelFontPath = NCL::Assets::FONTSSDIR + "ZLabsRoundPix_16px_M_CN.ttf";
     const ImWchar* cnRanges = io.Fonts->GetGlyphRangesChineseSimplifiedCommon();
 
-    s_FontTerminal      = SafeLoadFont(io, pixelFontPath, 16.0f, "ZLabsRoundPix 16px", cnRanges);
-    s_FontTerminalLarge = SafeLoadFont(io, pixelFontPath, 32.0f, "ZLabsRoundPix 32px", cnRanges);
-    s_FontBody          = SafeLoadFont(io, pixelFontPath, 16.0f, "ZLabsRoundPix 16px", cnRanges);
-    s_FontSmall         = SafeLoadFont(io, pixelFontPath, 13.0f, "ZLabsRoundPix 13px", cnRanges);
+    s_FontTerminal      = SafeLoadFont(io, pixelFontPath, 16.0f * dpiScale, "ZLabsRoundPix 16px", cnRanges);
+    s_FontTerminalLarge = SafeLoadFont(io, pixelFontPath, 32.0f * dpiScale, "ZLabsRoundPix 32px", cnRanges);
+    s_FontBody          = SafeLoadFont(io, pixelFontPath, 16.0f * dpiScale, "ZLabsRoundPix 16px", cnRanges);
+    s_FontSmall         = SafeLoadFont(io, pixelFontPath, 13.0f * dpiScale, "ZLabsRoundPix 13px", cnRanges);
 
     io.Fonts->Build();
 
-    LOG_INFO("[UITheme] Fonts loaded: ZLabsRoundPix — Terminal(16), Large(32), Body(16), Small(13).");
+    LOG_INFO("[UITheme] Fonts loaded (dpiScale=" << dpiScale << "): ZLabsRoundPix — Terminal(16), Large(32), Body(16), Small(13).");
 }
 
 // ============================================================

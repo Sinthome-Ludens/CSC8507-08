@@ -22,6 +22,7 @@
 #include "Game/Components/Res_UIKeyConfig.h"
 
 using namespace NCL;
+using namespace ECS::UITheme;
 
 namespace ECS::UI {
 
@@ -49,20 +50,20 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
     // Background
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(245, 238, 232, 255));
+        Col32_Bg(255));
 
     // Title
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
     draw->AddText(ImVec2(vpPos.x + 40.0f, vpPos.y + 30.0f),
-        IM_COL32(16, 13, 10, 255), "INVENTORY");
+        Col32_Text(255), "INVENTORY");
     if (titleFont) ImGui::PopFont();
 
     float headerLineY = vpPos.y + 70.0f;
     draw->AddLine(
         ImVec2(vpPos.x + 40.0f, headerLineY),
         ImVec2(vpPos.x + vpSize.x - 40.0f, headerLineY),
-        IM_COL32(200, 200, 200, 100), 1.0f);
+        Col32_Gray(100), 1.0f);
 
     // Res_InventoryState 由 Sys_UI::OnAwake 初始化
     if (!registry.has_ctx<Res_InventoryState>()) return;
@@ -86,8 +87,8 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
     float detailX = gridStartX + gridTotalW + 30.0f;
     float detailW = vpSize.x - (detailX - vpPos.x) - 40.0f;
 
-    ImFont* termFont  = UITheme::GetFont_Terminal();
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* termFont  = GetFont_Terminal();
+    ImFont* smallFont = GetFont_Small();
 
     // Equipment check lambda
     auto isEquipped = [&](uint8_t itemId) -> bool {
@@ -156,18 +157,18 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
 
             // Card background
             draw->AddRectFilled(cardMin, cardMax,
-                IM_COL32(245, 238, 232, 255), 3.0f);
+                Col32_Bg(255), 3.0f);
 
             // Border: equipped=orange thick, selected=orange, default=gray
             if (equipped) {
                 draw->AddRect(cardMin, cardMax,
-                    IM_COL32(252, 111, 41, 255), 3.0f, 0, 2.5f);
+                    Col32_Accent(255), 3.0f, 0, 2.5f);
             } else if (isSelected) {
                 draw->AddRect(cardMin, cardMax,
-                    IM_COL32(252, 111, 41, 180), 3.0f, 0, 2.0f);
+                    Col32_Accent(180), 3.0f, 0, 2.0f);
             } else {
                 draw->AddRect(cardMin, cardMax,
-                    IM_COL32(200, 200, 200, 120), 3.0f, 0, 1.0f);
+                    Col32_Gray(120), 3.0f, 0, 1.0f);
             }
 
             // Slot content
@@ -176,11 +177,11 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
                 DrawItemIcon(draw,
                     ImVec2(cardX + kCardW * 0.5f, cardY + 36.0f),
                     14.0f, static_cast<ItemID>(item.itemId),
-                    isSelected ? IM_COL32(252, 111, 41, 220) : IM_COL32(16, 13, 10, 160));
+                    isSelected ? Col32_Accent(220) : Col32_Text(160));
 
                 if (termFont) ImGui::PushFont(termFont);
                 draw->AddText(ImVec2(cardX + 8.0f, cardY + 8.0f),
-                    IM_COL32(16, 13, 10, 220), item.name);
+                    Col32_Text(220), item.name);
                 if (termFont) ImGui::PopFont();
 
                 if (item.quantity > 0) {
@@ -188,7 +189,7 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
                     char qtyBuf[8];
                     snprintf(qtyBuf, sizeof(qtyBuf), "x%u", item.quantity);
                     draw->AddText(ImVec2(cardX + 8.0f, cardY + kCardH - 22.0f),
-                        IM_COL32(252, 111, 41, 200), qtyBuf);
+                        Col32_Accent(200), qtyBuf);
                     if (smallFont) ImGui::PopFont();
                 }
 
@@ -196,14 +197,14 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
                 if (equipped) {
                     if (smallFont) ImGui::PushFont(smallFont);
                     draw->AddText(ImVec2(cardX + kCardW - 68.0f, cardY + kCardH - 16.0f),
-                        IM_COL32(252, 111, 41, 255), "[EQUIPPED]");
+                        Col32_Accent(255), "[EQUIPPED]");
                     if (smallFont) ImGui::PopFont();
                 }
             } else {
                 // Empty slot
                 if (smallFont) ImGui::PushFont(smallFont);
                 draw->AddText(ImVec2(cardX + 8.0f, cardY + kCardH * 0.5f - 6.0f),
-                    IM_COL32(200, 200, 200, 120), "EMPTY");
+                    Col32_Gray(120), "EMPTY");
                 if (smallFont) ImGui::PopFont();
             }
 
@@ -212,7 +213,7 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
             char idxBuf[4];
             snprintf(idxBuf, sizeof(idxBuf), "%d", idx + 1);
             draw->AddText(ImVec2(cardX + kCardW - 18.0f, cardY + 4.0f),
-                IM_COL32(16, 13, 10, 80), idxBuf);
+                Col32_Text(80), idxBuf);
             if (smallFont) ImGui::PopFont();
         }
     }
@@ -275,22 +276,22 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
         draw->AddRectFilled(
             ImVec2(detailX, dpY),
             ImVec2(detailX + detailW, dpY + kCardH * 3 + kGapY * 2),
-            IM_COL32(245, 238, 232, 255), 3.0f);
+            Col32_Bg(255), 3.0f);
         draw->AddRect(
             ImVec2(detailX, dpY),
             ImVec2(detailX + detailW, dpY + kCardH * 3 + kGapY * 2),
-            IM_COL32(200, 200, 200, 100), 3.0f);
+            Col32_Gray(100), 3.0f);
 
         if (termFont) ImGui::PushFont(termFont);
         draw->AddText(ImVec2(detailX + 12.0f, dpY + 12.0f),
-            IM_COL32(252, 111, 41, 220), "DETAILS");
+            Col32_Accent(220), "DETAILS");
         if (termFont) ImGui::PopFont();
 
         float detailLineY = dpY + 38.0f;
         draw->AddLine(
             ImVec2(detailX + 12.0f, detailLineY),
             ImVec2(detailX + detailW - 12.0f, detailLineY),
-            IM_COL32(200, 200, 200, 80), 1.0f);
+            Col32_Gray(80), 1.0f);
 
         int selIdx = ui.inventorySelectedSlot;
         if (selIdx >= 0 && selIdx < Res_InventoryState::kSlotCount) {
@@ -298,32 +299,32 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
             if (!selItem.isEmpty) {
                 if (termFont) ImGui::PushFont(termFont);
                 draw->AddText(ImVec2(detailX + 12.0f, detailLineY + 12.0f),
-                    IM_COL32(16, 13, 10, 255), selItem.name);
+                    Col32_Text(255), selItem.name);
                 if (termFont) ImGui::PopFont();
 
                 if (smallFont) ImGui::PushFont(smallFont);
                 draw->AddText(ImVec2(detailX + 12.0f, detailLineY + 36.0f),
-                    IM_COL32(16, 13, 10, 180), selItem.description);
+                    Col32_Text(180), selItem.description);
 
                 char qtyLine[32];
                 snprintf(qtyLine, sizeof(qtyLine), "QUANTITY: %u", selItem.quantity);
                 draw->AddText(ImVec2(detailX + 12.0f, detailLineY + 60.0f),
-                    IM_COL32(16, 13, 10, 160), qtyLine);
+                    Col32_Text(160), qtyLine);
 
                 // Equip status
                 bool equipped = isEquipped(selItem.itemId);
                 if (equipped) {
                     draw->AddText(ImVec2(detailX + 12.0f, detailLineY + 84.0f),
-                        IM_COL32(252, 111, 41, 255), "STATUS: EQUIPPED");
+                        Col32_Accent(255), "STATUS: EQUIPPED");
                 } else if (selItem.quantity > 0) {
                     draw->AddText(ImVec2(detailX + 12.0f, detailLineY + 84.0f),
-                        IM_COL32(16, 13, 10, 120), "PRESS [ENTER] TO EQUIP");
+                        Col32_Text(120), "PRESS [ENTER] TO EQUIP");
                 }
                 if (smallFont) ImGui::PopFont();
             } else {
                 if (smallFont) ImGui::PushFont(smallFont);
                 draw->AddText(ImVec2(detailX + 12.0f, detailLineY + 12.0f),
-                    IM_COL32(200, 200, 200, 160), "NO ITEM SELECTED");
+                    Col32_Gray(160), "NO ITEM SELECTED");
                 if (smallFont) ImGui::PopFont();
             }
         }
@@ -333,7 +334,7 @@ void RenderInventoryScreen(Registry& registry, float /*dt*/) {
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(
         ImVec2(vpPos.x + 40.0f, vpPos.y + vpSize.y - 30.0f),
-        IM_COL32(16, 13, 10, 180),
+        Col32_Text(180),
         "[W/A/S/D] NAVIGATE  [ENTER] EQUIP  [I] CLOSE  [ESC] BACK");
     if (smallFont) ImGui::PopFont();
 
