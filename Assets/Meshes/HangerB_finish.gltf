@@ -1,0 +1,11 @@
+{
+  "asset":{"version":"2.0","generator":"Unity MultiObjectMapAndNavMeshExporter"},
+  "scene":0,
+  "scenes":[{"name":"Scene","nodes":[0]}],
+  "nodes":[{"name":"HangerB","children":[1]},{"name":"Red_0","mesh":0}],
+  "meshes":[{"name":"Red_0","primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3,"material":0}]}],
+  "accessors":[{"bufferView":0,"componentType":5126,"count":24,"type":"VEC3","min":[-14.3971062,10.6157875,-16.1771069],"max":[-10.982893,13.4442139,-12.7628927]},{"bufferView":1,"componentType":5126,"count":24,"type":"VEC3"},{"bufferView":2,"componentType":5126,"count":24,"type":"VEC2"},{"bufferView":3,"componentType":5125,"count":36,"type":"SCALAR"}],
+  "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":288,"target":34962},{"buffer":0,"byteOffset":288,"byteLength":288,"target":34962},{"buffer":0,"byteOffset":576,"byteLength":192,"target":34962},{"buffer":0,"byteOffset":768,"byteLength":144,"target":34963}],
+  "buffers":[{"uri":"HangerB_finish.bin","byteLength":912}],
+  "materials":[{"name":"Red_0_mat","pbrMetallicRoughness":{"baseColorFactor":[1.0000,0.0000,0.0000,1.0000],"metallicFactor":0,"roughnessFactor":1}}]
+}

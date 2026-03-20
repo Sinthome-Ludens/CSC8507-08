@@ -999,3 +999,37 @@ void ECS::Sys_Physics::ActivateBody(EntityID entity) {
     if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().ActivateBody(bodyID);
 }
+
+/** @brief 将实体从 kinematic 切换为 dynamic 运动类型（同步 Jolt BodyInterface 与 ECS C_D_RigidBody）。 */
+// ============================================================
+// SetDynamic — kinematic → dynamic（同步 Jolt + ECS）
+// ============================================================
+void ECS::Sys_Physics::SetDynamic(EntityID entity, Registry& reg) {
+    if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
+
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+    bi.SetMotionType(bodyID, JPH::EMotionType::Dynamic, JPH::EActivation::Activate);
+
+    if (reg.Has<C_D_RigidBody>(entity)) {
+        reg.Get<C_D_RigidBody>(entity).is_kinematic = false;
+    }
+}
+
+/** @brief 将实体从 dynamic 切换为 kinematic 运动类型（同步 Jolt BodyInterface 与 ECS C_D_RigidBody）。 */
+// ============================================================
+// SetKinematic — dynamic → kinematic（同步 Jolt + ECS）
+// ============================================================
+void ECS::Sys_Physics::SetKinematic(EntityID entity, Registry& reg) {
+    if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
+
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+    bi.SetMotionType(bodyID, JPH::EMotionType::Kinematic, JPH::EActivation::Activate);
+
+    if (reg.Has<C_D_RigidBody>(entity)) {
+        reg.Get<C_D_RigidBody>(entity).is_kinematic = true;
+    }
+}

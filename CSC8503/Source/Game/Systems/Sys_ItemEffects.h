@@ -152,6 +152,9 @@ private:
     /// 流窜 AI 随机游走时使用的简单 PRNG 种子
     uint32_t m_RandSeed = 12345u;
 
+    /// DDoS 囚笼 VFX mesh handle（OnAwake 中加载，缓存避免重复 LoadMesh）
+    uint32_t m_DDoSCageMesh = 0;
+
     /**
      * @brief 简单线性同余随机数生成器，返回 [0, 1) 的 float。
      * @return 伪随机浮点数。

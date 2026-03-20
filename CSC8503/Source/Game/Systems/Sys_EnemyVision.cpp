@@ -19,6 +19,7 @@
 #include "Game/Components/C_D_PlayerState.h"
 #include "Game/Components/C_D_AIPerception.h"
 #include "Game/Components/C_D_EnemyDormant.h"
+#include "Game/Components/C_D_DDoSFrozen.h"
 #include "Game/Components/C_T_Player.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/Res_VisionConfig.h"
@@ -91,6 +92,12 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
                     perception.is_spotted = false;
                     return;
                 }
+            }
+
+            // DDoS 冻结：视野关闭，不感知玩家
+            if (registry.Has<C_D_DDoSFrozen>(enemyId)) {
+                perception.is_spotted = false;
+                return;
             }
 
             // 计算敌人前向量（XZ 平面）

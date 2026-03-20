@@ -35,6 +35,12 @@
 #include "Game/Components/C_D_RoamAI.h"
 #include "Game/Components/C_D_Item.h"
 #include "Game/Components/C_D_DataOceanPillar.h"
+#include "Game/Components/C_D_OrbitTriangle.h"
+#include "Game/Components/C_D_TriangleProjectile.h"
+#include "Game/Components/C_D_OrbitInventory.h"
+#include "Game/Components/C_D_Spin.h"
+#include "Game/Components/C_T_OrbOfPlayer.h"
+#include "Game/Components/C_T_OrbOfEnemy.h"
 #include "Game/Utils/PrefabLoader.h"
 #include "Game/Utils/Log.h"
 
@@ -333,6 +339,46 @@ void ComponentRegistry::RegisterAll() {
         if (data.contains("phaseShift") && data["phaseShift"].is_number()) pillar.phaseShift = data["phaseShift"].get<float>();
         if (data.contains("sizeXZ")    && data["sizeXZ"].is_number())     pillar.sizeXZ     = data["sizeXZ"].get<float>();
         reg.Emplace<C_D_DataOceanPillar>(id, pillar);
+    });
+
+    // ============================================================
+    // Orbit Triangle 组件（无参默认 Emplace）
+    // ============================================================
+    Register("C_D_OrbitTriangle", [](Registry& reg, EntityID id, const json&, const RuntimeOverrides&) {
+        reg.Emplace<C_D_OrbitTriangle>(id, C_D_OrbitTriangle{});
+    });
+
+    Register("C_D_TriangleProjectile", [](Registry& reg, EntityID id, const json&, const RuntimeOverrides&) {
+        reg.Emplace<C_D_TriangleProjectile>(id, C_D_TriangleProjectile{});
+    });
+
+    Register("C_D_OrbitInventory", [](Registry& reg, EntityID id, const json&, const RuntimeOverrides&) {
+        reg.Emplace<C_D_OrbitInventory>(id, C_D_OrbitInventory{});
+    });
+
+    // ============================================================
+    // C_D_Spin
+    // ============================================================
+    Register("C_D_Spin", [](Registry& reg, EntityID id, const json& data, const RuntimeOverrides&) {
+        C_D_Spin spin{};
+        PrefabLoader::ReadVec3(data, "axis", spin.axis);
+        if (data.contains("speed")   && data["speed"].is_number())   spin.speed   = data["speed"].get<float>();
+        if (data.contains("yOffset") && data["yOffset"].is_number()) spin.yOffset = data["yOffset"].get<float>();
+        if (data.contains("enabled") && data["enabled"].is_boolean())spin.enabled = data["enabled"].get<bool>();
+        reg.Emplace<C_D_Spin>(id, spin);
+    });
+
+    // ============================================================
+    // C_T_OrbOfPlayer / C_T_OrbOfEnemy
+    // ============================================================
+    Register("C_T_OrbOfPlayer", [](Registry& reg, EntityID id, const json&, const RuntimeOverrides&) {
+        reg.Emplace<C_T_OrbOfPlayer>(id);
+    });
+
+    Register("C_T_OrbOfEnemy", [](Registry& reg, EntityID id, const json& data, const RuntimeOverrides& ovr) {
+        C_T_OrbOfEnemy tag{};
+        (void)data; (void)ovr;
+        reg.Emplace<C_T_OrbOfEnemy>(id, tag);
     });
 
     LOG_INFO("[ComponentRegistry] RegisterAll: " << GetMap().size() << " components registered.");

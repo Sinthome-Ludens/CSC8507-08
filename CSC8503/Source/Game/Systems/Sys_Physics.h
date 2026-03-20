@@ -339,6 +339,20 @@ public:
      */
     void ActivateBody(EntityID entity);
 
+    /**
+     * @brief 将实体从 kinematic 切换为 dynamic，同步 Jolt + ECS 标志。
+     * @param entity 目标实体 ID
+     * @param reg    ECS Registry（用于同步 C_D_RigidBody::is_kinematic）
+     */
+    void SetDynamic(EntityID entity, Registry& reg);
+
+    /**
+     * @brief 将实体从 dynamic 切换为 kinematic，同步 Jolt + ECS 标志。
+     * @param entity 目标实体 ID
+     * @param reg    ECS Registry（用于同步 C_D_RigidBody::is_kinematic）
+     */
+    void SetKinematic(EntityID entity, Registry& reg);
+
 private:
     // --- Jolt 对象（生命周期由 Sys_Physics 管理）---
     std::unique_ptr<JPH::TempAllocatorImpl>   m_TempAllocator;

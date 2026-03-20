@@ -1,0 +1,19 @@
+{
+  "PrefabID": "PREFAB_ORBIT_TRIANGLE",
+  "Name": "OrbitTriangle",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [1.2, 1.2, 1.2]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle": 0,
+      "materialHandle": 0
+    },
+    "C_D_Material": {
+      "baseColour": [0.0, 0.9, 1.0, 1.0]
+    },
+    "C_D_DebugName": { "name": "ENTITY_OrbitTriangle_XX" }
+  }
+}

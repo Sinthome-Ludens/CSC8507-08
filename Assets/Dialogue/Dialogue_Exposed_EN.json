@@ -1,0 +1,562 @@
+{
+  "delay": 3.0,
+  "nodes": [
+    {
+      "id": "ex_001",
+      "isRoot": true,
+      "treeId": "3",
+      "speaker": "TARGET",
+      "message": "youre not who you said you are",
+      "replies": [
+        {
+          "text": "what are you talking about",
+          "alertDelta": 0,
+          "next": "ex_005"
+        },
+        {
+          "text": "where is this coming from",
+          "alertDelta": 0,
+          "next": "ex_005"
+        },
+        {
+          "text": "...",
+          "alertDelta": 3,
+          "next": "ex_005"
+        }
+      ]
+    },
+    {
+      "id": "ex_005",
+      "speaker": "TARGET",
+      "message": "drop the act",
+      "waitReply": false,
+      "next": "ex_006"
+    },
+    {
+      "id": "ex_006",
+      "speaker": "TARGET",
+      "message": "ive already checked youre not that person",
+      "replies": [
+        {
+          "text": "checked how",
+          "alertDelta": 0,
+          "next": "ex_011"
+        },
+        {
+          "text": "youve got it wrong",
+          "alertDelta": -2,
+          "next": "ex_011"
+        },
+        {
+          "text": "ok",
+          "alertDelta": 3,
+          "next": "ex_017"
+        },
+        {
+          "text": "...",
+          "alertDelta": 3,
+          "next": "ex_017"
+        }
+      ]
+    },
+    {
+      "id": "ex_011",
+      "speaker": "TARGET",
+      "message": "i contacted the real one",
+      "waitReply": false,
+      "next": "ex_012"
+    },
+    {
+      "id": "ex_012",
+      "speaker": "TARGET",
+      "message": "they had no idea we were even talking",
+      "replies": [
+        {
+          "text": "maybe they forgot",
+          "alertDelta": -2,
+          "next": "ex_017"
+        },
+        {
+          "text": "so who do you think i am",
+          "alertDelta": 0,
+          "next": "ex_017"
+        },
+        {
+          "text": "you contacted the wrong person",
+          "alertDelta": -3,
+          "next": "ex_017"
+        },
+        {
+          "text": "...",
+          "alertDelta": 3,
+          "next": "ex_017"
+        }
+      ]
+    },
+    {
+      "id": "ex_017",
+      "speaker": "TARGET",
+      "message": "WHO ARE YOU",
+      "alertDelta": 3,
+      "replies": [
+        {
+          "text": "you dont need to know",
+          "alertDelta": 2,
+          "next": "ex_022"
+        },
+        {
+          "text": "who i am doesnt matter i mean no harm",
+          "alertDelta": -2,
+          "next": "ex_022"
+        },
+        {
+          "text": "guess",
+          "alertDelta": 5,
+          "next": "ex_022"
+        },
+        {
+          "text": "...",
+          "alertDelta": 3,
+          "next": "ex_022"
+        }
+      ]
+    },
+    {
+      "id": "ex_022",
+      "speaker": "TARGET",
+      "message": "im calling the authorities",
+      "replies": [
+        {
+          "text": "go ahead but think about the consequences",
+          "alertDelta": -3,
+          "next": "ex_027"
+        },
+        {
+          "text": "think it through first",
+          "alertDelta": -2,
+          "next": "ex_027"
+        },
+        {
+          "text": "up to you",
+          "alertDelta": 2,
+          "next": "ex_039"
+        },
+        {
+          "text": "wait",
+          "alertDelta": 0,
+          "next": "ex_027"
+        }
+      ]
+    },
+    {
+      "id": "ex_027",
+      "speaker": "TARGET",
+      "message": "what consequences",
+      "replies": [
+        {
+          "text": "youre not clean either or youd not use encrypted comms",
+          "alertDelta": -5,
+          "next": "ex_031"
+        },
+        {
+          "text": "you think the authorities will only investigate me",
+          "alertDelta": -3,
+          "next": "ex_031"
+        },
+        {
+          "text": "figure it out yourself",
+          "alertDelta": 0,
+          "next": "ex_035"
+        }
+      ]
+    },
+    {
+      "id": "ex_031",
+      "speaker": "TARGET",
+      "message": "what are you saying",
+      "replies": [
+        {
+          "text": "we both have our own issues lets not escalate this",
+          "alertDelta": -3,
+          "next": "ex_035"
+        },
+        {
+          "text": "just think about it",
+          "alertDelta": -2,
+          "next": "ex_035"
+        },
+        {
+          "text": "nothing forget i said anything",
+          "alertDelta": 0,
+          "next": "ex_035"
+        }
+      ]
+    },
+    {
+      "id": "ex_035",
+      "speaker": "TARGET",
+      "message": "are you threatening me",
+      "replies": [
+        {
+          "text": "no im helping you see the situation clearly",
+          "alertDelta": -3,
+          "next": "ex_loop"
+        },
+        {
+          "text": "think of it as a friendly warning",
+          "alertDelta": -2,
+          "next": "ex_loop"
+        },
+        {
+          "text": "take it however you want",
+          "alertDelta": 2,
+          "next": "ex_039"
+        }
+      ]
+    },
+    {
+      "id": "ex_039",
+      "speaker": "TARGET",
+      "message": "i dont care anymore i dont want to know who you are",
+      "waitReply": false,
+      "next": "ex_040"
+    },
+    {
+      "id": "ex_040",
+      "speaker": "TARGET",
+      "message": "just disappear",
+      "waitReply": false,
+      "next": "ex_044"
+    },
+    {
+      "id": "ex_044",
+      "speaker": "TARGET",
+      "message": "im deleting this entire conversation",
+      "waitReply": false,
+      "next": "ex_045"
+    },
+    {
+      "id": "ex_045",
+      "speaker": "TARGET",
+      "message": "and blocking you",
+      "replies": [
+        {
+          "text": "you cant delete all of it",
+          "alertDelta": 2,
+          "next": "ex_loop"
+        },
+        {
+          "text": "do what you have to",
+          "alertDelta": 0,
+          "next": "ex_loop"
+        },
+        {
+          "text": "deleting it is better for you actually",
+          "alertDelta": -2,
+          "next": "ex_loop"
+        },
+        {
+          "text": "...",
+          "alertDelta": 2,
+          "next": "ex_loop"
+        }
+      ]
+    },
+    {
+      "id": "ex_loop",
+      "speaker": "TARGET",
+      "message": "why are you still here",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "you havent blocked me yet",
+          "alertDelta": 0,
+          "next": "ex_la"
+        },
+        {
+          "text": "youre still here too",
+          "alertDelta": 0,
+          "next": "ex_lb"
+        },
+        {
+          "text": "...",
+          "alertDelta": 1,
+          "next": "ex_lc"
+        },
+        {
+          "text": "i still have something to say",
+          "alertDelta": 0,
+          "next": "ex_ld"
+        }
+      ]
+    },
+    {
+      "id": "ex_la",
+      "speaker": "TARGET",
+      "message": "stop messaging me",
+      "replies": [
+        {
+          "text": "ok",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "hear me out first",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "ex_lb",
+      "speaker": "TARGET",
+      "message": "ive screenshotted everything youve said",
+      "replies": [
+        {
+          "text": "go ahead",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "those screenshots wont help you",
+          "alertDelta": 2,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "ex_lc",
+      "speaker": "TARGET",
+      "message": "what do you actually want",
+      "replies": [
+        {
+          "text": "nothing",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "you dont need to know",
+          "alertDelta": 2,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "ex_ld",
+      "speaker": "TARGET",
+      "message": "...",
+      "replies": [
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "still there?",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "te_001",
+      "isRoot": true,
+      "treeId": "4",
+      "speaker": "HANDLER",
+      "message": "youve been made",
+      "waitReply": false,
+      "next": "te_002"
+    },
+    {
+      "id": "te_002",
+      "speaker": "HANDLER",
+      "message": "the target knows youre not who you claimed to be",
+      "replies": [
+        {
+          "text": "what now",
+          "alertDelta": 0,
+          "next": "te_005"
+        },
+        {
+          "text": "can i still recover",
+          "alertDelta": 0,
+          "next": "te_005"
+        }
+      ]
+    },
+    {
+      "id": "te_005",
+      "speaker": "HANDLER",
+      "message": "once exposed you have two options",
+      "waitReply": false,
+      "next": "te_006"
+    },
+    {
+      "id": "te_006",
+      "speaker": "HANDLER",
+      "message": "first finish the job fast and get out",
+      "waitReply": false,
+      "next": "te_007"
+    },
+    {
+      "id": "te_007",
+      "speaker": "HANDLER",
+      "message": "second use their fear to buy more time",
+      "replies": [
+        {
+          "text": "quick and clean",
+          "alertDelta": 0,
+          "next": "te_011"
+        },
+        {
+          "text": "keep stalling",
+          "alertDelta": 0,
+          "next": "te_011"
+        },
+        {
+          "text": "depends",
+          "alertDelta": 0,
+          "next": "te_011"
+        }
+      ]
+    },
+    {
+      "id": "te_011",
+      "speaker": "HANDLER",
+      "message": "either way you dont have long",
+      "waitReply": false,
+      "next": "te_012"
+    },
+    {
+      "id": "te_012",
+      "speaker": "HANDLER",
+      "message": "they could disconnect or report you any moment",
+      "waitReply": false,
+      "next": "te_013"
+    },
+    {
+      "id": "te_013",
+      "speaker": "HANDLER",
+      "message": "at this stage your reply speed matters more than anything",
+      "replies": [
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": "te_016"
+        },
+        {
+          "text": "wont let you down",
+          "alertDelta": 0,
+          "next": "te_016"
+        }
+      ]
+    },
+    {
+      "id": "te_016",
+      "speaker": "HANDLER",
+      "message": "also",
+      "waitReply": false,
+      "next": "te_017"
+    },
+    {
+      "id": "te_017",
+      "speaker": "HANDLER",
+      "message": "missing a reply while exposed costs you even more",
+      "waitReply": false,
+      "next": "te_018"
+    },
+    {
+      "id": "te_018",
+      "speaker": "HANDLER",
+      "message": "try not to let the reply window expire",
+      "replies": [
+        {
+          "text": "copy",
+          "alertDelta": 0,
+          "next": "te_loop"
+        },
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "te_loop"
+        }
+      ]
+    },
+    {
+      "id": "te_loop",
+      "speaker": "HANDLER",
+      "message": "hows your progress",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "almost done",
+          "alertDelta": 0,
+          "next": "te_la"
+        },
+        {
+          "text": "still working on it",
+          "alertDelta": 0,
+          "next": "te_lb"
+        },
+        {
+          "text": "its tight",
+          "alertDelta": 0,
+          "next": "te_lc"
+        },
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": "te_ld"
+        }
+      ]
+    },
+    {
+      "id": "te_la",
+      "speaker": "HANDLER",
+      "message": "pick up the pace",
+      "replies": [
+        {
+          "text": "on it",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "te_lb",
+      "speaker": "HANDLER",
+      "message": "stay focused",
+      "replies": [
+        {
+          "text": "always am",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "te_lc",
+      "speaker": "HANDLER",
+      "message": "i know but theres no turning back",
+      "replies": [
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "te_ld",
+      "speaker": "HANDLER",
+      "message": "respond",
+      "replies": [
+        {
+          "text": "here",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    }
+  ]
+}

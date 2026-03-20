@@ -1,0 +1,11 @@
+{
+  "asset":{"version":"2.0","generator":"Unity MultiObjectMapAndNavMeshExporter"},
+  "scene":0,
+  "scenes":[{"name":"Scene","nodes":[0]}],
+  "nodes":[{"name":"HangerA","children":[1]},{"name":"map","mesh":0}],
+  "meshes":[{"name":"map","primitives":[{"attributes":{"POSITION":0,"NORMAL":1,"TEXCOORD_0":2},"indices":3,"material":0}]}],
+  "accessors":[{"bufferView":0,"componentType":5126,"count":432,"type":"VEC3","min":[-15.5,-1.06201017,-15.5000048],"max":[15.5,10.0000019,15.5000057]},{"bufferView":1,"componentType":5126,"count":432,"type":"VEC3"},{"bufferView":2,"componentType":5126,"count":432,"type":"VEC2"},{"bufferView":3,"componentType":5125,"count":648,"type":"SCALAR"}],
+  "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":5184,"target":34962},{"buffer":0,"byteOffset":5184,"byteLength":5184,"target":34962},{"buffer":0,"byteOffset":10368,"byteLength":3456,"target":34962},{"buffer":0,"byteOffset":13824,"byteLength":2592,"target":34963}],
+  "buffers":[{"uri":"HangerA.bin","byteLength":16416}],
+  "materials":[{"name":"map_mat","pbrMetallicRoughness":{"baseColorFactor":[1.0000,1.0000,1.0000,1.0000],"metallicFactor":0,"roughnessFactor":1}}]
+}

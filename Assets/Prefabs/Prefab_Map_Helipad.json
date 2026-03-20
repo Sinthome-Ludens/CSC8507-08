@@ -9,7 +9,7 @@
       "scale":    [1.0, 1.0, 1.0]
     },
     "C_D_MeshRenderer": {
-      "meshHandle": "Helipad.obj",
+      "meshHandle": "Helipad.gltf",
       "materialHandle": 0
     },
     "C_D_Material": { "shadingModel": "BlinnPhong" },
@@ -29,7 +29,11 @@
       "itemSpawns":    "Helipad.itemspawns",
       "mapScale":      1.0,
       "yOffset":       -6.0,
-      "flipWinding":   true
+      "flipWinding":   true,
+
+      "renderMeshGltf":    "Helipad.gltf",
+      "collisionMeshGltf": "Helipad_collision.gltf",
+      "finishMeshGltf":    "Helipad_finish.gltf"
     },
     "C_D_DebugName": { "name": "ENTITY_Env_StaticMap" }
   }

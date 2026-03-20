@@ -59,6 +59,7 @@ struct Res_ChatState {
     uint8_t chatMode         = 0;     // 0=proactive, 1=mixed, 2=passive
     char    currentNodeId[32]= {};    ///< 网状图当前节点 ID（替代旧 dialoguePhase）
     char    forcedTreeId[32] = {};    ///< 非空时强制使用指定 treeId（场景可设置）
+    char    pendingAutoNextId[32] = {}; ///< auto-advance 节点的预存跳转目标（"..."回复确认后使用）
     bool    treeFinished     = false; ///< 对话树已正常结束，不再重启
 
     float   nextMessageTimer = 0.0f;

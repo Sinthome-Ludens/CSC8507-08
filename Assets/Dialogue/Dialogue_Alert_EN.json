@@ -1,0 +1,565 @@
+{
+  "delay": 5.0,
+  "nodes": [
+    {
+      "id": "al_001",
+      "isRoot": true,
+      "treeId": "1",
+      "speaker": "TARGET",
+      "message": "hold on",
+      "waitReply": false,
+      "next": "al_002"
+    },
+    {
+      "id": "al_002",
+      "speaker": "TARGET",
+      "message": "something you said doesnt add up",
+      "replies": [
+        {
+          "text": "what doesnt add up",
+          "alertDelta": -2,
+          "next": "al_007"
+        },
+        {
+          "text": "what do you mean",
+          "alertDelta": 0,
+          "next": "al_007"
+        },
+        {
+          "text": "?",
+          "alertDelta": 1,
+          "next": "al_007"
+        },
+        {
+          "text": "youre overthinking it",
+          "alertDelta": -3,
+          "next": "al_031"
+        }
+      ]
+    },
+    {
+      "id": "al_007",
+      "speaker": "TARGET",
+      "message": "are you actually who you say you are",
+      "replies": [
+        {
+          "text": "who else would i be",
+          "alertDelta": -2,
+          "next": "al_012"
+        },
+        {
+          "text": "what kind of question is that",
+          "alertDelta": 0,
+          "next": "al_021"
+        },
+        {
+          "text": "you want me to prove it?",
+          "alertDelta": -3,
+          "next": "al_012"
+        },
+        {
+          "text": "...",
+          "alertDelta": 3,
+          "next": "al_040"
+        }
+      ]
+    },
+    {
+      "id": "al_012",
+      "speaker": "TARGET",
+      "message": "then tell me what we talked about before",
+      "replies": [
+        {
+          "text": "hold on let me think",
+          "alertDelta": 0,
+          "next": "al_016"
+        },
+        {
+          "text": "are you testing me?",
+          "alertDelta": -2,
+          "next": "al_016"
+        },
+        {
+          "text": "you dont remember yourself?",
+          "alertDelta": -3,
+          "next": "al_021"
+        }
+      ]
+    },
+    {
+      "id": "al_016",
+      "speaker": "TARGET",
+      "message": "dont change the subject",
+      "waitReply": false,
+      "next": "al_017"
+    },
+    {
+      "id": "al_017",
+      "speaker": "TARGET",
+      "message": "answer my question",
+      "replies": [
+        {
+          "text": "i did answer",
+          "alertDelta": 0,
+          "next": "al_021"
+        },
+        {
+          "text": "ill tell you whatever you wanna hear",
+          "alertDelta": 2,
+          "next": "al_040"
+        },
+        {
+          "text": "so you dont trust me?",
+          "alertDelta": -3,
+          "next": "al_021"
+        }
+      ]
+    },
+    {
+      "id": "al_021",
+      "speaker": "TARGET",
+      "message": "its not that i dont trust you",
+      "waitReply": false,
+      "next": "al_022"
+    },
+    {
+      "id": "al_022",
+      "speaker": "TARGET",
+      "message": "something just feels off",
+      "replies": [
+        {
+          "text": "tell me exactly what feels off",
+          "alertDelta": -2,
+          "next": "al_026"
+        },
+        {
+          "text": "thats a you problem not a me problem",
+          "alertDelta": 2,
+          "next": "al_035"
+        },
+        {
+          "text": "have you been under a lot of stress lately",
+          "alertDelta": -3,
+          "next": "al_031"
+        }
+      ]
+    },
+    {
+      "id": "al_026",
+      "speaker": "TARGET",
+      "message": "the way you talk is different",
+      "waitReply": false,
+      "next": "al_027"
+    },
+    {
+      "id": "al_027",
+      "speaker": "TARGET",
+      "message": "it wasnt like this before",
+      "replies": [
+        {
+          "text": "people cant change how they talk?",
+          "alertDelta": -2,
+          "next": "al_031"
+        },
+        {
+          "text": "what exactly is different",
+          "alertDelta": 0,
+          "next": "al_031"
+        },
+        {
+          "text": "maybe youre remembering wrong",
+          "alertDelta": -3,
+          "next": "al_031"
+        }
+      ]
+    },
+    {
+      "id": "al_031",
+      "speaker": "TARGET",
+      "message": "maybe im just overthinking it",
+      "waitReply": false,
+      "next": "al_032"
+    },
+    {
+      "id": "al_032",
+      "speaker": "TARGET",
+      "message": "forget it",
+      "replies": [
+        {
+          "text": "see its fine",
+          "alertDelta": -2,
+          "next": "al_loop"
+        },
+        {
+          "text": "no worries i get it",
+          "alertDelta": -2,
+          "next": "al_loop"
+        }
+      ]
+    },
+    {
+      "id": "al_035",
+      "speaker": "TARGET",
+      "message": "no i still think somethings wrong",
+      "waitReply": false,
+      "next": "al_036"
+    },
+    {
+      "id": "al_036",
+      "speaker": "TARGET",
+      "message": "some things you said dont match what i remember",
+      "replies": [
+        {
+          "text": "what do you remember then",
+          "alertDelta": -2,
+          "next": "al_031"
+        },
+        {
+          "text": "human memory is unreliable",
+          "alertDelta": -3,
+          "next": "al_031"
+        },
+        {
+          "text": "what are you trying to say",
+          "alertDelta": 2,
+          "next": "al_040"
+        }
+      ]
+    },
+    {
+      "id": "al_040",
+      "speaker": "TARGET",
+      "message": "ill just say it",
+      "waitReply": false,
+      "next": "al_041"
+    },
+    {
+      "id": "al_041",
+      "speaker": "TARGET",
+      "message": "i dont think youre who you say you are",
+      "replies": [
+        {
+          "text": "you got any proof of that",
+          "alertDelta": -3,
+          "next": "al_046"
+        },
+        {
+          "text": "youre joking right",
+          "alertDelta": -2,
+          "next": "al_046"
+        },
+        {
+          "text": "then who do you think i am",
+          "alertDelta": 0,
+          "next": "al_046"
+        },
+        {
+          "text": "...",
+          "alertDelta": 3,
+          "next": "al_loop"
+        }
+      ]
+    },
+    {
+      "id": "al_046",
+      "speaker": "TARGET",
+      "message": "i dont have proof",
+      "waitReply": false,
+      "next": "al_047"
+    },
+    {
+      "id": "al_047",
+      "speaker": "TARGET",
+      "message": "its just a feeling",
+      "replies": [
+        {
+          "text": "feelings arent evidence",
+          "alertDelta": -3,
+          "next": "al_loop"
+        },
+        {
+          "text": "fine think whatever you want",
+          "alertDelta": 0,
+          "next": "al_loop"
+        }
+      ]
+    },
+    {
+      "id": "al_loop",
+      "speaker": "TARGET",
+      "message": "dont blame me for being suspicious",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "im not blaming you",
+          "alertDelta": -2,
+          "next": "al_la"
+        },
+        {
+          "text": "youve said this already",
+          "alertDelta": 0,
+          "next": "al_lb"
+        },
+        {
+          "text": "so what do you want to do about it",
+          "alertDelta": 1,
+          "next": "al_lc"
+        },
+        {
+          "text": "...",
+          "alertDelta": 1,
+          "next": "al_ld"
+        }
+      ]
+    },
+    {
+      "id": "al_la",
+      "speaker": "TARGET",
+      "message": "that one thing you said earlier the more i think about it the more it doesnt add up",
+      "replies": [
+        {
+          "text": "what thing",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "youre reading too much into it",
+          "alertDelta": -2,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "al_lb",
+      "speaker": "TARGET",
+      "message": "let me ask you something",
+      "replies": [
+        {
+          "text": "go ahead",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "youre testing me again?",
+          "alertDelta": -2,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "al_lc",
+      "speaker": "TARGET",
+      "message": "fine maybe i really am overthinking this",
+      "replies": [
+        {
+          "text": "you are",
+          "alertDelta": -2,
+          "next": ""
+        },
+        {
+          "text": "its normal dont worry",
+          "alertDelta": -2,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "al_ld",
+      "speaker": "TARGET",
+      "message": "...",
+      "replies": [
+        {
+          "text": "what",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "ta_001",
+      "isRoot": true,
+      "treeId": "2",
+      "speaker": "HANDLER",
+      "message": "heads up",
+      "waitReply": false,
+      "next": "ta_002"
+    },
+    {
+      "id": "ta_002",
+      "speaker": "HANDLER",
+      "message": "the target is getting suspicious",
+      "waitReply": false,
+      "next": "ta_003"
+    },
+    {
+      "id": "ta_003",
+      "speaker": "HANDLER",
+      "message": "you need to maintain your cover now",
+      "replies": [
+        {
+          "text": "how exactly",
+          "alertDelta": 0,
+          "next": "ta_006"
+        },
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": "ta_006"
+        }
+      ]
+    },
+    {
+      "id": "ta_006",
+      "speaker": "HANDLER",
+      "message": "they might question who you are test you or push for details",
+      "waitReply": false,
+      "next": "ta_007"
+    },
+    {
+      "id": "ta_007",
+      "speaker": "HANDLER",
+      "message": "dont panic and dont say too much",
+      "replies": [
+        {
+          "text": "less talking more listening",
+          "alertDelta": 0,
+          "next": "ta_010"
+        },
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "ta_010"
+        }
+      ]
+    },
+    {
+      "id": "ta_010",
+      "speaker": "HANDLER",
+      "message": "best approach is to turn questions back on them let them convince themselves",
+      "waitReply": false,
+      "next": "ta_011"
+    },
+    {
+      "id": "ta_011",
+      "speaker": "HANDLER",
+      "message": "people who are suspicious actually want to be proven wrong",
+      "replies": [
+        {
+          "text": "use their own psychology",
+          "alertDelta": 0,
+          "next": "ta_014"
+        },
+        {
+          "text": "copy",
+          "alertDelta": 0,
+          "next": "ta_014"
+        }
+      ]
+    },
+    {
+      "id": "ta_014",
+      "speaker": "HANDLER",
+      "message": "also missing a reply at this stage is worse than normal",
+      "waitReply": false,
+      "next": "ta_015"
+    },
+    {
+      "id": "ta_015",
+      "speaker": "HANDLER",
+      "message": "keep your reply rhythm up",
+      "replies": [
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "ta_loop"
+        },
+        {
+          "text": "wont let it time out",
+          "alertDelta": 0,
+          "next": "ta_loop"
+        }
+      ]
+    },
+    {
+      "id": "ta_loop",
+      "speaker": "HANDLER",
+      "message": "hows it looking",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "think they bought it",
+          "alertDelta": 0,
+          "next": "ta_la"
+        },
+        {
+          "text": "theyre still pushing",
+          "alertDelta": 0,
+          "next": "ta_lb"
+        },
+        {
+          "text": "hard to tell",
+          "alertDelta": 0,
+          "next": "ta_lc"
+        },
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": "ta_ld"
+        }
+      ]
+    },
+    {
+      "id": "ta_la",
+      "speaker": "HANDLER",
+      "message": "good keep it up",
+      "replies": [
+        {
+          "text": "copy",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "ta_lb",
+      "speaker": "HANDLER",
+      "message": "dont confront head on go along with them",
+      "replies": [
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "ta_lc",
+      "speaker": "HANDLER",
+      "message": "stay calm dont slip up",
+      "replies": [
+        {
+          "text": "keeping it together",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "ta_ld",
+      "speaker": "HANDLER",
+      "message": "respond",
+      "replies": [
+        {
+          "text": "here",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    }
+  ]
+}

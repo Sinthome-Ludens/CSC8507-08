@@ -612,6 +612,26 @@ public:
         NCL::Maths::Vector3 targetPos
     );
 
+    /**
+     * @brief 创建环绕三角形实体（PREFAB_ORBIT_TRIANGLE）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_D_RigidBody(kinematic),
+     *       C_D_Collider(Sphere,trigger), C_D_DebugName
+     * 注意：C_D_OrbitTriangle 由调用方后置 Emplace。
+     *
+     * @param reg        ECS Registry
+     * @param mesh       三角形网格句柄
+     * @param spawnIndex 生成序号
+     * @param worldPos   生成位置
+     * @return 三角形实体 ID
+     */
+    static ECS::EntityID CreateOrbitTriangle(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     mesh,
+        int                 spawnIndex,
+        NCL::Maths::Vector3 worldPos
+    );
+
     // ============================================================
     // 钥匙卡 & 锁门
     // ============================================================
@@ -653,5 +673,75 @@ public:
         uint8_t             keyId,
         NCL::Maths::Vector3 position,
         NCL::Maths::Vector3 halfExtents
+    );
+
+    // ============================================================
+    // VFX 纯视觉实体
+    // ============================================================
+
+    /**
+     * @brief 创建 DDoS 囚笼视觉效果实体（PREFAB_VFX_DDOS_CAGE）
+     *
+     * 纯视觉，无 RigidBody / Collider。由 Sys_ItemEffects 管理生命周期。
+     *
+     * @param reg      ECS Registry
+     * @param mesh     囚笼 GLTF mesh handle
+     * @param worldPos 初始世界位置
+     * @return 囚笼实体 ID
+     */
+    static ECS::EntityID CreateDDoSCageVfx(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     mesh,
+        NCL::Maths::Vector3 worldPos
+    );
+
+    // ============================================================
+    // Orb 装饰球体
+    // ============================================================
+
+    /**
+     * @brief 为玩家实体创建内外层 Orb 球体（装饰效果）
+     *
+     * 创建两个跟随玩家的球体实体：
+     *  - 内层（innerMesh）：`C_D_Spin.speed=45°/s`，Y 轴自旋
+     *  - 外层（outerMesh）：`C_D_Spin.speed=0`，静止跟随
+     *
+     * 两个球体均挂载：
+     *   C_D_Transform, C_D_MeshRenderer, C_T_OrbOfPlayer,
+     *   C_D_Spin, C_D_RigidBody(Kinematic), C_D_Collider(Sphere+MeshBoundsAuto)
+     *
+     * @param reg          ECS Registry
+     * @param playerEntity 玩家实体 ID（用于读取初始位置）
+     * @param innerMesh    内层球体网格句柄（playerIn.gltf）
+     * @param outerMesh    外层球体网格句柄（player.gltf）
+     */
+    static void CreatePlayerOrbs(
+        ECS::Registry&  reg,
+        ECS::EntityID   playerEntity,
+        ECS::MeshHandle innerMesh,
+        ECS::MeshHandle outerMesh
+    );
+
+    /**
+     * @brief 为敌人实体创建内外层 Orb 球体（装饰效果）
+     *
+     * 创建两个跟随指定敌人的球体实体：
+     *  - 内层（innerMesh）：`C_D_Spin.speed=45°/s`，Y 轴自旋
+     *  - 外层（outerMesh）：`C_D_Spin.speed=0`，静止跟随
+     *
+     * 两个球体均挂载：
+     *   C_D_Transform, C_D_MeshRenderer, C_T_OrbOfEnemy(ownerID=enemyEntity),
+     *   C_D_Spin, C_D_RigidBody(Kinematic), C_D_Collider(Sphere+MeshBoundsAuto)
+     *
+     * @param reg          ECS Registry
+     * @param enemyEntity  目标敌人实体 ID
+     * @param innerMesh    内层球体网格句柄（enemyIn.gltf）
+     * @param outerMesh    外层球体网格句柄（enemy.gltf）
+     */
+    static void CreateEnemyOrbs(
+        ECS::Registry&  reg,
+        ECS::EntityID   enemyEntity,
+        ECS::MeshHandle innerMesh,
+        ECS::MeshHandle outerMesh
     );
 };

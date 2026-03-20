@@ -127,6 +127,8 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
         LOG_INFO("[MapLoader] render mesh '" << config.renderMesh
                  << "' loaded OK, handle=" << renderMesh);
     }
+    LOG_INFO("[MapLoader] render final = " << (renderFromGltf ? config.renderMeshGltf : config.renderMesh)
+             << " (fallbackUsed=" << (renderFromGltf ? "false" : "true") << ")");
 
     // ── Step 2: Load collision geometry (GLTF preferred, OBJ fallback) ──
     std::string collPath;
@@ -174,6 +176,9 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
             collLoaded = AssetManager::Instance().LoadCollisionGeometry(collPath, collVerts, collIndices);
         }
     }
+    LOG_INFO("[MapLoader] collision final = " << collPath << " (fallbackUsed="
+             << ((config.collisionMeshGltf[0] != '\0' && collPath.find(config.collisionMeshGltf) != std::string::npos) ? "false" : "true")
+             << ")");
 
     // ── Step 3: Scale vertices + flip winding ──────────────────────────
     if (collLoaded && !collVerts.empty()) {
@@ -228,6 +233,9 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
             LOG_INFO("[MapLoader] finish mesh '" << config.finishMesh
                      << "' loaded OK, handle=" << finishMesh);
         }
+        LOG_INFO("[MapLoader] finish final = "
+                 << (finishFromGltf ? config.finishMeshGltf : config.finishMesh)
+                 << " (fallbackUsed=" << (finishFromGltf ? "false" : "true") << ")");
 
         // Load collision geometry for detect position (unified through AssetManager)
         std::vector<Vector3> finVerts;
@@ -288,7 +296,7 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
             const auto& sp = points.startPoints[0];
             Vector3 spawnPos(
                 sp.x * scale,
-                sp.y * scale + worldY + 1.5f,
+                sp.y * scale + worldY + config.spawnYOffset,
                 sp.z * scale);
             result.playerEntity = PrefabFactory::CreatePlayer(reg, cubeMesh, spawnPos);
             EnsureGameplayPlayerComponents(reg, result.playerEntity);
@@ -306,7 +314,7 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
 
                 Vector3 enemyPos(
                     spawn.position.x * scale,
-                    spawn.position.y * scale + worldY + 1.5f,
+                    spawn.position.y * scale + worldY + config.spawnYOffset,
                     spawn.position.z * scale);
 
                 EntityID enemy = PrefabFactory::CreateNavEnemy(reg, cubeMesh, i, enemyPos);
@@ -321,7 +329,7 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
                         const auto& pt = spawn.patrolPoints[p];
                         waypoints[p] = Vector3(
                             pt.x * scale,
-                            pt.y * scale + worldY + 1.5f,
+                            pt.y * scale + worldY + config.spawnYOffset,
                             pt.z * scale);
                     }
                     PrefabFactory::AttachPatrolRoute(reg, enemy, waypoints, count, enemyPos);
@@ -380,7 +388,7 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
 
                 Vector3 itemPos(
                     spawn.position.x * scale,
-                    spawn.position.y * scale + worldY + 1.5f,
+                    spawn.position.y * scale + worldY + config.spawnYOffset,
                     spawn.position.z * scale);
                 EntityID pickup = PrefabFactory::CreateItemPickup(
                     reg, cubeMesh, spawn.itemId, spawn.quantity, i, itemPos);

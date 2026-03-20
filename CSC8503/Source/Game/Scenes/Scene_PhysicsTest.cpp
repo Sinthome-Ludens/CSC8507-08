@@ -37,7 +37,9 @@
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
+#include "Game/Systems/Sys_OrbitTriangle.h"
 #include "Game/Systems/Sys_Audio.h"
+#include "Game/Systems/SystemPriorities.h"
 #include "Game/Components/Res_AudioConfig.h"
 #include "Game/Utils/Log.h"
 #include "Game/Utils/SaveManager.h"
@@ -182,35 +184,37 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     //              → EnemyVision(110) → EnemyAI(120) → DeathJudgment(125) → DeathEffect(126)
     //              → PlayerCamera(150) → Camera(155, Bridge 同步 + debug 飞行)
     //              → Render(200) → ImGui(300+) → Raycast(330) → Chat(450) → UI(500)
-    systems.Register<ECS::Sys_Input>           ( 10);   // NCL → Res_Input（via InputAdapter）
-    systems.Register<ECS::Sys_InputDispatch>   ( 55);   // Res_Input → per-entity C_D_Input
-    systems.Register<ECS::Sys_PlayerDisguise>  ( 59);   // 伪装切换、C_T_Hidden 管理
-    systems.Register<ECS::Sys_PlayerStance>    ( 60);   // 蹲/站切换、碰撞体替换
-    systems.Register<ECS::Sys_StealthMetrics>  ( 62);   // 奔跑、速度乘数、噪音、可见度
-    systems.Register<ECS::Sys_PlayerCQC>       ( 63);   // CQC 近身制服 + 目标选择
-    systems.Register<ECS::Sys_Movement>        ( 65);   // 物理移动
-    systems.Register<ECS::Sys_Physics>         (100);   // Jolt Body 创建 + 物理步进 + Transform 同步
-    systems.Register<ECS::Sys_EnemyVision>    (110);   // 敌人视野判定（扇形视锥 + 遮挡射线）
-    systems.Register<ECS::Sys_EnemyAI>         (120);   // 敌人感知检测 + 四状态切换（Safe/Search/Alert/Hunt）
-    systems.Register<ECS::Sys_DeathJudgment>   (125);   // 死亡判定（敌人抓捕 + HP归零 + 触发器即死 → 场景重启/敌人销毁）
-    systems.Register<ECS::Sys_DeathEffect>     (126);   // 死亡视觉特效（赛博朋克四阶段：冲击→故障→溶解→崩塌）
-    systems.Register<ECS::Sys_PlayerCamera>    (150);   // 第三人称跟随相机
-    systems.Register<ECS::Sys_Camera>          (155);   // 相机实体创建 + NCL Bridge 同步 + debug 飞行
-    systems.Register<ECS::Sys_Render>          (200);   // ECS 实体 → NCL 代理对象桥接
-    systems.Register<ECS::Sys_Item>            (250);   // 道具管理（拾取/使用/库存结算）
-    systems.Register<ECS::Sys_ItemEffects>     (260);   // 道具效果执行（HoloBait/DDoS/RoamAI/Radar/TargetStrike）
+    namespace P = ECS::Priority;
+    systems.Register<ECS::Sys_Input>           (P::Input);
+    systems.Register<ECS::Sys_InputDispatch>   (P::InputDispatch);
+    systems.Register<ECS::Sys_PlayerDisguise>  (P::PlayerDisguise);
+    systems.Register<ECS::Sys_PlayerStance>    (P::PlayerStance);
+    systems.Register<ECS::Sys_StealthMetrics>  (P::StealthMetrics);
+    systems.Register<ECS::Sys_PlayerCQC>       (P::PlayerCQC);
+    systems.Register<ECS::Sys_Movement>        (P::Movement);
+    systems.Register<ECS::Sys_Physics>         (P::Physics);
+    systems.Register<ECS::Sys_OrbitTriangle>   (P::OrbitTriangle);
+    systems.Register<ECS::Sys_EnemyVision>     (P::EnemyVision);
+    systems.Register<ECS::Sys_EnemyAI>         (P::EnemyAI);
+    systems.Register<ECS::Sys_DeathJudgment>   (P::DeathJudgment);
+    systems.Register<ECS::Sys_DeathEffect>     (P::DeathEffect);
+    systems.Register<ECS::Sys_PlayerCamera>    (P::PlayerCamera);
+    systems.Register<ECS::Sys_Camera>          (P::Camera);
+    systems.Register<ECS::Sys_Render>          (P::Render);
+    systems.Register<ECS::Sys_Item>            (P::Item);
+    systems.Register<ECS::Sys_ItemEffects>     (P::ItemEffects);
 #ifdef USE_IMGUI
-    systems.Register<ECS::Sys_ImGui>             (300);   // 菜单栏 + 性能窗口 + 测试控制面板
-    systems.Register<ECS::Sys_ImGuiEntityDebug>  (305);   // 全量实体列表 + 详情面板
-    systems.Register<ECS::Sys_ImGuiEnemyAI>      (310);   // 通用敌人状态监控表格（场景无关）
-    systems.Register<ECS::Sys_ImGuiPhysicsTest>  (320);   // PhysicsTest 场景敌人生成/删除控制面板
-    systems.Register<ECS::Sys_ImGuiRenderDebug>  (445);   // 渲染参数调试面板
-    systems.Register<ECS::Sys_Chat>              (450);   // 对话逻辑（在 UI 之前）
-    systems.Register<ECS::Sys_UI>                (500);   // UI 渲染 + 输入导航
+    systems.Register<ECS::Sys_ImGui>             (P::ImGui);
+    systems.Register<ECS::Sys_ImGuiEntityDebug>  (P::ImGuiEntityDebug);
+    systems.Register<ECS::Sys_ImGuiEnemyAI>      (P::ImGuiEnemyAI);
+    systems.Register<ECS::Sys_ImGuiPhysicsTest>  (P::ImGuiPhysicsTest);  // PhysicsTest 专用面板
+    systems.Register<ECS::Sys_ImGuiRenderDebug>  (P::ImGuiRenderDebug);  // 渲染调试面板
+    systems.Register<ECS::Sys_Chat>              (P::Chat);
+    systems.Register<ECS::Sys_UI>                (P::UI);
 #endif
-    systems.Register<ECS::Sys_Audio>              (275);   // FMOD 音频（BGM 状态机 + SFX one-shot）
-    systems.Register<ECS::Sys_Raycast>           (330);   // Raycast 独立测试窗口（按钮触发 + 可视化）
-    systems.Register<ECS::Sys_Countdown>          (350);   // alertLevel≥100 → 30s 倒计时 → GameOver
+    systems.Register<ECS::Sys_Audio>              (P::Audio);
+    systems.Register<ECS::Sys_Raycast>           (P::Raycast);   // Raycast 测试
+    systems.Register<ECS::Sys_Countdown>          (P::Countdown);
 
     // ── 5. 初始化游戏状态资源 ──────────────────────────────────────────────
     if (!registry.has_ctx<ECS::Res_GameState>()) {

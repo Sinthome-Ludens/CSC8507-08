@@ -1,0 +1,16 @@
+{
+  "PrefabID": "PREFAB_VFX_DDOS_CAGE",
+  "Name": "DDoSCage",
+  "Components": {
+    "C_D_Transform": {
+      "position": [0.0, 0.0, 0.0],
+      "rotation": [0.0, 0.0, 0.0, 1.0],
+      "scale":    [2.0, 2.0, 2.0]
+    },
+    "C_D_MeshRenderer": {
+      "meshHandle": 0,
+      "materialHandle": 0
+    },
+    "C_D_DebugName": { "name": "ENTITY_VFX_DDoSCage" }
+  }
+}

@@ -31,6 +31,7 @@
 #include "Core/ECS/EventBus.h"
 #include "Core/ECS/EntityID.h"
 #include "Game/Events/Evt_Audio.h"
+#include "Game/Utils/OrbitTriangleHelper.h"
 
 #ifdef USE_IMGUI
 #include "Game/UI/UI_ActionNotify.h"
@@ -233,6 +234,11 @@ void Sys_Item::OnPickup(Registry& registry, const Evt_Item_Pickup& evt) {
                                           0, ActionNotifyType::Weapon, 3.0f);
             }
 #endif
+        }
+
+        // TargetStrike 拾取后同步环绕三角形
+        if (evt.itemId == ItemID::TargetStrike) {
+            EnsureOrbitTriangleCount(registry, evt.pickerEntity);
         }
 
 #ifdef USE_IMGUI

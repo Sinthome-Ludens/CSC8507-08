@@ -24,6 +24,7 @@
 #include "Game/Components/C_D_AIState.h"
 #include "Game/Components/Res_EnemyEnums.h"
 #include "Game/Components/C_D_EnemyDormant.h"
+#include "Game/Components/C_D_DDoSFrozen.h"
 #include "Game/Components/C_D_Transform.h"
 #include "Game/Components/C_T_Enemy.h"
 #include "Game/Components/C_T_Player.h"
@@ -161,6 +162,18 @@ void Sys_EnemyAI::OnUpdate(Registry& registry, float dt) {
         if (registry.Has<C_D_EnemyDormant>(entity)) {
             auto& dormant = registry.Get<C_D_EnemyDormant>(entity);
             if (dormant.isDormant) return;
+        }
+
+        // DDoS 冻结：只做警戒衰减（让解冻后不会立刻 Hunt），跳过其余 AI 逻辑
+        if (registry.Has<C_D_DDoSFrozen>(entity)) {
+            detect.is_spotted = false;
+            detect.detection_value -= detect.detection_value_decrease * dt;
+            detect.detection_value = std::max(0.0f, detect.detection_value);
+            if (detect.detection_value < detect.search_threshold && state.current_state != EnemyState::Safe) {
+                state.current_state = EnemyState::Safe;
+                LOG_INFO("SYS_ENEMY_AI: Entity " << (int)entity << " DDoS freeze -> Safe");
+            }
+            return;
         }
 
         /**
