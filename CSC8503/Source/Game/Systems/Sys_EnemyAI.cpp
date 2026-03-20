@@ -136,6 +136,25 @@ void Sys_EnemyAI::OnUpdate(Registry& registry, float dt) {
             hasPlayer = true;
         });
 
+    if (!m_DidLogStartupState) {
+        int enemyCount = 0;
+        registry.view<C_T_Enemy>().each([&](EntityID, C_T_Enemy&) { ++enemyCount; });
+
+        int matchPhase = -1;
+        bool isMultiplayer = false;
+        if (registry.has_ctx<Res_GameState>()) {
+            const auto& gs = registry.ctx<Res_GameState>();
+            matchPhase = static_cast<int>(gs.matchPhase);
+            isMultiplayer = gs.isMultiplayer;
+        }
+
+        LOG_MPDBG("[Sys_EnemyAI] Startup snapshot: hasPlayer=" << hasPlayer
+                  << " enemyCount=" << enemyCount
+                  << " isMultiplayer=" << isMultiplayer
+                  << " matchPhase=" << matchPhase);
+        m_DidLogStartupState = true;
+    }
+
     auto view = registry.view<C_T_Enemy, C_D_AIState, C_D_AIPerception>();
 
     view.each([&](EntityID entity, C_T_Enemy&, C_D_AIState& state, C_D_AIPerception& detect) {

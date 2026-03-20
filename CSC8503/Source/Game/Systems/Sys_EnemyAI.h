@@ -22,6 +22,10 @@ public:
 private:
     SubscriptionID m_NoiseSubId = 0;
     SubscriptionID m_AlertSubId = 0;
+    /**
+     * @brief 标记是否已在系统启动时输出一次状态日志，避免重复打印。
+     */
+    bool m_DidLogStartupState = false;
 };
 
 } // namespace ECS
