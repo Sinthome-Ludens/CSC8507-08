@@ -3,7 +3,7 @@
  * @brief HUD sub-module function declarations (internal, not part of public API).
  *
  * Each sub-module renders one logical section of the HUD.
- * Only UI_HUD.cpp (the dispatch entry) includes this header.
+ * Included by UI_HUD.cpp and all UI_HUD_*.cpp sub-modules.
  */
 #pragma once
 #ifdef USE_IMGUI

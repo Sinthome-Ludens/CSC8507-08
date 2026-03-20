@@ -33,6 +33,7 @@ inline MenuNavResult ProcessVerticalMenu(
     const ImVec2* itemMins, const ImVec2* itemMaxs)
 {
     MenuNavResult result;
+    if (itemCount <= 0) return result;
 
     // Keyboard navigation
     if (input.keyPressed[uiCfg.keyMenuUp] || input.keyPressed[uiCfg.keyMenuUpAlt]) {

@@ -18,11 +18,13 @@ namespace ECS::UI::Anim {
 // Easing functions (t in [0,1] → result in [0,1])
 // ============================================================
 
+/// @brief Cubic ease-out: decelerating curve (t in [0,1]).
 inline float EaseOutCubic(float t) {
     float f = 1.0f - t;
     return 1.0f - f * f * f;
 }
 
+/// @brief Back ease-out: slight overshoot then settle (t in [0,1]).
 inline float EaseOutBack(float t) {
     constexpr float c1 = 1.70158f;
     constexpr float c3 = c1 + 1.0f;
@@ -30,6 +32,7 @@ inline float EaseOutBack(float t) {
     return 1.0f + c3 * f * f * f + c1 * f * f;
 }
 
+/// @brief Quadratic ease-in-out: accelerate then decelerate (t in [0,1]).
 inline float EaseInOutQuad(float t) {
     return (t < 0.5f)
         ? 2.0f * t * t

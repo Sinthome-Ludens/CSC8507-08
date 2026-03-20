@@ -56,6 +56,7 @@ void DropShadow(ImDrawList* draw, ImVec2 min, ImVec2 max,
     }
 }
 
+/// @brief Draw expanding glow passes around a rectangle, then a solid inner border.
 void GlowBorder(ImDrawList* draw, ImVec2 min, ImVec2 max,
                 ImU32 color, float rounding,
                 int passes, float expand) {
@@ -73,6 +74,7 @@ void GlowBorder(ImDrawList* draw, ImVec2 min, ImVec2 max,
     draw->AddRect(min, max, color, rounding, 0, 1.0f);
 }
 
+/// @brief Draw horizontally-centered hint text at a given y position.
 void BottomHint(ImDrawList* draw, const char* text, float displayW, float y,
                 ImU32 color, ImFont* font) {
     if (font) ImGui::PushFont(font);
@@ -81,6 +83,7 @@ void BottomHint(ImDrawList* draw, const char* text, float displayW, float y,
     if (font) ImGui::PopFont();
 }
 
+/// @brief Draw page title text with a drop-shadow offset.
 void PageTitle(ImDrawList* draw, const char* text, ImVec2 pos,
                ImU32 textColor, ImU32 shadowColor, ImFont* font) {
     if (font) ImGui::PushFont(font);
