@@ -152,8 +152,8 @@ namespace Layout {
         constexpr float kMsgTopPad      = 6.0f;
         constexpr float kMsgPadX        = 10.0f;
         constexpr float kSenderLineH   = 18.0f;   ///< sender tag 行高
-        constexpr float kSenderMsgGap  = 2.0f;    ///< sender 与 message 间距
-        constexpr float kMsgBottomPad  = 6.0f;    ///< 消息之间间距
+        constexpr float kSenderMsgGap  = 4.0f;    ///< sender 与 message 间距
+        constexpr float kMsgBottomPad  = 10.0f;   ///< 消息之间间距
         constexpr float kMsgMinTextH   = 16.0f;   ///< 文本最小高度（单行兜底）
         constexpr float kReplyPad       = 8.0f;
         constexpr float kCountdownH     = 36.0f;
@@ -161,8 +161,8 @@ namespace Layout {
         constexpr float kReplySpacing   = 4.0f;
         constexpr float kReplyTextMinH  = 16.0f;   ///< 回复文本最小高度
         constexpr float kReplyArrowH    = 16.0f;   ///< 箭头序列行高
-        constexpr float kReplyItemPadY  = 4.0f;    ///< 回复项内上下边距
-        constexpr float kReplyGap       = 2.0f;    ///< 回复项之间间距
+        constexpr float kReplyItemPadY  = 6.0f;    ///< 回复项内上下边距
+        constexpr float kReplyGap       = 4.0f;    ///< 回复项之间间距
         constexpr float kHintLineH      = 24.0f;
         constexpr float kHintBottomY    = 18.0f;
         constexpr float kSlotSize       = 20.0f;
