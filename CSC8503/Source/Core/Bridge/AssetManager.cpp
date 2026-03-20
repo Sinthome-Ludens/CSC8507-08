@@ -16,14 +16,269 @@
 #include "MeshAnimation.h"
 #include "Mesh.h"
 #include "../GLTFLoader/GLTFLoader.h"
+#include <nlohmann/json.hpp>
 
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 
+using json = nlohmann::json;
 using namespace NCL;
 using namespace NCL::Rendering;
 using namespace NCL::Maths;
 
 namespace ECS {
+
+struct GLTFLoadSelector {
+    std::string basePath;
+    int nodeIndex = -1;
+    bool recenter = false;
+};
+
+static GLTFLoadSelector ParseGLTFSelector(const std::string& path) {
+    GLTFLoadSelector sel{};
+    size_t hash = path.find('#');
+    sel.basePath = (hash == std::string::npos) ? path : path.substr(0, hash);
+    if (hash == std::string::npos) {
+        return sel;
+    }
+
+    std::string fragment = path.substr(hash + 1);
+    size_t start = 0;
+    while (start < fragment.size()) {
+        size_t end = fragment.find('&', start);
+        std::string token = fragment.substr(start, end == std::string::npos ? std::string::npos : end - start);
+
+        const std::string nodePrefix = "node=";
+        const std::string recenterPrefix = "recenter=";
+        if (token.rfind(nodePrefix, 0) == 0) {
+            try {
+                sel.nodeIndex = std::stoi(token.substr(nodePrefix.size()));
+            } catch (...) {
+                sel.nodeIndex = -1;
+            }
+        } else if (token.rfind(recenterPrefix, 0) == 0) {
+            std::string value = token.substr(recenterPrefix.size());
+            sel.recenter = (value == "1" || value == "true" || value == "yes");
+        }
+
+        if (end == std::string::npos) break;
+        start = end + 1;
+    }
+    return sel;
+}
+
+static ImportedAlphaMode ToImportedAlphaMode(NCL::Rendering::GLTFAlphaMode mode) {
+    switch (mode) {
+        case NCL::Rendering::GLTFAlphaMode::Mask:   return ImportedAlphaMode::Mask;
+        case NCL::Rendering::GLTFAlphaMode::Cutoff: return ImportedAlphaMode::Blend;
+        case NCL::Rendering::GLTFAlphaMode::Opaque:
+        default:                                    return ImportedAlphaMode::Opaque;
+    }
+}
+
+static int FindPreferredMaterialLayer(const GLTFScene& scene) {
+    if (scene.meshMaterials.empty() || scene.materials.empty()) {
+        return -1;
+    }
+
+    int firstLayer = -1;
+    for (const auto& meshMats : scene.meshMaterials) {
+        for (int layer : meshMats.layers) {
+            if (layer < 0 || layer >= static_cast<int>(scene.materials.size())) {
+                continue;
+            }
+            if (firstLayer < 0) {
+                firstLayer = layer;
+            }
+            if (scene.materials[layer].albedo) {
+                return layer;
+            }
+        }
+    }
+    return firstLayer;
+}
+
+static int FindPreferredMaterialLayerForSelector(const GLTFScene& scene, const GLTFLoadSelector& selector) {
+    if (selector.nodeIndex >= 0 && selector.nodeIndex < static_cast<int>(scene.sceneNodes.size())) {
+        const auto& node = scene.sceneNodes[selector.nodeIndex];
+        if (node.mesh) {
+            for (size_t meshIndex = 0; meshIndex < scene.meshes.size() && meshIndex < scene.meshMaterials.size(); ++meshIndex) {
+                if (scene.meshes[meshIndex] != node.mesh) {
+                    continue;
+                }
+
+                int firstLayer = -1;
+                for (int layer : scene.meshMaterials[meshIndex].layers) {
+                    if (layer < 0 || layer >= static_cast<int>(scene.materials.size())) {
+                        continue;
+                    }
+                    if (firstLayer < 0) {
+                        firstLayer = layer;
+                    }
+                    if (scene.materials[layer].albedo) {
+                        return layer;
+                    }
+                }
+                if (firstLayer >= 0) {
+                    return firstLayer;
+                }
+            }
+        }
+    }
+
+    return FindPreferredMaterialLayer(scene);
+}
+
+static TextureHandle LoadGLTFTextureHandle(AssetManager& am, const json& root, int textureIndex, const std::string& fullPath) {
+    if (!root.contains("textures") || !root["textures"].is_array()) {
+        return INVALID_HANDLE;
+    }
+    const auto& textures = root["textures"];
+    if (textureIndex < 0 || textureIndex >= static_cast<int>(textures.size())) {
+        return INVALID_HANDLE;
+    }
+    int imageIndex = textures[textureIndex].value("source", -1);
+    if (imageIndex < 0 || !root.contains("images") || !root["images"].is_array()) {
+        return INVALID_HANDLE;
+    }
+    const auto& images = root["images"];
+    if (imageIndex >= static_cast<int>(images.size())) return INVALID_HANDLE;
+    std::string uri = images[imageIndex].value("uri", "");
+    if (uri.empty()) return INVALID_HANDLE;
+    std::filesystem::path texPath = std::filesystem::path(fullPath).parent_path() / uri;
+    return am.LoadTexture(texPath.string());
+}
+
+static ImportedMaterialDefaults BuildImportedMaterialDefaultsForLayer(const GLTFScene& scene, int materialLayer) {
+    ImportedMaterialDefaults defaults{};
+    if (materialLayer < 0 || materialLayer >= static_cast<int>(scene.materials.size())) {
+        return defaults;
+    }
+
+    const auto& src = scene.materials[materialLayer];
+    defaults.valid       = true;
+    defaults.baseColour  = src.albedoColour;
+    defaults.metallic    = src.metallicFactor;
+    defaults.roughness   = src.roughnessFactor;
+    defaults.ao          = 1.0f;
+    defaults.alphaCutoff = src.alphaCutoff;
+    defaults.doubleSided = src.doubleSided;
+    defaults.alphaMode   = ToImportedAlphaMode(src.alphaMode);
+    return defaults;
+}
+
+static ImportedMaterialDefaults BuildImportedMaterialDefaults(const GLTFScene& scene, const std::string& fullPath) {
+    ImportedMaterialDefaults defaults{};
+
+    if (scene.meshMaterials.empty() || scene.materials.empty()) {
+        return defaults;
+    }
+
+    int materialLayer = FindPreferredMaterialLayer(scene);
+
+    if (materialLayer < 0 || materialLayer >= static_cast<int>(scene.materials.size())) {
+        return defaults;
+    }
+
+    defaults = BuildImportedMaterialDefaultsForLayer(scene, materialLayer);
+    const auto& src = scene.materials[materialLayer];
+
+    if (scene.materials.size() > 1) {
+        LOG_WARN("[AssetManager] GLTF material merge fallback: '" << fullPath
+                 << "' has " << scene.materials.size()
+                 << " materials; using first resolved layer '" << src.name << "'");
+    }
+
+    return defaults;
+}
+
+static ImportedMaterialDefaults LoadImportedMaterialDefaultsFromGLTF(const std::string& fullPath) {
+    GLTFLoadSelector selector = ParseGLTFSelector(fullPath);
+    const std::string& sourcePath = selector.basePath;
+
+    GLTFScene scene;
+    if (!GLTFLoader::LoadFromPath(sourcePath, scene)) {
+        return ImportedMaterialDefaults{};
+    }
+
+    ImportedMaterialDefaults defaults = BuildImportedMaterialDefaults(scene, sourcePath);
+    if (!defaults.valid) {
+        return defaults;
+    }
+
+    if (sourcePath.ends_with(".glb")) {
+        return defaults;
+    }
+
+    std::ifstream in(sourcePath);
+    if (!in.good()) {
+        return defaults;
+    }
+
+    json root;
+    try {
+        in >> root;
+    } catch (...) {
+        return defaults;
+    }
+    if (!root.contains("materials") || !root["materials"].is_array()) {
+        return defaults;
+    }
+
+    int materialIndex = FindPreferredMaterialLayerForSelector(scene, selector);
+    const auto& materials = root["materials"];
+    if (materialIndex < 0 || materialIndex >= static_cast<int>(materials.size())) {
+        return defaults;
+    }
+
+    auto& am = AssetManager::Instance();
+    const auto& mat = materials[materialIndex];
+    int albedoTex = -1;
+    int normalTex = -1;
+    int ormTex = -1;
+    int occTex = -1;
+    int emissiveTex = -1;
+
+    if (mat.contains("pbrMetallicRoughness")) {
+        const auto& pbr = mat["pbrMetallicRoughness"];
+        if (pbr.contains("baseColorTexture")) albedoTex = pbr["baseColorTexture"].value("index", -1);
+        if (pbr.contains("metallicRoughnessTexture")) ormTex = pbr["metallicRoughnessTexture"].value("index", -1);
+    }
+    if (mat.contains("normalTexture")) normalTex = mat["normalTexture"].value("index", -1);
+    if (mat.contains("occlusionTexture")) occTex = mat["occlusionTexture"].value("index", -1);
+    if (mat.contains("emissiveTexture")) emissiveTex = mat["emissiveTexture"].value("index", -1);
+
+    defaults.albedoHandle = LoadGLTFTextureHandle(am, root, albedoTex, sourcePath);
+    defaults.normalHandle = LoadGLTFTextureHandle(am, root, normalTex, sourcePath);
+    defaults.ormHandle = LoadGLTFTextureHandle(am, root, ormTex, sourcePath);
+    if (defaults.ormHandle == INVALID_HANDLE) {
+        defaults.ormHandle = LoadGLTFTextureHandle(am, root, occTex, sourcePath);
+    }
+    defaults.emissiveHandle = LoadGLTFTextureHandle(am, root, emissiveTex, sourcePath);
+
+    return defaults;
+}
+
+static Vector3 TransformPosition(const Matrix4& mat, const Vector3& pos) {
+    Vector4 transformed = mat * Vector4(pos.x, pos.y, pos.z, 1.0f);
+    if (std::abs(transformed.w) > 1e-6f) {
+        return Vector3(transformed.x / transformed.w, transformed.y / transformed.w, transformed.z / transformed.w);
+    }
+    return Vector3(transformed.x, transformed.y, transformed.z);
+}
+
+static Vector3 TransformDirection(const Matrix4& mat, const Vector3& dir) {
+    Vector4 transformed = mat * Vector4(dir.x, dir.y, dir.z, 0.0f);
+    Vector3 out(transformed.x, transformed.y, transformed.z);
+    float lenSq = Vector::LengthSquared(out);
+    return lenSq > 1e-8f ? Vector::Normalise(out) : dir;
+}
+
+static Vector4 TransformTangent(const Matrix4& mat, const Vector4& tangent) {
+    Vector3 xyz = TransformDirection(mat, Vector3(tangent.x, tangent.y, tangent.z));
+    return Vector4(xyz.x, xyz.y, xyz.z, tangent.w);
+}
 
 // ── Auto-generate tangents (mirrors Assimp's aiProcess_CalcTangentSpace) ──────
 // Uses triangle UV derivatives to compute per-vertex tangent + handedness (w).
@@ -173,6 +428,7 @@ void AssetManager::Clear() {
 
     m_PathToMeshHandle.clear();
     m_PathToTextureHandle.clear();
+    m_ImportedMaterialDefaultsCache.clear();
 
     LOG_INFO("[AssetManager] Cleared");
 }
@@ -181,6 +437,7 @@ void AssetManager::UnloadUnused() {
     for (auto it = m_MeshCache.begin(); it != m_MeshCache.end(); ) {
         if (it->second.refCount == 0 && it->first != m_DefaultMeshHandle) {
             LOG_INFO("[AssetManager] Unloading unused mesh " << it->first);
+            m_ImportedMaterialDefaultsCache.erase(it->first);
             it = m_MeshCache.erase(it);
         } else {
             ++it;
@@ -193,6 +450,9 @@ void AssetManager::UnloadUnused() {
 // =============================================================================
 
 MeshHandle AssetManager::LoadMesh(const std::string& path) {
+    GLTFLoadSelector selector = ParseGLTFSelector(path);
+    const std::string& sourcePath = selector.basePath;
+
     auto it = m_PathToMeshHandle.find(path);
     if (it != m_PathToMeshHandle.end()) {
         MeshHandle handle = it->second;
@@ -205,14 +465,14 @@ MeshHandle AssetManager::LoadMesh(const std::string& path) {
     if (IsGltfFormat(path)) {
         LOG_INFO("[AssetManager] LoadMesh pipeline: GLTF branch → GLTFLoader::LoadFromPath for '" << path << "'");
         mesh = LoadMeshViaGLTF(path);
-    } else if (IsAssimpFormat(path)) {
-        LOG_INFO("[AssetManager] LoadMesh pipeline: Assimp branch → AssimpLoader::LoadMesh for '" << path << "'");
-        mesh = AssimpLoader::LoadMesh(path);
-    } else if (path.ends_with(".msh")) {
-        LOG_WARN("[AssetManager] LoadMesh pipeline: .msh format not yet supported, file='" << path << "'");
+    } else if (IsAssimpFormat(sourcePath)) {
+        LOG_INFO("[AssetManager] LoadMesh pipeline: Assimp branch → AssimpLoader::LoadMesh for '" << sourcePath << "'");
+        mesh = AssimpLoader::LoadMesh(sourcePath);
+    } else if (sourcePath.ends_with(".msh")) {
+        LOG_WARN("[AssetManager] LoadMesh pipeline: .msh format not yet supported, file='" << sourcePath << "'");
         mesh = nullptr;
     } else {
-        LOG_ERROR("[AssetManager] LoadMesh pipeline: unsupported format, file='" << path << "'");
+        LOG_ERROR("[AssetManager] LoadMesh pipeline: unsupported format, file='" << sourcePath << "'");
         mesh = nullptr;
     }
 
@@ -226,6 +486,13 @@ MeshHandle AssetManager::LoadMesh(const std::string& path) {
     m_MeshCache[newHandle].refCount = 1;
     m_PathToMeshHandle[path] = newHandle;
 
+    if (IsGltfFormat(path)) {
+        ImportedMaterialDefaults defaults = LoadImportedMaterialDefaultsFromGLTF(path);
+        if (defaults.valid) {
+            m_ImportedMaterialDefaultsCache[newHandle] = defaults;
+        }
+    }
+
     LOG_INFO("[AssetManager] LoadMesh SUCCESS: '" << path << "' → Handle=" << newHandle);
     return newHandle;
 }
@@ -235,6 +502,15 @@ Mesh* AssetManager::GetMesh(MeshHandle handle) {
         return m_MeshCache[m_DefaultMeshHandle].resource.get();
     }
     return m_MeshCache[handle].resource.get();
+}
+
+bool AssetManager::GetImportedMaterialDefaults(MeshHandle handle, ImportedMaterialDefaults& outDefaults) const {
+    auto it = m_ImportedMaterialDefaultsCache.find(handle);
+    if (it == m_ImportedMaterialDefaultsCache.end() || !it->second.valid) {
+        return false;
+    }
+    outDefaults = it->second;
+    return true;
 }
 
 void AssetManager::ReleaseMesh(MeshHandle handle) {
@@ -309,7 +585,8 @@ bool AssetManager::IsAssimpFormat(const std::string& path) {
 }
 
 bool AssetManager::IsGltfFormat(const std::string& path) {
-    return path.ends_with(".gltf") || path.ends_with(".glb");
+    std::string basePath = ParseGLTFSelector(path).basePath;
+    return basePath.ends_with(".gltf") || basePath.ends_with(".glb");
 }
 
 void AssetManager::EnsureGLTFInitialized() {
@@ -329,20 +606,23 @@ void AssetManager::EnsureGLTFInitialized() {
 Mesh* AssetManager::LoadMeshViaGLTF(const std::string& fullPath) {
     EnsureGLTFInitialized();
 
-    LOG_INFO("[AssetManager] LoadMeshViaGLTF: calling GLTFLoader::LoadFromPath('" << fullPath << "')");
+    GLTFLoadSelector selector = ParseGLTFSelector(fullPath);
+    const std::string& sourcePath = selector.basePath;
+
+    LOG_INFO("[AssetManager] LoadMeshViaGLTF: calling GLTFLoader::LoadFromPath('" << sourcePath << "')");
 
     GLTFScene scene;
-    if (!GLTFLoader::LoadFromPath(fullPath, scene)) {
-        LOG_ERROR("[AssetManager] LoadMeshViaGLTF FAILED: GLTFLoader::LoadFromPath returned false for '" << fullPath << "'");
+    if (!GLTFLoader::LoadFromPath(sourcePath, scene)) {
+        LOG_ERROR("[AssetManager] LoadMeshViaGLTF FAILED: GLTFLoader::LoadFromPath returned false for '" << sourcePath << "'");
         return nullptr;
     }
 
     if (scene.meshes.empty()) {
-        LOG_WARN("[AssetManager] LoadMeshViaGLTF: GLTFScene has 0 meshes in '" << fullPath << "'");
+        LOG_WARN("[AssetManager] LoadMeshViaGLTF: GLTFScene has 0 meshes in '" << sourcePath << "'");
         return nullptr;
     }
 
-    LOG_INFO("[AssetManager] LoadMeshViaGLTF: GLTFScene contains " << scene.meshes.size() << " mesh(es) from '" << fullPath << "'");
+    LOG_INFO("[AssetManager] LoadMeshViaGLTF: GLTFScene contains " << scene.meshes.size() << " mesh(es) from '" << sourcePath << "'");
 
     Mesh* result = m_MeshFactory();
 
@@ -356,9 +636,21 @@ Mesh* AssetManager::LoadMeshViaGLTF(const std::string& fullPath) {
     bool hasTangents  = false;
     bool hasTexCoords = false;
 
-    for (size_t mi = 0; mi < scene.meshes.size(); ++mi) {
-        auto& mesh = scene.meshes[mi];
+    bool mergedAnyNodeMesh = false;
+    for (size_t ni = 0; ni < scene.sceneNodes.size(); ++ni) {
+        if (selector.nodeIndex >= 0 && static_cast<int>(ni) != selector.nodeIndex) {
+            continue;
+        }
+        const auto& node = scene.sceneNodes[ni];
+        if (!node.mesh) {
+            continue;
+        }
+
+        mergedAnyNodeMesh = true;
+        auto& mesh = node.mesh;
         unsigned int baseVertex = static_cast<unsigned int>(mergedPositions.size());
+        Matrix4 world = node.worldMatrix;
+        Matrix4 normalMatrix = Matrix::Transpose(Matrix::Inverse(world));
 
         const auto& pos = mesh->GetPositionData();
         const auto& idx = mesh->GetIndexData();
@@ -366,7 +658,7 @@ Mesh* AssetManager::LoadMeshViaGLTF(const std::string& fullPath) {
         const auto& tan = mesh->GetTangentData();
         const auto& uv  = mesh->GetTextureCoordData();
 
-        for (const auto& v : pos) mergedPositions.push_back(v);
+        for (const auto& v : pos) mergedPositions.push_back(TransformPosition(world, v));
         for (const auto& i : idx) mergedIndices.push_back(i + baseVertex);
 
         // Normals: pad front if first appearance, then append
@@ -375,7 +667,7 @@ Mesh* AssetManager::LoadMeshViaGLTF(const std::string& fullPath) {
                 hasNormals = true;
                 mergedNormals.resize(baseVertex, Vector3(0, 1, 0));
             }
-            for (const auto& n : nrm) mergedNormals.push_back(n);
+            for (const auto& n : nrm) mergedNormals.push_back(TransformDirection(normalMatrix, n));
         } else if (hasNormals) {
             mergedNormals.resize(mergedPositions.size(), Vector3(0, 1, 0));
         }
@@ -386,7 +678,7 @@ Mesh* AssetManager::LoadMeshViaGLTF(const std::string& fullPath) {
                 hasTangents = true;
                 mergedTangents.resize(baseVertex, Vector4(1, 0, 0, 1));
             }
-            for (const auto& t : tan) mergedTangents.push_back(t);
+            for (const auto& t : tan) mergedTangents.push_back(TransformTangent(normalMatrix, t));
         } else if (hasTangents) {
             mergedTangents.resize(mergedPositions.size(), Vector4(1, 0, 0, 1));
         }
@@ -402,8 +694,14 @@ Mesh* AssetManager::LoadMeshViaGLTF(const std::string& fullPath) {
             mergedTexCoords.resize(mergedPositions.size(), Vector2(0, 0));
         }
 
-        LOG_INFO("[AssetManager] LoadMeshViaGLTF: merged sub-mesh[" << mi << "] — "
+        LOG_INFO("[AssetManager] LoadMeshViaGLTF: merged node[" << ni << "] '" << node.name << "' — "
                  << pos.size() << " verts, " << idx.size() / 3 << " tris");
+    }
+
+    if (!mergedAnyNodeMesh) {
+        LOG_WARN("[AssetManager] LoadMeshViaGLTF: scene nodes in '" << sourcePath << "' reference no meshes matching selector");
+        delete result;
+        return nullptr;
     }
 
     // Final alignment: if the first mesh(es) lacked an attribute but later ones had it,
@@ -411,6 +709,21 @@ Mesh* AssetManager::LoadMeshViaGLTF(const std::string& fullPath) {
     if (hasNormals)   mergedNormals.resize(mergedPositions.size(), Vector3(0, 1, 0));
     if (hasTangents)  mergedTangents.resize(mergedPositions.size(), Vector4(1, 0, 0, 1));
     if (hasTexCoords) mergedTexCoords.resize(mergedPositions.size(), Vector2(0, 0));
+
+    if (selector.recenter && !mergedPositions.empty()) {
+        Vector3 minPos = mergedPositions.front();
+        Vector3 maxPos = mergedPositions.front();
+        for (const auto& p : mergedPositions) {
+            minPos.x = std::min(minPos.x, p.x); minPos.y = std::min(minPos.y, p.y); minPos.z = std::min(minPos.z, p.z);
+            maxPos.x = std::max(maxPos.x, p.x); maxPos.y = std::max(maxPos.y, p.y); maxPos.z = std::max(maxPos.z, p.z);
+        }
+        Vector3 center = (minPos + maxPos) * 0.5f;
+        for (auto& p : mergedPositions) {
+            p -= center;
+        }
+        LOG_INFO("[AssetManager] LoadMeshViaGLTF: recentered mesh around local center ("
+                 << center.x << "," << center.y << "," << center.z << ") for '" << fullPath << "'");
+    }
 
     // ── Auto-generate missing tangents (mirrors aiProcess_CalcTangentSpace) ──
     // Without tangents, the vertex shader's normalize(vec3(0)) → NaN, corrupting

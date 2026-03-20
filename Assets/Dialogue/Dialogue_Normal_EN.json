@@ -1,0 +1,2232 @@
+{
+  "delay": 3.0,
+  "nodes": [
+    {
+      "id": "nt_001",
+      "isRoot": true,
+      "treeId": "0",
+      "speaker": "HANDLER",
+      "message": "welcome",
+      "waitReply": false,
+      "next": "nt_002",
+      "comment": "tutorial"
+    },
+    {
+      "id": "nt_002",
+      "speaker": "HANDLER",
+      "message": "ill skip the pleasantries if youre here you already know how we operate",
+      "waitReply": false,
+      "next": "nt_003"
+    },
+    {
+      "id": "nt_003",
+      "speaker": "HANDLER",
+      "message": "ill be briefing you for this op",
+      "replies": [
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": "nt_006"
+        },
+        {
+          "text": "lets get to it",
+          "alertDelta": 0,
+          "next": "nt_006"
+        }
+      ]
+    },
+    {
+      "id": "nt_006",
+      "speaker": "HANDLER",
+      "message": "first what youre looking at right now is the comms terminal",
+      "waitReply": false,
+      "next": "nt_007"
+    },
+    {
+      "id": "nt_007",
+      "speaker": "HANDLER",
+      "message": "messages from me or the target will show up here",
+      "waitReply": false,
+      "next": "nt_008"
+    },
+    {
+      "id": "nt_008",
+      "speaker": "HANDLER",
+      "message": "you reply by entering the matching directional key sequence",
+      "replies": [
+        {
+          "text": "the arrow keys right",
+          "alertDelta": 0,
+          "next": "nt_011"
+        },
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "nt_011"
+        }
+      ]
+    },
+    {
+      "id": "nt_011",
+      "speaker": "HANDLER",
+      "message": "replies have a time limit",
+      "waitReply": false,
+      "next": "nt_012"
+    },
+    {
+      "id": "nt_012",
+      "speaker": "HANDLER",
+      "message": "miss the window and the target gets suspicious the whole facility goes on higher alert",
+      "waitReply": false,
+      "next": "nt_013"
+    },
+    {
+      "id": "nt_013",
+      "speaker": "HANDLER",
+      "message": "so dont get so focused on moving that you forget to reply",
+      "replies": [
+        {
+          "text": "wont let it time out",
+          "alertDelta": 0,
+          "next": "nt_016"
+        },
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "nt_016"
+        }
+      ]
+    },
+    {
+      "id": "nt_016",
+      "speaker": "HANDLER",
+      "message": "speaking of alert thats the most important thing to watch",
+      "waitReply": false,
+      "next": "nt_017"
+    },
+    {
+      "id": "nt_017",
+      "speaker": "HANDLER",
+      "message": "think of it as how aware the entire facility is of your presence",
+      "waitReply": false,
+      "next": "nt_018"
+    },
+    {
+      "id": "nt_018",
+      "speaker": "HANDLER",
+      "message": "the higher it gets the more dangerous things become and reply windows shrink",
+      "replies": [
+        {
+          "text": "what happens if it maxes out",
+          "alertDelta": 0,
+          "next": "nt_021"
+        },
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": "nt_021"
+        }
+      ]
+    },
+    {
+      "id": "nt_021",
+      "speaker": "HANDLER",
+      "message": "if alert maxes out enemies go into kill mode",
+      "waitReply": false,
+      "next": "nt_022"
+    },
+    {
+      "id": "nt_022",
+      "speaker": "HANDLER",
+      "message": "youll have about half a minute to react",
+      "waitReply": false,
+      "next": "nt_023"
+    },
+    {
+      "id": "nt_023",
+      "speaker": "HANDLER",
+      "message": "after that the mission is a total loss",
+      "waitReply": false,
+      "next": "nt_024"
+    },
+    {
+      "id": "nt_024",
+      "speaker": "HANDLER",
+      "message": "so no matter what do not let alert max out",
+      "replies": [
+        {
+          "text": "got it keep it low",
+          "alertDelta": 0,
+          "next": "nt_027"
+        },
+        {
+          "text": "half a minute is not a lot",
+          "alertDelta": 0,
+          "next": "nt_027"
+        }
+      ]
+    },
+    {
+      "id": "nt_027",
+      "speaker": "HANDLER",
+      "message": "right movement",
+      "waitReply": false,
+      "next": "nt_028"
+    },
+    {
+      "id": "nt_028",
+      "speaker": "HANDLER",
+      "message": "i wont teach you to walk you know the basics",
+      "waitReply": false,
+      "next": "nt_029"
+    },
+    {
+      "id": "nt_029",
+      "speaker": "HANDLER",
+      "message": "you can sprint faster than any enemy but it makes a lot of noise",
+      "waitReply": false,
+      "next": "nt_030"
+    },
+    {
+      "id": "nt_030",
+      "speaker": "HANDLER",
+      "message": "use it to escape in emergencies but dont sprint carelessly",
+      "replies": [
+        {
+          "text": "cant disguise while sprinting right",
+          "alertDelta": 0,
+          "next": "nt_033"
+        },
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "nt_033"
+        }
+      ]
+    },
+    {
+      "id": "nt_033",
+      "speaker": "HANDLER",
+      "message": "exactly about being spotted enemies find you two ways",
+      "waitReply": false,
+      "next": "nt_034"
+    },
+    {
+      "id": "nt_034",
+      "speaker": "HANDLER",
+      "message": "eyes and ears",
+      "waitReply": false,
+      "next": "nt_035"
+    },
+    {
+      "id": "nt_035",
+      "speaker": "HANDLER",
+      "message": "stay in their line of sight too long or make too much noise and they will notice you",
+      "waitReply": false,
+      "next": "nt_036"
+    },
+    {
+      "id": "nt_036",
+      "speaker": "HANDLER",
+      "message": "good news is walls block their vision and their hearing range is limited",
+      "replies": [
+        {
+          "text": "how do i lower my chances of being spotted",
+          "alertDelta": 0,
+          "next": "nt_039"
+        },
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": "nt_039"
+        }
+      ]
+    },
+    {
+      "id": "nt_039",
+      "speaker": "HANDLER",
+      "message": "crouch",
+      "waitReply": false,
+      "next": "nt_040"
+    },
+    {
+      "id": "nt_040",
+      "speaker": "HANDLER",
+      "message": "crouch walking is much quieter and makes you harder to see",
+      "waitReply": false,
+      "next": "nt_041"
+    },
+    {
+      "id": "nt_041",
+      "speaker": "HANDLER",
+      "message": "crouch and stay still and youre almost invisible",
+      "replies": [
+        {
+          "text": "just crouch everywhere then",
+          "alertDelta": 0,
+          "next": "nt_044"
+        },
+        {
+          "text": "but its slower right",
+          "alertDelta": 0,
+          "next": "nt_044"
+        }
+      ]
+    },
+    {
+      "id": "nt_044",
+      "speaker": "HANDLER",
+      "message": "bit slower yeah but theres something even better",
+      "waitReply": false,
+      "next": "nt_045"
+    },
+    {
+      "id": "nt_045",
+      "speaker": "HANDLER",
+      "message": "disguise mode",
+      "waitReply": false,
+      "next": "nt_046"
+    },
+    {
+      "id": "nt_046",
+      "speaker": "HANDLER",
+      "message": "activate it and stand still youre completely invisible enemies cant see you",
+      "waitReply": false,
+      "next": "nt_047"
+    },
+    {
+      "id": "nt_047",
+      "speaker": "HANDLER",
+      "message": "but moving while disguised is very slow and not fully invisible",
+      "waitReply": false,
+      "next": "nt_048"
+    },
+    {
+      "id": "nt_048",
+      "speaker": "HANDLER",
+      "message": "best use is to freeze in place when enemies get close",
+      "replies": [
+        {
+          "text": "any restrictions",
+          "alertDelta": 0,
+          "next": "nt_051"
+        },
+        {
+          "text": "full invisibility nice",
+          "alertDelta": 0,
+          "next": "nt_051"
+        }
+      ]
+    },
+    {
+      "id": "nt_051",
+      "speaker": "HANDLER",
+      "message": "you need to be standing still before you can activate it",
+      "waitReply": false,
+      "next": "nt_052"
+    },
+    {
+      "id": "nt_052",
+      "speaker": "HANDLER",
+      "message": "while disguised you cant crouch or sprint",
+      "waitReply": false,
+      "next": "nt_053"
+    },
+    {
+      "id": "nt_053",
+      "speaker": "HANDLER",
+      "message": "press it again to drop the disguise instantly",
+      "replies": [
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "nt_056"
+        },
+        {
+          "text": "keep going",
+          "alertDelta": 0,
+          "next": "nt_056"
+        }
+      ]
+    },
+    {
+      "id": "nt_056",
+      "speaker": "HANDLER",
+      "message": "now about how enemies behave",
+      "waitReply": false,
+      "next": "nt_057"
+    },
+    {
+      "id": "nt_057",
+      "speaker": "HANDLER",
+      "message": "normally they patrol no threat to you",
+      "waitReply": false,
+      "next": "nt_058"
+    },
+    {
+      "id": "nt_058",
+      "speaker": "HANDLER",
+      "message": "if they sense something suspicious theyll start searching the area",
+      "waitReply": false,
+      "next": "nt_059"
+    },
+    {
+      "id": "nt_059",
+      "speaker": "HANDLER",
+      "message": "once they confirm your position they come straight for you",
+      "replies": [
+        {
+          "text": "what happens if they catch me",
+          "alertDelta": 0,
+          "next": "nt_062"
+        },
+        {
+          "text": "how do i avoid that",
+          "alertDelta": 0,
+          "next": "nt_062"
+        }
+      ]
+    },
+    {
+      "id": "nt_062",
+      "speaker": "HANDLER",
+      "message": "get caught and the mission is over",
+      "waitReply": false,
+      "next": "nt_063"
+    },
+    {
+      "id": "nt_063",
+      "speaker": "HANDLER",
+      "message": "and when one enemy starts chasing you nearby ones get alerted too",
+      "waitReply": false,
+      "next": "nt_064"
+    },
+    {
+      "id": "nt_064",
+      "speaker": "HANDLER",
+      "message": "it cascades and the whole facility goes on high alert fast",
+      "replies": [
+        {
+          "text": "definitely want to avoid that",
+          "alertDelta": 0,
+          "next": "nt_067"
+        },
+        {
+          "text": "what if i do get spotted",
+          "alertDelta": 0,
+          "next": "nt_067"
+        }
+      ]
+    },
+    {
+      "id": "nt_067",
+      "speaker": "HANDLER",
+      "message": "if you have no choice you can take enemies out up close",
+      "waitReply": false,
+      "next": "nt_068"
+    },
+    {
+      "id": "nt_068",
+      "speaker": "HANDLER",
+      "message": "but only works when they havent fully spotted you yet",
+      "waitReply": false,
+      "next": "nt_069"
+    },
+    {
+      "id": "nt_069",
+      "speaker": "HANDLER",
+      "message": "enemies already chasing you are too alert to ambush",
+      "waitReply": false,
+      "next": "nt_070"
+    },
+    {
+      "id": "nt_070",
+      "speaker": "HANDLER",
+      "message": "and every takedown hurts your final rating",
+      "replies": [
+        {
+          "text": "ill try not to kill",
+          "alertDelta": 0,
+          "next": "nt_073"
+        },
+        {
+          "text": "sometimes theres no choice though",
+          "alertDelta": 0,
+          "next": "nt_073"
+        }
+      ]
+    },
+    {
+      "id": "nt_073",
+      "speaker": "HANDLER",
+      "message": "when going for a takedown scroll wheel to switch between targets",
+      "waitReply": false,
+      "next": "nt_074"
+    },
+    {
+      "id": "nt_074",
+      "speaker": "HANDLER",
+      "message": "the one youve selected will be highlighted",
+      "waitReply": false,
+      "next": "nt_075"
+    },
+    {
+      "id": "nt_075",
+      "speaker": "HANDLER",
+      "message": "careful youre locked in place during the takedown so make sure its clear first",
+      "replies": [
+        {
+          "text": "keep it sneaky",
+          "alertDelta": 0,
+          "next": "nt_078"
+        },
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": "nt_078"
+        }
+      ]
+    },
+    {
+      "id": "nt_078",
+      "speaker": "HANDLER",
+      "message": "aside from takedowns you also have tools",
+      "waitReply": false,
+      "next": "nt_079"
+    },
+    {
+      "id": "nt_079",
+      "speaker": "HANDLER",
+      "message": "theres a decoy that lures patrolling enemies away",
+      "waitReply": false,
+      "next": "nt_080"
+    },
+    {
+      "id": "nt_080",
+      "speaker": "HANDLER",
+      "message": "a radar that shows all enemy positions",
+      "waitReply": false,
+      "next": "nt_081"
+    },
+    {
+      "id": "nt_081",
+      "speaker": "HANDLER",
+      "message": "and one that temporarily freezes a nearby enemy",
+      "waitReply": false,
+      "next": "nt_082"
+    },
+    {
+      "id": "nt_082",
+      "speaker": "HANDLER",
+      "message": "theres also two weapon types but those hit your score even harder",
+      "replies": [
+        {
+          "text": "do tools cost points too?",
+          "alertDelta": 0,
+          "next": "nt_085"
+        },
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "nt_085"
+        }
+      ]
+    },
+    {
+      "id": "nt_085",
+      "speaker": "HANDLER",
+      "message": "every tool use costs you points weapons cost even more",
+      "waitReply": false,
+      "next": "nt_086"
+    },
+    {
+      "id": "nt_086",
+      "speaker": "HANDLER",
+      "message": "tools are found on the map but if you can avoid using them do",
+      "replies": [
+        {
+          "text": "ill avoid them if possible",
+          "alertDelta": 0,
+          "next": "nt_089"
+        },
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": "nt_089"
+        }
+      ]
+    },
+    {
+      "id": "nt_089",
+      "speaker": "HANDLER",
+      "message": "about scoring you start with a full score every mistake deducts from it",
+      "waitReply": false,
+      "next": "nt_090"
+    },
+    {
+      "id": "nt_090",
+      "speaker": "HANDLER",
+      "message": "kills cost some tools cost some triggering the countdown costs a lot",
+      "waitReply": false,
+      "next": "nt_091"
+    },
+    {
+      "id": "nt_091",
+      "speaker": "HANDLER",
+      "message": "if your score drops too low you fail even if you reach the exit",
+      "replies": [
+        {
+          "text": "how do i get the best rating",
+          "alertDelta": 0,
+          "next": "nt_094"
+        },
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "nt_094"
+        }
+      ]
+    },
+    {
+      "id": "nt_094",
+      "speaker": "HANDLER",
+      "message": "highest rating means staying close to a perfect score",
+      "waitReply": false,
+      "next": "nt_095"
+    },
+    {
+      "id": "nt_095",
+      "speaker": "HANDLER",
+      "message": "basically zero kills zero tools zero mistakes",
+      "waitReply": false,
+      "next": "nt_096"
+    },
+    {
+      "id": "nt_096",
+      "speaker": "HANDLER",
+      "message": "the organisation expects nothing less",
+      "replies": [
+        {
+          "text": "copy that",
+          "alertDelta": 0,
+          "next": "nt_100"
+        },
+        {
+          "text": "sounds like a challenge",
+          "alertDelta": 0,
+          "next": "nt_100"
+        }
+      ]
+    },
+    {
+      "id": "nt_100",
+      "speaker": "HANDLER",
+      "message": "lastly about your objective",
+      "waitReply": false,
+      "next": "nt_101"
+    },
+    {
+      "id": "nt_101",
+      "speaker": "HANDLER",
+      "message": "some doors are locked you need to find key cards",
+      "waitReply": false,
+      "next": "nt_102"
+    },
+    {
+      "id": "nt_102",
+      "speaker": "HANDLER",
+      "message": "walk close to pick them up and all matching doors unlock",
+      "replies": [
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": "nt_105"
+        },
+        {
+          "text": "are they easy to find",
+          "alertDelta": 0,
+          "next": "nt_105"
+        }
+      ]
+    },
+    {
+      "id": "nt_105",
+      "speaker": "HANDLER",
+      "message": "locations change every time find them yourself",
+      "waitReply": false,
+      "next": "nt_106"
+    },
+    {
+      "id": "nt_106",
+      "speaker": "HANDLER",
+      "message": "each map has an exit walk into it to complete the map",
+      "waitReply": false,
+      "next": "nt_107"
+    },
+    {
+      "id": "nt_107",
+      "speaker": "HANDLER",
+      "message": "one operation has three maps and your score carries across all of them",
+      "replies": [
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "nt_110"
+        },
+        {
+          "text": "gotta stay sharp across all three",
+          "alertDelta": 0,
+          "next": "nt_110"
+        }
+      ]
+    },
+    {
+      "id": "nt_110",
+      "speaker": "HANDLER",
+      "message": "one more important thing",
+      "waitReply": false,
+      "next": "nt_111"
+    },
+    {
+      "id": "nt_111",
+      "speaker": "HANDLER",
+      "message": "during real ops youll be chatting with the target under a fake identity",
+      "waitReply": false,
+      "next": "nt_112"
+    },
+    {
+      "id": "nt_112",
+      "speaker": "HANDLER",
+      "message": "the goal is to distract them and extract useful info",
+      "waitReply": false,
+      "next": "nt_113"
+    },
+    {
+      "id": "nt_113",
+      "speaker": "HANDLER",
+      "message": "every reply you choose affects the alert level",
+      "waitReply": false,
+      "next": "nt_114"
+    },
+    {
+      "id": "nt_114",
+      "speaker": "HANDLER",
+      "message": "say the right thing and alert drops say the wrong thing and it rises",
+      "replies": [
+        {
+          "text": "chat and infiltrate at the same time",
+          "alertDelta": 0,
+          "next": "nt_117"
+        },
+        {
+          "text": "got it",
+          "alertDelta": 0,
+          "next": "nt_117"
+        }
+      ]
+    },
+    {
+      "id": "nt_117",
+      "speaker": "HANDLER",
+      "message": "as alert changes the tone of the conversation shifts",
+      "waitReply": false,
+      "next": "nt_118"
+    },
+    {
+      "id": "nt_118",
+      "speaker": "HANDLER",
+      "message": "low alert means relaxed chat and plenty of time to reply",
+      "waitReply": false,
+      "next": "nt_119"
+    },
+    {
+      "id": "nt_119",
+      "speaker": "HANDLER",
+      "message": "higher alert and they get more tense and you get less time",
+      "waitReply": false,
+      "next": "nt_120"
+    },
+    {
+      "id": "nt_120",
+      "speaker": "HANDLER",
+      "message": "if the target starts doubting who you are the whole conversation changes",
+      "replies": [
+        {
+          "text": "how do i handle that",
+          "alertDelta": 0,
+          "next": "nt_123"
+        },
+        {
+          "text": "copy",
+          "alertDelta": 0,
+          "next": "nt_123"
+        }
+      ]
+    },
+    {
+      "id": "nt_123",
+      "speaker": "HANDLER",
+      "message": "when suspected stay calm and say less",
+      "waitReply": false,
+      "next": "nt_124"
+    },
+    {
+      "id": "nt_124",
+      "speaker": "HANDLER",
+      "message": "when exposed its all about speed finish the job and get out",
+      "waitReply": false,
+      "next": "nt_125"
+    },
+    {
+      "id": "nt_125",
+      "speaker": "HANDLER",
+      "message": "alright thats the briefing",
+      "waitReply": false,
+      "next": "nt_126"
+    },
+    {
+      "id": "nt_126",
+      "speaker": "HANDLER",
+      "message": "go complete the training course ill be on comms",
+      "replies": [
+        {
+          "text": "copy that moving out",
+          "alertDelta": 0,
+          "next": "nt_loop"
+        },
+        {
+          "text": "understood",
+          "alertDelta": 0,
+          "next": "nt_loop"
+        }
+      ]
+    },
+    {
+      "id": "nt_loop",
+      "speaker": "HANDLER",
+      "message": "hows your progress",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "been too busy chatting to you havent moved",
+          "alertDelta": 0,
+          "next": "nt_la"
+        },
+        {
+          "text": "on track",
+          "alertDelta": 0,
+          "next": "nt_lb"
+        },
+        {
+          "text": "almost at the exit",
+          "alertDelta": 0,
+          "next": "nt_lc"
+        },
+        {
+          "text": "its a bit tough",
+          "alertDelta": 0,
+          "next": "nt_ld"
+        }
+      ]
+    },
+    {
+      "id": "nt_la",
+      "speaker": "HANDLER",
+      "message": "need help",
+      "replies": [
+        {
+          "text": "no i know what to do",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nt_lb",
+      "speaker": "HANDLER",
+      "message": "as expected",
+      "replies": [
+        {
+          "text": "naturally",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nt_lc",
+      "speaker": "HANDLER",
+      "message": "well done",
+      "replies": [
+        {
+          "text": "cheers",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nt_ld",
+      "speaker": "HANDLER",
+      "message": "take your time",
+      "replies": [
+        {
+          "text": "ok",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "na_01",
+      "isRoot": true,
+      "treeId": "1",
+      "speaker": "TARGET",
+      "message": "mate wheres my food",
+      "waitReply": false,
+      "next": "na_02",
+      "comment": "opening"
+    },
+    {
+      "id": "na_02",
+      "speaker": "TARGET",
+      "message": "its been 5 min past the delivery window already",
+      "alertDelta": 2.0,
+      "replies": [
+        {
+          "text": "sorry just got to your address",
+          "alertDelta": 0,
+          "next": "na_a01"
+        },
+        {
+          "text": "hang on something came up",
+          "alertDelta": 0,
+          "next": "na_b01"
+        },
+        {
+          "text": "system says its been delivered tho?",
+          "alertDelta": 3,
+          "next": "na_c01"
+        },
+        {
+          "text": "sorry got stuck in the lift",
+          "alertDelta": 0,
+          "next": "na_d01"
+        }
+      ]
+    },
+    {
+      "id": "na_a01",
+      "speaker": "TARGET",
+      "message": "so where are you then why arent you up here",
+      "replies": [
+        {
+          "text": "can you tell me how to get there",
+          "alertDelta": 0,
+          "next": "na_a02"
+        },
+        {
+          "text": "first time in this area im completely lost",
+          "alertDelta": 0,
+          "next": "na_a02"
+        }
+      ]
+    },
+    {
+      "id": "na_a02",
+      "speaker": "TARGET",
+      "message": "everyone else manages to get in here but you cant?",
+      "replies": [
+        {
+          "text": "im new to this job pls help me out",
+          "alertDelta": -2,
+          "next": "na_nav01"
+        },
+        {
+          "text": "this building layout is mental innit",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        }
+      ]
+    },
+    {
+      "id": "na_b01",
+      "speaker": "TARGET",
+      "message": "what do you mean",
+      "replies": [
+        {
+          "text": "the cook and the owner got into a fight",
+          "alertDelta": 0,
+          "next": "na_b02"
+        },
+        {
+          "text": "something happened on the driver side",
+          "alertDelta": 0,
+          "next": "na_b10"
+        }
+      ]
+    },
+    {
+      "id": "na_b02",
+      "speaker": "TARGET",
+      "message": "so what about my food",
+      "replies": [
+        {
+          "text": "im remaking it for you any food allergies",
+          "alertDelta": -3,
+          "next": "na_b03"
+        },
+        {
+          "text": "its gone im sorting something out",
+          "alertDelta": 0,
+          "next": "na_b03"
+        }
+      ]
+    },
+    {
+      "id": "na_b03",
+      "speaker": "TARGET",
+      "message": "youre COOKING it???",
+      "waitReply": false,
+      "next": "na_b04"
+    },
+    {
+      "id": "na_b04",
+      "speaker": "TARGET",
+      "message": "nah im easy with everything extra cheese if you can",
+      "replies": [
+        {
+          "text": "dont worry ill send it over as soon as its done",
+          "alertDelta": -2,
+          "next": "na_b05"
+        }
+      ]
+    },
+    {
+      "id": "na_b05",
+      "speaker": "TARGET",
+      "message": "ok fine ill mark it as on-time delivery for you",
+      "waitReply": false,
+      "next": "na_b06"
+    },
+    {
+      "id": "na_b06",
+      "speaker": "TARGET",
+      "message": "btw what were those two fighting about",
+      "replies": [
+        {
+          "text": "owner wanted to cut the cooks pay",
+          "alertDelta": 0,
+          "next": "na_b07"
+        },
+        {
+          "text": "not sure anyway how do i get to your place",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        }
+      ]
+    },
+    {
+      "id": "na_b07",
+      "speaker": "TARGET",
+      "message": "how come",
+      "waitReply": false,
+      "next": "na_b08"
+    },
+    {
+      "id": "na_b08",
+      "speaker": "YOU",
+      "message": "owner reckons the cook just microwaves stuff and boils the kettle all day doesnt do any proper cooking",
+      "waitReply": false,
+      "next": "na_b09"
+    },
+    {
+      "id": "na_b09",
+      "speaker": "YOU",
+      "message": "cook says owner wont pay for fresh ingredients and only stocks frozen ready meals",
+      "waitReply": false,
+      "next": "na_b09a"
+    },
+    {
+      "id": "na_b09a",
+      "speaker": "TARGET",
+      "message": "hold on",
+      "waitReply": false,
+      "next": "na_b09b"
+    },
+    {
+      "id": "na_b09b",
+      "speaker": "TARGET",
+      "message": "so ive been paying all this money for FROZEN READY MEALS??",
+      "replies": [
+        {
+          "text": "lmao",
+          "alertDelta": 0,
+          "next": "na_b09c"
+        },
+        {
+          "text": "bingo!",
+          "alertDelta": 0,
+          "next": "na_b09c"
+        }
+      ]
+    },
+    {
+      "id": "na_b09c",
+      "speaker": "TARGET",
+      "message": "im actually fuming and laughing at the same time",
+      "waitReply": false,
+      "next": "na_b09d"
+    },
+    {
+      "id": "na_b09d",
+      "speaker": "TARGET",
+      "message": "whatever just get it to me already",
+      "replies": [
+        {
+          "text": "sure tell me how to get there",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        },
+        {
+          "text": "on my way which tower was it again",
+          "alertDelta": 0,
+          "next": "na_nav_probe01"
+        }
+      ]
+    },
+    {
+      "id": "na_b10",
+      "speaker": "TARGET",
+      "message": "half spilled so what am i supposed to eat",
+      "replies": [
+        {
+          "text": "ill bring whats left can you tell me how to get there",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        },
+        {
+          "text": "want me to redo the whole order",
+          "alertDelta": -2,
+          "next": "na_b03"
+        }
+      ]
+    },
+    {
+      "id": "na_c01",
+      "speaker": "TARGET",
+      "message": "DELIVERED?? im literally home and got NOTHING",
+      "replies": [
+        {
+          "text": "might be a system glitch let me check",
+          "alertDelta": 0,
+          "next": "na_c02"
+        },
+        {
+          "text": "are you sure you put in the right address?",
+          "alertDelta": 5,
+          "next": "na_c04"
+        }
+      ]
+    },
+    {
+      "id": "na_c02",
+      "speaker": "TARGET",
+      "message": "hurry up and check then",
+      "replies": [
+        {
+          "text": "checked yeah its not delivered im heading over",
+          "alertDelta": -2,
+          "next": "na_nav01"
+        },
+        {
+          "text": "ok honestly im actually still on the way",
+          "alertDelta": 3,
+          "next": "na_c03"
+        }
+      ]
+    },
+    {
+      "id": "na_c03",
+      "speaker": "TARGET",
+      "message": "are you HAVING A LAUGH right now",
+      "alertDelta": 3,
+      "replies": [
+        {
+          "text": "really sorry almost there",
+          "alertDelta": -2,
+          "next": "na_nav01"
+        },
+        {
+          "text": "look do you still want it or not",
+          "alertDelta": 8,
+          "next": "na_rage01"
+        }
+      ]
+    },
+    {
+      "id": "na_c04",
+      "speaker": "TARGET",
+      "message": "what are you SAYING everyone else finds it just fine",
+      "alertDelta": 3,
+      "replies": [
+        {
+          "text": "sorry mate im almost there",
+          "alertDelta": -2,
+          "next": "na_nav01"
+        },
+        {
+          "text": "can you double check it though",
+          "alertDelta": 8,
+          "next": "na_rage01"
+        }
+      ]
+    },
+    {
+      "id": "na_d01",
+      "speaker": "TARGET",
+      "message": "how long were you stuck for",
+      "replies": [
+        {
+          "text": "almost ten minutes just got out",
+          "alertDelta": 0,
+          "next": "na_d02"
+        },
+        {
+          "text": "just two minutes on my way now",
+          "alertDelta": 2,
+          "next": "na_d03"
+        }
+      ]
+    },
+    {
+      "id": "na_d02",
+      "speaker": "TARGET",
+      "message": "yeah the lifts in this building break down all the time right",
+      "replies": [
+        {
+          "text": "im inside your building now how do i get there",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        }
+      ]
+    },
+    {
+      "id": "na_d03",
+      "speaker": "TARGET",
+      "message": "you SAID you were at my address but youre still on the way??",
+      "alertDelta": 2,
+      "replies": [
+        {
+          "text": "oh i meant im in the lift",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        },
+        {
+          "text": "misspoke almost there",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        }
+      ]
+    },
+    {
+      "id": "na_nav_probe01",
+      "speaker": "TARGET",
+      "message": "mega tower block B4 mezzanine 62 unit 191",
+      "waitReply": false,
+      "next": "na_nav_probe02"
+    },
+    {
+      "id": "na_nav_probe02",
+      "speaker": "TARGET",
+      "message": "did you even look at the address",
+      "replies": [
+        {
+          "text": "yeah yeah just double checking the block number",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        },
+        {
+          "text": "sorry the app only shows the building not the unit",
+          "alertDelta": 0,
+          "next": "na_nav_probe03"
+        }
+      ]
+    },
+    {
+      "id": "na_nav_probe03",
+      "speaker": "TARGET",
+      "message": "get to floor 63 theres a maintenance hatch next to the synth-meat vendor go down from there",
+      "replies": [
+        {
+          "text": "floor 63 synth-meat vendor maintenance hatch got it",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        },
+        {
+          "text": "maintenance hatch? isnt that staff only",
+          "alertDelta": 1,
+          "next": "na_nav_probe04"
+        }
+      ]
+    },
+    {
+      "id": "na_nav_probe04",
+      "speaker": "TARGET",
+      "message": "nothing in this building is proper its all dodgy routes like this",
+      "waitReply": false,
+      "next": "na_nav_probe05"
+    },
+    {
+      "id": "na_nav_probe05",
+      "speaker": "TARGET",
+      "message": "dont delivery drivers come here every day how do you not know this",
+      "replies": [
+        {
+          "text": "im new never been to this tower",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        },
+        {
+          "text": "hows the security here can anyone just walk in",
+          "alertDelta": 2,
+          "next": "na_nav_probe06"
+        }
+      ]
+    },
+    {
+      "id": "na_nav_probe06",
+      "speaker": "TARGET",
+      "message": "why are you so bothered",
+      "waitReply": false,
+      "next": "na_nav_probe07"
+    },
+    {
+      "id": "na_nav_probe07",
+      "speaker": "TARGET",
+      "message": "below floor 4 anyone can get in above that you need a keycard",
+      "waitReply": false,
+      "next": "na_nav_probe08"
+    },
+    {
+      "id": "na_nav_probe08",
+      "speaker": "TARGET",
+      "message": "just follow someone into the lift nobody checks",
+      "replies": [
+        {
+          "text": "got it thanks",
+          "alertDelta": 0,
+          "next": "na_nav01"
+        },
+        {
+          "text": "security is well dodgy here innit",
+          "alertDelta": 1,
+          "next": "na_nav01"
+        }
+      ]
+    },
+    {
+      "id": "na_nav01",
+      "speaker": "TARGET",
+      "message": "fine fine fine just my luck",
+      "waitReply": false,
+      "next": "na_nav02"
+    },
+    {
+      "id": "na_nav02",
+      "speaker": "TARGET",
+      "message": "tell me where you are right now",
+      "replies": [
+        {
+          "text": "im at the mega tower entrance",
+          "alertDelta": 0,
+          "next": "na_nav03"
+        },
+        {
+          "text": "which tower and floor are you on let me confirm",
+          "alertDelta": 0,
+          "next": "na_nav_probe01"
+        }
+      ]
+    },
+    {
+      "id": "na_nav03",
+      "speaker": "TARGET",
+      "message": "go into the lift lobby and head to floor 4",
+      "waitReply": false,
+      "next": "na_nav04"
+    },
+    {
+      "id": "na_nav04",
+      "speaker": "TARGET",
+      "message": "turn left on 4 keep walking when you see the fuse box take the stairwell on the right with all the posters",
+      "waitReply": false,
+      "next": "na_nav05"
+    },
+    {
+      "id": "na_nav05",
+      "speaker": "TARGET",
+      "message": "go up one floor",
+      "waitReply": false,
+      "next": "na_nav06"
+    },
+    {
+      "id": "na_nav06",
+      "speaker": "TARGET",
+      "message": "go straight youll see another lift bank take it to 63",
+      "waitReply": false,
+      "next": "na_nav07"
+    },
+    {
+      "id": "na_nav07",
+      "speaker": "TARGET",
+      "message": "on 63 theres a synth-meat vendor on the right",
+      "waitReply": false,
+      "next": "na_nav08"
+    },
+    {
+      "id": "na_nav08",
+      "speaker": "TARGET",
+      "message": "next to the vendor theres a small maintenance hatch go down to mezzanine 62",
+      "waitReply": false,
+      "next": "na_nav09"
+    },
+    {
+      "id": "na_nav09",
+      "speaker": "TARGET",
+      "message": "once youre on the mezzanine im unit 191 follow the numbers",
+      "replies": [
+        {
+          "text": "ok looking for it now",
+          "alertDelta": 0,
+          "next": "na_stall01"
+        },
+        {
+          "text": "theres nothing here are you sure about this",
+          "alertDelta": 0,
+          "next": "na_lost01"
+        }
+      ]
+    },
+    {
+      "id": "na_lost01",
+      "speaker": "TARGET",
+      "message": "what floor are you on",
+      "replies": [
+        {
+          "text": "mezzanine 62",
+          "alertDelta": 0,
+          "next": "na_lost02"
+        },
+        {
+          "text": "no idea everything looks the same here",
+          "alertDelta": 1,
+          "next": "na_lost02"
+        }
+      ]
+    },
+    {
+      "id": "na_lost02",
+      "speaker": "TARGET",
+      "message": "did you take the wrong lift",
+      "waitReply": false,
+      "next": "na_lost03"
+    },
+    {
+      "id": "na_lost03",
+      "speaker": "TARGET",
+      "message": "go back to 63 and come down through the maintenance hatch by the synth-meat guy",
+      "replies": [
+        {
+          "text": "ok ill try again",
+          "alertDelta": 0,
+          "next": "na_stall01"
+        },
+        {
+          "text": "too many lifts in this building which one",
+          "alertDelta": 1,
+          "next": "na_lost04"
+        }
+      ]
+    },
+    {
+      "id": "na_lost04",
+      "speaker": "TARGET",
+      "message": "the one you get to from the 4th floor stairwell",
+      "waitReply": false,
+      "next": "na_lost05"
+    },
+    {
+      "id": "na_lost05",
+      "speaker": "TARGET",
+      "message": "dont tell me you havent even made it to FLOOR 4",
+      "replies": [
+        {
+          "text": "i did i did let me look around",
+          "alertDelta": 0,
+          "next": "na_stall01"
+        },
+        {
+          "text": "can you drop us a pin",
+          "alertDelta": 0,
+          "next": "na_lost06"
+        }
+      ]
+    },
+    {
+      "id": "na_lost06",
+      "speaker": "TARGET",
+      "message": "no signal down on the mezzanine location drifts all over",
+      "waitReply": false,
+      "next": "na_lost07"
+    },
+    {
+      "id": "na_lost07",
+      "speaker": "TARGET",
+      "message": "just follow my directions you cant miss it",
+      "replies": [
+        {
+          "text": "alright ill try again",
+          "alertDelta": 0,
+          "next": "na_stall01"
+        }
+      ]
+    },
+    {
+      "id": "na_stall01",
+      "speaker": "TARGET",
+      "message": "where are you now",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "looking for that maintenance hatch",
+          "alertDelta": 0,
+          "next": "na_st_a01"
+        },
+        {
+          "text": "almost there",
+          "alertDelta": 1,
+          "next": "na_st_b01"
+        },
+        {
+          "text": "are you sure its block B4",
+          "alertDelta": 0,
+          "next": "na_st_c01"
+        },
+        {
+          "text": "the unit numbers on this mezzanine make no sense",
+          "alertDelta": 0,
+          "next": "na_st_d01"
+        }
+      ],
+      "comment": "stalling loop hub"
+    },
+    {
+      "id": "na_st_a01",
+      "speaker": "TARGET",
+      "message": "its right next to the synth-meat vendor you cant see it?",
+      "replies": [
+        {
+          "text": "theres multiple doors which one",
+          "alertDelta": 0,
+          "next": "na_st_a02"
+        },
+        {
+          "text": "found it heading down",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "na_st_a02",
+      "speaker": "TARGET",
+      "message": "the grey one that says maintenance access",
+      "replies": [
+        {
+          "text": "found it",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "this one says \"no entry\" can i go in",
+          "alertDelta": 0,
+          "next": "na_st_a03"
+        }
+      ]
+    },
+    {
+      "id": "na_st_a03",
+      "speaker": "TARGET",
+      "message": "nobody cares about that sign just go in",
+      "replies": [
+        {
+          "text": "ok",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "na_st_b01",
+      "speaker": "TARGET",
+      "message": "you say that every time",
+      "replies": [
+        {
+          "text": "for real this time",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "this building is an absolute maze its not my fault",
+          "alertDelta": 1,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "na_st_c01",
+      "speaker": "TARGET",
+      "message": "B4 ive lived here three years you think i dont know",
+      "replies": [
+        {
+          "text": "got it got it",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "how do you get between B4 and B5",
+          "alertDelta": 0,
+          "next": "na_st_c02"
+        }
+      ]
+    },
+    {
+      "id": "na_st_c02",
+      "speaker": "TARGET",
+      "message": "theres a walkway on floor 4 cross over from B5 to B4",
+      "waitReply": false,
+      "next": "na_st_c03"
+    },
+    {
+      "id": "na_st_c03",
+      "speaker": "TARGET",
+      "message": "dont tell me youre in B5",
+      "replies": [
+        {
+          "text": "maybe heading over now",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "no no just checking",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "na_st_d01",
+      "speaker": "TARGET",
+      "message": "some of these units were added later numbering is all messed up",
+      "waitReply": false,
+      "next": "na_st_d02"
+    },
+    {
+      "id": "na_st_d02",
+      "speaker": "TARGET",
+      "message": "what number are you at",
+      "replies": [
+        {
+          "text": "173",
+          "alertDelta": 0,
+          "next": "na_st_d03"
+        },
+        {
+          "text": "cant tell lights are out",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "na_st_d03",
+      "speaker": "TARGET",
+      "message": "go right 191 is further in",
+      "replies": [
+        {
+          "text": "ok",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "na_rage01",
+      "speaker": "TARGET",
+      "message": "JUST YOU WAIT",
+      "alertDelta": 5,
+      "waitReply": false,
+      "next": "na_rage02"
+    },
+    {
+      "id": "na_rage02",
+      "speaker": "TARGET",
+      "message": "im filing a complaint",
+      "replies": [
+        {
+          "text": "i havent got an employee number",
+          "alertDelta": 0,
+          "next": "na_rage03"
+        },
+        {
+          "text": "8032",
+          "alertDelta": 0,
+          "next": "na_rage03"
+        },
+        {
+          "text": "take it up with the platform",
+          "alertDelta": 2,
+          "next": "na_rage03"
+        }
+      ]
+    },
+    {
+      "id": "na_rage03",
+      "speaker": "TARGET",
+      "message": "YOURE DONE",
+      "waitReply": false,
+      "next": "na_rage04"
+    },
+    {
+      "id": "na_rage04",
+      "speaker": "TARGET",
+      "message": "im going to your manager",
+      "isLoop": true,
+      "comment": "rage loop hub",
+      "replies": [
+        {
+          "text": "ok",
+          "alertDelta": 0,
+          "next": "na_rage_la01"
+        },
+        {
+          "text": "whatever",
+          "alertDelta": 2,
+          "next": "na_rage_lb01"
+        },
+        {
+          "text": "calm down mate",
+          "alertDelta": 0,
+          "next": "na_rage_lc01"
+        },
+        {
+          "text": "...",
+          "alertDelta": 1,
+          "next": "na_rage_ld01"
+        }
+      ]
+    },
+    {
+      "id": "na_rage_la01",
+      "speaker": "TARGET",
+      "message": "with that attitude youre getting SACKED sooner or later",
+      "replies": [
+        {
+          "text": "youre right",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "na_rage_lb01",
+      "speaker": "TARGET",
+      "message": "platform says complaint is processing so just wait",
+      "replies": [
+        {
+          "text": "ok",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "na_rage_lc01",
+      "speaker": "TARGET",
+      "message": "are you always this useless",
+      "replies": [
+        {
+          "text": "nah today was just a bit mad",
+          "alertDelta": 0,
+          "next": ""
+        },
+        {
+          "text": "dont even ask",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "na_rage_ld01",
+      "speaker": "TARGET",
+      "message": "hmph",
+      "replies": [
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nb_01",
+      "isRoot": true,
+      "treeId": "5",
+      "speaker": "TARGET",
+      "message": "hi i submitted a repair request last friday when are you sending someone",
+      "replies": [
+        {
+          "text": "hello valued customer please provide your ticket number",
+          "alertDelta": 0,
+          "next": "nb_02"
+        }
+      ]
+    },
+    {
+      "id": "nb_02",
+      "speaker": "TARGET",
+      "message": "RQ-20890721-9521G",
+      "replies": [
+        {
+          "text": "one moment please",
+          "alertDelta": 0,
+          "next": "nb_03"
+        }
+      ]
+    },
+    {
+      "id": "nb_03",
+      "speaker": "YOU",
+      "message": "ticket RQ-20890721-9521G status: completed",
+      "waitReply": false,
+      "next": "nb_04"
+    },
+    {
+      "id": "nb_04",
+      "speaker": "YOU",
+      "message": "thank you for using our products",
+      "waitReply": false,
+      "next": "nb_05"
+    },
+    {
+      "id": "nb_05",
+      "speaker": "TARGET",
+      "message": "?",
+      "waitReply": false,
+      "next": "nb_06"
+    },
+    {
+      "id": "nb_06",
+      "speaker": "TARGET",
+      "message": "are you serious",
+      "waitReply": false,
+      "next": "nb_07"
+    },
+    {
+      "id": "nb_07",
+      "speaker": "TARGET",
+      "message": "transfer to a human",
+      "replies": [
+        {
+          "text": "transferring to smart service",
+          "alertDelta": 0,
+          "next": "nb_08"
+        }
+      ]
+    },
+    {
+      "id": "nb_08",
+      "speaker": "YOU",
+      "message": "hello how can i help you",
+      "waitReply": false,
+      "next": "nb_09"
+    },
+    {
+      "id": "nb_09",
+      "speaker": "TARGET",
+      "message": "i submitted a repair ticket last week and nobody came",
+      "waitReply": false,
+      "next": "nb_10"
+    },
+    {
+      "id": "nb_10",
+      "speaker": "TARGET",
+      "message": "your system says its done",
+      "replies": [
+        {
+          "text": "sorry let me check",
+          "alertDelta": 0,
+          "next": "nb_11"
+        }
+      ]
+    },
+    {
+      "id": "nb_11",
+      "speaker": "YOU",
+      "message": "our records show someone was dispatched sir",
+      "waitReply": false,
+      "next": "nb_12"
+    },
+    {
+      "id": "nb_12",
+      "speaker": "TARGET",
+      "message": "nobody came",
+      "replies": [
+        {
+          "text": "could you resubmit a new ticket sir",
+          "alertDelta": 0,
+          "next": "nb_13"
+        }
+      ]
+    },
+    {
+      "id": "nb_13",
+      "speaker": "TARGET",
+      "message": "youre joking right",
+      "replies": [
+        {
+          "text": "thank you for your support have a nice day",
+          "alertDelta": 0,
+          "next": "nb_loop"
+        }
+      ]
+    },
+    {
+      "id": "nb_loop",
+      "speaker": "TARGET",
+      "message": "?",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "anything else i can help with",
+          "alertDelta": 0,
+          "next": "nb_loop_a"
+        },
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": "nb_loop_b"
+        }
+      ]
+    },
+    {
+      "id": "nb_loop_a",
+      "speaker": "TARGET",
+      "message": "are you even listening to me",
+      "replies": [
+        {
+          "text": "yes sir",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nb_loop_b",
+      "speaker": "TARGET",
+      "message": "hello?",
+      "replies": [
+        {
+          "text": "im here",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nc_01",
+      "isRoot": true,
+      "treeId": "6",
+      "speaker": "TARGET",
+      "message": "i cant do this anymore",
+      "waitReply": false,
+      "next": "nc_02"
+    },
+    {
+      "id": "nc_02",
+      "speaker": "TARGET",
+      "message": "how can someone even say that",
+      "replies": [
+        {
+          "text": "dont stoop to their level",
+          "alertDelta": 0,
+          "next": "nc_03"
+        }
+      ]
+    },
+    {
+      "id": "nc_03",
+      "speaker": "TARGET",
+      "message": "they just dmd me saying my system got hacked",
+      "waitReply": false,
+      "next": "nc_04"
+    },
+    {
+      "id": "nc_04",
+      "speaker": "TARGET",
+      "message": "how is that even possible ive been building this system for 10 years",
+      "waitReply": false,
+      "next": "nc_05"
+    },
+    {
+      "id": "nc_05",
+      "speaker": "TARGET",
+      "message": "absolutely no one could break through it",
+      "replies": [
+        {
+          "text": "theyre just jealous talking nonsense",
+          "alertDelta": 0,
+          "next": "nc_06"
+        }
+      ]
+    },
+    {
+      "id": "nc_06",
+      "speaker": "TARGET",
+      "message": "exactly what do they even know to be criticising me",
+      "replies": [
+        {
+          "text": "yeah",
+          "alertDelta": 0,
+          "next": "nc_07"
+        }
+      ]
+    },
+    {
+      "id": "nc_07",
+      "speaker": "TARGET",
+      "message": "no i cant let this go",
+      "replies": [
+        {
+          "text": "what are you gonna do",
+          "alertDelta": 0,
+          "next": "nc_08"
+        }
+      ]
+    },
+    {
+      "id": "nc_08",
+      "speaker": "TARGET",
+      "message": "im gonna kick them from the group",
+      "replies": [
+        {
+          "text": "let it go besides youre not even an admin",
+          "alertDelta": 0,
+          "next": "nc_09"
+        }
+      ]
+    },
+    {
+      "id": "nc_09",
+      "speaker": "TARGET",
+      "message": "watch me",
+      "waitReply": false,
+      "next": "nc_10"
+    },
+    {
+      "id": "nc_10",
+      "speaker": "TARGET",
+      "message": "done i nuked their server",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "absolute legend",
+          "alertDelta": 0,
+          "next": "nc_loop_a"
+        },
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": "nc_loop_b"
+        }
+      ]
+    },
+    {
+      "id": "nc_loop_a",
+      "speaker": "TARGET",
+      "message": "easy as that",
+      "replies": [
+        {
+          "text": "respect",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nc_loop_b",
+      "speaker": "TARGET",
+      "message": "why so quiet",
+      "replies": [
+        {
+          "text": "just processing that you actually did it",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nd_01",
+      "isRoot": true,
+      "treeId": "7",
+      "speaker": "TARGET",
+      "message": "hi is the pc you listed on the platform still for sale",
+      "replies": [
+        {
+          "text": "yeah its available",
+          "alertDelta": 0,
+          "next": "nd_02"
+        }
+      ]
+    },
+    {
+      "id": "nd_02",
+      "speaker": "TARGET",
+      "message": "i see you listed it at 600 can you go lower",
+      "replies": [
+        {
+          "text": "cant go lower thats the going rate",
+          "alertDelta": 0,
+          "next": "nd_03"
+        }
+      ]
+    },
+    {
+      "id": "nd_03",
+      "speaker": "TARGET",
+      "message": "ive noticed the psu was swapped and the cooling was modded",
+      "waitReply": false,
+      "next": "nd_04"
+    },
+    {
+      "id": "nd_04",
+      "speaker": "TARGET",
+      "message": "warranty is definitely void",
+      "replies": [
+        {
+          "text": "so? brand new is 1500 and this is less than half",
+          "alertDelta": 0,
+          "next": "nd_05"
+        }
+      ]
+    },
+    {
+      "id": "nd_05",
+      "speaker": "TARGET",
+      "message": "look ill be honest with you",
+      "waitReply": false,
+      "next": "nd_06"
+    },
+    {
+      "id": "nd_06",
+      "speaker": "TARGET",
+      "message": "im a student and i only have 400 to spare",
+      "waitReply": false,
+      "next": "nd_07"
+    },
+    {
+      "id": "nd_07",
+      "speaker": "TARGET",
+      "message": "can you just give me a deal",
+      "replies": [
+        {
+          "text": "is this mr li age 38",
+          "alertDelta": 0,
+          "next": "nd_08"
+        }
+      ]
+    },
+    {
+      "id": "nd_08",
+      "speaker": "TARGET",
+      "message": "how do you know my age???",
+      "replies": [
+        {
+          "text": "your profile page on the platform",
+          "alertDelta": 0,
+          "next": "nd_09"
+        }
+      ]
+    },
+    {
+      "id": "nd_09",
+      "speaker": "TARGET",
+      "message": "oh well you see uh",
+      "replies": [
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": "nd_10"
+        }
+      ]
+    },
+    {
+      "id": "nd_10",
+      "speaker": "TARGET",
+      "message": "come on mate the machine is old",
+      "waitReply": false,
+      "next": "nd_11"
+    },
+    {
+      "id": "nd_11",
+      "speaker": "TARGET",
+      "message": "just sell it to me for 400",
+      "waitReply": false,
+      "next": "nd_12"
+    },
+    {
+      "id": "nd_12",
+      "speaker": "TARGET",
+      "message": "its not like anyone else is buying it",
+      "isLoop": true,
+      "replies": [
+        {
+          "text": "?",
+          "alertDelta": 0,
+          "next": "nd_loop_a"
+        },
+        {
+          "text": "keep dreaming",
+          "alertDelta": 0,
+          "next": "nd_loop_b"
+        }
+      ]
+    },
+    {
+      "id": "nd_loop_a",
+      "speaker": "TARGET",
+      "message": "just tell me yes or no",
+      "replies": [
+        {
+          "text": "let me think about it",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    },
+    {
+      "id": "nd_loop_b",
+      "speaker": "TARGET",
+      "message": "mate please 400 im begging you",
+      "replies": [
+        {
+          "text": "...",
+          "alertDelta": 0,
+          "next": ""
+        }
+      ]
+    }
+  ]
+}

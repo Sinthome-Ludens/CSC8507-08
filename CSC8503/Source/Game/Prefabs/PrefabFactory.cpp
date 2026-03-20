@@ -43,6 +43,9 @@
 #include "Game/Components/C_D_HoloBaitState.h"
 #include "Game/Components/C_T_RoamAI.h"
 #include "Game/Components/C_D_RoamAI.h"
+#include "Game/Components/C_D_Spin.h"
+#include "Game/Components/C_T_OrbOfPlayer.h"
+#include "Game/Components/C_T_OrbOfEnemy.h"
 #include "Game/Components/C_T_KeyCard.h"
 #include "Game/Components/C_D_DoorLocked.h"
 #include "Game/Utils/Log.h"
@@ -56,6 +59,105 @@
 using json = nlohmann::json;
 using namespace NCL::Maths;
 using namespace ECS;
+
+static AlphaMode ToECSAlphaMode(ImportedAlphaMode mode) {
+    switch (mode) {
+        case ImportedAlphaMode::Mask:  return AlphaMode::Mask;
+        case ImportedAlphaMode::Blend: return AlphaMode::Blend;
+        case ImportedAlphaMode::Opaque:
+        default:                       return AlphaMode::Opaque;
+    }
+}
+
+static bool ApplyImportedMeshMaterialDefaults(Registry& reg, EntityID entity, MeshHandle meshHandle) {
+    ImportedMaterialDefaults defaults{};
+    if (!AssetManager::Instance().GetImportedMaterialDefaults(meshHandle, defaults)) {
+        return false;
+    }
+
+    C_D_Material material = reg.Has<C_D_Material>(entity)
+        ? reg.Get<C_D_Material>(entity)
+        : C_D_Material{};
+
+    material.shadingModel = ShadingModel::PBR;
+    material.baseColour   = defaults.baseColour;
+    material.albedoHandle = defaults.albedoHandle;
+    material.normalHandle = defaults.normalHandle;
+    material.ormHandle    = defaults.ormHandle;
+    material.emissiveHandle = defaults.emissiveHandle;
+    material.metallic     = defaults.metallic;
+    material.roughness    = defaults.roughness;
+    material.ao           = defaults.ao;
+    material.alphaCutoff  = defaults.alphaCutoff;
+    material.alphaMode    = ToECSAlphaMode(defaults.alphaMode);
+    material.doubleSided  = defaults.doubleSided;
+
+    if (reg.Has<C_D_Material>(entity)) {
+        reg.Get<C_D_Material>(entity) = material;
+    } else {
+        reg.Emplace<C_D_Material>(entity, material);
+    }
+    return true;
+}
+
+static MeshHandle ResolveItemVisualMesh(ItemID itemId, MeshHandle fallbackMesh) {
+    auto& am = AssetManager::Instance();
+    switch (itemId) {
+        case ItemID::HoloBait:
+            return am.LoadMesh(NCL::Assets::ASSETROOT + "GLTF/Orbs/HoloBait.gltf");
+        case ItemID::DDoS:
+            return am.LoadMesh(NCL::Assets::ASSETROOT + "GLTF/Orbs/DDOS.gltf");
+        case ItemID::RoamAI:
+            return am.LoadMesh(NCL::Assets::ASSETROOT + "GLTF/Orbs/RoomAI.gltf");
+        case ItemID::TargetStrike:
+            return am.LoadMesh(NCL::Assets::ASSETROOT + "GLTF/Orbs/Target.gltf");
+        case ItemID::RadarMap:
+            return am.LoadMesh(NCL::Assets::ASSETROOT + "GLTF/Orbs/Map.gltf#node=1&recenter=1");
+        default:
+            return fallbackMesh;
+    }
+}
+
+static bool HasDedicatedItemVisual(ItemID itemId) {
+    switch (itemId) {
+        case ItemID::HoloBait:
+        case ItemID::DDoS:
+        case ItemID::RoamAI:
+        case ItemID::TargetStrike:
+        case ItemID::RadarMap:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static Quaternion ResolveItemVisualRotation(ItemID itemId) {
+    switch (itemId) {
+        case ItemID::RadarMap:
+            return Quaternion(-0.4923391342f, -0.5047576427f, 0.5018329024f, 0.5009847283f);
+        default:
+            return Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+}
+
+static Vector3 ResolveItemVisualScale(ItemID itemId, bool isWeapon) {
+    switch (itemId) {
+        case ItemID::RadarMap:
+            return Vector3(0.45f, 0.45f, 0.45f);
+        default:
+            return isWeapon ? Vector3(0.5f, 0.5f, 0.5f)
+                            : Vector3(0.7f, 0.7f, 0.7f);
+    }
+}
+
+static float ResolveItemSpinSpeed(ItemID itemId) {
+    switch (itemId) {
+        case ItemID::RadarMap:
+            return 20.0f;
+        default:
+            return 0.0f;
+    }
+}
 
 /**
  * @brief 从 JSON 根对象提取 "Components" 子对象。
@@ -689,19 +791,22 @@ EntityID PrefabFactory::CreateItemPickup(
 {
     EntityID entity = reg.Create();
 
-    // Weapons use capsule mesh, gadgets use cube mesh
     bool isWeapon = (GetItemType(itemId) == ItemType::Weapon);
-    ECS::MeshHandle actualMesh = cubeMesh;
-    Vector3 pickupScale(0.7f, 0.7f, 0.7f);
-    if (isWeapon) {
-        actualMesh = ECS::AssetManager::Instance().LoadMesh(
-            NCL::Assets::MESHDIR + "Capsule.obj");
-        pickupScale = Vector3(0.5f, 0.5f, 0.5f);
+    ECS::MeshHandle actualMesh = INVALID_HANDLE;
+    if (HasDedicatedItemVisual(itemId)) {
+        actualMesh = ResolveItemVisualMesh(itemId, INVALID_HANDLE);
     }
+    if (actualMesh == INVALID_HANDLE) {
+        ECS::MeshHandle fallbackMesh = isWeapon
+            ? ECS::AssetManager::Instance().LoadMesh(NCL::Assets::MESHDIR + "Capsule.obj")
+            : cubeMesh;
+        actualMesh = ResolveItemVisualMesh(itemId, fallbackMesh);
+    }
+    Vector3 pickupScale = ResolveItemVisualScale(itemId, isWeapon);
 
     reg.Emplace<C_D_Transform>(entity,
         spawnPos,
-        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        ResolveItemVisualRotation(itemId),
         pickupScale
     );
 
@@ -710,29 +815,40 @@ EntityID PrefabFactory::CreateItemPickup(
         static_cast<uint32_t>(0)
     );
 
-    // Per-item color
-    C_D_Material mat{};
-    switch (itemId) {
-        case ItemID::HoloBait:     mat.baseColour = Vector4(0.95f, 0.85f, 0.1f, 1.0f);  break; // yellow
-        case ItemID::DDoS:         mat.baseColour = Vector4(0.7f, 0.2f, 0.9f, 1.0f);    break; // purple
-        case ItemID::RoamAI:       mat.baseColour = Vector4(0.2f, 0.85f, 0.2f, 1.0f);   break; // green
-        case ItemID::TargetStrike: mat.baseColour = Vector4(0.9f, 0.2f, 0.2f, 1.0f);    break; // red
-        case ItemID::RadarMap:     mat.baseColour = Vector4(0.2f, 0.6f, 0.95f, 1.0f);   break; // blue
-        default:                   mat.baseColour = Vector4(0.8f, 0.8f, 0.8f, 1.0f);    break; // gray
+    if (!ApplyImportedMeshMaterialDefaults(reg, entity, actualMesh)) {
+        C_D_Material mat{};
+        switch (itemId) {
+            case ItemID::HoloBait:     mat.baseColour = Vector4(0.95f, 0.85f, 0.1f, 1.0f);  break;
+            case ItemID::DDoS:         mat.baseColour = Vector4(0.7f, 0.2f, 0.9f, 1.0f);    break;
+            case ItemID::RoamAI:       mat.baseColour = Vector4(0.2f, 0.85f, 0.2f, 1.0f);   break;
+            case ItemID::TargetStrike: mat.baseColour = Vector4(0.9f, 0.2f, 0.2f, 1.0f);    break;
+            case ItemID::RadarMap:     mat.baseColour = Vector4(0.2f, 0.6f, 0.95f, 1.0f);   break;
+            default:                   mat.baseColour = Vector4(0.8f, 0.8f, 0.8f, 1.0f);    break;
+        }
+        mat.emissiveColor    = { mat.baseColour.x, mat.baseColour.y, mat.baseColour.z };
+        mat.emissiveStrength = 2.0f;
+        reg.Emplace<C_D_Material>(entity, mat);
     }
-    mat.emissiveColor    = { mat.baseColour.x, mat.baseColour.y, mat.baseColour.z };
-    mat.emissiveStrength = 2.0f;
-    reg.Emplace<C_D_Material>(entity, mat);
 
     auto& pickup = reg.Emplace<C_T_ItemPickup>(entity);
     pickup.itemId   = itemId;
     pickup.quantity = quantity;
+
+    float spinSpeed = ResolveItemSpinSpeed(itemId);
+    if (spinSpeed != 0.0f) {
+        C_D_Spin spin{};
+        spin.axis = Vector3(0.0f, 1.0f, 0.0f);
+        spin.speed = spinSpeed;
+        spin.enabled = true;
+        reg.Emplace<C_D_Spin>(entity, spin);
+    }
 
     auto& dn = reg.Emplace<C_D_DebugName>(entity);
     std::snprintf(dn.name, sizeof(dn.name), "ENTITY_ItemPickup_%02d", spawnIndex);
 
     LOG_INFO("[PrefabFactory] CreateItemPickup id=" << entity
              << " itemId=" << static_cast<int>(itemId)
+             << " meshHandle=" << actualMesh
              << " qty=" << (int)quantity
              << " pos=(" << spawnPos.x << "," << spawnPos.y << "," << spawnPos.z << ")");
 
@@ -749,7 +865,16 @@ EntityID PrefabFactory::CreateHoloBait(
     RuntimeOverrides ovr;
     ovr.position  = worldPos;
     ovr.targetPos = worldPos;  // C_D_HoloBaitState.worldPos uses targetPos
-    return Create(reg, "Prefab_HoloBait.json", ovr);
+    EntityID entity = Create(reg, "Prefab_HoloBait.json", ovr);
+
+    MeshHandle holoMesh = AssetManager::Instance().LoadMesh(
+        NCL::Assets::ASSETROOT + "GLTF/Orbs/HoloBait.gltf");
+    if (reg.Valid(entity) && reg.Has<C_D_MeshRenderer>(entity)) {
+        reg.Get<C_D_MeshRenderer>(entity).meshHandle = holoMesh;
+        ApplyImportedMeshMaterialDefaults(reg, entity, holoMesh);
+    }
+
+    return entity;
 }
 
 // ============================================================
@@ -762,7 +887,16 @@ EntityID PrefabFactory::CreateRoamAI(
     RuntimeOverrides ovr;
     ovr.position  = targetPos + Vector3(0.0f, 0.5f, 0.0f);
     ovr.targetPos = targetPos;
-    return Create(reg, "Prefab_RoamAI.json", ovr);
+    EntityID entity = Create(reg, "Prefab_RoamAI.json", ovr);
+
+    MeshHandle roamMesh = AssetManager::Instance().LoadMesh(
+        NCL::Assets::ASSETROOT + "GLTF/Orbs/RoomAI.gltf");
+    if (reg.Valid(entity) && reg.Has<C_D_MeshRenderer>(entity)) {
+        reg.Get<C_D_MeshRenderer>(entity).meshHandle = roamMesh;
+        ApplyImportedMeshMaterialDefaults(reg, entity, roamMesh);
+    }
+
+    return entity;
 }
 
 // ============================================================
@@ -798,18 +932,29 @@ EntityID PrefabFactory::CreateKeyCard(
 
     reg.Emplace<C_D_Transform>(entity,
         position,
-        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Quaternion::AxisAngleToQuaterion(Vector3(0.0f, 0.0f, 1.0f), 90.0f),
         defs.scale
     );
 
+    MeshHandle keyCardMesh = AssetManager::Instance().LoadMesh(
+        NCL::Assets::ASSETROOT + "GLTF/Orbs/KeyCard.gltf");
+
     reg.Emplace<C_D_MeshRenderer>(entity,
-        cubeMesh,
+        keyCardMesh != INVALID_HANDLE ? keyCardMesh : cubeMesh,
         static_cast<uint32_t>(0)
     );
 
-    C_D_Material mat{};
-    mat.baseColour = defs.baseColour;
-    reg.Emplace<C_D_Material>(entity, mat);
+    if (!ApplyImportedMeshMaterialDefaults(reg, entity, keyCardMesh)) {
+        C_D_Material mat{};
+        mat.baseColour = defs.baseColour;
+        reg.Emplace<C_D_Material>(entity, mat);
+    }
+
+    C_D_Spin spin{};
+    spin.axis = Vector3(0.0f, 1.0f, 0.0f);
+    spin.speed = 18.0f;
+    spin.enabled = true;
+    reg.Emplace<C_D_Spin>(entity, spin);
 
     reg.Emplace<C_T_KeyCard>(entity, C_T_KeyCard{ keyId });
 
@@ -885,4 +1030,82 @@ EntityID PrefabFactory::CreateLockedDoor(
              << ") half=(" << halfExtents.x << "," << halfExtents.y << "," << halfExtents.z << ")");
 
     return entity;
+}
+
+void PrefabFactory::CreatePlayerOrbs(
+    ECS::Registry&  reg,
+    ECS::EntityID   playerEntity,
+    ECS::MeshHandle innerMesh,
+    ECS::MeshHandle outerMesh)
+{
+    if (playerEntity == ECS::Entity::NULL_ENTITY || !reg.Valid(playerEntity)) {
+        return;
+    }
+
+    Vector3 spawnPos{0.0f, 0.0f, 0.0f};
+    if (reg.Has<C_D_Transform>(playerEntity)) {
+        spawnPos = reg.Get<C_D_Transform>(playerEntity).position;
+    }
+
+    if (reg.Has<C_D_MeshRenderer>(playerEntity)) {
+        reg.Get<C_D_MeshRenderer>(playerEntity).meshHandle = innerMesh;
+    }
+    ApplyImportedMeshMaterialDefaults(reg, playerEntity, innerMesh);
+
+    EntityID outer = reg.Create();
+    reg.Emplace<C_D_Transform>(outer,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+    reg.Emplace<C_D_MeshRenderer>(outer, outerMesh, static_cast<uint32_t>(0));
+    reg.Emplace<C_T_OrbOfPlayer>(outer);
+
+    C_D_Spin spinOut{};
+    spinOut.axis = Vector3(1.0f, 1.0f, 0.0f);
+    spinOut.speed = 67.5f;
+    spinOut.yOffset = 0.0f;
+    spinOut.enabled = true;
+    reg.Emplace<C_D_Spin>(outer, spinOut);
+
+    ApplyImportedMeshMaterialDefaults(reg, outer, outerMesh);
+}
+
+void PrefabFactory::CreateEnemyOrbs(
+    ECS::Registry&  reg,
+    ECS::EntityID   enemyEntity,
+    ECS::MeshHandle innerMesh,
+    ECS::MeshHandle outerMesh)
+{
+    if (enemyEntity == ECS::Entity::NULL_ENTITY || !reg.Valid(enemyEntity)) {
+        return;
+    }
+
+    Vector3 spawnPos{0.0f, 0.0f, 0.0f};
+    if (reg.Has<C_D_Transform>(enemyEntity)) {
+        spawnPos = reg.Get<C_D_Transform>(enemyEntity).position;
+    }
+
+    if (reg.Has<C_D_MeshRenderer>(enemyEntity)) {
+        reg.Get<C_D_MeshRenderer>(enemyEntity).meshHandle = outerMesh;
+    }
+    ApplyImportedMeshMaterialDefaults(reg, enemyEntity, outerMesh);
+
+    EntityID inner = reg.Create();
+    reg.Emplace<C_D_Transform>(inner,
+        spawnPos,
+        Quaternion(0.0f, 0.0f, 0.0f, 1.0f),
+        Vector3(1.0f, 1.0f, 1.0f)
+    );
+    reg.Emplace<C_D_MeshRenderer>(inner, innerMesh, static_cast<uint32_t>(0));
+    reg.Emplace<C_T_OrbOfEnemy>(inner, C_T_OrbOfEnemy{ enemyEntity });
+
+    C_D_Spin spinIn{};
+    spinIn.axis = Vector3(0.0f, 1.0f, 0.0f);
+    spinIn.speed = 67.5f;
+    spinIn.yOffset = 0.0f;
+    spinIn.enabled = true;
+    reg.Emplace<C_D_Spin>(inner, spinIn);
+
+    ApplyImportedMeshMaterialDefaults(reg, inner, innerMesh);
 }

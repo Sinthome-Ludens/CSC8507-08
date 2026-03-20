@@ -9,7 +9,7 @@
       "scale":    [1.0, 1.0, 1.0]
     },
     "C_D_MeshRenderer": {
-      "meshHandle": "Lab.obj",
+      "meshHandle": "Lab.gltf",
       "materialHandle": 0
     },
     "C_D_Material": { "shadingModel": "BlinnPhong" },
@@ -30,7 +30,11 @@
       "itemSpawns":    "Lab.itemspawns",
       "mapScale":      1.0,
       "yOffset":       -6.0,
-      "flipWinding":   true
+      "flipWinding":   true,
+
+      "renderMeshGltf":    "Lab.gltf",
+      "collisionMeshGltf": "Lab_collision.gltf",
+      "finishMeshGltf":    "Lab_finish.gltf"
     },
     "C_D_DebugName": { "name": "ENTITY_Env_StaticMap" }
   }

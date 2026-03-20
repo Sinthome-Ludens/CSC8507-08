@@ -36,6 +36,7 @@
 #include "Game/Systems/Sys_PlayerStance.h"
 #include "Game/Systems/Sys_StealthMetrics.h"
 #include "Game/Systems/Sys_Movement.h"
+#include "Game/Systems/Sys_Spin.h"
 #include "Game/Systems/Sys_PlayerCQC.h"
 #include "Game/Systems/Sys_PlayerCamera.h"
 #include "Game/Systems/Sys_EnemyAI.h"
@@ -126,6 +127,22 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     }
 
     auto mapResult = ECS::LoadMap(registry, mapConfig, cubeMesh);
+
+    // ── Orb 装饰球体：为玩家和敌人创建内外层 Orb ────────────────────
+    {
+        auto& am = ECS::AssetManager::Instance();
+        ECS::MeshHandle playerOrbInner = am.LoadMesh(NCL::Assets::ASSETROOT + "GLTF/Orbs/playerIn.gltf");
+        ECS::MeshHandle playerOrbOuter = am.LoadMesh(NCL::Assets::ASSETROOT + "GLTF/Orbs/player.gltf");
+        ECS::MeshHandle enemyOrbInner  = am.LoadMesh(NCL::Assets::ASSETROOT + "GLTF/Orbs/enemyIn.gltf");
+        ECS::MeshHandle enemyOrbOuter  = am.LoadMesh(NCL::Assets::ASSETROOT + "GLTF/Orbs/enemy.gltf");
+
+        PrefabFactory::CreatePlayerOrbs(registry, mapResult.playerEntity, playerOrbInner, playerOrbOuter);
+
+        for (ECS::EntityID enemyId : mapResult.enemies) {
+            PrefabFactory::CreateEnemyOrbs(registry, enemyId, enemyOrbInner, enemyOrbOuter);
+        }
+    }
+
     if (isMultiplayer && registry.has_ctx<ECS::Res_Network>()) {
         auto& resNet = registry.ctx<ECS::Res_Network>();
         if (resNet.multiplayerMode == ECS::MultiplayerMode::SameMapGhostRace) {
@@ -146,6 +163,7 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_StealthMetrics>  ( 62);
     systems.Register<ECS::Sys_PlayerCQC>       ( 63);
     systems.Register<ECS::Sys_Movement>        ( 65);
+    systems.Register<ECS::Sys_Spin>            ( 66);
     systems.Register<ECS::Sys_Physics>         (100);
     systems.Register<ECS::Sys_EnemyVision>     (110);
     systems.Register<ECS::Sys_EnemyAI>         (120);

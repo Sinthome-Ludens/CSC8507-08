@@ -127,6 +127,8 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
         LOG_INFO("[MapLoader] render mesh '" << config.renderMesh
                  << "' loaded OK, handle=" << renderMesh);
     }
+    LOG_INFO("[MapLoader] render final = " << (renderFromGltf ? config.renderMeshGltf : config.renderMesh)
+             << " (fallbackUsed=" << (renderFromGltf ? "false" : "true") << ")");
 
     // ── Step 2: Load collision geometry (GLTF preferred, OBJ fallback) ──
     std::string collPath;
@@ -174,6 +176,9 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
             collLoaded = AssetManager::Instance().LoadCollisionGeometry(collPath, collVerts, collIndices);
         }
     }
+    LOG_INFO("[MapLoader] collision final = " << collPath << " (fallbackUsed="
+             << ((config.collisionMeshGltf[0] != '\0' && collPath.find(config.collisionMeshGltf) != std::string::npos) ? "false" : "true")
+             << ")");
 
     // ── Step 3: Scale vertices + flip winding ──────────────────────────
     if (collLoaded && !collVerts.empty()) {
@@ -228,6 +233,9 @@ MapLoadResult LoadMap(Registry& reg, const MapLoadConfig& config, MeshHandle cub
             LOG_INFO("[MapLoader] finish mesh '" << config.finishMesh
                      << "' loaded OK, handle=" << finishMesh);
         }
+        LOG_INFO("[MapLoader] finish final = "
+                 << (finishFromGltf ? config.finishMeshGltf : config.finishMesh)
+                 << " (fallbackUsed=" << (finishFromGltf ? "false" : "true") << ")");
 
         // Load collision geometry for detect position (unified through AssetManager)
         std::vector<Vector3> finVerts;
