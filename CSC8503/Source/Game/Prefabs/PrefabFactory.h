@@ -676,6 +676,26 @@ public:
     );
 
     // ============================================================
+    // VFX 纯视觉实体
+    // ============================================================
+
+    /**
+     * @brief 创建 DDoS 囚笼视觉效果实体（PREFAB_VFX_DDOS_CAGE）
+     *
+     * 纯视觉，无 RigidBody / Collider。由 Sys_ItemEffects 管理生命周期。
+     *
+     * @param reg      ECS Registry
+     * @param mesh     囚笼 GLTF mesh handle
+     * @param worldPos 初始世界位置
+     * @return 囚笼实体 ID
+     */
+    static ECS::EntityID CreateDDoSCageVfx(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     mesh,
+        NCL::Maths::Vector3 worldPos
+    );
+
+    // ============================================================
     // Orb 装饰球体
     // ============================================================
 

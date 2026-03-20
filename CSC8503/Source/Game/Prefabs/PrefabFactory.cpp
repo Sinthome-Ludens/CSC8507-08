@@ -903,6 +903,20 @@ EntityID PrefabFactory::CreateRoamAI(
 }
 
 // ============================================================
+// CreateDDoSCageVfx — 纯视觉囚笼效果（无 RigidBody / Collider）
+// ============================================================
+EntityID PrefabFactory::CreateDDoSCageVfx(
+    Registry&   reg,
+    MeshHandle  mesh,
+    Vector3     worldPos)
+{
+    RuntimeOverrides ovr;
+    ovr.meshHandle = mesh;
+    ovr.position   = worldPos;
+    return Create(reg, "Prefab_VFX_DDoSCage.json", ovr);
+}
+
+// ============================================================
 // CreateOrbitTriangle — thin wrapper
 // ============================================================
 EntityID PrefabFactory::CreateOrbitTriangle(

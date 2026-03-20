@@ -44,6 +44,8 @@
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
 #include "Core/ECS/EntityID.h"
+#include "Core/Bridge/AssetManager.h"
+#include "Assets.h"
 
 #include <cmath>
 #include <cstring>
@@ -126,6 +128,10 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
             );
         }
     }
+
+    // 预加载 DDoS 囚笼 VFX mesh
+    m_DDoSCageMesh = AssetManager::Instance().LoadMesh(
+        NCL::Assets::ASSETROOT + "GLTF/Orbs/DDOSVFX.gltf");
 
     LOG_INFO("[Sys_ItemEffects] OnAwake complete.");
 }
@@ -229,11 +235,18 @@ void Sys_ItemEffects::EffectDDoS(Registry& registry, const Evt_Item_Use& evt) {
         return;
     }
 
-    // 已被冻结则刷新计时器，否则挂载组件
+    // 已被冻结则刷新计时器，否则挂载组件 + 创建囚笼 VFX
     if (registry.Has<C_D_DDoSFrozen>(target)) {
         registry.Get<C_D_DDoSFrozen>(target).frozenTimer = C_D_DDoSFrozen::kFrozenDuration;
     } else {
-        registry.Emplace<C_D_DDoSFrozen>(target);
+        auto& frozen = registry.Emplace<C_D_DDoSFrozen>(target);
+        // 创建囚笼 VFX（纯视觉，无碰撞）
+        if (registry.Has<C_D_Transform>(target)) {
+            NCL::Maths::Vector3 pos = registry.Get<C_D_Transform>(target).position;
+            pos.y -= 0.5f; // 脚下偏移
+            frozen.cageEntity = PrefabFactory::CreateDDoSCageVfx(registry, m_DDoSCageMesh, pos);
+            LOG_INFO("[Sys_ItemEffects] DDoS cage VFX created: " << frozen.cageEntity);
+        }
     }
 
     if (registry.Has<C_D_RoamAI>(target)) {
@@ -405,7 +418,19 @@ void Sys_ItemEffects::UpdateDDoSFrozen(Registry& registry, float dt) {
     registry.view<C_D_DDoSFrozen>().each(
         [&](EntityID eid, C_D_DDoSFrozen& frozen) {
             frozen.frozenTimer -= dt;
-            if (frozen.frozenTimer <= 0.0f) {
+
+            // 每帧同步囚笼 VFX 位置到 owner 脚下
+            if (Entity::IsValid(frozen.cageEntity) && registry.Valid(frozen.cageEntity)
+                && registry.Has<C_D_Transform>(eid) && registry.Has<C_D_Transform>(frozen.cageEntity)) {
+                auto& ownerTf = registry.Get<C_D_Transform>(eid);
+                auto& cageTf  = registry.Get<C_D_Transform>(frozen.cageEntity);
+                cageTf.position.x = ownerTf.position.x;
+                cageTf.position.y = ownerTf.position.y - 0.5f;
+                cageTf.position.z = ownerTf.position.z;
+            }
+
+            // 到期 或 owner 正在死亡 → 解冻 + 销毁 cage
+            if (frozen.frozenTimer <= 0.0f || registry.Has<C_D_Dying>(eid)) {
                 toUnfreeze.push_back(eid);
                 LOG_INFO("[Sys_ItemEffects] DDoS unfreeze entity " << eid);
             }
@@ -414,6 +439,11 @@ void Sys_ItemEffects::UpdateDDoSFrozen(Registry& registry, float dt) {
 
     for (EntityID e : toUnfreeze) {
         if (registry.Valid(e) && registry.Has<C_D_DDoSFrozen>(e)) {
+            // 销毁关联的囚笼 VFX
+            EntityID cage = registry.Get<C_D_DDoSFrozen>(e).cageEntity;
+            if (Entity::IsValid(cage) && registry.Valid(cage)) {
+                registry.Destroy(cage);
+            }
             registry.Remove<C_D_DDoSFrozen>(e);
         }
     }
