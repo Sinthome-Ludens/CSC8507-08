@@ -37,6 +37,10 @@
 #include "Game/Events/Evt_Death.h"
 #include "Game/Components/Res_ItemInventory2.h"
 #include "Game/Prefabs/PrefabFactory.h"
+#include "Game/Components/C_D_OrbitTriangle.h"
+#include "Game/Components/C_D_TriangleProjectile.h"
+#include "Game/Components/C_D_OrbitInventory.h"
+#include "Game/Components/Res_OrbitConfig.h"
 #include "Game/Utils/Log.h"
 #include "Core/ECS/EventBus.h"
 #include "Core/ECS/EntityID.h"
@@ -163,9 +167,8 @@ EntityID Sys_ItemEffects::FindNearestEnemy(Registry& registry, const Vector3& or
         [&](EntityID eid, C_T_Enemy&, C_D_Transform& tf) {
             if (registry.Has<C_D_Dying>(eid)) return; // 已死亡，跳过
             float dx = tf.position.x - origin.x;
-            float dy = tf.position.y - origin.y;
             float dz = tf.position.z - origin.z;
-            float d2 = dx*dx + dy*dy + dz*dz;
+            float d2 = dx*dx + dz*dz; // XZ 距离（2.5D 忽略 Y）
             if (d2 < minDist2) {
                 minDist2 = d2;
                 nearest  = eid;
@@ -278,9 +281,67 @@ void Sys_ItemEffects::EffectRoamAI(Registry& registry, const Evt_Item_Use& evt) 
 }
 
 // ============================================================
-// EffectTargetStrike — 将最近敌人 hp 归零（触发死亡判定）
+// EffectTargetStrike — 取环绕三角形发射弹射体；无三角形时 fallback 瞬杀
 // ============================================================
 void Sys_ItemEffects::EffectTargetStrike(Registry& registry, const Evt_Item_Use& evt) {
+    EntityID playerId = evt.userEntity;
+
+    // ── 尝试取环绕三角形发射 ──
+    if (registry.Has<C_D_OrbitInventory>(playerId)) {
+        auto& orbit = registry.Get<C_D_OrbitInventory>(playerId);
+        if (orbit.count > 0) {
+            // 取最后一个三角形
+            EntityID triEntity = orbit.triangles[orbit.count - 1];
+            orbit.triangles[orbit.count - 1] = Entity::NULL_ENTITY;
+            orbit.count--;
+
+            if (registry.Valid(triEntity) && registry.Has<C_D_OrbitTriangle>(triEntity)) {
+                // 移除 orbit 组件
+                registry.Remove<C_D_OrbitTriangle>(triEntity);
+
+                // 从三角形当前位置找最近敌人（不是玩家位置）
+                NCL::Maths::Vector3 triPos = registry.Get<C_D_Transform>(triEntity).position;
+                EntityID target = FindNearestEnemy(registry, triPos);
+
+                // 计算初始飞行方向
+                NCL::Maths::Vector3 launchDir(0, 0, 1);
+                if (Entity::IsValid(target) && registry.Valid(target) &&
+                    registry.Has<C_D_Transform>(target)) {
+                    auto& tgtTf = registry.Get<C_D_Transform>(target);
+                    launchDir = tgtTf.position - triPos;
+                    launchDir.y = 0.0f;
+                    float len = std::sqrt(launchDir.x*launchDir.x + launchDir.z*launchDir.z);
+                    if (len > 0.001f) {
+                        launchDir = launchDir * (1.0f / len);
+                    }
+                }
+
+                // 添加 projectile 组件（保持 kinematic，纯代码驱动）
+                auto& proj = registry.Emplace<C_D_TriangleProjectile>(triEntity);
+                proj.ownerPlayer  = playerId;
+                proj.targetEnemy  = target;
+                proj.launchDir    = launchDir;
+
+                if (registry.has_ctx<Res_OrbitConfig>()) {
+                    auto& cfg = registry.ctx<Res_OrbitConfig>();
+                    proj.speed         = cfg.projectileSpeed;
+                    proj.turnRate      = cfg.projectileTurnRate;
+                    proj.remainingLife = cfg.projectileLife;
+                }
+
+                LOG_INFO("[Sys_ItemEffects] TargetStrike launched triangle " << triEntity
+                         << " toward enemy " << target);
+
+#ifdef USE_IMGUI
+                ECS::UI::PushActionNotify(registry, "TARGET STRIKE", "LAUNCHED",
+                                          0, ActionNotifyType::Weapon);
+#endif
+                return;
+            }
+        }
+    }
+
+    // ── Fallback：无环绕三角形，瞬杀最近敌人 ──
     EntityID target = evt.targetEntity;
     if (!Entity::IsValid(target) || !registry.Valid(target)) {
         target = FindNearestEnemy(registry, evt.targetPos);
@@ -291,7 +352,6 @@ void Sys_ItemEffects::EffectTargetStrike(Registry& registry, const Evt_Item_Use&
         return;
     }
 
-    // 已在死亡流程中 — 跳过，防止误导通知和浪费道具
     if (registry.Has<C_D_Dying>(target)) {
         LOG_INFO("[Sys_ItemEffects] TargetStrike: target " << target << " already dying, skipped.");
         return;
@@ -301,13 +361,12 @@ void Sys_ItemEffects::EffectTargetStrike(Registry& registry, const Evt_Item_Use&
         auto& hp = registry.Get<C_D_Health>(target);
         hp.hp        = 0.0f;
         hp.deathCause = DeathType::EnemyHpZero;
-        LOG_INFO("[Sys_ItemEffects] TargetStrike killed entity " << target << " via health component.");
+        LOG_INFO("[Sys_ItemEffects] TargetStrike killed entity " << target << " via health (fallback).");
 #ifdef USE_IMGUI
         ECS::UI::PushActionNotify(registry, "TARGET STRIKE", "GUARD",
                                   0, ActionNotifyType::Weapon);
 #endif
     } else if (registry.Has<C_T_Enemy>(target)) {
-        // 无 C_D_Health 的极端情况 — 走标准死亡流程
         if (!registry.Has<C_D_Dying>(target)) {
             registry.Emplace<C_D_Dying>(target);
             registry.Emplace<C_D_DeathVisual>(target);
@@ -325,7 +384,7 @@ void Sys_ItemEffects::EffectTargetStrike(Registry& registry, const Evt_Item_Use&
             }
         }
         LOG_INFO("[Sys_ItemEffects] TargetStrike killed enemy entity "
-                 << target << " (no health, direct death).");
+                 << target << " (no health, fallback direct death).");
 #ifdef USE_IMGUI
         ECS::UI::PushActionNotify(registry, "TARGET STRIKE", "GUARD",
                                   0, ActionNotifyType::Weapon);

@@ -612,6 +612,26 @@ public:
         NCL::Maths::Vector3 targetPos
     );
 
+    /**
+     * @brief 创建环绕三角形实体（PREFAB_ORBIT_TRIANGLE）
+     *
+     * 挂载：C_D_Transform, C_D_MeshRenderer, C_D_Material, C_D_RigidBody(kinematic),
+     *       C_D_Collider(Sphere,trigger), C_D_DebugName
+     * 注意：C_D_OrbitTriangle 由调用方后置 Emplace。
+     *
+     * @param reg        ECS Registry
+     * @param mesh       三角形网格句柄
+     * @param spawnIndex 生成序号
+     * @param worldPos   生成位置
+     * @return 三角形实体 ID
+     */
+    static ECS::EntityID CreateOrbitTriangle(
+        ECS::Registry&      reg,
+        ECS::MeshHandle     mesh,
+        int                 spawnIndex,
+        NCL::Maths::Vector3 worldPos
+    );
+
     // ============================================================
     // 钥匙卡 & 锁门
     // ============================================================

@@ -767,6 +767,22 @@ EntityID PrefabFactory::CreateRoamAI(
 }
 
 // ============================================================
+// CreateOrbitTriangle — thin wrapper
+// ============================================================
+EntityID PrefabFactory::CreateOrbitTriangle(
+    Registry&   reg,
+    MeshHandle  mesh,
+    int         spawnIndex,
+    Vector3     worldPos)
+{
+    RuntimeOverrides ovr;
+    ovr.meshHandle = mesh;
+    ovr.spawnIndex = spawnIndex;
+    ovr.position   = worldPos;
+    return Create(reg, "Prefab_OrbitTriangle.json", ovr);
+}
+
+// ============================================================
 // CreateKeyCard  →  PREFAB_KEY_CARD
 // ============================================================
 /**

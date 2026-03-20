@@ -999,3 +999,35 @@ void ECS::Sys_Physics::ActivateBody(EntityID entity) {
     if (!TryGetBodyID(entity, bodyID)) return;
     m_PhysicsSystem->GetBodyInterface().ActivateBody(bodyID);
 }
+
+// ============================================================
+// SetDynamic — kinematic → dynamic（同步 Jolt + ECS）
+// ============================================================
+void ECS::Sys_Physics::SetDynamic(EntityID entity, Registry& reg) {
+    if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
+
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+    bi.SetMotionType(bodyID, JPH::EMotionType::Dynamic, JPH::EActivation::Activate);
+
+    if (reg.Has<C_D_RigidBody>(entity)) {
+        reg.Get<C_D_RigidBody>(entity).is_kinematic = false;
+    }
+}
+
+// ============================================================
+// SetKinematic — dynamic → kinematic（同步 Jolt + ECS）
+// ============================================================
+void ECS::Sys_Physics::SetKinematic(EntityID entity, Registry& reg) {
+    if (!m_PhysicsSystem) return;
+    JPH::BodyID bodyID;
+    if (!TryGetBodyID(entity, bodyID)) return;
+
+    auto& bi = m_PhysicsSystem->GetBodyInterface();
+    bi.SetMotionType(bodyID, JPH::EMotionType::Kinematic, JPH::EActivation::Activate);
+
+    if (reg.Has<C_D_RigidBody>(entity)) {
+        reg.Get<C_D_RigidBody>(entity).is_kinematic = true;
+    }
+}

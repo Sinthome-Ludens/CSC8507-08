@@ -44,6 +44,7 @@
 #include "Game/Systems/Sys_Render.h"
 #include "Game/Systems/Sys_Item.h"
 #include "Game/Systems/Sys_ItemEffects.h"
+#include "Game/Systems/Sys_OrbitTriangle.h"
 #include "Game/Systems/Sys_Door.h"
 #include "Game/Systems/Sys_LevelGoal.h"
 #include "Game/Systems/Sys_Audio.h"
@@ -138,6 +139,7 @@ void Scene_TutorialLevel::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_StealthMetrics>  ( 62);
     systems.Register<ECS::Sys_PlayerCQC>       ( 63);
     systems.Register<ECS::Sys_Movement>        ( 65);
+    systems.Register<ECS::Sys_OrbitTriangle>   ( 67);
     systems.Register<ECS::Sys_Physics>         (100);
     systems.Register<ECS::Sys_EnemyVision>     (110);
     systems.Register<ECS::Sys_EnemyAI>         (120);
