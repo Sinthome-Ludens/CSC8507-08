@@ -306,6 +306,8 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     // 正常开始游戏：生成新的 5 抽 3 序列，退出 debug 模式
                     ui.debugCurrentScene = -1;
                     ui.totalPlayTime = 0.0f;
+                    ui.campaignContinue = false;
+                    ui.campaignAlertLevel = 0.0f;
                     ResetCampaignScore(ui);
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
@@ -343,6 +345,8 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         } else {
                             ClearNetworkMode(reg);
                             ui.totalPlayTime = 0.0f;
+                            ui.campaignContinue = false;
+                            ui.campaignAlertLevel = 0.0f;
                             ResetCampaignScore(ui);
                             GenerateMapSequence(ui);
                         }
@@ -360,6 +364,12 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     } else {
                         PreserveNetworkSession(reg);
                     }
+                    // 保存跨关卡战役状态
+                    if (reg.has_ctx<ECS::Res_GameState>()) {
+                        ui.campaignAlertLevel = reg.ctx<ECS::Res_GameState>().alertLevel;
+                    }
+                    ui.campaignContinue = true;
+
                     // 序列内前进到下一张地图（积分不重置，仅清除单次惩罚标记）
                     ui.countdownScorePenaltyApplied = false;
                     ui.failureScorePenaltyApplied   = false;

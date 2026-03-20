@@ -174,6 +174,10 @@ struct Res_UIState {
     // ── Multiplayer HUD ──────────────────────────────────────
     float    matchBannerTimer    = 0.0f;          ///< "MATCH START" 横幅倒计时（秒）
 
+    // ── Campaign cross-map persistence ─────────────────────────
+    float   campaignAlertLevel   = 0.0f;   ///< 跨关卡警戒度（NextLevel 时保存）
+    bool    campaignContinue     = false;   ///< true = NextLevel 中继，下一关恢复战役状态
+
     // ── Campaign score (跨场景持久化) ──────────────────────────
     int32_t campaignScore                 = 1000;  ///< 战役积分（初始1000, 纯扣减制）
     float   scoreDecayAccum               = 0.0f;  ///< 时间衰减子秒累加器

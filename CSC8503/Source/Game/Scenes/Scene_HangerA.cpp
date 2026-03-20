@@ -257,6 +257,11 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
     } else {
         gs.matchPhase = ECS::MatchPhase::Finished;
     }
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_UIState>() && registry.ctx<ECS::Res_UIState>().campaignContinue) {
+        gs.alertLevel = registry.ctx<ECS::Res_UIState>().campaignAlertLevel;
+    }
+#endif
 
     // ── 6. Awake all systems ────────────────────────────────────────────
     systems.AwakeAll(registry);
@@ -298,6 +303,11 @@ void Scene_HangerA::OnEnter(ECS::Registry&          registry,
             registry.ctx<ECS::Res_ItemInventory2>().OnRoundStart();
         }
     }
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_UIState>()) {
+        registry.ctx<ECS::Res_UIState>().campaignContinue = false;
+    }
+#endif
 
     ECS::SyncEquipmentToGameState(registry);
 
