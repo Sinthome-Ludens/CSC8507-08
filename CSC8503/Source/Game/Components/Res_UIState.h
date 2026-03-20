@@ -175,9 +175,17 @@ struct Res_UIState {
     float    matchBannerTimer    = 0.0f;          ///< "MATCH START" 横幅倒计时（秒）
 
     // ── Campaign cross-map persistence ─────────────────────────
-    float   campaignAlertLevel   = 0.0f;   ///< 跨关卡警戒度（NextLevel 时保存）
-    bool    campaignContinue     = false;   ///< true = NextLevel 中继，下一关恢复战役状态
-    uint8_t campaignCarried[5]   = {};     ///< 跨关卡道具/武器携带数量（NextLevel 时保存）
+    /// 跨关卡警戒度。Main.cpp NextLevel 从 gs.alertLevel 保存，
+    /// Scene::OnEnter 恢复后 campaignContinue 置 false。
+    float   campaignAlertLevel   = 0.0f;
+
+    /// 跨关卡中继标志。NextLevel 置 true → Scene::OnEnter 恢复 alertLevel
+    /// 和 carriedCount 后立即置 false。true 时场景跳过 OnRoundStart()。
+    bool    campaignContinue     = false;
+
+    /// 跨关卡携带数量快照（元素顺序对应 ItemID 枚举）。
+    /// 大小须 >= Res_ItemInventory2::kItemCount（Main.cpp static_assert 保证）。
+    uint8_t campaignCarried[5]   = {};
 
     // ── Campaign score (跨场景持久化) ──────────────────────────
     int32_t campaignScore                 = 1000;  ///< 战役积分（初始1000, 纯扣减制）

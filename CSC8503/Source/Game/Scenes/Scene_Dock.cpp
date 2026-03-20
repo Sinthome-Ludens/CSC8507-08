@@ -292,9 +292,11 @@ void Scene_Dock::OnEnter(ECS::Registry&          registry,
             auto& inv = registry.ctx<ECS::Res_ItemInventory2>();
 #ifdef USE_IMGUI
             if (registry.has_ctx<ECS::Res_UIState>() && registry.ctx<ECS::Res_UIState>().campaignContinue) {
-                const auto& carried = registry.ctx<ECS::Res_UIState>().campaignCarried;
-                for (int i = 0; i < inv.kItemCount; ++i)
-                    inv.slots[i].carriedCount = carried[i];
+                const auto& ui_ref = registry.ctx<ECS::Res_UIState>();
+                const int limit = std::min(inv.kItemCount,
+                                           static_cast<int>(std::size(ui_ref.campaignCarried)));
+                for (int i = 0; i < limit; ++i)
+                    inv.slots[i].carriedCount = ui_ref.campaignCarried[i];
             } else
 #endif
             {

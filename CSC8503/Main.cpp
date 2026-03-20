@@ -84,6 +84,10 @@ using namespace CSC8503;
 
 #define ENABLE_TUTORIAL_GAME 0  // 1 = 启用遗留 TutorialGame（用于向后兼容测试）
 
+static_assert(std::size(ECS::Res_UIState{}.campaignCarried)
+              >= ECS::Res_ItemInventory2::kItemCount,
+              "campaignCarried array must cover all ItemIDs");
+
 void TestPathfinding() {}
 void DisplayPathfinding() {}
 
@@ -307,9 +311,11 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     // 正常开始游戏：生成新的 5 抽 3 序列，退出 debug 模式
                     ui.debugCurrentScene = -1;
                     ui.totalPlayTime = 0.0f;
+#ifdef USE_IMGUI
                     ui.campaignContinue = false;
                     ui.campaignAlertLevel = 0.0f;
                     std::memset(ui.campaignCarried, 0, sizeof(ui.campaignCarried));
+#endif
                     ResetCampaignScore(ui);
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
@@ -347,9 +353,11 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         } else {
                             ClearNetworkMode(reg);
                             ui.totalPlayTime = 0.0f;
+#ifdef USE_IMGUI
                             ui.campaignContinue = false;
                             ui.campaignAlertLevel = 0.0f;
                             std::memset(ui.campaignCarried, 0, sizeof(ui.campaignCarried));
+#endif
                             ResetCampaignScore(ui);
                             GenerateMapSequence(ui);
                         }
@@ -368,15 +376,19 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                         PreserveNetworkSession(reg);
                     }
                     // 保存跨关卡战役状态
+#ifdef USE_IMGUI
                     if (reg.has_ctx<ECS::Res_GameState>()) {
                         ui.campaignAlertLevel = reg.ctx<ECS::Res_GameState>().alertLevel;
                     }
                     if (reg.has_ctx<ECS::Res_ItemInventory2>()) {
                         const auto& inv = reg.ctx<ECS::Res_ItemInventory2>();
-                        for (int i = 0; i < inv.kItemCount; ++i)
+                        const int limit = std::min(inv.kItemCount,
+                                                   static_cast<int>(std::size(ui.campaignCarried)));
+                        for (int i = 0; i < limit; ++i)
                             ui.campaignCarried[i] = inv.slots[i].carriedCount;
                     }
                     ui.campaignContinue = true;
+#endif
 
                     // 序列内前进到下一张地图（积分不重置，仅清除单次惩罚标记）
                     ui.countdownScorePenaltyApplied = false;
