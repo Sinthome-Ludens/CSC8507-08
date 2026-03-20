@@ -425,7 +425,14 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
                      << " → alertLevel=" << gs.alertLevel);
         }
 
-        // Graph jump: read nextNodeId from current node
+        // Graph jump: pendingAutoNextId 优先（auto-advance 节点的"..."回复），
+        //            否则读 nextNodeId[confirmedReply]
+        if (chat.pendingAutoNextId[0] != '\0') {
+            strncpy(chat.currentNodeId, chat.pendingAutoNextId,
+                    sizeof(chat.currentNodeId) - 1);
+            chat.currentNodeId[sizeof(chat.currentNodeId) - 1] = '\0';
+            chat.pendingAutoNextId[0] = '\0';
+        } else {
         const DialogueSequence* seq = GetSequence(dialogueData, chat.chatMode);
         if (seq) {
             const DialogueNode* curNode = FindNodeByID(*seq, chat.currentNodeId);
@@ -443,8 +450,10 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
                 chat.treeFinished = true;
             }
         }
+        } // else (non-pendingAutoNextId path)
 
         ChatState_ClearReplies(chat);
+        chat.pendingAutoNextId[0] = '\0'; // 确保不残留
         chat.nextMessageTimer = 2.0f;
         chat.waitingForReply  = false;
     }
@@ -463,21 +472,19 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
                 gs.alertLevel = std::min(gs.alertMax, gs.alertLevel + 15.0f);
             }
 
-            // isLoop nodes: stay on the same node instead of ending the tree
-            const DialogueSequence* seq = GetSequence(dialogueData, chat.chatMode);
-            const DialogueNode* curNode = seq ? FindNodeByID(*seq, chat.currentNodeId) : nullptr;
-            if (curNode && curNode->isLoop) {
-                // keep currentNodeId unchanged — will re-display after delay
-            } else {
-                // Timeout ended the tree — mark finished immediately
-                chat.currentNodeId[0] = '\0';
-                chat.treeFinished = true;
+            // 超时不结束对话：如果有 pendingAutoNextId 就推进，否则重发当前节点
+            if (chat.pendingAutoNextId[0] != '\0') {
+                // auto-advance 节点超时：推进到下一节点
+                strncpy(chat.currentNodeId, chat.pendingAutoNextId,
+                        sizeof(chat.currentNodeId) - 1);
+                chat.currentNodeId[sizeof(chat.currentNodeId) - 1] = '\0';
+                chat.pendingAutoNextId[0] = '\0';
             }
+            // else: currentNodeId 不变 → 下一轮 NPC scheduling 会重新发送当前节点消息
 
             ChatState_ClearReplies(chat);
             chat.nextMessageTimer = 2.0f;
-            LOG_INFO("[Sys_Chat] Reply timeout — alert +15"
-                     << (curNode && curNode->isLoop ? " (isLoop: re-showing)" : ""));
+            LOG_INFO("[Sys_Chat] Reply timeout — alert +15, re-prompting");
         }
     }
 
@@ -533,15 +540,25 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
 
                     chat.waitingForReply = true;
                 } else {
-                    // ── Auto-advance node: no player input, jump after delay ──
+                    // ── 原 auto-advance 节点：改为生成默认"..."回复，玩家必须确认 ──
+                    ChatState_AddReply(chat, "...", 0.0f);
+                    chat.selectedReply = 0;
+                    GenerateDirSequences(chat, HashNodeId(chat.currentNodeId));
+
+                    constexpr float kAutoReplyTime = 15.0f;
+                    chat.replyTimerActive = true;
+                    chat.replyTimer       = kAutoReplyTime;
+                    chat.replyTimerMax    = kAutoReplyTime;
+                    chat.waitingForReply  = true;
+
+                    // 预存跳转目标到 pendingAutoNextId，回复确认时优先使用
                     if (node->autoNextId[0] != '\0') {
-                        strncpy(chat.currentNodeId, node->autoNextId,
-                                sizeof(chat.currentNodeId) - 1);
-                        chat.currentNodeId[sizeof(chat.currentNodeId) - 1] = '\0';
+                        strncpy(chat.pendingAutoNextId, node->autoNextId,
+                                sizeof(chat.pendingAutoNextId) - 1);
+                        chat.pendingAutoNextId[sizeof(chat.pendingAutoNextId) - 1] = '\0';
                     } else {
-                        chat.currentNodeId[0] = '\0';
+                        chat.pendingAutoNextId[0] = '\0';
                     }
-                    chat.nextMessageTimer = seq->messageDelay;
                 }
             } else {
                 LOG_WARN("[Sys_Chat] Node '" << chat.currentNodeId << "' not found, restarting");
