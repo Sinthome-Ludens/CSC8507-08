@@ -40,6 +40,7 @@ namespace ECS {
 
 static constexpr float kPI = 3.14159265358979323846f;
 
+/** @brief 初始化 Res_OrbitConfig 资源并加载 OrbitTriangle mesh，设置首帧延迟重建标记。 */
 // ============================================================
 // OnAwake
 // ============================================================
@@ -62,6 +63,7 @@ void Sys_OrbitTriangle::OnAwake(Registry& registry) {
     LOG_INFO("[Sys_OrbitTriangle] OnAwake complete.");
 }
 
+/** @brief 重置延迟初始化标记和累计时间，确保下次 Awake 后重新同步三角形。 */
 // ============================================================
 // OnDestroy
 // ============================================================
@@ -70,6 +72,7 @@ void Sys_OrbitTriangle::OnDestroy(Registry& /*registry*/) {
     m_GlobalTime = 0.0f;
 }
 
+/** @brief 每固定帧驱动环绕弹簧阻尼、弹射制导命中及无效引用清理。 */
 // ============================================================
 // OnFixedUpdate — Physics(100) 同步 Transform 后执行，读到最新玩家位置
 // ============================================================
@@ -213,7 +216,9 @@ void Sys_OrbitTriangle::OnFixedUpdate(Registry& registry, float dt) {
                                 hp.deathCause = DeathType::EnemyHpZero;
                             }
                             registry.Emplace<C_D_Dying>(target);
-                            registry.Emplace<C_D_DeathVisual>(target);
+                            if (!registry.Has<C_D_DeathVisual>(target)) {
+                                registry.Emplace<C_D_DeathVisual>(target);
+                            }
                             if (registry.has_ctx<EventBus*>()) {
                                 auto* bus = registry.ctx<EventBus*>();
                                 if (bus) {

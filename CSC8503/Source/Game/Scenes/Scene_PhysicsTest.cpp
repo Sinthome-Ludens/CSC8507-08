@@ -192,8 +192,8 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_StealthMetrics>  (P::StealthMetrics);
     systems.Register<ECS::Sys_PlayerCQC>       (P::PlayerCQC);
     systems.Register<ECS::Sys_Movement>        (P::Movement);
-    systems.Register<ECS::Sys_OrbitTriangle>   (P::OrbitTriangle);
     systems.Register<ECS::Sys_Physics>         (P::Physics);
+    systems.Register<ECS::Sys_OrbitTriangle>   (P::OrbitTriangle);
     systems.Register<ECS::Sys_EnemyVision>     (P::EnemyVision);
     systems.Register<ECS::Sys_EnemyAI>         (P::EnemyAI);
     systems.Register<ECS::Sys_DeathJudgment>   (P::DeathJudgment);
@@ -207,13 +207,13 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_ImGui>             (P::ImGui);
     systems.Register<ECS::Sys_ImGuiEntityDebug>  (P::ImGuiEntityDebug);
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (P::ImGuiEnemyAI);
-    systems.Register<ECS::Sys_ImGuiPhysicsTest>  (P::ImGuiRenderDebug);  // PhysicsTest 专用面板
-    systems.Register<ECS::Sys_ImGuiRenderDebug>  (P::ImGuiRenderDebug + 125);  // 渲染调试面板
+    systems.Register<ECS::Sys_ImGuiPhysicsTest>  (P::ImGuiPhysicsTest);  // PhysicsTest 专用面板
+    systems.Register<ECS::Sys_ImGuiRenderDebug>  (P::ImGuiRenderDebug);  // 渲染调试面板
     systems.Register<ECS::Sys_Chat>              (P::Chat);
     systems.Register<ECS::Sys_UI>                (P::UI);
 #endif
     systems.Register<ECS::Sys_Audio>              (P::Audio);
-    systems.Register<ECS::Sys_Raycast>           (P::ImGuiRenderDebug + 10);   // Raycast 测试
+    systems.Register<ECS::Sys_Raycast>           (P::Raycast);   // Raycast 测试
     systems.Register<ECS::Sys_Countdown>          (P::Countdown);
 
     // ── 5. 初始化游戏状态资源 ──────────────────────────────────────────────

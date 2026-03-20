@@ -28,6 +28,10 @@ void EnsureOrbitTriangleCount(Registry& reg, EntityID playerId) {
     auto& config = reg.ctx<Res_OrbitConfig>();
 
     MeshHandle mesh = config.meshHandle;
+    if (mesh == 0) {
+        LOG_WARN("[OrbitTriangleHelper] meshHandle is 0, skipping triangle creation");
+        return;
+    }
     int targetCount = static_cast<int>(inv.Get(ItemID::TargetStrike).carriedCount);
 
     if (!reg.Has<C_D_OrbitInventory>(playerId))
@@ -61,10 +65,11 @@ void EnsureOrbitTriangleCount(Registry& reg, EntityID playerId) {
     float radius   = config.orbitRadius;
     float height   = config.orbitHeight;
 
+    int spawnCount = std::min(targetCount, C_D_OrbitInventory::kMaxTriangles);
     while (orbit.count < targetCount &&
            orbit.count < C_D_OrbitInventory::kMaxTriangles) {
         int slot = orbit.count;
-        int divisor = std::max(1, targetCount);
+        int divisor = std::max(1, spawnCount);
         float angle = slot * (2.0f * kPI / divisor);
         NCL::Maths::Vector3 offset(
             std::cos(angle) * radius,

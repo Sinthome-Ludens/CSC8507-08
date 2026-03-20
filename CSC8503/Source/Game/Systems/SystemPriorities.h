@@ -67,7 +67,9 @@ constexpr int ImGui           = 300;
 constexpr int ImGuiEntityDebug = ImGui + 5;
 constexpr int ImGuiEnemyAI    = ImGui + 10;
 constexpr int ImGuiNavTest    = ImGui + 15;
-constexpr int ImGuiRenderDebug = ImGui + 20;
+constexpr int ImGuiPhysicsTest = ImGui + 20;
+constexpr int ImGuiRenderDebug = ImGuiPhysicsTest + 5;
+constexpr int Raycast          = ImGuiRenderDebug + 5;
 
 // ── 倒计时 ──
 constexpr int Countdown       = 350;

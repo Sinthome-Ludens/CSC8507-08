@@ -1000,6 +1000,7 @@ void ECS::Sys_Physics::ActivateBody(EntityID entity) {
     m_PhysicsSystem->GetBodyInterface().ActivateBody(bodyID);
 }
 
+/** @brief 将实体从 kinematic 切换为 dynamic 运动类型（同步 Jolt BodyInterface 与 ECS C_D_RigidBody）。 */
 // ============================================================
 // SetDynamic — kinematic → dynamic（同步 Jolt + ECS）
 // ============================================================
@@ -1016,6 +1017,7 @@ void ECS::Sys_Physics::SetDynamic(EntityID entity, Registry& reg) {
     }
 }
 
+/** @brief 将实体从 dynamic 切换为 kinematic 运动类型（同步 Jolt BodyInterface 与 ECS C_D_RigidBody）。 */
 // ============================================================
 // SetKinematic — dynamic → kinematic（同步 Jolt + ECS）
 // ============================================================

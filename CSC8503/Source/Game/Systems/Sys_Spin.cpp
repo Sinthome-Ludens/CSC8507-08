@@ -19,6 +19,7 @@ using namespace NCL::Maths;
 
 namespace ECS {
 
+/** @brief 根据 C_D_Spin 的轴和速度计算单帧增量四元数（轴归一化，零轴回退到 Y 轴）。 */
 static Quaternion MakeSpinDelta(const C_D_Spin& spin, float dt) {
     Vector3 axis = spin.axis;
     if (Vector::LengthSquared(axis) <= 0.000001f) {
@@ -30,6 +31,7 @@ static Quaternion MakeSpinDelta(const C_D_Spin& spin, float dt) {
     return Quaternion::AxisAngleToQuaterion(axis, spin.speed * dt);
 }
 
+/** @brief 每帧驱动通用自旋、玩家 Orb 跟随旋转、敌人 Orb 跟随旋转及失效 Orb 清理。 */
 void Sys_Spin::OnUpdate(Registry& registry, float dt) {
     PAUSE_GUARD(registry);
 

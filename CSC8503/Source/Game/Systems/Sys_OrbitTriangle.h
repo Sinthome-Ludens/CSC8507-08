@@ -13,8 +13,11 @@ namespace ECS {
 
 class Sys_OrbitTriangle : public ISystem {
 public:
+    /** @brief 初始化 Res_OrbitConfig 并加载三角形 mesh。 */
     void OnAwake(Registry& registry) override;
+    /** @brief 弹簧阻尼环绕 + 弹射制导 + 命中击杀，Physics 同步后执行。 */
     void OnFixedUpdate(Registry& registry, float fixedDt) override;
+    /** @brief 重置内部状态（延迟初始化标记与累计时间）。 */
     void OnDestroy(Registry& registry) override;
 
 private:

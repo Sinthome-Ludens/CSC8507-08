@@ -192,9 +192,6 @@ void Sys_Item::OnPickup(Registry& registry, const Evt_Item_Pickup& evt) {
             LOG_INFO("[Sys_Item] Player " << evt.pickerEntity
                      << " picked up item " << static_cast<int>(evt.itemId)
                      << " -> carried=" << (int)slot.carriedCount);
-            if (evt.itemId == ItemID::TargetStrike) {
-                EnsureOrbitTriangleCount(registry, evt.pickerEntity);
-            }
             if (registry.Valid(evt.pickupEntity)) {
                 registry.Destroy(evt.pickupEntity);
             }
