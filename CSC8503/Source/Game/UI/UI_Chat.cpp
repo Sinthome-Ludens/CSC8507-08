@@ -6,6 +6,7 @@
 #ifdef USE_IMGUI
 
 #include <imgui.h>
+#include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <algorithm>
@@ -113,9 +114,12 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
 
     // ── Messages area ─────────────────────────────────────
     ImFont* bodyFont = GetFont_Body();
+    if (!bodyFont)  bodyFont  = ImGui::GetFont();
+    if (!smallFont) smallFont = ImGui::GetFont();
     if (bodyFont) ImGui::PushFont(bodyFont);
 
     float msgStartY = contentY + Layout::Chat::kMsgTopPad;
+    const float wrapW = panelW - Layout::Chat::kMsgPadX * 2.0f;
 
     // Reply area layout
     float replyAreaH = Layout::Chat::kHintLineH;
@@ -129,13 +133,35 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
 
     float msgEndY = panelY + panelH - replyAreaH;
 
-    // Calculate how many messages fit
-    int maxVisible = (int)((msgEndY - msgStartY) / Layout::Chat::kMsgLineH);
-    int startMsg = std::max(0, chat.messageCount - maxVisible);
+    // Pre-compute per-message height (sender line + wrapped text)
+    const float bodyFontSz  = bodyFont->LegacySize;
+    const float smallFontSz = smallFont->LegacySize;
+    float msgHeights[Res_ChatState::kMaxMessages] = {};
+    for (int i = 0; i < chat.messageCount; ++i) {
+        float h = Layout::Chat::kSenderLineH + Layout::Chat::kSenderMsgGap;
+        ImVec2 textSz = bodyFont->CalcTextSizeA(
+            bodyFontSz, FLT_MAX, wrapW,
+            chat.messages[i].text);
+        h += std::max(textSz.y, Layout::Chat::kMsgMinTextH);
+        h += Layout::Chat::kMsgBottomPad;
+        msgHeights[i] = h;
+    }
 
+    // Bottom-anchored scroll: find first visible message
+    float availH = msgEndY - msgStartY;
+    float accum = 0.0f;
+    int startMsg = chat.messageCount;
+    for (int i = chat.messageCount - 1; i >= 0; --i) {
+        if (accum + msgHeights[i] > availH) break;
+        accum += msgHeights[i];
+        startMsg = i;
+    }
+
+    // Render messages with clip rect
+    draw->PushClipRect(ImVec2(panelX, msgStartY), ImVec2(panelX + panelW, msgEndY), true);
     float msgY = msgStartY;
-    for (int i = startMsg; i < chat.messageCount && i < Res_ChatState::kMaxMessages; ++i) {
-        if (msgY > msgEndY) break;
+    for (int i = startMsg; i < chat.messageCount; ++i) {
+        if (msgY >= msgEndY) break;
 
         const auto& msg = chat.messages[i];
 
@@ -153,20 +179,21 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
                 break;
         }
 
-        // Sender tag
+        // Sender tag (small font, independent line)
         char senderBuf[40];
         snprintf(senderBuf, sizeof(senderBuf), "[%s]", msg.sender);
-        draw->AddText(ImVec2(panelX + Layout::Chat::kMsgPadX, msgY), senderColor, senderBuf);
+        draw->AddText(smallFont, smallFontSz,
+            ImVec2(panelX + Layout::Chat::kMsgPadX, msgY), senderColor, senderBuf);
+        msgY += Layout::Chat::kSenderLineH + Layout::Chat::kSenderMsgGap;
 
-        // Message text
-        ImVec2 senderSize = ImGui::CalcTextSize(senderBuf);
-        float textX = panelX + Layout::Chat::kMsgPadX + senderSize.x + Layout::Chat::kSenderGap;
-
-        // Simple word-wrap: just truncate if too long for now
-        draw->AddText(ImVec2(textX, msgY),
-            Col32_Text(220), msg.text);
-        msgY += Layout::Chat::kMsgLineH;
+        // Message body (wrapped text, full panel width)
+        draw->AddText(bodyFont, bodyFontSz,
+            ImVec2(panelX + Layout::Chat::kMsgPadX, msgY),
+            Col32_Text(220), msg.text, nullptr, wrapW);
+        ImVec2 sz = bodyFont->CalcTextSizeA(bodyFontSz, FLT_MAX, wrapW, msg.text);
+        msgY += std::max(sz.y, Layout::Chat::kMsgMinTextH) + Layout::Chat::kMsgBottomPad;
     }
+    draw->PopClipRect();
 
     if (bodyFont) ImGui::PopFont();
 

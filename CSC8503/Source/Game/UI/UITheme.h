@@ -151,7 +151,10 @@ namespace Layout {
         constexpr float kTimerBarGap    = 2.0f;
         constexpr float kMsgTopPad      = 6.0f;
         constexpr float kMsgPadX        = 10.0f;
-        constexpr float kSenderGap      = 6.0f;
+        constexpr float kSenderLineH   = 18.0f;   ///< sender tag 行高
+        constexpr float kSenderMsgGap  = 2.0f;    ///< sender 与 message 间距
+        constexpr float kMsgBottomPad  = 6.0f;    ///< 消息之间间距
+        constexpr float kMsgMinTextH   = 16.0f;   ///< 文本最小高度（单行兜底）
         constexpr float kReplyPad       = 8.0f;
         constexpr float kCountdownH     = 36.0f;
         constexpr float kInputBoxH      = 28.0f;
@@ -169,7 +172,6 @@ namespace Layout {
         constexpr float kSepInset       = 8.0f;
         constexpr float kHighlightInset = 6.0f;
         constexpr float kHighlightH     = 40.0f;
-        constexpr float kMsgLineH       = 22.0f;
     }
 }
 
