@@ -40,7 +40,7 @@ void ItemSlots(ImDrawList* draw, const Res_GameState& gs, float gameW, float dis
 /// Full-screen degradation overlay (noise dots + scan lines).
 void Degradation(ImDrawList* draw, const Res_GameState& gs, float displayW, float displayH, float globalTime);
 
-/// Left-side minimap overlay (when GlobalMap item is active).
+/// Left-side minimap overlay (when RadarMap item is active).
 void Minimap(ImDrawList* draw, Registry& registry, float displayH);
 
 /// Multiplayer match banner (waiting / start).

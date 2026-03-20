@@ -1,6 +1,6 @@
 /**
  * @file UI_ItemWheel.cpp
- * @brief 道具轮盘渲染实现（TAB 长按弹出，4 扇区选择，实时库存数据）。
+ * @brief 道具轮盘渲染实现（TAB 长按弹出，4 扇区：左=道具 右=武器）。
  */
 #include "UI_ItemWheel.h"
 #ifdef USE_IMGUI
@@ -39,20 +39,20 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     const bool hasInv = registry.has_ctx<Res_ItemInventory2>();
     auto* inv = hasInv ? &registry.ctx<Res_ItemInventory2>() : nullptr;
 
-    // Sector 0,1 = item slots; Sector 2,3 = weapon slots
+    // Sector 0,1 = weapon slots (右半); Sector 2,3 = item slots (左半)
     for (int s = 0; s < 2; ++s) {
-        auto& slot = gs.itemSlots[s];
+        auto& slot = gs.weaponSlots[s];
         sectors[s].name     = (slot.name[0] != '\0') ? slot.name : "---";
         sectors[s].count    = (inv && slot.name[0] != '\0' && slot.itemId < Res_ItemInventory2::kItemCount)
                               ? inv->slots[slot.itemId].carriedCount : slot.count;
-        sectors[s].isActive = (gs.activeItemSlot == s && slot.name[0] != '\0');
+        sectors[s].isActive = (gs.activeWeaponSlot == s && slot.name[0] != '\0');
     }
     for (int s = 0; s < 2; ++s) {
-        auto& slot = gs.weaponSlots[s];
+        auto& slot = gs.itemSlots[s];
         sectors[2 + s].name     = (slot.name[0] != '\0') ? slot.name : "---";
         sectors[2 + s].count    = (inv && slot.name[0] != '\0' && slot.itemId < Res_ItemInventory2::kItemCount)
                                   ? inv->slots[slot.itemId].carriedCount : slot.count;
-        sectors[2 + s].isActive = (gs.activeWeaponSlot == s && slot.name[0] != '\0');
+        sectors[2 + s].isActive = (gs.activeItemSlot == s && slot.name[0] != '\0');
     }
 
     ImDrawList* draw = ImGui::GetForegroundDrawList();
@@ -174,11 +174,13 @@ void RenderItemWheel(Registry& registry, float /*dt*/) {
     draw->AddCircle(ImVec2(cx, cy), innerR,
         Col32_Gray(100), 32, 1.0f);
 
-    // Category labels
+    // Category labels: left = GADGETS, right = WEAPONS
     if (smallFont) ImGui::PushFont(smallFont);
-    draw->AddText(ImVec2(cx - 20.0f, cy - outerR - 18.0f),
-        Col32_Accent(160), "GADGETS");
-    draw->AddText(ImVec2(cx - 28.0f, cy + outerR + 6.0f),
+    const char* gadgetLabel = "GADGETS";
+    ImVec2 gSize = ImGui::CalcTextSize(gadgetLabel);
+    draw->AddText(ImVec2(cx - outerR - gSize.x - 8.0f, cy - gSize.y * 0.5f),
+        Col32_Accent(160), gadgetLabel);
+    draw->AddText(ImVec2(cx + outerR + 8.0f, cy - gSize.y * 0.5f),
         Col32_Accent(160), "WEAPONS");
     if (smallFont) ImGui::PopFont();
 }

@@ -1,6 +1,6 @@
 /**
  * @file UI_HUD_Minimap.cpp
- * @brief HUD sub-module: left-side minimap overlay (GlobalMap item active).
+ * @brief HUD sub-module: left-side minimap overlay (RadarMap item active).
  */
 #include "UI_HUD_Internal.h"
 #ifdef USE_IMGUI
@@ -125,7 +125,7 @@ void Minimap(ImDrawList* draw, Registry& registry, float /*displayH*/) {
     // "MAP" title + countdown
     if (smallFont) ImGui::PushFont(smallFont);
     draw->AddText(ImVec2(kMapX + 4.0f, kMapY + 2.0f),
-                  Col32_Accent(200), "MAP");
+                  Col32_Accent(200), "RADAR");
 
     if (minimap.activeTimer > 0.0f) {
         char timerBuf[8];

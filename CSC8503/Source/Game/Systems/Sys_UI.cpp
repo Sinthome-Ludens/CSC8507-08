@@ -338,10 +338,10 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             if (ui.itemWheelSelected >= 0 && registry.has_ctx<Res_GameState>()) {
                 auto& gs = registry.ctx<Res_GameState>();
                 switch (ui.itemWheelSelected) {
-                    case 0: gs.activeItemSlot   = 0; break;
-                    case 1: gs.activeItemSlot   = 1; break;
-                    case 2: gs.activeWeaponSlot = 0; break;
-                    case 3: gs.activeWeaponSlot = 1; break;
+                    case 0: gs.activeWeaponSlot = 0; break;
+                    case 1: gs.activeWeaponSlot = 1; break;
+                    case 2: gs.activeItemSlot   = 0; break;
+                    case 3: gs.activeItemSlot   = 1; break;
                     default: break;
                 }
                 LOG_INFO("[Sys_UI] ItemWheel confirmed: sector " << (int)ui.itemWheelSelected);

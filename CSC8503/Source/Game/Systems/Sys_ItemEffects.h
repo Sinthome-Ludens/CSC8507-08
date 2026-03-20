@@ -8,10 +8,10 @@
  * | 道具 ID      | 效果                                                              |
  * |-------------|-------------------------------------------------------------------|
  * | HoloBait    | 在目标位置创建诱饵实体（C_D_HoloBaitState），吸引附近安全状态敌人   |
- * | PhotonRadar | 激活/更新 Res_RadarState，每 3 秒刷新敌人位置                     |
  * | DDoS        | 对目标最近的敌人挂载 C_D_DDoSFrozen（5 秒冻结）                   |
  * | RoamAI      | 创建流窜 AI 实体（C_T_RoamAI + C_D_RoamAI），在地图随机巡逻       |
  * | TargetStrike| 将目标最近敌人的 hp 设为 0，触发 Sys_DeathJudgment 死亡判定       |
+ * | RadarMap    | 激活小地图显示 + 联动 Res_RadarState 显示敌人位置                 |
  *
  * Sys_ItemEffects 同时在 OnUpdate 中每帧推进：
  *  - HoloBait 诱饵计时器（到期销毁诱饵实体）
@@ -77,13 +77,6 @@ private:
     void EffectHoloBait(Registry& registry, const struct Evt_Item_Use& evt);
 
     /**
-     * @brief 处理光子雷达（PhotonRadar）使用效果：激活雷达并立即执行一次扫描。
-     * @param registry ECS 注册表。
-     * @param evt      道具使用事件。
-     */
-    void EffectPhotonRadar(Registry& registry, const struct Evt_Item_Use& evt);
-
-    /**
      * @brief 处理 DDoS 使用效果：对使用者附近最近的敌人施加冻结状态。
      * @param registry ECS 注册表。
      * @param evt      道具使用事件。
@@ -105,11 +98,11 @@ private:
     void EffectTargetStrike(Registry& registry, const struct Evt_Item_Use& evt);
 
     /**
-     * @brief 处理全局地图（GlobalMap）使用效果：激活小地图显示 + 雷达联动。
+     * @brief 处理雷达地图（RadarMap）使用效果：激活小地图显示 + 雷达联动。
      * @param registry ECS 注册表。
      * @param evt      道具使用事件。
      */
-    void EffectGlobalMap(Registry& registry, const struct Evt_Item_Use& evt);
+    void EffectRadarMap(Registry& registry, const struct Evt_Item_Use& evt);
 
     // ── 每帧持续效果更新 ──
 
@@ -135,7 +128,7 @@ private:
     void UpdateRoamAI(Registry& registry, float dt);
 
     /**
-     * @brief 每帧更新光子雷达（刷新计时器到期时重新扫描敌人位置）。
+     * @brief 每帧更新雷达扫描（刷新计时器到期时重新扫描敌人位置）。
      * @param registry ECS 注册表。
      * @param dt       帧时间（秒）。
      */
