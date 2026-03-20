@@ -177,6 +177,7 @@ struct Res_UIState {
     // ── Campaign cross-map persistence ─────────────────────────
     float   campaignAlertLevel   = 0.0f;   ///< 跨关卡警戒度（NextLevel 时保存）
     bool    campaignContinue     = false;   ///< true = NextLevel 中继，下一关恢复战役状态
+    uint8_t campaignCarried[5]   = {};     ///< 跨关卡道具/武器携带数量（NextLevel 时保存）
 
     // ── Campaign score (跨场景持久化) ──────────────────────────
     int32_t campaignScore                 = 1000;  ///< 战役积分（初始1000, 纯扣减制）

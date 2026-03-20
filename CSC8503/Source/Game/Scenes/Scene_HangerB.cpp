@@ -289,7 +289,17 @@ void Scene_HangerB::OnEnter(ECS::Registry&          registry,
     if (!isMultiplayer && ECS::HasSaveFile()) {
         ECS::LoadGame(registry, false);
         if (registry.has_ctx<ECS::Res_ItemInventory2>()) {
-            registry.ctx<ECS::Res_ItemInventory2>().OnRoundStart();
+            auto& inv = registry.ctx<ECS::Res_ItemInventory2>();
+#ifdef USE_IMGUI
+            if (registry.has_ctx<ECS::Res_UIState>() && registry.ctx<ECS::Res_UIState>().campaignContinue) {
+                const auto& carried = registry.ctx<ECS::Res_UIState>().campaignCarried;
+                for (int i = 0; i < inv.kItemCount; ++i)
+                    inv.slots[i].carriedCount = carried[i];
+            } else
+#endif
+            {
+                inv.OnRoundStart();
+            }
         }
     }
 #ifdef USE_IMGUI

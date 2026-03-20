@@ -55,6 +55,7 @@
 #include "Game/Components/Res_Network.h"
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_UIFlags.h"
+#include "Game/Components/Res_ItemInventory2.h"
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/Scenes/SceneManager.h"
 #include "Core/Bridge/AssetManager.h"
@@ -308,6 +309,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     ui.totalPlayTime = 0.0f;
                     ui.campaignContinue = false;
                     ui.campaignAlertLevel = 0.0f;
+                    std::memset(ui.campaignCarried, 0, sizeof(ui.campaignCarried));
                     ResetCampaignScore(ui);
                     GenerateMapSequence(ui);
                     sceneManager.RequestSceneChange(
@@ -347,6 +349,7 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                             ui.totalPlayTime = 0.0f;
                             ui.campaignContinue = false;
                             ui.campaignAlertLevel = 0.0f;
+                            std::memset(ui.campaignCarried, 0, sizeof(ui.campaignCarried));
                             ResetCampaignScore(ui);
                             GenerateMapSequence(ui);
                         }
@@ -367,6 +370,11 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
                     // 保存跨关卡战役状态
                     if (reg.has_ctx<ECS::Res_GameState>()) {
                         ui.campaignAlertLevel = reg.ctx<ECS::Res_GameState>().alertLevel;
+                    }
+                    if (reg.has_ctx<ECS::Res_ItemInventory2>()) {
+                        const auto& inv = reg.ctx<ECS::Res_ItemInventory2>();
+                        for (int i = 0; i < inv.kItemCount; ++i)
+                            ui.campaignCarried[i] = inv.slots[i].carriedCount;
                     }
                     ui.campaignContinue = true;
 
