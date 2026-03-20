@@ -28,13 +28,16 @@ namespace ECS {
 
 /// @brief 单种道具的完整库存记录
 struct ItemSlot {
+    static constexpr uint8_t kGadgetMaxCarry = 99; ///< Gadget 局内最大携带上限（含拾取）
+    static constexpr uint8_t kWeaponMaxCarry = 2;  ///< Weapon 局内最大携带上限（初始选择提供）
+
     ItemID  itemId      = ItemID::HoloBait; ///< 道具唯一标识
     ItemType itemType   = ItemType::Gadget; ///< 道具类型
     char    name[24]    = {};               ///< 道具显示名称（UTF-8，如中文最多7字）
     char    desc[80]    = {};               ///< 道具描述文本（UTF-8）
 
     uint8_t carriedCount = 0;  ///< 本局携带数量
-    uint8_t maxCarry     = 2;  ///< 最大携带上限
+    uint8_t maxCarry     = kWeaponMaxCarry;  ///< 最大携带上限（Gadget 构造时覆盖为 kGadgetMaxCarry）
 
     uint8_t storeCount   = 0;  ///< 仓库持久存量（跨局）
     uint8_t maxStore     = 99; ///< 仓库最大存量
@@ -95,7 +98,7 @@ struct Res_ItemInventory2 {
         // 001 HoloBait (全息诱饵弹) — Gadget, 始终可用
         slots[0].itemId      = ItemID::HoloBait;
         slots[0].itemType    = ItemType::Gadget;
-        slots[0].maxCarry    = 2;
+        slots[0].maxCarry    = ItemSlot::kGadgetMaxCarry;
         slots[0].maxStore    = 99;
         slots[0].mapPickupMax = 99;
         slots[0].unlocked    = true;
@@ -107,7 +110,7 @@ struct Res_ItemInventory2 {
         // 002 DDoS — Gadget, 始终可用
         slots[1].itemId      = ItemID::DDoS;
         slots[1].itemType    = ItemType::Gadget;
-        slots[1].maxCarry    = 2;
+        slots[1].maxCarry    = ItemSlot::kGadgetMaxCarry;
         slots[1].maxStore    = 99;
         slots[1].mapPickupMax = 99;
         slots[1].unlocked    = true;
@@ -119,7 +122,7 @@ struct Res_ItemInventory2 {
         // 003 RoamAI (流窜 AI) — Weapon, 默认锁定
         slots[2].itemId      = ItemID::RoamAI;
         slots[2].itemType    = ItemType::Weapon;
-        slots[2].maxCarry    = 2;
+        slots[2].maxCarry    = ItemSlot::kWeaponMaxCarry;
         slots[2].maxStore    = 0;
         slots[2].storeCount  = 0;
         slots[2].mapPickupMax = 99;
@@ -131,7 +134,7 @@ struct Res_ItemInventory2 {
         // 004 TargetStrike (靶向打击) — Weapon, 默认锁定
         slots[3].itemId      = ItemID::TargetStrike;
         slots[3].itemType    = ItemType::Weapon;
-        slots[3].maxCarry    = 2;
+        slots[3].maxCarry    = ItemSlot::kWeaponMaxCarry;
         slots[3].maxStore    = 0;
         slots[3].storeCount  = 0;
         slots[3].mapPickupMax = 99;
@@ -143,7 +146,7 @@ struct Res_ItemInventory2 {
         // 005 RadarMap (雷达地图) — Gadget, 始终可用
         slots[4].itemId      = ItemID::RadarMap;
         slots[4].itemType    = ItemType::Gadget;
-        slots[4].maxCarry    = 1;
+        slots[4].maxCarry    = ItemSlot::kGadgetMaxCarry;
         slots[4].maxStore    = 99;
         slots[4].mapPickupMax = 99;
         slots[4].unlocked    = true;

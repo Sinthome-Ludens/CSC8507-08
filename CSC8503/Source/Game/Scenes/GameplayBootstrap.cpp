@@ -312,6 +312,10 @@ void BootstrapPostAwake(Registry& registry, const GameplaySceneConfig& config) {
         } else {
             gs.matchPhase = MatchPhase::Finished;
         }
+        // Campaign persistence: 恢复跨地图警戒度
+        if (registry.has_ctx<Res_UIState>() && registry.ctx<Res_UIState>().campaignContinue) {
+            gs.alertLevel = registry.ctx<Res_UIState>().campaignAlertLevel;
+        }
     }
 #else
     if (!registry.has_ctx<Res_GameState>())
@@ -348,13 +352,32 @@ void BootstrapPostAwake(Registry& registry, const GameplaySceneConfig& config) {
     UI::PushToast(registry, "MISSION START", ToastType::Success, 2.5f);
 #endif
 
-    // ── SaveManager ──
+    // ── SaveManager + Campaign persistence ──
     if (!config.isMultiplayer && HasSaveFile()) {
         LoadGame(registry, false);
         if (registry.has_ctx<Res_ItemInventory2>()) {
-            registry.ctx<Res_ItemInventory2>().OnRoundStart();
+            auto& inv = registry.ctx<Res_ItemInventory2>();
+#ifdef USE_IMGUI
+            // Campaign continuation: 恢复跨地图道具携带量
+            if (registry.has_ctx<Res_UIState>() && registry.ctx<Res_UIState>().campaignContinue) {
+                const auto& uiRef = registry.ctx<Res_UIState>();
+                const int limit = std::min(inv.kItemCount,
+                                           static_cast<int>(std::size(uiRef.campaignCarried)));
+                for (int i = 0; i < limit; ++i)
+                    inv.slots[i].carriedCount = uiRef.campaignCarried[i];
+            } else
+#endif
+            {
+                inv.OnRoundStart();
+            }
         }
     }
+#ifdef USE_IMGUI
+    // 恢复完毕后清除 campaignContinue 标志
+    if (registry.has_ctx<Res_UIState>()) {
+        registry.ctx<Res_UIState>().campaignContinue = false;
+    }
+#endif
 
     // ── Equipment sync ──
     SyncEquipmentToGameState(registry);
