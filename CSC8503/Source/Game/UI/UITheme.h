@@ -92,6 +92,13 @@ inline ImU32 Col32_Yellow(uint8_t a = 220)      { return IM_COL32(220,200,0,a); 
 /// @brief Status red (#DC3C28) as ImU32 with adjustable alpha.
 inline ImU32 Col32_Red(uint8_t a = 220)         { return IM_COL32(220,60,40,a); }
 
+/// @brief 比率→绿/黄/红颜色（计时条/倒计时共用）。
+inline ImU32 Col32_RatioColor(float ratio, uint8_t a = 220) {
+    if      (ratio > 0.5f)  return Col32_Green(a);
+    else if (ratio > 0.25f) return Col32_Yellow(a);
+    else                    return Col32_Red(a);
+}
+
 // ============================================================
 // Math constants
 // ============================================================
@@ -132,6 +139,38 @@ namespace Layout {
     constexpr float kBorderWidth    = 1.0f;
     constexpr float kSelectedBorderW = 2.0f;
     constexpr float kHUDPanelAlpha  = 180;
+
+    namespace Chat {
+        constexpr float kHeaderH        = 36.0f;
+        constexpr float kHeaderPadX     = 12.0f;
+        constexpr float kHeaderTextY    = 8.0f;
+        constexpr float kModeTagPadX    = 6.0f;
+        constexpr float kModeTagPadY    = 2.0f;
+        constexpr float kModeTagY       = 10.0f;
+        constexpr float kTimerBarH      = 4.0f;
+        constexpr float kTimerBarGap    = 2.0f;
+        constexpr float kMsgTopPad      = 6.0f;
+        constexpr float kMsgPadX        = 10.0f;
+        constexpr float kSenderGap      = 6.0f;
+        constexpr float kReplyPad       = 8.0f;
+        constexpr float kCountdownH     = 36.0f;
+        constexpr float kInputBoxH      = 28.0f;
+        constexpr float kReplySpacing   = 4.0f;
+        constexpr float kReplyItemH     = 42.0f;
+        constexpr float kHintLineH      = 24.0f;
+        constexpr float kHintBottomY    = 18.0f;
+        constexpr float kSlotSize       = 20.0f;
+        constexpr float kSlotGap        = 4.0f;
+        constexpr float kArrowCellW     = 18.0f;
+        constexpr float kArrowX0        = 14.0f;
+        constexpr float kArrowSize      = 5.0f;
+        constexpr float kArrowYOffset   = 22.0f;
+        constexpr float kArrowCenterY   = 7.0f;
+        constexpr float kSepInset       = 8.0f;
+        constexpr float kHighlightInset = 6.0f;
+        constexpr float kHighlightH     = 40.0f;
+        constexpr float kMsgLineH       = 22.0f;
+    }
 }
 
 // ============================================================
