@@ -7,6 +7,8 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/UI/UITheme.h"
 
+using namespace ECS::UITheme;
+
 namespace ECS::UI {
 
 // ============================================================
@@ -25,7 +27,7 @@ void RenderScanlineOverlay(float globalTime) {
         draw->AddLine(
             ImVec2(0.0f, y),
             ImVec2(displaySize.x, y),
-            IM_COL32(16, 13, 10, lineAlpha), 1.0f);
+            Col32_BgDark(lineAlpha), 1.0f);
     }
 
     // Moving scan bar
@@ -37,7 +39,7 @@ void RenderScanlineOverlay(float globalTime) {
         draw->AddLine(
             ImVec2(0.0f, y),
             ImVec2(displaySize.x, y),
-            IM_COL32(245, 238, 232, alpha), 1.0f);
+            Col32_Bg(alpha), 1.0f);
     }
 }
 
@@ -126,14 +128,14 @@ void RenderTransitionOverlay(Registry& registry, float dt) {
             // Full black
             draw->AddRectFilled(
                 ImVec2(0.0f, 0.0f), ImVec2(displaySize.x, displaySize.y),
-                IM_COL32(16, 13, 10, 255));
+                Col32_BgDark());
             // Bright horizontal line
             float lineH = 2.0f + t * 5.0f;
             float lineAlpha = 200.0f + t * 55.0f;
             draw->AddRectFilled(
                 ImVec2(0.0f, cy - lineH * 0.5f),
                 ImVec2(displaySize.x, cy + lineH * 0.5f),
-                IM_COL32(245, 238, 232, (uint8_t)lineAlpha));
+                Col32_Bg((uint8_t)lineAlpha));
         } else {
             // Vertical expand: reveal from center
             float expandT = (t - 0.4f) / 0.6f;  // 0->1
@@ -144,14 +146,14 @@ void RenderTransitionOverlay(Registry& registry, float dt) {
                 draw->AddRectFilled(
                     ImVec2(0.0f, 0.0f),
                     ImVec2(displaySize.x, cy - halfH),
-                    IM_COL32(16, 13, 10, 255));
+                    Col32_BgDark());
             }
             // Bottom black bar
             if (cy + halfH < displaySize.y) {
                 draw->AddRectFilled(
                     ImVec2(0.0f, cy + halfH),
                     ImVec2(displaySize.x, displaySize.y),
-                    IM_COL32(16, 13, 10, 255));
+                    Col32_BgDark());
             }
 
             // Edge glow at boundaries
@@ -160,11 +162,11 @@ void RenderTransitionOverlay(Registry& registry, float dt) {
                 draw->AddLine(
                     ImVec2(0.0f, cy - halfH),
                     ImVec2(displaySize.x, cy - halfH),
-                    IM_COL32(245, 238, 232, edgeAlpha), 2.0f);
+                    Col32_Bg(edgeAlpha), 2.0f);
                 draw->AddLine(
                     ImVec2(0.0f, cy + halfH),
                     ImVec2(displaySize.x, cy + halfH),
-                    IM_COL32(245, 238, 232, edgeAlpha), 2.0f);
+                    Col32_Bg(edgeAlpha), 2.0f);
             }
 
             // Scanline distortion during expand
@@ -174,7 +176,7 @@ void RenderTransitionOverlay(Registry& registry, float dt) {
                     uint8_t scanAlpha = (uint8_t)(scanIntensity * 30.0f);
                     draw->AddLine(
                         ImVec2(0.0f, y), ImVec2(displaySize.x, y),
-                        IM_COL32(245, 238, 232, scanAlpha), 1.0f);
+                        Col32_Bg(scanAlpha), 1.0f);
                 }
             }
         }
@@ -190,28 +192,28 @@ void RenderTransitionOverlay(Registry& registry, float dt) {
             draw->AddRectFilled(
                 ImVec2(0.0f, 0.0f),
                 ImVec2(displaySize.x, cy - halfH),
-                IM_COL32(16, 13, 10, 255));
+                Col32_BgDark());
             // Bottom black bar
             draw->AddRectFilled(
                 ImVec2(0.0f, cy + halfH),
                 ImVec2(displaySize.x, displaySize.y),
-                IM_COL32(16, 13, 10, 255));
+                Col32_BgDark());
 
             // Edge glow
             uint8_t edgeAlpha = (uint8_t)(shrinkT * 150.0f);
             draw->AddLine(
                 ImVec2(0.0f, cy - halfH),
                 ImVec2(displaySize.x, cy - halfH),
-                IM_COL32(245, 238, 232, edgeAlpha), 2.0f);
+                Col32_Bg(edgeAlpha), 2.0f);
             draw->AddLine(
                 ImVec2(0.0f, cy + halfH),
                 ImVec2(displaySize.x, cy + halfH),
-                IM_COL32(245, 238, 232, edgeAlpha), 2.0f);
+                Col32_Bg(edgeAlpha), 2.0f);
         } else {
             // Full black with fading horizontal line
             draw->AddRectFilled(
                 ImVec2(0.0f, 0.0f), ImVec2(displaySize.x, displaySize.y),
-                IM_COL32(16, 13, 10, 255));
+                Col32_BgDark());
 
             float fadeT = (t - 0.6f) / 0.4f;  // 0->1
             float lineH = 3.0f * (1.0f - fadeT);
@@ -220,7 +222,7 @@ void RenderTransitionOverlay(Registry& registry, float dt) {
                 draw->AddRectFilled(
                     ImVec2(0.0f, cy - lineH * 0.5f),
                     ImVec2(displaySize.x, cy + lineH * 0.5f),
-                    IM_COL32(245, 238, 232, lineAlpha));
+                    Col32_Bg(lineAlpha));
             }
         }
     }

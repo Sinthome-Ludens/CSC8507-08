@@ -32,13 +32,6 @@ struct C_D_Input {
     bool  gadgetUseJustPressed = false; ///< Q 键 — 使用激活的道具
     bool  weaponUseJustPressed = false; ///< E 键 — 使用激活的武器
 
-    // ── 道具使用上升沿（本帧刚按下，由 Sys_InputDispatch 填入） ──
-    bool  item1JustPressed = false; ///< 数字键 1 → 全息诱饵炸弹 (ItemID::HoloBait)
-    bool  item2JustPressed = false; ///< 数字键 2 → 光子雷达      (ItemID::PhotonRadar)
-    bool  item3JustPressed = false; ///< 数字键 3 → DDoS          (ItemID::DDoS)
-    bool  item4JustPressed = false; ///< 数字键 4 → 流窜 AI       (ItemID::RoamAI)
-    bool  item5JustPressed = false; ///< 数字键 5 → 靶向打击      (ItemID::TargetStrike)
-
     // ── 滚轮输入（CQC 目标切换） ──
     int   scrollDelta = 0;
 };

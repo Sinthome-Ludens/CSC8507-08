@@ -336,6 +336,9 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                     welcomePkt.timestamp = 0;
                     // 使用 SendPacket 助手函数，内部会处理 flags 映射
                     SendPacket(resNet, welcomePkt, NetTarget::Single, NetDelivery::Reliable, event.peer);
+                    LOG_MPDBG("[Sys_Network] Server peer connected: assignedClientID=" << newClientID
+                              << " bootstrapSceneActive=" << resNet.bootstrapSceneActive
+                              << " multiplayerMode=" << (int)resNet.multiplayerMode);
                     if (reg.has_ctx<Res_GameState>()) {
                         auto& gs = reg.ctx<Res_GameState>();
                         if (gs.isMultiplayer && gs.matchPhase == MatchPhase::WaitingForPeer) {
@@ -349,6 +352,9 @@ void Sys_Network::ProcessNetworkEvents(Registry& reg, Res_Network& resNet) {
                             auto& ui = reg.ctx<Res_UIState>();
                             if (resNet.bootstrapSceneActive && ui.pendingSceneRequest == SceneRequest::None) {
                                 ui.pendingSceneRequest = SceneRequest::LaunchMultiplayerMatch;
+                                LOG_MPDBG("[Sys_Network] Server requested LaunchMultiplayerMatch after peer connect."
+                                          << " mapSequenceGenerated=" << ui.mapSequenceGenerated
+                                          << " mapSequenceIndex=" << (int)ui.mapSequenceIndex);
                             }
                         }
                     }
@@ -522,6 +528,9 @@ void Sys_Network::HandleMultiplayerSetup(Registry& reg, Res_Network& resNet, con
     resNet.multiplayerMode = static_cast<MultiplayerMode>(pkt->multiplayerMode);
     ApplyAuthoritativeMapSequence(reg, pkt->mapSequence, pkt->currentRoundIndex);
     resNet.matchSetupReceived = true;
+    LOG_MPDBG("[Sys_Network] Client received multiplayer setup: mode=" << (int)resNet.multiplayerMode
+              << " currentRoundIndex=" << (int)pkt->currentRoundIndex
+              << " bootstrapSceneActive=" << resNet.bootstrapSceneActive);
 
     if (resNet.multiplayerMode == MultiplayerMode::SameMapGhostRace
         && resNet.bootstrapSceneActive
@@ -529,6 +538,9 @@ void Sys_Network::HandleMultiplayerSetup(Registry& reg, Res_Network& resNet, con
         auto& ui = reg.ctx<Res_UIState>();
         if (ui.pendingSceneRequest == SceneRequest::None) {
             ui.pendingSceneRequest = SceneRequest::LaunchMultiplayerMatch;
+            LOG_MPDBG("[Sys_Network] Client requested LaunchMultiplayerMatch after setup."
+                      << " mapSequenceGenerated=" << ui.mapSequenceGenerated
+                      << " mapSequenceIndex=" << (int)ui.mapSequenceIndex);
         }
     }
 }
@@ -999,6 +1011,7 @@ void Sys_Network::BroadcastMultiplayerSetup(Registry& reg, Res_Network& resNet, 
         GenerateAuthoritativeMapSequence(ui.mapSequence, Res_UIState::MAP_SEQUENCE_LENGTH);
         ui.mapSequenceGenerated = true;
         ui.mapSequenceIndex = 0;
+        LOG_MPDBG("[Sys_Network] Server generated authoritative map sequence for same-map bootstrap.");
     }
 
     Net_Packet_MultiplayerSetup pkt;
@@ -1014,8 +1027,16 @@ void Sys_Network::BroadcastMultiplayerSetup(Registry& reg, Res_Network& resNet, 
 
     if (explicitPeer != nullptr) {
         SendPacket(resNet, pkt, NetTarget::Single, NetDelivery::Reliable, explicitPeer);
+        LOG_MPDBG("[Sys_Network] BroadcastMultiplayerSetup -> single peer."
+                  << " roundIndex=" << (int)pkt.currentRoundIndex
+                  << " mapSequenceGenerated=" << ui.mapSequenceGenerated
+                  << " bootstrapSceneActive=" << resNet.bootstrapSceneActive);
     } else {
         SendPacket(resNet, pkt, NetTarget::Broadcast, NetDelivery::Reliable);
+        LOG_MPDBG("[Sys_Network] BroadcastMultiplayerSetup -> broadcast."
+                  << " roundIndex=" << (int)pkt.currentRoundIndex
+                  << " mapSequenceGenerated=" << ui.mapSequenceGenerated
+                  << " bootstrapSceneActive=" << resNet.bootstrapSceneActive);
     }
 }
 

@@ -26,12 +26,95 @@
 
 #ifdef _DEBUG
     #include <iostream>
+    #include <fstream>
+    #include <sstream>
+    #include <filesystem>
+    #include <mutex>
+    #include <chrono>
+    #include <iomanip>
+    #include <string>
+    #include <ctime>
+
+    namespace ECS::DebugLog {
+        /**
+         * @brief Returns the shared mutex used to synchronize multiplayer debug log writes.
+         *
+         * This mutex is only available in debug builds (guarded by @c _DEBUG) and is used by
+         * all multiplayer logging helpers to serialize access to the underlying log file.
+         *
+         * @return Reference to a process-wide mutex dedicated to multiplayer debug logging.
+         */
+        inline std::mutex& MultiplayerLogMutex() {
+            static std::mutex m;
+            return m;
+        }
+
+        /**
+         * @brief Returns the filesystem path of the multiplayer debug log file.
+         *
+         * The path is resolved once per process (on first call) and then reused. It is only
+         * intended for use by debug-only logging utilities such as LOG_MPDBG and should not
+         * be relied upon by gameplay logic or shipping builds.
+         *
+         * @return Absolute or working-directory-relative path to @c multiplayer_debug.log .
+         */
+        inline std::filesystem::path MultiplayerLogPath() {
+            std::error_code ec;
+            const auto cwd = std::filesystem::current_path(ec);
+            if (ec) {
+                return std::filesystem::path("multiplayer_debug.log");
+            }
+            return cwd / "multiplayer_debug.log";
+        }
+
+        /**
+         * @brief Appends a timestamped line to the multiplayer debug log file.
+         *
+         * This helper is only compiled in debug builds and is intended for low-frequency
+         * diagnostic logging of multiplayer behavior. It acquires the shared
+         * MultiplayerLogMutex() to ensure that concurrent calls from multiple threads
+         * write complete lines without interleaving.
+         *
+         * @param line Text to append as a single log entry; a timestamp and newline are added.
+         *
+         * @note This function performs filesystem and I/O operations on each call and should
+         *       not be used in performance-critical gameplay paths or in release builds.
+         */
+        inline void AppendMultiplayerLogLine(const std::string& line) {
+            std::lock_guard<std::mutex> lock(MultiplayerLogMutex());
+
+            const auto path = MultiplayerLogPath();
+            std::error_code ec;
+            if (path.has_parent_path()) {
+                std::filesystem::create_directories(path.parent_path(), ec);
+            }
+
+            std::ofstream out(path, std::ios::app);
+            if (!out.is_open()) {
+                std::cout << "[MPDBG][LOGGER_ERROR] Failed to open " << path.string() << std::endl;
+                return;
+            }
+
+            const auto now = std::chrono::system_clock::now();
+            const auto tt = std::chrono::system_clock::to_time_t(now);
+            std::tm tmBuf{};
+#ifdef _WIN32
+            localtime_s(&tmBuf, &tt);
+#else
+            tmBuf = *std::localtime(&tt);
+#endif
+
+            out << "[" << std::put_time(&tmBuf, "%H:%M:%S") << "] " << line << std::endl;
+        }
+    }
 
     #define LOG_INFO(x)  std::cout << "[INFO] " << x << std::endl
     #define LOG_WARN(x)  std::cout << "\033[33m[WARN] " << x << "\033[0m" << std::endl
     #define LOG_ERROR(x) std::cout << "\033[31m[ERROR] " << x << "\033[0m" << std::endl
+    #define LOG_MPDBG(x) do { std::ostringstream _mpdbg_ss; _mpdbg_ss << x; ECS::DebugLog::AppendMultiplayerLogLine(_mpdbg_ss.str()); } while(0)
 #else
     #define LOG_INFO(x)
     #define LOG_WARN(x)
     #define LOG_ERROR(x)
+    #define LOG_MPDBG(x)
 #endif

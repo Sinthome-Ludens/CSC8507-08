@@ -6,10 +6,10 @@
 #ifdef USE_IMGUI
 
 #include <cmath>
+#include "Game/UI/UITheme.h"
 
 namespace ECS::UI {
-
-static constexpr float kPI = 3.14159265f;
+using namespace ECS::UITheme;
 
 /// HoloBait: 六角棱镜 + 3 条中心辐射线
 static void DrawIcon_HoloBait(ImDrawList* draw, ImVec2 c, float r, ImU32 col) {
@@ -24,27 +24,6 @@ static void DrawIcon_HoloBait(ImDrawList* draw, ImVec2 c, float r, ImU32 col) {
     // 3 radial lines (alternating vertices)
     for (int i = 0; i < 6; i += 2)
         draw->AddLine(c, pts[i], col, 1.0f);
-}
-
-/// PhotonRadar: 3 层同心弧 + 中心圆点
-static void DrawIcon_PhotonRadar(ImDrawList* draw, ImVec2 c, float r, ImU32 col) {
-    draw->AddCircleFilled(c, r * 0.15f, col, 8);
-    for (int ring = 1; ring <= 3; ++ring) {
-        float radius = r * ring / 3.0f;
-        // Draw arc from -60 to +60 degrees (120 degree sweep)
-        int segments = 12;
-        float startA = -kPI / 3.0f;
-        float endA   = kPI / 3.0f;
-        float da = (endA - startA) / segments;
-        for (int s = 0; s < segments; ++s) {
-            float a1 = startA + s * da - kPI / 2.0f;
-            float a2 = a1 + da;
-            draw->AddLine(
-                ImVec2(c.x + cosf(a1) * radius, c.y + sinf(a1) * radius),
-                ImVec2(c.x + cosf(a2) * radius, c.y + sinf(a2) * radius),
-                col, 1.5f);
-        }
-    }
 }
 
 /// DDoS: 菱形轮廓 + Z 字折线穿过
@@ -108,8 +87,8 @@ static void DrawIcon_TargetStrike(ImDrawList* draw, ImVec2 c, float r, ImU32 col
     draw->AddLine(ImVec2(c.x + br, c.y + br), ImVec2(c.x + br - bl, c.y + br), col, 1.5f);
 }
 
-/// GlobalMap: 圆形外框 + 十字准线 + 中心点 + 北方三角指示器
-static void DrawIcon_GlobalMap(ImDrawList* draw, ImVec2 c, float r, ImU32 col) {
+/// RadarMap: 圆形外框 + 十字准线 + 中心点 + 北方三角指示器
+static void DrawIcon_RadarMap(ImDrawList* draw, ImVec2 c, float r, ImU32 col) {
     // 外圆
     draw->AddCircle(c, r * 0.9f, col, 24, 1.5f);
     // 十字准线
@@ -129,11 +108,10 @@ static void DrawIcon_GlobalMap(ImDrawList* draw, ImVec2 c, float r, ImU32 col) {
 void DrawItemIcon(ImDrawList* draw, ImVec2 center, float size, ItemID id, ImU32 color) {
     switch (id) {
         case ItemID::HoloBait:     DrawIcon_HoloBait(draw, center, size, color);     break;
-        case ItemID::PhotonRadar:  DrawIcon_PhotonRadar(draw, center, size, color);  break;
         case ItemID::DDoS:         DrawIcon_DDoS(draw, center, size, color);         break;
         case ItemID::RoamAI:       DrawIcon_RoamAI(draw, center, size, color);       break;
         case ItemID::TargetStrike: DrawIcon_TargetStrike(draw, center, size, color); break;
-        case ItemID::GlobalMap:    DrawIcon_GlobalMap(draw, center, size, color);     break;
+        case ItemID::RadarMap:     DrawIcon_RadarMap(draw, center, size, color);     break;
         default: break;
     }
 }

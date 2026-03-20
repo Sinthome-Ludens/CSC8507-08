@@ -13,11 +13,13 @@
 #include "Game/Components/Res_UIState.h"
 #include "Game/Components/Res_LobbyState.h"
 #include "Game/UI/UITheme.h"
+#include "Game/UI/UI_Anim.h"
 #include "Game/Utils/Log.h"
 #include "Game/Components/Res_Input.h"
 #include "Game/Components/Res_UIKeyConfig.h"
 
 using namespace NCL;
+using namespace ECS::UITheme;
 
 namespace ECS::UI {
 
@@ -36,7 +38,7 @@ static constexpr int kLobbyItemCount = 3;
 // RenderLobbyScreen
 // ============================================================
 
-void RenderLobbyScreen(Registry& registry, float /*dt*/) {
+void RenderLobbyScreen(Registry& registry, float dt) {
     if (!registry.has_ctx<Res_UIState>()) return;
     auto& ui = registry.ctx<Res_UIState>();
 
@@ -64,31 +66,37 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
     // Background #F5EEE8
     draw->AddRectFilled(vpPos,
         ImVec2(vpPos.x + vpSize.x, vpPos.y + vpSize.y),
-        IM_COL32(245, 238, 232, 255));
+        Col32_Bg());
 
-    float cx = vpPos.x + vpSize.x * 0.5f;
+    // Entry animation + slide
+    float entryRaw = (ui.screenEntryDuration > 0.0f)
+        ? std::clamp(ui.screenEntryElapsed / ui.screenEntryDuration, 0.0f, 1.0f) : 1.0f;
+    float entryT = Anim::EaseOutCubic(entryRaw);
+    float slideX = Anim::SlideOffset(entryT, ui.transDirection);
+
+    float cx = vpPos.x + vpSize.x * 0.5f + slideX;
 
     // ── Title ─────────────────────────────────────────────────
-    ImFont* titleFont = UITheme::GetFont_TerminalLarge();
+    ImFont* titleFont = GetFont_TerminalLarge();
     if (titleFont) ImGui::PushFont(titleFont);
 
     const char* title = "MULTIPLAYER";
     ImVec2 titleSize = ImGui::CalcTextSize(title);
     float titleX = cx - titleSize.x * 0.5f;
     float titleY = vpPos.y + 60.0f;
-    draw->AddText(ImVec2(titleX, titleY), IM_COL32(16, 13, 10, 255), title);
+    draw->AddText(ImVec2(titleX, titleY), Col32_Text(), title);
 
     if (titleFont) ImGui::PopFont();
 
     // Subtitle
-    ImFont* smallFont = UITheme::GetFont_Small();
+    ImFont* smallFont = GetFont_Small();
     if (smallFont) ImGui::PushFont(smallFont);
 
     const char* subtitle = "COMPETITIVE 1v1 OPERATIONS";
     ImVec2 subSize = ImGui::CalcTextSize(subtitle);
     float subY = titleY + titleSize.y + 6.0f;
     draw->AddText(ImVec2(cx - subSize.x * 0.5f, subY),
-        IM_COL32(16, 13, 10, 180), subtitle);
+        Col32_Text(180), subtitle);
 
     if (smallFont) ImGui::PopFont();
 
@@ -96,7 +104,7 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
     float lineY = subY + 26.0f;
     draw->AddLine(
         ImVec2(cx - 160.0f, lineY), ImVec2(cx + 160.0f, lineY),
-        IM_COL32(200, 200, 200, 120), 1.0f);
+        Col32_Gray(120), 1.0f);
 
     // ── Mode cards ────────────────────────────────────────────
     float cardW = 280.0f;
@@ -106,7 +114,7 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
     float hostCardX = cx - cardW - cardGap * 0.5f;
     float joinCardX = cx + cardGap * 0.5f;
 
-    ImFont* termFont = UITheme::GetFont_Terminal();
+    ImFont* termFont = GetFont_Terminal();
 
     // Keyboard navigation
     if (!lobby.ipInputActive) {
@@ -139,59 +147,87 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
         ui.lobbySelectedIndex = 1;
     }
 
+    // Update hover progress for lobby cards
+    for (int i = 0; i < kLobbyItemCount; ++i) {
+        float target = (i == ui.lobbySelectedIndex) ? 1.0f : 0.0f;
+        ui.menuHoverProgress[i] = Anim::SmoothLerp(ui.menuHoverProgress[i], target, 10.0f, dt);
+    }
+
     // Draw HOST card
     {
-        bool sel = (ui.lobbySelectedIndex == 0);
-        ImU32 bgCol = sel ? IM_COL32(252, 111, 41, 20) : IM_COL32(245, 238, 232, 255);
-        ImU32 bdCol = sel ? IM_COL32(252, 111, 41, 150) : IM_COL32(200, 200, 200, 100);
+        float hoverT = Anim::EaseOutCubic(ui.menuHoverProgress[0]);
+        uint8_t bgAlpha = (uint8_t)(hoverT * 30);
+        uint8_t bdAlpha = (uint8_t)(100 + hoverT * 80);
+        float bdWidth = 1.0f + hoverT * 1.0f;
 
-        draw->AddRectFilled(hostMin, hostMax, bgCol, 4.0f);
-        draw->AddRect(hostMin, hostMax, bdCol, 4.0f, 0, sel ? 2.0f : 1.0f);
+        draw->AddRectFilled(hostMin, hostMax, Col32_Accent(bgAlpha), 4.0f);
+        draw->AddRect(hostMin, hostMax, Col32_Accent(bdAlpha), 4.0f, 0, bdWidth);
+
+        // Left accent bar
+        if (hoverT > 0.01f) {
+            float barH = hoverT * cardH * 0.6f;
+            float barCY = cardsStartY + cardH * 0.5f;
+            draw->AddRectFilled(
+                ImVec2(hostCardX, barCY - barH * 0.5f),
+                ImVec2(hostCardX + 3.0f, barCY + barH * 0.5f),
+                Col32_Accent((uint8_t)(hoverT * 200)), 1.0f);
+        }
 
         if (titleFont) ImGui::PushFont(titleFont);
         const char* hostTitle = "HOST";
         ImVec2 htSize = ImGui::CalcTextSize(hostTitle);
         draw->AddText(
             ImVec2(hostCardX + (cardW - htSize.x) * 0.5f, cardsStartY + 20.0f),
-            IM_COL32(16, 13, 10, 255), hostTitle);
+            Col32_Text(), hostTitle);
         if (titleFont) ImGui::PopFont();
 
         if (smallFont) ImGui::PushFont(smallFont);
         const char* hostDesc = "Create a server and wait\nfor an opponent to connect";
         draw->AddText(
             ImVec2(hostCardX + 20.0f, cardsStartY + 65.0f),
-            IM_COL32(16, 13, 10, 160), hostDesc);
+            Col32_Text(160), hostDesc);
 
         char portBuf[32];
         snprintf(portBuf, sizeof(portBuf), "PORT: %u", lobby.port);
         draw->AddText(
             ImVec2(hostCardX + 20.0f, cardsStartY + cardH - 28.0f),
-            IM_COL32(252, 111, 41, 200), portBuf);
+            Col32_Accent(200), portBuf);
         if (smallFont) ImGui::PopFont();
     }
 
     // Draw JOIN card
     {
-        bool sel = (ui.lobbySelectedIndex == 1);
-        ImU32 bgCol = sel ? IM_COL32(252, 111, 41, 20) : IM_COL32(245, 238, 232, 255);
-        ImU32 bdCol = sel ? IM_COL32(252, 111, 41, 150) : IM_COL32(200, 200, 200, 100);
+        float hoverT = Anim::EaseOutCubic(ui.menuHoverProgress[1]);
+        uint8_t bgAlpha = (uint8_t)(hoverT * 30);
+        uint8_t bdAlpha = (uint8_t)(100 + hoverT * 80);
+        float bdWidth = 1.0f + hoverT * 1.0f;
 
-        draw->AddRectFilled(joinMin, joinMax, bgCol, 4.0f);
-        draw->AddRect(joinMin, joinMax, bdCol, 4.0f, 0, sel ? 2.0f : 1.0f);
+        draw->AddRectFilled(joinMin, joinMax, Col32_Accent(bgAlpha), 4.0f);
+        draw->AddRect(joinMin, joinMax, Col32_Accent(bdAlpha), 4.0f, 0, bdWidth);
+
+        // Left accent bar
+        if (hoverT > 0.01f) {
+            float barH = hoverT * cardH * 0.6f;
+            float barCY = cardsStartY + cardH * 0.5f;
+            draw->AddRectFilled(
+                ImVec2(joinCardX, barCY - barH * 0.5f),
+                ImVec2(joinCardX + 3.0f, barCY + barH * 0.5f),
+                Col32_Accent((uint8_t)(hoverT * 200)), 1.0f);
+        }
 
         if (titleFont) ImGui::PushFont(titleFont);
         const char* joinTitle = "JOIN";
         ImVec2 jtSize = ImGui::CalcTextSize(joinTitle);
         draw->AddText(
             ImVec2(joinCardX + (cardW - jtSize.x) * 0.5f, cardsStartY + 20.0f),
-            IM_COL32(16, 13, 10, 255), joinTitle);
+            Col32_Text(), joinTitle);
         if (titleFont) ImGui::PopFont();
 
         if (smallFont) ImGui::PushFont(smallFont);
         const char* joinDesc = "Connect to a host's server\nand start competitive match";
         draw->AddText(
             ImVec2(joinCardX + 20.0f, cardsStartY + 65.0f),
-            IM_COL32(16, 13, 10, 160), joinDesc);
+            Col32_Text(160), joinDesc);
         if (smallFont) ImGui::PopFont();
     }
 
@@ -201,7 +237,7 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
     if (termFont) ImGui::PushFont(termFont);
 
     draw->AddText(ImVec2(joinCardX, ipY),
-        IM_COL32(16, 13, 10, 200), "TARGET IP:");
+        Col32_Text(200), "TARGET IP:");
 
     // IP input field
     float ipFieldX = joinCardX + 110.0f;
@@ -213,12 +249,12 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
 
     bool ipSel = (ui.lobbySelectedIndex == 1);
     draw->AddRectFilled(ipMin, ipMax,
-        ipSel ? IM_COL32(255, 255, 255, 200) : IM_COL32(245, 238, 232, 255), 2.0f);
+        ipSel ? IM_COL32(255, 255, 255, 200) : Col32_Bg(), 2.0f);
     draw->AddRect(ipMin, ipMax,
-        ipSel ? IM_COL32(252, 111, 41, 180) : IM_COL32(200, 200, 200, 100), 2.0f);
+        ipSel ? Col32_Accent(180) : Col32_Gray(100), 2.0f);
 
     draw->AddText(ImVec2(ipFieldX + 6.0f, ipY + 2.0f),
-        IM_COL32(16, 13, 10, 255), lobby.joinIP);
+        Col32_Text(), lobby.joinIP);
 
     // IP editing via ImGui InputText (only when JOIN is selected)
     if (ipSel) {
@@ -253,19 +289,22 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
         ui.lobbySelectedIndex = 2;
     }
 
-    bool backSel = (ui.lobbySelectedIndex == 2);
-    draw->AddRectFilled(backMin, backMax,
-        backSel ? IM_COL32(252, 111, 41, 25) : IM_COL32(245, 238, 232, 255), 3.0f);
-    draw->AddRect(backMin, backMax,
-        backSel ? IM_COL32(252, 111, 41, 150) : IM_COL32(200, 200, 200, 100), 3.0f);
+    {
+        float hoverT = Anim::EaseOutCubic(ui.menuHoverProgress[2]);
+        uint8_t bgAlpha = (uint8_t)(hoverT * 30);
+        uint8_t bdAlpha = (uint8_t)(100 + hoverT * 80);
+        draw->AddRectFilled(backMin, backMax, Col32_Accent(bgAlpha), 3.0f);
+        draw->AddRect(backMin, backMax, Col32_Accent(bdAlpha), 3.0f);
 
-    if (termFont) ImGui::PushFont(termFont);
-    const char* backText = "< BACK";
-    ImVec2 backTextSize = ImGui::CalcTextSize(backText);
-    draw->AddText(
-        ImVec2(backX + (backW - backTextSize.x) * 0.5f, backY + (backH - backTextSize.y) * 0.5f),
-        backSel ? IM_COL32(16, 13, 10, 255) : IM_COL32(16, 13, 10, 200), backText);
-    if (termFont) ImGui::PopFont();
+        if (termFont) ImGui::PushFont(termFont);
+        const char* backText = "< BACK";
+        ImVec2 backTextSize = ImGui::CalcTextSize(backText);
+        uint8_t textAlpha = (uint8_t)(200 + hoverT * 55);
+        draw->AddText(
+            ImVec2(backX + (backW - backTextSize.x) * 0.5f, backY + (backH - backTextSize.y) * 0.5f),
+            Col32_Text(textAlpha), backText);
+        if (termFont) ImGui::PopFont();
+    }
 
     // ── Confirm action ────────────────────────────────────────
     int8_t confirmedIndex = -1;
@@ -318,7 +357,7 @@ void RenderLobbyScreen(Registry& registry, float /*dt*/) {
     ImVec2 hintSize = ImGui::CalcTextSize(hint);
     draw->AddText(
         ImVec2(cx - hintSize.x * 0.5f, vpPos.y + vpSize.y - 35.0f),
-        IM_COL32(16, 13, 10, 180), hint);
+        Col32_Text(180), hint);
 
     if (smallFont) ImGui::PopFont();
 

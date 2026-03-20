@@ -5,7 +5,7 @@
  * @details
  * 算法概要：
  *  - OnAwake：订阅 Evt_Item_Use，初始化 Res_RadarState
- *  - OnUpdate：依次调用 UpdateHoloBait / UpdateDDoSFrozen / UpdateRoamAI / UpdateRadar
+ *  - OnUpdate：依次调用 UpdateHoloBait / UpdateDDoSFrozen / UpdateRoamAI / UpdateRadar / UpdateMinimap
  *  - 各 Effect* 方法：即时执行使用效果（创建实体、挂载组件、修改 hp）
  *
  * ## 敌人不弄（设计约束）
@@ -83,7 +83,7 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
                     // 统一道具使用扣分 -5
                     {
                         static const char* kItemNames[] = {
-                            "HOLOBAIT", "RADAR", "DDOS", "ROAM AI", "TARGET STRIKE", "MAP"
+                            "HOLOBAIT", "DDOS", "ROAM AI", "TARGET STRIKE", "RADAR MAP"
                         };
                         const char* usedName = (static_cast<uint8_t>(evt.itemId) < static_cast<uint8_t>(ItemID::Count))
                             ? kItemNames[static_cast<uint8_t>(evt.itemId)] : "ITEM";
@@ -112,11 +112,10 @@ void Sys_ItemEffects::OnAwake(Registry& registry) {
                     }
                     switch (evt.itemId) {
                         case ItemID::HoloBait:     EffectHoloBait    (registry, evt); break;
-                        case ItemID::PhotonRadar:  EffectPhotonRadar (registry, evt); break;
                         case ItemID::DDoS:         EffectDDoS        (registry, evt); break;
                         case ItemID::RoamAI:       EffectRoamAI      (registry, evt); break;
                         case ItemID::TargetStrike: EffectTargetStrike(registry, evt); break;
-                        case ItemID::GlobalMap:    EffectGlobalMap   (registry, evt); break;
+                        case ItemID::RadarMap:     EffectRadarMap    (registry, evt); break;
                         default: break;
                     }
                 }
@@ -208,25 +207,6 @@ void Sys_ItemEffects::EffectHoloBait(Registry& registry, const Evt_Item_Use& evt
 
 #ifdef USE_IMGUI
     ECS::UI::PushActionNotify(registry, "HOLOBAIT", "DEPLOYED",
-                              0, ActionNotifyType::Bonus);
-#endif
-}
-
-// ============================================================
-// EffectPhotonRadar — 激活雷达并立即执行一次敌人位置扫描
-// ============================================================
-void Sys_ItemEffects::EffectPhotonRadar(Registry& registry, const Evt_Item_Use& /*evt*/) {
-    if (!registry.has_ctx<Res_RadarState>()) {
-        registry.ctx_emplace<Res_RadarState>();
-    }
-    auto& radar = registry.ctx<Res_RadarState>();
-    radar.isActive    = true;
-    radar.refreshTimer = 0.0f; // 立即触发第一次刷新
-
-    LOG_INFO("[Sys_ItemEffects] PhotonRadar activated.");
-
-#ifdef USE_IMGUI
-    ECS::UI::PushActionNotify(registry, "RADAR", "ACTIVATED",
                               0, ActionNotifyType::Bonus);
 #endif
 }
@@ -499,28 +479,29 @@ void Sys_ItemEffects::UpdateRadar(Registry& registry, float dt) {
 }
 
 // ============================================================
-// EffectGlobalMap — 激活小地图 + 联动雷达
+// EffectRadarMap — 激活小地图 + 联动雷达
 // ============================================================
 /// @brief 激活小地图（限时 kActiveDuration 秒）并联动开启雷达扫描。
-void Sys_ItemEffects::EffectGlobalMap(Registry& registry, const Evt_Item_Use& /*evt*/) {
+void Sys_ItemEffects::EffectRadarMap(Registry& registry, const Evt_Item_Use& /*evt*/) {
     if (!registry.has_ctx<Res_MinimapState>()) return;
     auto& minimap = registry.ctx<Res_MinimapState>();
     minimap.isActive    = true;
     minimap.activeTimer = Res_MinimapState::kActiveDuration;
 
-    // 同时激活雷达（复用敌人位置扫描）
-    if (registry.has_ctx<Res_RadarState>()) {
-        auto& radar = registry.ctx<Res_RadarState>();
-        if (!radar.isActive) {
-            radar.isActive = true;
-            radar.refreshTimer = 0.0f;  // 立即刷新
-        }
+    // 同时激活雷达（复用敌人位置扫描），防御性 ctx_emplace
+    if (!registry.has_ctx<Res_RadarState>()) {
+        registry.ctx_emplace<Res_RadarState>();
+    }
+    auto& radar = registry.ctx<Res_RadarState>();
+    if (!radar.isActive) {
+        radar.isActive = true;
+        radar.refreshTimer = 0.0f;  // 立即刷新
     }
 
-    LOG_INFO("[Sys_ItemEffects] GlobalMap activated.");
+    LOG_INFO("[Sys_ItemEffects] RadarMap activated.");
 
 #ifdef USE_IMGUI
-    ECS::UI::PushActionNotify(registry, "MAP", "ACTIVATED",
+    ECS::UI::PushActionNotify(registry, "RADAR MAP", "ACTIVATED",
                               0, ActionNotifyType::Bonus);
 #endif
 }
