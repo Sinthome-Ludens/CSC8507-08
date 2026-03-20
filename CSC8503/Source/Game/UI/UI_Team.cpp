@@ -23,13 +23,13 @@ struct TeamMember {
 };
 
 static const TeamMember kTeamMembers[] = {
-    {"PENGGAN ZHAO",   "UI + SCENE MANAGEMENT"},
-    {"JIANRAN YU",     "ECS BRIDGE + RENDERING"},
-    {"YIJUN DONG",     "VFX + CAMERA"},
     {"WEIFENG CHEN",   "NETWORK"},
     {"SHULIANG CHU",   "BEHAVIOUR + DEBUG"},
+    {"YIJUN DONG",     "VFX + CAMERA"},
     {"YIHAN LIN",      "ITEMS + EQUIPMENT"},
+    {"JIANRAN YU",     "ECS BRIDGE + RENDERING"},
     {"BEINING ZHANG",  "AI: BEHAVIOUR TREE + FSM"},
+    {"PENGGAN ZHAO",   "UI + SCENE MANAGEMENT"},
 };
 static constexpr int kTeamMemberCount = 7;
 

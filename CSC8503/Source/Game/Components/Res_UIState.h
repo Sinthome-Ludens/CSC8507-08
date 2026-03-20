@@ -174,6 +174,19 @@ struct Res_UIState {
     // ── Multiplayer HUD ──────────────────────────────────────
     float    matchBannerTimer    = 0.0f;          ///< "MATCH START" 横幅倒计时（秒）
 
+    // ── Campaign cross-map persistence ─────────────────────────
+    /// 跨关卡警戒度。Main.cpp NextLevel 从 gs.alertLevel 保存，
+    /// Scene::OnEnter 恢复后 campaignContinue 置 false。
+    float   campaignAlertLevel   = 0.0f;
+
+    /// 跨关卡中继标志。NextLevel 置 true → Scene::OnEnter 恢复 alertLevel
+    /// 和 carriedCount 后立即置 false。true 时场景跳过 OnRoundStart()。
+    bool    campaignContinue     = false;
+
+    /// 跨关卡携带数量快照（元素顺序对应 ItemID 枚举）。
+    /// 大小须 >= Res_ItemInventory2::kItemCount（Main.cpp static_assert 保证）。
+    uint8_t campaignCarried[5]   = {};
+
     // ── Campaign score (跨场景持久化) ──────────────────────────
     int32_t campaignScore                 = 1000;  ///< 战役积分（初始1000, 纯扣减制）
     float   scoreDecayAccum               = 0.0f;  ///< 时间衰减子秒累加器

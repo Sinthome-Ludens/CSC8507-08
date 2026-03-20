@@ -249,6 +249,11 @@ void Scene_Helipad::OnEnter(ECS::Registry&          registry,
     } else {
         gs.matchPhase = ECS::MatchPhase::Finished;
     }
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_UIState>() && registry.ctx<ECS::Res_UIState>().campaignContinue) {
+        gs.alertLevel = registry.ctx<ECS::Res_UIState>().campaignAlertLevel;
+    }
+#endif
 
     systems.AwakeAll(registry);
 
@@ -284,9 +289,26 @@ void Scene_Helipad::OnEnter(ECS::Registry&          registry,
     if (!isMultiplayer && ECS::HasSaveFile()) {
         ECS::LoadGame(registry, false);
         if (registry.has_ctx<ECS::Res_ItemInventory2>()) {
-            registry.ctx<ECS::Res_ItemInventory2>().OnRoundStart();
+            auto& inv = registry.ctx<ECS::Res_ItemInventory2>();
+#ifdef USE_IMGUI
+            if (registry.has_ctx<ECS::Res_UIState>() && registry.ctx<ECS::Res_UIState>().campaignContinue) {
+                const auto& ui_ref = registry.ctx<ECS::Res_UIState>();
+                const int limit = std::min(inv.kItemCount,
+                                           static_cast<int>(std::size(ui_ref.campaignCarried)));
+                for (int i = 0; i < limit; ++i)
+                    inv.slots[i].carriedCount = ui_ref.campaignCarried[i];
+            } else
+#endif
+            {
+                inv.OnRoundStart();
+            }
         }
     }
+#ifdef USE_IMGUI
+    if (registry.has_ctx<ECS::Res_UIState>()) {
+        registry.ctx<ECS::Res_UIState>().campaignContinue = false;
+    }
+#endif
 
     ECS::SyncEquipmentToGameState(registry);
 

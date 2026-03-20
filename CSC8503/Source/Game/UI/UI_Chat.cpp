@@ -6,6 +6,7 @@
 #ifdef USE_IMGUI
 
 #include <imgui.h>
+#include <cfloat>
 #include <cmath>
 #include <cstdio>
 #include <algorithm>
@@ -56,16 +57,16 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     const char* modeLabel;
     switch (chat.chatMode) {
         case 0:  // Proactive
-            modeColor = IM_COL32(80, 200, 120, 220);
+            modeColor = Col32_Green();
             modeLabel = "SECURE";
             break;
         case 1:  // Mixed
-            modeColor = IM_COL32(220, 200, 0, 220);
+            modeColor = Col32_Yellow();
             modeLabel = "ALERT";
             break;
         case 2:  // Passive
         default:
-            modeColor = IM_COL32(220, 60, 40, 220);
+            modeColor = Col32_Red();
             modeLabel = "CRITICAL";
             break;
     }
@@ -73,89 +74,107 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
     // ── Header ────────────────────────────────────────────
     ImFont* termFont  = GetFont_Terminal();
     ImFont* smallFont = GetFont_Small();
+    if (!smallFont) smallFont = ImGui::GetFont();
 
-    float headerH = 36.0f;
     draw->AddRectFilled(
         ImVec2(panelX, panelY),
-        ImVec2(panelX + panelW, panelY + headerH),
+        ImVec2(panelX + panelW, panelY + Layout::Chat::kHeaderH),
         Col32_BgDark(200));
 
     if (termFont) ImGui::PushFont(termFont);
-    draw->AddText(ImVec2(panelX + 12.0f, panelY + 8.0f),
+    draw->AddText(ImVec2(panelX + Layout::Chat::kHeaderPadX, panelY + Layout::Chat::kHeaderTextY),
         Col32_Bg(240), "COMMS TERMINAL");
     if (termFont) ImGui::PopFont();
 
     // Mode tag (right side of header)
     if (smallFont) ImGui::PushFont(smallFont);
     ImVec2 modeSize = ImGui::CalcTextSize(modeLabel);
-    float tagX = panelX + panelW - modeSize.x - 12.0f;
-    float tagY = panelY + 10.0f;
+    float tagX = panelX + panelW - modeSize.x - Layout::Chat::kHeaderPadX;
+    float tagY = panelY + Layout::Chat::kModeTagY;
     // Tag background
     draw->AddRectFilled(
-        ImVec2(tagX - 6.0f, tagY - 2.0f),
-        ImVec2(tagX + modeSize.x + 6.0f, tagY + modeSize.y + 2.0f),
+        ImVec2(tagX - Layout::Chat::kModeTagPadX, tagY - Layout::Chat::kModeTagPadY),
+        ImVec2(tagX + modeSize.x + Layout::Chat::kModeTagPadX, tagY + modeSize.y + Layout::Chat::kModeTagPadY),
         modeColor, 2.0f);
     draw->AddText(ImVec2(tagX, tagY),
         Col32_Text(), modeLabel);
     if (smallFont) ImGui::PopFont();
 
     // ── Reply timer bar ───────────────────────────────────
-    float contentY = panelY + headerH;
+    float contentY = panelY + Layout::Chat::kHeaderH;
     if (chat.replyTimerActive && chat.replyTimerMax > 0.0f) {
         float ratio = std::clamp(chat.replyTimer / chat.replyTimerMax, 0.0f, 1.0f);
-        float barH = 4.0f;
         float barW = panelW * ratio;
-
-        ImU32 timerColor;
-        if (ratio > 0.5f) {
-            timerColor = IM_COL32(80, 200, 120, 220);      // green
-        } else if (ratio > 0.25f) {
-            timerColor = IM_COL32(220, 200, 0, 220);       // yellow
-        } else {
-            timerColor = IM_COL32(220, 60, 40, 220);       // red
-        }
 
         draw->AddRectFilled(
             ImVec2(panelX, contentY),
-            ImVec2(panelX + barW, contentY + barH),
-            timerColor);
-        contentY += barH + 2.0f;
+            ImVec2(panelX + barW, contentY + Layout::Chat::kTimerBarH),
+            Col32_RatioColor(ratio));
+        contentY += Layout::Chat::kTimerBarH + Layout::Chat::kTimerBarGap;
     }
 
     // ── Messages area ─────────────────────────────────────
     ImFont* bodyFont = GetFont_Body();
+    if (!bodyFont) bodyFont = ImGui::GetFont();
     if (bodyFont) ImGui::PushFont(bodyFont);
 
-    float msgStartY = contentY + 6.0f;
+    const float bodyFontSz  = bodyFont->LegacySize;
+    const float smallFontSz = smallFont->LegacySize;
+    float msgStartY = contentY + Layout::Chat::kMsgTopPad;
+    const float wrapW = panelW - Layout::Chat::kMsgPadX * 2.0f;
 
-    // Reply area layout: padding(8) + countdown(36?) + inputBox(28) +
-    // spacing(4) + replies(N*42) + hint(24).  No replies → hint only (24).
-    constexpr float kReplyPad      =  8.0f;
-    constexpr float kCountdownH    = 36.0f;
-    constexpr float kInputBoxH     = 28.0f;
-    constexpr float kReplySpacing  =  4.0f;
-    constexpr float kReplyItemH    = 42.0f;
-    constexpr float kHintLineH     = 24.0f;
+    // Pre-compute per-reply-item height (for dynamic reply area)
+    float replyItemH[Res_ChatState::kMaxReplies] = {};
+    float totalReplyItemsH = 0.0f;
+    for (int i = 0; i < chat.replyCount; ++i) {
+        ImVec2 sz = bodyFont->CalcTextSizeA(
+            bodyFontSz, FLT_MAX, wrapW, chat.replies[i].text);
+        float textH = std::max(sz.y, Layout::Chat::kReplyTextMinH);
+        replyItemH[i] = Layout::Chat::kReplyItemPadY + textH
+                       + Layout::Chat::kReplyItemPadY + Layout::Chat::kReplyArrowH
+                       + Layout::Chat::kReplyGap;
+        totalReplyItemsH += replyItemH[i];
+    }
 
-    float replyAreaH = kHintLineH;
+    // Reply area layout (dynamic height)
+    float replyAreaH = Layout::Chat::kHintLineH;
     if (chat.replyCount > 0) {
-        replyAreaH  = kReplyPad;
-        if (chat.replyTimerActive) replyAreaH += kCountdownH;
-        replyAreaH += kInputBoxH + kReplySpacing;
-        replyAreaH += chat.replyCount * kReplyItemH;
-        replyAreaH += kHintLineH;
+        replyAreaH  = Layout::Chat::kReplyPad;
+        if (chat.replyTimerActive) replyAreaH += Layout::Chat::kCountdownH;
+        replyAreaH += Layout::Chat::kInputBoxH + Layout::Chat::kReplySpacing;
+        replyAreaH += totalReplyItemsH;
+        replyAreaH += Layout::Chat::kHintLineH;
     }
 
     float msgEndY = panelY + panelH - replyAreaH;
-    constexpr float kMsgLineH = 22.0f;
 
-    // Calculate how many messages fit
-    int maxVisible = (int)((msgEndY - msgStartY) / kMsgLineH);
-    int startMsg = std::max(0, chat.messageCount - maxVisible);
+    // Pre-compute per-message height (sender line + wrapped text)
+    float msgHeights[Res_ChatState::kMaxMessages] = {};
+    for (int i = 0; i < chat.messageCount; ++i) {
+        float h = Layout::Chat::kSenderLineH + Layout::Chat::kSenderMsgGap;
+        ImVec2 textSz = bodyFont->CalcTextSizeA(
+            bodyFontSz, FLT_MAX, wrapW,
+            chat.messages[i].text);
+        h += std::max(textSz.y, Layout::Chat::kMsgMinTextH);
+        h += Layout::Chat::kMsgBottomPad;
+        msgHeights[i] = h;
+    }
 
+    // Bottom-anchored scroll: find first visible message
+    float availH = msgEndY - msgStartY;
+    float accum = 0.0f;
+    int startMsg = chat.messageCount;
+    for (int i = chat.messageCount - 1; i >= 0; --i) {
+        if (accum + msgHeights[i] > availH) break;
+        accum += msgHeights[i];
+        startMsg = i;
+    }
+
+    // Render messages with clip rect
+    draw->PushClipRect(ImVec2(panelX, msgStartY), ImVec2(panelX + panelW, msgEndY), true);
     float msgY = msgStartY;
-    for (int i = startMsg; i < chat.messageCount && i < Res_ChatState::kMaxMessages; ++i) {
-        if (msgY > msgEndY) break;
+    for (int i = startMsg; i < chat.messageCount; ++i) {
+        if (msgY >= msgEndY) break;
 
         const auto& msg = chat.messages[i];
 
@@ -169,36 +188,37 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
                 senderColor = modeColor;
                 break;
             default: // System
-                senderColor = IM_COL32(160, 160, 160, 200);
+                senderColor = Col32_Gray(200);
                 break;
         }
 
-        // Sender tag
+        // Sender tag (small font, independent line)
         char senderBuf[40];
         snprintf(senderBuf, sizeof(senderBuf), "[%s]", msg.sender);
-        draw->AddText(ImVec2(panelX + 10.0f, msgY), senderColor, senderBuf);
+        draw->AddText(smallFont, smallFontSz,
+            ImVec2(panelX + Layout::Chat::kMsgPadX, msgY), senderColor, senderBuf);
+        msgY += Layout::Chat::kSenderLineH + Layout::Chat::kSenderMsgGap;
 
-        // Message text
-        ImVec2 senderSize = ImGui::CalcTextSize(senderBuf);
-        float textX = panelX + 10.0f + senderSize.x + 6.0f;
-
-        // Simple word-wrap: just truncate if too long for now
-        draw->AddText(ImVec2(textX, msgY),
-            Col32_Text(220), msg.text);
-        msgY += kMsgLineH;
+        // Message body (wrapped text, full panel width)
+        draw->AddText(bodyFont, bodyFontSz,
+            ImVec2(panelX + Layout::Chat::kMsgPadX, msgY),
+            Col32_Text(220), msg.text, nullptr, wrapW);
+        ImVec2 sz = bodyFont->CalcTextSizeA(bodyFontSz, FLT_MAX, wrapW, msg.text);
+        msgY += std::max(sz.y, Layout::Chat::kMsgMinTextH) + Layout::Chat::kMsgBottomPad;
     }
+    draw->PopClipRect();
 
     if (bodyFont) ImGui::PopFont();
 
     // ── Reply area separator ──────────────────────────────
     float replyTopY = panelY + panelH - replyAreaH;
     draw->AddLine(
-        ImVec2(panelX + 8.0f, replyTopY),
-        ImVec2(panelX + panelW - 8.0f, replyTopY),
+        ImVec2(panelX + Layout::Chat::kSepInset, replyTopY),
+        ImVec2(panelX + panelW - Layout::Chat::kSepInset, replyTopY),
         Col32_Gray(100), 1.0f);
 
     if (chat.replyCount > 0) {
-        float curY = replyTopY + 8.0f;
+        float curY = replyTopY + Layout::Chat::kReplyPad;
         ImFont* largeFont = GetFont_TerminalLarge();
 
         // ── Countdown number (centered, 32px) ────────────
@@ -212,20 +232,16 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
             float timerX = panelX + (panelW - timerSize.x) * 0.5f;
 
             float ratio = std::clamp(chat.replyTimer / chat.replyTimerMax, 0.0f, 1.0f);
-            ImU32 timerColor;
-            if      (ratio > 0.5f)  timerColor = IM_COL32(80, 200, 120, 220);
-            else if (ratio > 0.25f) timerColor = IM_COL32(220, 200, 0, 220);
-            else                    timerColor = IM_COL32(220, 60, 40, 220);
 
-            draw->AddText(ImVec2(timerX, curY), timerColor, timerBuf);
+            draw->AddText(ImVec2(timerX, curY), Col32_RatioColor(ratio), timerBuf);
             if (largeFont) ImGui::PopFont();
-            curY += kCountdownH;
+            curY += Layout::Chat::kCountdownH;
         }
 
         // ── Helper: draw direction arrow triangle ────────
         // dir: 0=Up, 1=Down, 2=Left, 3=Right
         // cx,cy = center of the arrow cell, sz = half-size
-        auto DrawArrow = [&](float cx, float cy, int dir, ImU32 color, float sz = 6.0f) {
+        auto DrawArrow = [&](float cx, float cy, int dir, ImU32 color, float sz = Layout::Chat::kArrowSize) {
             switch (dir) {
                 case 0: // Up
                     draw->AddTriangleFilled(
@@ -247,28 +263,27 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
         };
 
         // ── Input recognition box (8 slots, centered) ────
-        constexpr float kSlotSize = 20.0f;
-        constexpr float kSlotGap  = 4.0f;
-        float totalSlotW = Res_ChatState::kInputBufferSize * kSlotSize + (Res_ChatState::kInputBufferSize - 1) * kSlotGap;
+        float totalSlotW = Res_ChatState::kInputBufferSize * Layout::Chat::kSlotSize
+                         + (Res_ChatState::kInputBufferSize - 1) * Layout::Chat::kSlotGap;
         float slotStartX = panelX + (panelW - totalSlotW) * 0.5f;
 
         for (int s = 0; s < Res_ChatState::kInputBufferSize; ++s) {
-            float sx = slotStartX + s * (kSlotSize + kSlotGap);
+            float sx = slotStartX + s * (Layout::Chat::kSlotSize + Layout::Chat::kSlotGap);
             float sy = curY;
 
             if (s < chat.inputBufferLen) {
                 // Filled slot — orange border + arrow
-                draw->AddRect(ImVec2(sx, sy), ImVec2(sx + kSlotSize, sy + kSlotSize),
+                draw->AddRect(ImVec2(sx, sy), ImVec2(sx + Layout::Chat::kSlotSize, sy + Layout::Chat::kSlotSize),
                     Col32_Accent(), 2.0f, 0, 2.0f);
-                DrawArrow(sx + kSlotSize * 0.5f, sy + kSlotSize * 0.5f,
-                    static_cast<int>(chat.inputBuffer[s]), Col32_Accent(), 5.0f);
+                DrawArrow(sx + Layout::Chat::kSlotSize * 0.5f, sy + Layout::Chat::kSlotSize * 0.5f,
+                    static_cast<int>(chat.inputBuffer[s]), Col32_Accent(), Layout::Chat::kArrowSize);
             } else {
                 // Empty slot — gray dashed border
-                draw->AddRect(ImVec2(sx, sy), ImVec2(sx + kSlotSize, sy + kSlotSize),
-                    IM_COL32(160, 160, 160, 100), 2.0f, 0, 1.0f);
+                draw->AddRect(ImVec2(sx, sy), ImVec2(sx + Layout::Chat::kSlotSize, sy + Layout::Chat::kSlotSize),
+                    Col32_Gray(100), 2.0f, 0, 1.0f);
             }
         }
-        curY += kInputBoxH;
+        curY += Layout::Chat::kInputBoxH;
 
         // ── Determine which reply is prefix-matched ──────
         int matchedReply = -1;
@@ -284,42 +299,47 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
             }
         }
 
-        // ── Reply options (text + direction sequence) ─────
+        // ── Reply options (wrapped text + direction sequence) ─
         if (bodyFont) ImGui::PushFont(bodyFont);
-        curY += kReplySpacing;
+        curY += Layout::Chat::kReplySpacing;
         for (int i = 0; i < chat.replyCount && i < Res_ChatState::kMaxReplies; ++i) {
             bool isMatch = (i == matchedReply);
+            float itemH = replyItemH[i] - Layout::Chat::kReplyGap;
 
-            // Highlight background for matched option
+            // Highlight background for matched option (dynamic height)
             if (isMatch) {
                 draw->AddRectFilled(
-                    ImVec2(panelX + 6.0f, curY - 2.0f),
-                    ImVec2(panelX + panelW - 6.0f, curY + 40.0f),
+                    ImVec2(panelX + Layout::Chat::kHighlightInset, curY),
+                    ImVec2(panelX + panelW - Layout::Chat::kHighlightInset, curY + itemH),
                     Col32_Accent(30), 2.0f);
             }
 
-            // Text line
+            // Reply text (wrapped)
             ImU32 textColor = isMatch ? Col32_Accent()
                                       : Col32_Text(160);
-            draw->AddText(ImVec2(panelX + 10.0f, curY), textColor, chat.replies[i].text);
+            float textY = curY + Layout::Chat::kReplyItemPadY;
+            draw->AddText(bodyFont, bodyFontSz,
+                ImVec2(panelX + Layout::Chat::kMsgPadX, textY),
+                textColor, chat.replies[i].text, nullptr, wrapW);
+            ImVec2 sz = bodyFont->CalcTextSizeA(
+                bodyFontSz, FLT_MAX, wrapW, chat.replies[i].text);
+            float textH = std::max(sz.y, Layout::Chat::kReplyTextMinH);
 
-            // Direction sequence arrows (below text)
+            // Arrows below text
+            float arrowY = textY + textH + Layout::Chat::kReplyItemPadY;
+            float arrowX = panelX + Layout::Chat::kArrowX0;
             const auto& seq = chat.replySequences[i];
-            float arrowY = curY + 22.0f;
-            float arrowX = panelX + 14.0f;
-            constexpr float kArrowCellW = 18.0f;
 
             for (uint8_t k = 0; k < seq.length; ++k) {
-                // Bright if matched so far, dim otherwise
                 bool keyMatched = isMatch && (k < chat.inputBufferLen);
                 ImU32 arrowColor = keyMatched ? Col32_Accent()
                                              : Col32_Text(80);
-                DrawArrow(arrowX + kArrowCellW * 0.5f, arrowY + 7.0f,
-                    static_cast<int>(seq.keys[k]), arrowColor, 5.0f);
-                arrowX += kArrowCellW;
+                DrawArrow(arrowX + Layout::Chat::kArrowCellW * 0.5f, arrowY + Layout::Chat::kArrowCenterY,
+                    static_cast<int>(seq.keys[k]), arrowColor, Layout::Chat::kArrowSize);
+                arrowX += Layout::Chat::kArrowCellW;
             }
 
-            curY += kReplyItemH;
+            curY += replyItemH[i];
         }
         if (bodyFont) ImGui::PopFont();
 
@@ -328,7 +348,7 @@ void RenderChatPanel(Registry& registry, float /*dt*/) {
         const char* hintText = "[ARROW KEYS] INPUT";
         ImVec2 hintSize = ImGui::CalcTextSize(hintText);
         float hintX = panelX + (panelW - hintSize.x) * 0.5f;
-        draw->AddText(ImVec2(hintX, panelY + panelH - 18.0f),
+        draw->AddText(ImVec2(hintX, panelY + panelH - Layout::Chat::kHintBottomY),
             Col32_Text(100), hintText);
         if (smallFont) ImGui::PopFont();
     }
