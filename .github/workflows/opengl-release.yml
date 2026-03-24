@@ -50,14 +50,11 @@ jobs:
           git clone --depth 1 --branch $env:JSON_TAG https://github.com/nlohmann/json.git External/nlohmann_json
           git clone --depth 1 --branch $env:IMGUI_TAG https://github.com/ocornut/imgui.git External/imgui
 
-      - name: Install Inno Setup (pinned v6.2.2)
+      - name: Install Inno Setup
         shell: pwsh
         run: |
-          $innoUrl = "https://files.jrsoftware.org/is/6/innosetup-6.2.2.exe"
-          $innoInstaller = Join-Path $env:RUNNER_TEMP "innosetup-6.2.2.exe"
-          Invoke-WebRequest -Uri $innoUrl -OutFile $innoInstaller
-          Start-Process -FilePath $innoInstaller -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /DIR=C:\InnoSetup" -Wait
-          Write-Host "Inno Setup 6.2.2 installed at C:\InnoSetup"
+          choco install innosetup --yes --no-progress
+          Write-Host "Inno Setup installed via Chocolatey"
 
       - name: Configure CMake (OpenGL Shipping Release)
         shell: pwsh
@@ -135,7 +132,12 @@ jobs:
           $iconFile = (Resolve-Path "${{ github.workspace }}/CSC8503/app.ico").Path
           $issFile = (Resolve-Path "${{ github.workspace }}/installer/NEUROMANCER_setup.iss").Path
 
-          & "C:\InnoSetup\ISCC.exe" `
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) {
+            $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          }
+          Write-Host "Using ISCC: $iscc"
+          & "$iscc" `
             "/DStageDir=$stageDir" `
             "/DAppVer=${{ inputs.tag }}" `
             "/DOutputPath=$outputDir" `
