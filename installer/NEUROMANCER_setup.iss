@@ -53,7 +53,6 @@ var
   MissingList: String;
   MissingCount: Integer;
   TotalCount: Integer;
-  SkipInstall: Boolean;
 
 procedure AddFile(const RelPath: String);
 var
@@ -138,7 +137,6 @@ end;
 
 procedure InitializeWizard();
 begin
-  SkipInstall := False;
   IntegrityPage := CreateCustomPage(wpSelectDir,
     'Installation Check', 'Checking existing installation...');
 
@@ -183,7 +181,6 @@ begin
         IntegrityMemo.Text := 'A fresh installation will be performed.' + #13#10 +
           'Files to install: ' + IntToStr(TotalCount) + ' checked items + all assets.';
         RepairCheckbox.Visible := False;
-        SkipInstall := False;
       end;
       1:
       begin
@@ -192,7 +189,6 @@ begin
           'Your installation is complete. You can click Cancel to exit,' + #13#10 +
           'or click Next to reinstall/update.';
         RepairCheckbox.Visible := False;
-        SkipInstall := False;
       end;
       2:
       begin
@@ -201,15 +197,9 @@ begin
         IntegrityMemo.Text := MissingList;
         RepairCheckbox.Visible := True;
         RepairCheckbox.Checked := True;
-        SkipInstall := False;
       end;
     end;
   end;
-end;
-
-function ShouldSkipPage(PageID: Integer): Boolean;
-begin
-  Result := False;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;

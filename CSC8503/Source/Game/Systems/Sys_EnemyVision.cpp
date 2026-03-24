@@ -39,6 +39,12 @@ namespace ECS {
 
 static constexpr float PI = 3.14159265358979323846f;
 
+/**
+ * @brief 每帧更新所有敌人的视野感知状态。
+ *
+ * 遍历敌人实体，对每个玩家执行距离/可见度/视锥角判定，
+ * 写入 C_D_AIPerception::is_spotted。Shipping 构建中跳过 FOV 线框可视化。
+ */
 void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
     PAUSE_GUARD(registry);
     if (!registry.has_ctx<Res_VisionConfig>()) return;

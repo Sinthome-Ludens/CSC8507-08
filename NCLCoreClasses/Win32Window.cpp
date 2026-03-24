@@ -1,4 +1,8 @@
-﻿#include "Win32Window.h"
+﻿/**
+ * @file Win32Window.cpp
+ * @brief Win32 窗口创建与消息处理实现。
+ */
+#include "Win32Window.h"
 #ifdef _WIN32
 #include "Windowsx.h"
 #include <fcntl.h>
@@ -39,7 +43,7 @@ Win32Window::Win32Window(const WindowInitialisation& winInitInfo) {
 		windowClass.hCursor		= LoadCursor(NULL, IDC_ARROW);
 		windowClass.hbrBackground = (HBRUSH)COLOR_WINDOW;
 		windowClass.lpszClassName = WINDOWCLASS;
-		windowClass.hIcon		= LoadIcon(windowInstance, MAKEINTRESOURCE(101));
+		windowClass.hIcon		= LoadIcon(windowInstance, MAKEINTRESOURCE(101)); // 101 = IDI_APP_ICON in CSC8503/app.rc
 		windowClass.hIconSm		= LoadIcon(windowInstance, MAKEINTRESOURCE(101));
 
 		if(!RegisterClassEx(&windowClass)) {

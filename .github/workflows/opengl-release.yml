@@ -50,12 +50,14 @@ jobs:
           git clone --depth 1 --branch $env:JSON_TAG https://github.com/nlohmann/json.git External/nlohmann_json
           git clone --depth 1 --branch $env:IMGUI_TAG https://github.com/ocornut/imgui.git External/imgui
 
-      - name: Install Inno Setup
+      - name: Install Inno Setup (pinned v6.2.2)
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/is.exe" -OutFile "$env:RUNNER_TEMP\innosetup.exe"
-          Start-Process -FilePath "$env:RUNNER_TEMP\innosetup.exe" -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /DIR=C:\InnoSetup" -Wait
-          Write-Host "Inno Setup installed at C:\InnoSetup"
+          $innoUrl = "https://files.jrsoftware.org/is/6/innosetup-6.2.2.exe"
+          $innoInstaller = Join-Path $env:RUNNER_TEMP "innosetup-6.2.2.exe"
+          Invoke-WebRequest -Uri $innoUrl -OutFile $innoInstaller
+          Start-Process -FilePath $innoInstaller -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /DIR=C:\InnoSetup" -Wait
+          Write-Host "Inno Setup 6.2.2 installed at C:\InnoSetup"
 
       - name: Configure CMake (OpenGL Shipping Release)
         shell: pwsh
