@@ -168,11 +168,13 @@ void BootstrapRegisterSystems(SystemManager& systems, const GameplaySceneConfig&
     systems.Register<Sys_Audio>           (P::Audio);
 
 #ifdef USE_IMGUI
+  #ifndef GAME_SHIPPING
     systems.Register<Sys_ImGui>             (P::ImGui);
     systems.Register<Sys_ImGuiEntityDebug>  (P::ImGuiEntityDebug);
     systems.Register<Sys_ImGuiEnemyAI>      (P::ImGuiEnemyAI);
     systems.Register<Sys_ImGuiNavTest>      (P::ImGuiNavTest);
     systems.Register<Sys_ImGuiRenderDebug>  (P::ImGuiRenderDebug);
+  #endif
     systems.Register<Sys_Chat>              (P::Chat);
     systems.Register<Sys_UI>                (P::UI);
 #endif

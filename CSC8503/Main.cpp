@@ -516,7 +516,14 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
 // main 函数
 // ============================================================
 
+#ifdef GAME_SHIPPING
+#include <windows.h>
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+    int argc = 0;
+    char** argv = nullptr;
+#else
 int main(int argc, char** argv) {
+#endif
 
     // =========================================================
     // 窗口初始化

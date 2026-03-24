@@ -204,11 +204,13 @@ void Scene_PhysicsTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Item>            (P::Item);
     systems.Register<ECS::Sys_ItemEffects>     (P::ItemEffects);
 #ifdef USE_IMGUI
+  #ifndef GAME_SHIPPING
     systems.Register<ECS::Sys_ImGui>             (P::ImGui);
     systems.Register<ECS::Sys_ImGuiEntityDebug>  (P::ImGuiEntityDebug);
     systems.Register<ECS::Sys_ImGuiEnemyAI>      (P::ImGuiEnemyAI);
     systems.Register<ECS::Sys_ImGuiPhysicsTest>  (P::ImGuiPhysicsTest);  // PhysicsTest 专用面板
     systems.Register<ECS::Sys_ImGuiRenderDebug>  (P::ImGuiRenderDebug);  // 渲染调试面板
+  #endif
     systems.Register<ECS::Sys_Chat>              (P::Chat);
     systems.Register<ECS::Sys_UI>                (P::UI);
 #endif

@@ -64,7 +64,7 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
 
     bool castThisFrame = false;
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) && !defined(GAME_SHIPPING)
     if (m_ShowWindow) {
         ImGui::Begin("Raycast", &m_ShowWindow);
         ImGui::Checkbox("Enable Raycast", &m_EnableRaycast);

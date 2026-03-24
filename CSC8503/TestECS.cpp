@@ -6,6 +6,7 @@
  * 本测试直接使用 std::cout 输出，确保编译通过。
  */
 
+#include <iostream>
 #include "Core/ECS/Registry.h"
 #include "Core/ECS/SystemManager.h"
 #include "Core/ECS/EventBus.h"

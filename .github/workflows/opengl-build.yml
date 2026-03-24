@@ -47,7 +47,8 @@ jobs:
         run: |
           $cfg = "${{ inputs.build_type }}".ToLower()
           $buildDir = "${{ github.workspace }}/cmake-build-$cfg-visual-studio"
-          cmake -S "${{ github.workspace }}" -B "$buildDir" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} -DUSE_OPENGL=ON -DUSE_VULKAN=OFF -DUSE_IMGUI=ON -DASSET_ROOT=./Assets/
+          $shippingFlag = if ("${{ inputs.build_type }}" -eq "Release") { "-DGAME_SHIPPING=ON" } else { "" }
+          cmake -S "${{ github.workspace }}" -B "$buildDir" -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=${{ inputs.build_type }} -DUSE_OPENGL=ON -DUSE_VULKAN=OFF -DUSE_IMGUI=ON $shippingFlag
 
       - name: Build
         shell: pwsh
@@ -106,7 +107,7 @@ jobs:
 
           $assetsRoot = Join-Path $stageDir "Assets"
           New-Item -ItemType Directory -Path $assetsRoot -Force | Out-Null
-          $assetDirs = @("Shaders", "Meshes", "Textures", "Fonts", "Data", "GLTF", "Prefabs")
+          $assetDirs = @("Shaders", "Meshes", "Textures", "Fonts", "Data", "GLTF", "Prefabs", "Audio", "Dialogue")
           foreach ($dir in $assetDirs) {
             $src = Join-Path "${{ github.workspace }}" "Assets/$dir"
             if (Test-Path $src) {

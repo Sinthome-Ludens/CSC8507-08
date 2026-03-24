@@ -39,6 +39,8 @@ Win32Window::Win32Window(const WindowInitialisation& winInitInfo) {
 		windowClass.hCursor		= LoadCursor(NULL, IDC_ARROW);
 		windowClass.hbrBackground = (HBRUSH)COLOR_WINDOW;
 		windowClass.lpszClassName = WINDOWCLASS;
+		windowClass.hIcon		= LoadIcon(windowInstance, MAKEINTRESOURCE(101));
+		windowClass.hIconSm		= LoadIcon(windowInstance, MAKEINTRESOURCE(101));
 
 		if(!RegisterClassEx(&windowClass)) {
 			std::cout << __FUNCTION__ << " Failed to register class!\n";

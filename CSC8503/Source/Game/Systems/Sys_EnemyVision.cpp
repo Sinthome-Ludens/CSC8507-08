@@ -171,7 +171,7 @@ void Sys_EnemyVision::OnUpdate(Registry& registry, float /*dt*/) {
             perception.is_spotted = spotted;
             perception.spotted_distance = spotted ? spottedDistXZ : 0.0f;
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) && !defined(GAME_SHIPPING)
             // FOV 可视化：仅线框模式下画扇形视锥轮廓
             bool wireframe = false;
             if (registry.has_ctx<Res_UIFlags>()) {

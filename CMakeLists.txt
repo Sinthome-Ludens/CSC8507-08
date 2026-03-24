@@ -59,6 +59,11 @@ if(USE_IMGUI)
     add_compile_definitions("USE_IMGUI")
 endif()
 
+option(GAME_SHIPPING "Shipping build: disable debug panels" OFF)
+if(GAME_SHIPPING)
+    add_compile_definitions("GAME_SHIPPING")
+endif()
+
 ################################################################################
 # Use solution folders feature
 ################################################################################
@@ -70,8 +75,14 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 if(USE_VULKAN)
 	find_package(Vulkan)
 endif() 
-set(ASSET_ROOT "${CMAKE_SOURCE_DIR}/Assets/" CACHE STRING "Asset root directory")
-add_compile_definitions(ASSETROOTLOCATION="${ASSET_ROOT}") 
+if(GAME_SHIPPING)
+    set(ASSET_ROOT "RUNTIME_RESOLVE" CACHE STRING "Asset root directory" FORCE)
+    add_compile_definitions(ASSETROOTLOCATION="RUNTIME_RESOLVE")
+    add_compile_definitions(ASSET_PATH_RUNTIME_RESOLVE)
+else()
+    set(ASSET_ROOT "${CMAKE_SOURCE_DIR}/Assets/" CACHE STRING "Asset root directory")
+    add_compile_definitions(ASSETROOTLOCATION="${ASSET_ROOT}")
+endif() 
 
 if(USE_VULKAN)
     add_compile_definitions("USEVULKAN") 

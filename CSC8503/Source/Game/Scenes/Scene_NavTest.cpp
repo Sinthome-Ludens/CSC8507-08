@@ -114,7 +114,7 @@ void Scene_NavTest::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Render>   (200);   // ECS 实体 → NCL 代理对象桥接
     systems.Register<ECS::Sys_EnemyAI>  (250);   // 敌人感知检测 + 四状态切换（读取 C_D_AIPerception::is_spotted）
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) && !defined(GAME_SHIPPING)
     systems.Register<ECS::Sys_ImGui>           (300);   // 菜单栏 + 性能窗口
     systems.Register<ECS::Sys_ImGuiEntityDebug>(305);   // 全量实体列表 + 详情面板
     systems.Register<ECS::Sys_ImGuiNavTest>    (310);   // NavTest 敌人/目标生成控制面板
