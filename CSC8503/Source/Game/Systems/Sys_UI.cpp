@@ -137,10 +137,12 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
 
     // titleTimer 由 UI_TitleScreen::RenderTitleScreen 自行递增，此处不再重复
 
-    // F1: toggle devMode
     const auto& input = registry.ctx<Res_Input>();
     Res_UIKeyConfig defaultUiCfg;
     const auto& uiCfg = registry.has_ctx<Res_UIKeyConfig>() ? registry.ctx<Res_UIKeyConfig>() : defaultUiCfg;
+
+#ifndef GAME_SHIPPING
+    // F1: toggle devMode
     if (input.keyPressed[uiCfg.keyDevMode]) {
         ui.devMode = !ui.devMode;
         LOG_INFO("[Sys_UI] DevMode: " << (ui.devMode ? "ON" : "OFF"));
@@ -219,6 +221,7 @@ void Sys_UI::OnUpdate(Registry& registry, float dt) {
             LOG_INFO("[DevMode] F9 Interactables enabled=" << newVal);
         }
     }
+#endif // GAME_SHIPPING
 
     // ── UI 点击音效（仅在菜单画面触发，游玩 HUD 状态不触发）──
     auto* audioBus = registry.has_ctx<EventBus*>() ? registry.ctx<EventBus*>() : nullptr;

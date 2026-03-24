@@ -88,8 +88,10 @@ void Scene_MainMenu::OnEnter(ECS::Registry&          registry,
     }
 
     systems.Register<ECS::Sys_Input>            ( 10);
+  #ifndef GAME_SHIPPING
     systems.Register<ECS::Sys_ImGui>           (300);
     systems.Register<ECS::Sys_ImGuiEntityDebug>(310);
+  #endif
     systems.Register<ECS::Sys_UI>              (500);
 #endif
     systems.Register<ECS::Sys_Audio>           (275);

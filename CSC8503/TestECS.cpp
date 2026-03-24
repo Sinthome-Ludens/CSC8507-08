@@ -6,6 +6,7 @@
  * 本测试直接使用 std::cout 输出，确保编译通过。
  */
 
+#include <iostream>
 #include "Core/ECS/Registry.h"
 #include "Core/ECS/SystemManager.h"
 #include "Core/ECS/EventBus.h"
@@ -17,7 +18,6 @@
 #include "Game/Events/Evt_Net_PeerDisconnected.h"
 #include "Game/Events/Evt_Net_GameAction.h"
 
-#include <iostream>
 #include <cmath>
 
 // 测试用组件定义

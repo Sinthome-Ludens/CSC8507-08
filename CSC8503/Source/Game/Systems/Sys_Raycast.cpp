@@ -57,6 +57,12 @@ void Sys_Raycast::OnAwake(Registry& /*registry*/) {
     LOG_INFO("[Sys_Raycast] OnAwake");
 }
 
+/**
+ * @brief 每帧更新射线检测调试面板及射线投射。
+ *
+ * 非 Shipping 构建下渲染 ImGui 调试窗口（参数调整 + 结果显示）；
+ * Shipping 构建中该窗口被编译剔除。
+ */
 void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
     if (registry.has_ctx<Res_UIFlags>()) {
         m_ShowWindow = registry.ctx<Res_UIFlags>().showRaycast;
@@ -64,7 +70,7 @@ void Sys_Raycast::OnUpdate(Registry& registry, float /*dt*/) {
 
     bool castThisFrame = false;
 
-#ifdef USE_IMGUI
+#if defined(USE_IMGUI) && !defined(GAME_SHIPPING)
     if (m_ShowWindow) {
         ImGui::Begin("Raycast", &m_ShowWindow);
         ImGui::Checkbox("Enable Raycast", &m_EnableRaycast);

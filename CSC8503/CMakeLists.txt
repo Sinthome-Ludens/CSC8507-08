@@ -100,7 +100,7 @@ endif()
 ################################################################################
 # Target
 ################################################################################
-add_executable(${PROJECT_NAME}  ${ALL_FILES})
+add_executable(${PROJECT_NAME}  ${ALL_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/app.rc)
 
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
 set(ROOT_NAMESPACE CSC8503)
@@ -111,6 +111,12 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 set_target_properties(${PROJECT_NAME} PROPERTIES
     INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
 )
+
+if(GAME_SHIPPING)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        WIN32_EXECUTABLE TRUE
+    )
+endif()
 
 ################################################################################
 # Compile definitions

@@ -130,9 +130,11 @@ void Scene_NetworkGame::OnEnter(ECS::Registry&          registry,
     systems.Register<ECS::Sys_Audio>        (275);
 #ifdef USE_IMGUI
     if (!isSameMapBootstrap) {
+  #ifndef GAME_SHIPPING
         systems.Register<ECS::Sys_ImGui>           (300);
         systems.Register<ECS::Sys_ImGuiEntityDebug>(310);
         systems.Register<ECS::Sys_ImGuiRenderDebug>(445);   // 渲染参数调试面板
+  #endif
         systems.Register<ECS::Sys_Chat>            (450);
     }
     systems.Register<ECS::Sys_UI>              (500);

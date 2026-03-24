@@ -516,7 +516,27 @@ static void ProcessUIRequests(ECS::SceneManager& sceneManager, Window* w, bool& 
 // main 函数
 // ============================================================
 
+#ifdef GAME_SHIPPING
+#include <windows.h>
+/**
+ * @brief Windows 子系统入口点（Shipping 构建）。
+ *
+ * 在发布版本中作为 Win32 GUI 子系统入口被操作系统调用，
+ * 构造空的 argc/argv 后执行与 main() 相同的初始化与主循环。
+ * 使用 WINDOWS 子系统避免弹出控制台窗口。
+ */
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
+    int argc = 0;
+    char** argv = nullptr;
+#else
+/**
+ * @brief 控制台入口点（Debug / 非 Shipping 构建）。
+ *
+ * 从命令行接收 argc/argv，执行窗口初始化、NCL 引擎构建、
+ * ECS 场景管理和主游戏循环，窗口关闭后清理并返回退出码。
+ */
 int main(int argc, char** argv) {
+#endif
 
     // =========================================================
     // 窗口初始化
