@@ -124,6 +124,7 @@ void BootstrapEmplaceCtx(Registry& registry, ::IScene* scene, MeshHandle cubeMes
         if (len >= sizeof(cs.forcedTreeId)) len = sizeof(cs.forcedTreeId) - 1;
         std::memcpy(cs.forcedTreeId, config.forcedTreeId, len);
         cs.forcedTreeId[len] = '\0';
+        cs.lockToForcedTree = true;
     }
 #endif
 }

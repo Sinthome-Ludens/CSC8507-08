@@ -61,6 +61,7 @@ struct Res_ChatState {
     char    forcedTreeId[32] = {};    ///< 非空时强制使用指定 treeId（场景可设置）
     char    pendingAutoNextId[32] = {}; ///< auto-advance 节点的预存跳转目标（"..."回复确认后使用）
     bool    treeFinished     = false; ///< 对话树已正常结束，不再重启
+    bool    lockToForcedTree = false;///< true = mode 切换时不启动新树（场景指定了 forcedTreeId）
 
     float   nextMessageTimer = 0.0f;
     float   nextMessageDelay = 8.0f;

@@ -111,6 +111,11 @@ bool LoadDialogueSequenceFromJSON(const std::string& filepath, DialogueSequence&
                         strncpy(tree.treeId, node.id, sizeof(tree.treeId) - 1);
                     }
                     tree.treeId[sizeof(tree.treeId) - 1] = '\0';
+                    // exclusive: 仅通过 forcedTreeId 可选，不参与随机选树
+                    if (nodeJson.contains("exclusive") && nodeJson["exclusive"].get<bool>()) {
+                        tree.exclusive = true;
+                    }
+
                     outSeq.treeCount++;
                 }
             }

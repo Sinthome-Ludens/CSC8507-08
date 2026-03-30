@@ -4,6 +4,7 @@
     {
       "id": "nt_001",
       "isRoot": true,
+      "exclusive": true,
       "treeId": "0",
       "speaker": "HANDLER",
       "message": "welcome",
