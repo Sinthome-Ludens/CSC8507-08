@@ -359,12 +359,15 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
         newMode = 2;
     }
 
-    if (newMode != chat.chatMode) {
+    // lockToForcedTree: keep chatMode fixed so GetSequence always resolves the
+    // forced tree's nodes — changing chatMode while keeping the old node id would
+    // make FindNodeByID fail against a different DialogueSequence.
+    if (newMode != chat.chatMode && !chat.lockToForcedTree) {
         chat.chatMode = newMode;
         ChatState_ClearReplies(chat);
 
-        // If the tree already finished or locked to forced tree, do NOT start a new one on mode switch
-        if (!chat.treeFinished && !chat.lockToForcedTree) {
+        // If the tree already finished, do NOT start a new one on mode switch
+        if (!chat.treeFinished) {
             const DialogueSequence* seq = GetSequence(dialogueData, chat.chatMode);
             if (!seq || !SelectTree(*seq, chat.forcedTreeId, chat.currentNodeId, sizeof(chat.currentNodeId))) {
                 chat.currentNodeId[0] = '\0';
