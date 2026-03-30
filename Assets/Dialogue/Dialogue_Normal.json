@@ -94,7 +94,7 @@
       "replies": [{ "text": "？", "alertDelta": 0, "next": "" }] },
 
 
-    { "id": "nt_01", "isRoot": true, "treeId": "0", "speaker": "HANDLER", "message": "欢迎", "waitReply": false, "next": "nt_02", "comment": "教程对话树" },
+    { "id": "nt_01", "isRoot": true, "exclusive": true, "treeId": "0", "speaker": "HANDLER", "message": "欢迎", "waitReply": false, "next": "nt_02", "comment": "教程对话树" },
     { "id": "nt_02", "speaker": "HANDLER", "message": "客套话我就不说了，你既然来了，想必你早就知道我们组织的风格了", "waitReply": false, "next": "nt_03" },
     { "id": "nt_03", "speaker": "HANDLER", "message": "接下来我会来扮演你的目标", "waitReply": false, "next": "nt_04" },
     { "id": "nt_04", "speaker": "HANDLER", "message": "现在回复我的消息，错过了回复窗口会导致敌人的警戒上升",

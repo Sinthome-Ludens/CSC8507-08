@@ -101,6 +101,7 @@ bool LoadDialogueSequenceFromJSON(const std::string& filepath, DialogueSequence&
             if (nodeJson.contains("isRoot") && nodeJson["isRoot"].get<bool>()) {
                 if (outSeq.treeCount < DialogueSequence::kMaxTrees) {
                     auto& tree = outSeq.trees[outSeq.treeCount];
+                    memset(&tree, 0, sizeof(tree));
                     strncpy(tree.rootNodeId, node.id, sizeof(tree.rootNodeId) - 1);
                     tree.rootNodeId[sizeof(tree.rootNodeId) - 1] = '\0';
                     // treeId: 从 JSON 读取，若无则回退到 node.id
@@ -111,6 +112,11 @@ bool LoadDialogueSequenceFromJSON(const std::string& filepath, DialogueSequence&
                         strncpy(tree.treeId, node.id, sizeof(tree.treeId) - 1);
                     }
                     tree.treeId[sizeof(tree.treeId) - 1] = '\0';
+                    // exclusive: 仅通过 forcedTreeId 可选，不参与随机选树
+                    if (nodeJson.contains("exclusive") && nodeJson["exclusive"].get<bool>()) {
+                        tree.exclusive = true;
+                    }
+
                     outSeq.treeCount++;
                 }
             }

@@ -91,6 +91,8 @@ namespace ECS {
 // ============================================================
 // BootstrapEmplaceCtx
 // ============================================================
+
+/** @brief 注册所有 gameplay scene 共用的 ctx 资源，含 forcedTreeId 设置。 */
 void BootstrapEmplaceCtx(Registry& registry, ::IScene* scene, MeshHandle cubeMesh,
                           const GameplaySceneConfig& config) {
     if (!registry.has_ctx<Res_UIFlags>())
@@ -124,6 +126,7 @@ void BootstrapEmplaceCtx(Registry& registry, ::IScene* scene, MeshHandle cubeMes
         if (len >= sizeof(cs.forcedTreeId)) len = sizeof(cs.forcedTreeId) - 1;
         std::memcpy(cs.forcedTreeId, config.forcedTreeId, len);
         cs.forcedTreeId[len] = '\0';
+        cs.lockToForcedTree = true;
     }
 #endif
 }

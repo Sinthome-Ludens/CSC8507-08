@@ -103,10 +103,16 @@ static uint32_t HashNodeId(const char* id) {
  * @brief 从对话序列的多棵树中随机选一棵，将其 rootNodeId 写入 dst。
  */
 static bool PickRandomTree(const DialogueSequence& seq, char* dst, int dstSize) {
-    if (seq.treeCount <= 0) return false;
+    int candidates[DialogueSequence::kMaxTrees];
+    int count = 0;
+    for (int i = 0; i < seq.treeCount; ++i) {
+        if (!seq.trees[i].exclusive)
+            candidates[count++] = i;
+    }
+    if (count <= 0) return false;
     static std::mt19937 rng(std::random_device{}());
-    int idx = std::uniform_int_distribution<int>(0, seq.treeCount - 1)(rng);
-    strncpy(dst, seq.trees[idx].rootNodeId, dstSize - 1);
+    int pick = candidates[std::uniform_int_distribution<int>(0, count - 1)(rng)];
+    strncpy(dst, seq.trees[pick].rootNodeId, dstSize - 1);
     dst[dstSize - 1] = '\0';
     return true;
 }
@@ -298,6 +304,15 @@ void Sys_Chat::OnAwake(Registry& registry) {
     // Always reset dialogue progress — select a dialogue tree (forced or random)
     // Note: forcedTreeId may have been set by the scene *before* OnAwake (e.g., TutorialLevel).
     // We read it first, then clear it so it doesn't persist to the next map.
+    // lockToForcedTree is only valid when forcedTreeId was set for this scene;
+    // reset it for scenes that don't force a tree (e.g., after tutorial → normal level).
+    if (chat.forcedTreeId[0] == '\0') {
+        chat.lockToForcedTree = false;
+    }
+    // Reset chatMode to proactive (mode 0) — alertLevel starts at 0 in every new scene,
+    // and OnUpdate may not run immediately (UIScreen guard), so stale chatMode from
+    // a previous scene would cause tree selection from the wrong dialogue sequence.
+    chat.chatMode = 0;
     const DialogueSequence* seq = GetSequence(dialogueData, chat.chatMode);
     if (!seq || !SelectTree(*seq, chat.forcedTreeId, chat.currentNodeId, sizeof(chat.currentNodeId))) {
         chat.currentNodeId[0] = '\0';
@@ -344,7 +359,10 @@ void Sys_Chat::OnUpdate(Registry& registry, float dt) {
         newMode = 2;
     }
 
-    if (newMode != chat.chatMode) {
+    // lockToForcedTree: keep chatMode fixed so GetSequence always resolves the
+    // forced tree's nodes — changing chatMode while keeping the old node id would
+    // make FindNodeByID fail against a different DialogueSequence.
+    if (newMode != chat.chatMode && !chat.lockToForcedTree) {
         chat.chatMode = newMode;
         ChatState_ClearReplies(chat);
 
